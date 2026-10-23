@@ -70,7 +70,7 @@ def _server_cases(c, HJ, dbs):
     _RUN[0] += 1
     n = _RUN[0]
     out = {}
-    now = datetime.utcnow()
+    now = datetime.now()
     with dbs() as s:
         stale = Account(name=f'S131 Stale {n}')
         fresh = Account(name=f'S131 Fresh {n}')

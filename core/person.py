@@ -39,7 +39,7 @@ DELETION_MODES = ('deactivate', 'delete_if_unused')
 
 
 def _now():
-    return datetime.utcnow().isoformat(timespec='seconds')
+    return datetime.now().isoformat(timespec='seconds')
 
 
 @dataclass

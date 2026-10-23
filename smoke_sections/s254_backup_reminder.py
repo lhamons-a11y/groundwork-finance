@@ -107,7 +107,7 @@ def run(ctx):
           (found.get('last') or {}).get('file') == 'groundwork_backup_20261001_090000.gwbk'
           and (found.get('last') or {}).get('from_file'))
     check(f"s254 after an upgrade migrates the database, the migrated one is backed up too and is the latest ({made})",
-          len(made) == 1 and after.get('after_upgrade') and after.get('file') == made[0] and 'utc' in after
+          len(made) == 1 and after.get('after_upgrade') and after.get('file') == made[0] and 'utc' not in after   # item 109: local time only
           and pre.get('after_name') == made[0])
 
     src = ctx.server_src

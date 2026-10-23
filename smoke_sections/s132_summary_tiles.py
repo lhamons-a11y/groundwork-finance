@@ -92,7 +92,7 @@ def run(ctx):
     import server
     _RUN[0] += 1
     n = _RUN[0]
-    now = datetime.utcnow()
+    now = datetime.now()
     start = datetime(now.year, now.month, 1)
     with ctx.dbs() as s:
         old, cur, hand = Account(name=f'S132 Old {n}'), Account(name=f'S132 Current {n}'), Account(name=f'S132 Hand {n}')

@@ -80,7 +80,7 @@ def restore(session, set_aside_id):
             entry.linked_checking_transaction_id = txn.id
             link = _unrow(CheckingTransactionLink, dict(ln, id=None, checking_transaction_id=txn.id))
             session.add(link)
-    sa.restored_at = datetime.utcnow()
+    sa.restored_at = datetime.now()
     from core import bank_versions
     bank_versions.undone_by_restore(session, sa.id)     # item 93 B9: a restored pending line counts again
     session.flush()
@@ -183,7 +183,7 @@ def resolve(session, held_id, answer, insert_fn):
     elif answer != 'same':
         return None, 'answer bring_in or same'
     h.resolved = answer
-    h.resolved_at = datetime.utcnow()
+    h.resolved_at = datetime.now()
     session.flush()
     return h, None
 

@@ -127,7 +127,7 @@ def run(ctx):
         with ctx.dbs() as s:
             prior = s.query(AppSetting).filter_by(key='nw_goals_json').first()
             prior_val = prior.value if prior else None
-            day = datetime.utcnow()
+            day = datetime.now()
             zero_snap = s.query(NetWorthSnapshot).filter_by(snapshot_date=month, net_worth=0).first()
             zero_snap.created_at = day
             for actual, when in ((0.0, day), (48000.0, day - timedelta(days=40)), (50000.0, day - timedelta(days=10))):

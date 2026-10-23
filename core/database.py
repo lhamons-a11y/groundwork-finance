@@ -65,7 +65,7 @@ class Account(Base):
     balance         = Column(Float, default=0.0)
     sort_order      = Column(Integer, default=0)
     is_active       = Column(Boolean, default=True)
-    created_at      = Column(DateTime, default=datetime.utcnow)
+    created_at      = Column(DateTime, default=datetime.now)
     minimum_balance = Column(Float, default=0.0)
     # The bank website this account's statements are downloaded from
     # (BANK_BROWSER.md F3/F4/F5). Launch configuration, not evidence and never
@@ -86,7 +86,7 @@ class Category(Base):
     is_system  = Column(Boolean, default=False)
     is_optional = Column(Boolean, default=False)   # optional categories off by default
     is_enabled  = Column(Boolean, default=True)    # user can disable optional categories
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now)
     transactions = relationship('Transaction', back_populates='category', lazy='dynamic')
 
 
@@ -103,7 +103,7 @@ class Transaction(Base):
     cleared     = Column(Boolean, default=True)
     memo        = Column(Text, default='')
     import_id   = Column(String(64), default='')
-    created_at  = Column(DateTime, default=datetime.utcnow)
+    created_at  = Column(DateTime, default=datetime.now)
     merchant       = Column(String(120), default='')
     posted_date    = Column(Date, nullable=True)
     running_balance= Column(Float, nullable=True)
@@ -133,7 +133,7 @@ class BudgetItem(Base):
     type       = Column(String(10), default='expense')
     sort_order = Column(Integer, default=0)
     is_active  = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now)
 
 
 class WillingnessDeclaration(Base):
@@ -156,7 +156,7 @@ class WillingnessDeclaration(Base):
     stance      = Column(String(10), nullable=False)
     answer_kind = Column(String(10), nullable=False)
     answer_text = Column(Text, default='')
-    said_at     = Column(DateTime, default=datetime.utcnow, nullable=False)
+    said_at     = Column(DateTime, default=datetime.now, nullable=False)
 
 
 class HouseholdFact(Base):
@@ -177,7 +177,7 @@ class HouseholdFact(Base):
     value       = Column(String(80), nullable=True)
     answered_at = Column(DateTime, nullable=True)
     source      = Column(String(20), nullable=False)
-    recorded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    recorded_at = Column(DateTime, default=datetime.now, nullable=False)
 
 
 class DebtAccount(Base):
@@ -193,7 +193,7 @@ class DebtAccount(Base):
     is_active       = Column(Boolean, default=True)
     paid_off_at     = Column(DateTime, nullable=True)
     sort_order      = Column(Integer, default=0)
-    created_at      = Column(DateTime, default=datetime.utcnow)
+    created_at      = Column(DateTime, default=datetime.now)
     linked_account_id = Column(Integer, ForeignKey('accounts.id'), nullable=True)
     linked_account    = relationship('Account')
     credit_limit      = Column(Float, nullable=True)
@@ -226,7 +226,7 @@ class DebtBalanceHistory(Base):
     # row (SQLAlchemy's declarative constructor rejects unknown kwargs).
     interest_charged      = Column(Float, nullable=True)
     statement_period_end  = Column(String(10), nullable=True)
-    saved_at              = Column(DateTime, default=datetime.utcnow)
+    saved_at              = Column(DateTime, default=datetime.now)
 
 
 class DebtLedgerEntry(Base):
@@ -261,8 +261,8 @@ class DebtLedgerEntry(Base):
     # entry_date) is checked before materializing a new draft, so re-running
     # the generator never creates duplicates for a due date already handled.
     linked_recurring_payment_id = Column(Integer, ForeignKey('recurring_debt_payments.id'), nullable=True)
-    created_at       = Column(DateTime, default=datetime.utcnow)
-    updated_at       = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at       = Column(DateTime, default=datetime.now)
+    updated_at       = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     debt_account                = relationship('DebtAccount')
     linked_checking_transaction = relationship('Transaction')
@@ -290,7 +290,7 @@ class RecurringDebtPayment(Base):
     frequency               = Column(String(10), default='monthly')   # 'monthly' | 'biweekly' | 'weekly'
     is_active               = Column(Boolean, default=True)
     is_auto_confirm         = Column(Boolean, default=False)   # reserved — user opt-in, not wired yet
-    created_at              = Column(DateTime, default=datetime.utcnow)
+    created_at              = Column(DateTime, default=datetime.now)
     last_confirmed_at       = Column(DateTime, nullable=True)
     last_executed_at        = Column(DateTime, nullable=True)
     created_from_transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=True)
@@ -314,7 +314,7 @@ class SetAsideTransaction(Base):
     links_json   = Column(Text, default='[]')          # its debt links, to reconnect on restore
     reason       = Column(String(200), default='')
     batch        = Column(String(36), nullable=True)
-    set_aside_at = Column(DateTime, default=datetime.utcnow)
+    set_aside_at = Column(DateTime, default=datetime.now)
     restored_at  = Column(DateTime, nullable=True)
 
 
@@ -327,7 +327,7 @@ class ImportHeldLine(Base):
     record_json   = Column(Text, nullable=False)       # the line as the import read it
     matched_id    = Column(Integer, nullable=True)     # the ledger line it looked like
     batch         = Column(String(36), nullable=True)
-    created_at    = Column(DateTime, default=datetime.utcnow)
+    created_at    = Column(DateTime, default=datetime.now)
     resolved      = Column(String(10), default='')     # '' | bring_in | same
     resolved_at   = Column(DateTime, nullable=True)
     brought_in_id = Column(Integer, nullable=True)
@@ -344,7 +344,7 @@ class TransactionCorrection(Base):
     field          = Column(String(20), nullable=False)            # date | description | amount | category | type
     before         = Column(Text, default='')
     after          = Column(Text, default='')
-    corrected_at   = Column(DateTime, default=datetime.utcnow)
+    corrected_at   = Column(DateTime, default=datetime.now)
     via            = Column(String(120), default='')               # the page route that made it, when there was one
 
 
@@ -364,7 +364,7 @@ class PendingPosted(Base):
     how            = Column(String(10), default='')     # bank_id | your_yes | '' while only suggested
     state          = Column(String(10), default='suggested')   # suggested | paired | declined | undone
     set_aside_id   = Column(Integer, nullable=True)     # the pending line, set aside whole once paired
-    created_at     = Column(DateTime, default=datetime.utcnow)
+    created_at     = Column(DateTime, default=datetime.now)
     decided_at     = Column(DateTime, nullable=True)
 
 
@@ -378,7 +378,7 @@ class AccountBank(Base):
     party_id     = Column(Integer, ForeignKey('parties.id'), nullable=True)   # NULL: "not a bank account"
     utterance_id = Column(Integer, ForeignKey('utterances.id'), nullable=False)
     name         = Column(String(120), default='')      # as the person named it - the utterance's content, repeated
-    said_at      = Column(DateTime, default=datetime.utcnow)
+    said_at      = Column(DateTime, default=datetime.now)
 
 
 class StandingStatement(Base):
@@ -392,7 +392,7 @@ class StandingStatement(Base):
     payee                  = Column(String(120), nullable=False)    # as the person named it, matched in the line
     payee_party_id         = Column(Integer, ForeignKey('parties.id'), nullable=True)
     utterance_id           = Column(Integer, ForeignKey('utterances.id'), nullable=False)
-    said_at                = Column(DateTime, default=datetime.utcnow)
+    said_at                = Column(DateTime, default=datetime.now)
     withdrawn_at           = Column(DateTime, nullable=True)
     withdrawn_utterance_id = Column(Integer, ForeignKey('utterances.id'), nullable=True)
 
@@ -410,7 +410,7 @@ class LedgerLineRecord(Base):
     utterance_id   = Column(Integer, ForeignKey('utterances.id'), nullable=False)
     via            = Column(String(20), default='line')   # line | standing | care | debt | reimburse | reversal
     standing_id    = Column(Integer, nullable=True)
-    created_at     = Column(DateTime, default=datetime.utcnow)
+    created_at     = Column(DateTime, default=datetime.now)
 
 
 class EarlierAnswer(Base):
@@ -424,7 +424,7 @@ class EarlierAnswer(Base):
     source_id    = Column(Integer, nullable=False)
     utterance_id = Column(Integer, ForeignKey('utterances.id'), nullable=False)
     first_said   = Column(String(19), nullable=True)
-    confirmed_at = Column(DateTime, default=datetime.utcnow)
+    confirmed_at = Column(DateTime, default=datetime.now)
 
 
 class ReversalAnswer(Base):
@@ -436,7 +436,7 @@ class ReversalAnswer(Base):
     debit_id     = Column(Integer, nullable=False)
     answer       = Column(String(4), nullable=False)        # yes | no
     utterance_id = Column(Integer, ForeignKey('utterances.id'), nullable=True)
-    answered_at  = Column(DateTime, default=datetime.utcnow)
+    answered_at  = Column(DateTime, default=datetime.now)
 
 
 class CheckingTransactionLink(Base):
@@ -451,7 +451,7 @@ class CheckingTransactionLink(Base):
     checking_transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=False)
     debt_ledger_entry_id    = Column(Integer, ForeignKey('debt_ledger_entries.id'), nullable=False)
     link_indicator          = Column(String(20), nullable=False)   # 'payment_to_card' | 'charge_from_card'
-    created_at              = Column(DateTime, default=datetime.utcnow)
+    created_at              = Column(DateTime, default=datetime.now)
     user_confirmed_at       = Column(DateTime, nullable=True)
 
     checking_transaction = relationship('Transaction')
@@ -590,7 +590,7 @@ class HistorianEntry(Base):
     variance_pct    = Column(Float, nullable=True)
     variance_amount = Column(Float, nullable=True)
     context_json    = Column(Text, nullable=True)
-    created_at      = Column(DateTime, default=datetime.utcnow)
+    created_at      = Column(DateTime, default=datetime.now)
     # One foreign key per referable entity, following the convention `debt_account_id` and
     # `category_id` already set. Sprawl is the price of enforceability, and this project has
     # consistently paid it: a polymorphic (entity_type, entity_id) pair avoids the nullable
@@ -631,7 +631,7 @@ class Trip(Base):
     actual_txn_ids = Column(Text, default='')
     going_at       = Column(DateTime, nullable=True)
     done_at        = Column(DateTime, nullable=True)
-    created_at     = Column(DateTime, default=datetime.utcnow)
+    created_at     = Column(DateTime, default=datetime.now)
 
 
 class HealthAccountTerms(Base):
@@ -654,7 +654,7 @@ class HealthAccountTerms(Base):
     typed_contributions = Column(Float, nullable=True)        # HSA: a total the person typed (F4, labelled typed)
     typed_balance    = Column(Float, nullable=True)           # a balance the person typed, with its date (F1)
     typed_balance_on = Column(String(10), nullable=True)
-    created_at       = Column(DateTime, default=datetime.utcnow)
+    created_at       = Column(DateTime, default=datetime.now)
 
 
 class TripBooking(Base):
@@ -684,8 +684,8 @@ class TripBooking(Base):
     charged_amount       = Column(Float, nullable=True)
     refund_transaction_id  = Column(Integer, ForeignKey('transactions.id'), nullable=True)
     refund_debt_entry_id   = Column(Integer, ForeignKey('debt_ledger_entries.id'), nullable=True)
-    created_at           = Column(DateTime, default=datetime.utcnow)
-    updated_at           = Column(DateTime, default=datetime.utcnow)
+    created_at           = Column(DateTime, default=datetime.now)
+    updated_at           = Column(DateTime, default=datetime.now)
 
 
 class TripHistory(Base):
@@ -710,8 +710,8 @@ class TripHistory(Base):
     estimated_by_category = Column(Text, nullable=True)   # JSON
     actual_by_category    = Column(Text, nullable=True)   # JSON
     learned_basis_json   = Column(Text, nullable=True)
-    created_at           = Column(DateTime, default=datetime.utcnow)
-    updated_at           = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at           = Column(DateTime, default=datetime.now)
+    updated_at           = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     __table_args__ = (
         Index('ix_trip_history_region', 'region'),
@@ -727,7 +727,7 @@ class PdfExtractCache(Base):
     source_hash    = Column(String(64), primary_key=True)
     issuer         = Column(String(40), default='')
     extracted_json = Column(Text, nullable=False)
-    created_at     = Column(DateTime, default=datetime.utcnow)
+    created_at     = Column(DateTime, default=datetime.now)
 
 
 class FlightPriceCache(Base):
@@ -747,7 +747,7 @@ class FlightPriceCache(Base):
     price_total    = Column(Float, nullable=True)
     airline        = Column(String(120), nullable=True)
     raw_json       = Column(Text, nullable=True)
-    fetched_at     = Column(DateTime, default=datetime.utcnow)
+    fetched_at     = Column(DateTime, default=datetime.now)
 
 
 class ReimbursableItem(Base):
@@ -764,7 +764,7 @@ class ReimbursableItem(Base):
     amount               = Column(Float, nullable=False)
     original_category_id = Column(Integer, ForeignKey('categories.id'), nullable=True)
     status               = Column(String(12), nullable=False, default='waiting')
-    marked_at            = Column(DateTime, default=datetime.utcnow)
+    marked_at            = Column(DateTime, default=datetime.now)
     closed_at            = Column(DateTime, nullable=True)
 
 
@@ -778,7 +778,7 @@ class ReimbursementMatch(Base):
     credit_transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=False)
     amount                = Column(Float, nullable=False)
     original_category_id  = Column(Integer, ForeignKey('categories.id'), nullable=True)
-    matched_at            = Column(DateTime, default=datetime.utcnow)
+    matched_at            = Column(DateTime, default=datetime.now)
 
 
 class AiLog(Base):
@@ -787,7 +787,7 @@ class AiLog(Base):
     kept 90 days (G4); left out of backups and exports unless the person includes it (G5)."""
     __tablename__ = 'ai_log'
     id          = Column(Integer, primary_key=True)
-    created_at  = Column(DateTime, default=datetime.utcnow)
+    created_at  = Column(DateTime, default=datetime.now)
     call_id     = Column(String(64), default='')      # the attempts of one request share it (the panel's link)
     attempt     = Column(Integer, default=1)
     surface     = Column(String(80), default='')
@@ -812,9 +812,9 @@ class BillReading(Base):
     due_date       = Column(Date, nullable=True)         # None: the page's figure would not read as a date
     read_at        = Column(DateTime, nullable=False)
     source_host    = Column(String(255), default='')
-    confirmed_at   = Column(DateTime, default=datetime.utcnow)
+    confirmed_at   = Column(DateTime, default=datetime.now)
     use_for_month  = Column(Boolean, default=False)
-    created_at     = Column(DateTime, default=datetime.utcnow)
+    created_at     = Column(DateTime, default=datetime.now)
 
 
 class BudgetPlan(Base):
@@ -827,7 +827,7 @@ class BudgetPlan(Base):
     total_saved   = Column(Float, default=0.0)
     streak_count  = Column(Integer, default=0)
     is_active     = Column(Boolean, default=True)
-    created_at    = Column(DateTime, default=datetime.utcnow)
+    created_at    = Column(DateTime, default=datetime.now)
     months        = relationship('BudgetMonth', back_populates='plan', cascade='all, delete-orphan')
 
 
@@ -842,7 +842,7 @@ class BudgetMonth(Base):
     is_over       = Column(Boolean, default=False)
     saved_amount  = Column(Float, default=0.0)
     coach_note    = Column(Text, default='')
-    created_at    = Column(DateTime, default=datetime.utcnow)
+    created_at    = Column(DateTime, default=datetime.now)
     plan          = relationship('BudgetPlan', back_populates='months')
 
 
@@ -851,7 +851,7 @@ class Achievement(Base):
     id             = Column(Integer, primary_key=True)
     achievement_id = Column(String(60), nullable=False, unique=True)
     section        = Column(String(40), default='general')
-    earned_at      = Column(DateTime, default=datetime.utcnow)
+    earned_at      = Column(DateTime, default=datetime.now)
     notified       = Column(Boolean, default=False)
     extra_data     = Column(Text, default='{}')
 
@@ -861,7 +861,7 @@ class AppSetting(Base):
     id         = Column(Integer, primary_key=True)
     key        = Column(String(120), nullable=False, unique=True)
     value      = Column(Text, default='')
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class BYBItem(Base):
@@ -902,7 +902,7 @@ class BYBItem(Base):
     whats_left_after  = Column(Float, nullable=True)
     actual_cost      = Column(Float, nullable=True)         # filled when a 'track' item is later resolved
     decided_at       = Column(DateTime, nullable=True)
-    created_at       = Column(DateTime, default=datetime.utcnow)
+    created_at       = Column(DateTime, default=datetime.now)
 
 
 class NetWorthSnapshot(Base):
@@ -913,7 +913,7 @@ class NetWorthSnapshot(Base):
     assets        = Column(Float, default=0.0)
     liabilities   = Column(Float, default=0.0)
     notes         = Column(Text, default='')
-    created_at    = Column(DateTime, default=datetime.utcnow)
+    created_at    = Column(DateTime, default=datetime.now)
 
 
 class SinkingFund(Base):
@@ -933,7 +933,7 @@ class SinkingFund(Base):
     note                 = Column(Text, default='')
     is_active            = Column(Boolean, default=True)
     last_contributed_month = Column(String(7), default='')     # YYYY-MM — for auto-credit
-    created_at           = Column(DateTime, default=datetime.utcnow)
+    created_at           = Column(DateTime, default=datetime.now)
     # 'gift' for a gift fund (GIFT_BUDGET.md G2): the Gift page lists these; every other reader sees an ordinary fund.
     purpose              = Column(String(20), default='')
 
@@ -947,7 +947,7 @@ class FundSpend(Base):
     target     = Column(Float, default=0.0)
     spent      = Column(Float, nullable=False)
     spent_on   = Column(Date, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now)
 
 
 class GiftPerson(Base):
@@ -958,7 +958,7 @@ class GiftPerson(Base):
     name         = Column(String(120), nullable=False)
     relationship = Column(String(20), default='family')
     legacy_id    = Column(String(40), nullable=True)    # the id it had in gift_people_json (Historian context)
-    created_at   = Column(DateTime, default=datetime.utcnow)
+    created_at   = Column(DateTime, default=datetime.now)
 
 
 class GiftOccasion(Base):
@@ -979,7 +979,7 @@ class GiftOccasion(Base):
     spent_at     = Column(String(10), nullable=True)
     spent_txn_ids = Column(Text, default='')        # G4: the ledger charges the person said were this occasion's
     legacy_id    = Column(String(40), nullable=True)
-    created_at   = Column(DateTime, default=datetime.utcnow)
+    created_at   = Column(DateTime, default=datetime.now)
 
 
 class GiftShare(Base):
@@ -1006,7 +1006,7 @@ class InvestmentTransaction(Base):
     note            = Column(Text, default='')
     meta            = Column(Text, nullable=True)
     import_source   = Column(String(20), default='manual')
-    created_at      = Column(DateTime, default=datetime.utcnow)
+    created_at      = Column(DateTime, default=datetime.now)
 
 
 class InvestmentLot(Base):
@@ -1065,7 +1065,7 @@ class Person(Base):
     id           = Column(Integer, primary_key=True)
     display_name = Column(String(80), nullable=False)
     active       = Column(Boolean, default=True)
-    created_at   = Column(DateTime, default=datetime.utcnow)
+    created_at   = Column(DateTime, default=datetime.now)
 
     # The reference-layer anchor, minted with the row (see `Party`). Structural, not evidence.
     party = relationship('Party', back_populates='person', uselist=False)
@@ -1080,7 +1080,7 @@ class PersonAlias(Base):
     person_id  = Column(Integer, ForeignKey('people.id'), nullable=False)
     alias      = Column(String(120), nullable=False)
     source     = Column(String(40), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now)
 
     __table_args__ = (Index('ix_person_alias', 'alias'),)
 
@@ -1132,7 +1132,7 @@ class Party(Base):
     # column through migrate.py's _add_missing_columns.
     minted_by_id = Column(Integer, ForeignKey('utterances.id', use_alter=True, name='fk_party_minted_by'),
                           nullable=True)
-    created_at   = Column(DateTime, default=datetime.utcnow)
+    created_at   = Column(DateTime, default=datetime.now)
 
     person    = relationship('Person', back_populates='party')
     minted_by = relationship('Utterance', foreign_keys=[minted_by_id], post_update=True)
@@ -1252,7 +1252,7 @@ class Utterance(Base):
     id              = Column(Integer, primary_key=True)
     origin_party_id = Column(Integer, ForeignKey('parties.id'), nullable=False)
     asserted_at     = Column(String(19), nullable=True)      # evidence time; ISO; may be absent
-    recorded_at     = Column(DateTime, default=datetime.utcnow, nullable=False)
+    recorded_at     = Column(DateTime, default=datetime.now, nullable=False)
     content         = Column(Text, nullable=True)
 
     origin = relationship('Party', foreign_keys=[origin_party_id])
@@ -1289,7 +1289,7 @@ class Artefact(Base):
     held           = Column(Boolean, nullable=False)
     content_hash   = Column(String(64), nullable=True)
     as_of          = Column(String(10), nullable=True)
-    encountered_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    encountered_at = Column(DateTime, default=datetime.now, nullable=False)
     asserted_by_id = Column(Integer, ForeignKey('utterances.id'), nullable=True)
 
     asserted_by = relationship('Utterance')
@@ -1348,7 +1348,7 @@ class Reading(Base):
     __tablename__ = 'readings'
     id              = Column(Integer, primary_key=True)
     artefact_id     = Column(Integer, ForeignKey('artefacts.id'), nullable=False)
-    read_at         = Column(DateTime, default=datetime.utcnow, nullable=False)
+    read_at         = Column(DateTime, default=datetime.now, nullable=False)
     reader_party_id = Column(Integer, ForeignKey('parties.id'), nullable=True)
     reader_process  = Column(String(80), nullable=True)
 
@@ -1421,7 +1421,7 @@ class Obligation(Base):
     __tablename__ = 'obligations'
     id           = Column(Integer, primary_key=True)
     minted_by_id = Column(Integer, ForeignKey('utterances.id'), nullable=False)
-    created_at   = Column(DateTime, default=datetime.utcnow)
+    created_at   = Column(DateTime, default=datetime.now)
 
     minted_by = relationship('Utterance')
 
@@ -1499,7 +1499,7 @@ class Payment(Base):
     __tablename__ = 'payments'
     id           = Column(Integer, primary_key=True)
     minted_by_id = Column(Integer, ForeignKey('utterances.id'), nullable=False)
-    created_at   = Column(DateTime, default=datetime.utcnow)
+    created_at   = Column(DateTime, default=datetime.now)
 
     minted_by = relationship('Utterance')
 
@@ -1559,7 +1559,7 @@ class Expense(Base):
     __tablename__ = 'expenses'
     id           = Column(Integer, primary_key=True)
     minted_by_id = Column(Integer, ForeignKey('utterances.id'), nullable=False)
-    created_at   = Column(DateTime, default=datetime.utcnow)
+    created_at   = Column(DateTime, default=datetime.now)
 
     minted_by = relationship('Utterance')
 
@@ -1619,7 +1619,7 @@ class Plan(Base):
     __tablename__ = 'plans'
     id           = Column(Integer, primary_key=True)
     minted_by_id = Column(Integer, ForeignKey('utterances.id'), nullable=False)
-    created_at   = Column(DateTime, default=datetime.utcnow)
+    created_at   = Column(DateTime, default=datetime.now)
 
     minted_by = relationship('Utterance')
 
@@ -1758,7 +1758,7 @@ class Proposition(Base):
 
     content              = Column(Text, nullable=True)
     as_of                = Column(String(10), nullable=True)
-    created_at           = Column(DateTime, default=datetime.utcnow)
+    created_at           = Column(DateTime, default=datetime.now)
 
     # The slot columns per participant side, so guards and future slices enumerate one list.
     SUBJECT_SLOTS = ('subject_party_id', 'subject_utterance_id', 'subject_artefact_id', 'subject_obligation_id',
@@ -1958,7 +1958,7 @@ class EvidentiaryRelationship(Base):
     proposition_id = Column(Integer, ForeignKey('propositions.id'), nullable=False)
     utterance_id   = Column(Integer, ForeignKey('utterances.id'), nullable=True)
     reading_id     = Column(Integer, ForeignKey('readings.id'), nullable=True)      # slice 2
-    created_at     = Column(DateTime, default=datetime.utcnow)
+    created_at     = Column(DateTime, default=datetime.now)
 
     proposition = relationship('Proposition')
     utterance   = relationship('Utterance')
@@ -5485,7 +5485,7 @@ class PersonAssignment(Base):
     seq         = Column(Integer, nullable=False)
     reason      = Column(String(200), nullable=True)
     source      = Column(String(40), nullable=True)
-    recorded_at = Column(DateTime, default=datetime.utcnow)
+    recorded_at = Column(DateTime, default=datetime.now)
 
     __table_args__ = (Index('ix_person_assign_expense', 'expense_id'),)
 
@@ -5499,7 +5499,7 @@ class HealthPlan(Base):
     effective_from = Column(String(10), nullable=False)
     effective_to   = Column(String(10), nullable=True)
     seq            = Column(Integer, nullable=False)
-    created_at     = Column(DateTime, default=datetime.utcnow)
+    created_at     = Column(DateTime, default=datetime.now)
 
 
 class HealthPlanTermVersion(Base):
@@ -5520,7 +5520,7 @@ class HealthPlanTermVersion(Base):
     reason              = Column(String(200), nullable=True)
     source              = Column(String(40), nullable=True)
     seq                 = Column(Integer, nullable=False)
-    recorded_at         = Column(DateTime, default=datetime.utcnow)
+    recorded_at         = Column(DateTime, default=datetime.now)
 
 
 class CareAnswer(Base):
@@ -5531,7 +5531,7 @@ class CareAnswer(Base):
     id          = Column(Integer, primary_key=True)
     category_id = Column(Integer, ForeignKey('categories.id'), nullable=False)
     answer      = Column(String(4), nullable=False)       # yes | no
-    created_at  = Column(DateTime, default=datetime.utcnow)
+    created_at  = Column(DateTime, default=datetime.now)
 
 
 class CareFor(Base):
@@ -5545,7 +5545,7 @@ class CareFor(Base):
     transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=False)
     person_id      = Column(Integer, ForeignKey('people.id'), nullable=True)
     mode           = Column(String(12), nullable=False)        # initial | correction
-    created_at     = Column(DateTime, default=datetime.utcnow)
+    created_at     = Column(DateTime, default=datetime.now)
 
 
 class MedicalProvider(Base):
@@ -5556,7 +5556,7 @@ class MedicalProvider(Base):
     name               = Column(String(160), nullable=False)
     nonprofit_hospital = Column(Boolean, nullable=True)
     said_utterance_id  = Column(Integer, ForeignKey('utterances.id'), nullable=True)
-    created_at         = Column(DateTime, default=datetime.utcnow)
+    created_at         = Column(DateTime, default=datetime.now)
 
 
 class MedicalBillAccount(Base):
@@ -5572,7 +5572,7 @@ class MedicalBillAccount(Base):
     mine_utterance_id = Column(Integer, ForeignKey('utterances.id'), nullable=True)
     claim_json        = Column(Text, default='[]')
     arrangement_json  = Column(Text, default='[]')
-    created_at        = Column(DateTime, default=datetime.utcnow)
+    created_at        = Column(DateTime, default=datetime.now)
 
 
 class MedicalBillStatement(Base):
@@ -5589,7 +5589,7 @@ class MedicalBillStatement(Base):
     service_from       = Column(String(10), nullable=True)
     service_to         = Column(String(10), nullable=True)
     typed_utterance_id = Column(Integer, ForeignKey('utterances.id'), nullable=True)
-    recorded_at        = Column(DateTime, default=datetime.utcnow)
+    recorded_at        = Column(DateTime, default=datetime.now)
 
     __table_args__ = (Index('ix_mbs_account', 'account_id'),)
 
@@ -5605,7 +5605,7 @@ class MedicalCollection(Base):
     of_account_id         = Column(Integer, ForeignKey('medical_bill_accounts.id'), nullable=False)
     sent_on               = Column(String(10), nullable=True)
     said_utterance_id     = Column(Integer, ForeignKey('utterances.id'), nullable=True)
-    created_at            = Column(DateTime, default=datetime.utcnow)
+    created_at            = Column(DateTime, default=datetime.now)
 
 
 class HealthPlanReading(Base):
@@ -5619,7 +5619,7 @@ class HealthPlanReading(Base):
     oop_met        = Column(Float, nullable=True)
     as_of          = Column(String(10), nullable=False)
     person_id      = Column(Integer, ForeignKey('people.id'), nullable=True)   # item 92 N5b: NULL = the plan's own
-    created_at     = Column(DateTime, default=datetime.utcnow)
+    created_at     = Column(DateTime, default=datetime.now)
 
 
 class HealthPlanOperation(Base):
@@ -5630,7 +5630,7 @@ class HealthPlanOperation(Base):
     plan_id     = Column(Integer, ForeignKey('health_plans.id'), nullable=False)
     kind        = Column(String(16), nullable=False)      # 'change' | 'correction'
     seq         = Column(Integer, nullable=False)
-    recorded_at = Column(DateTime, default=datetime.utcnow)
+    recorded_at = Column(DateTime, default=datetime.now)
 
 
 class PersonEnrolment(Base):
@@ -5642,7 +5642,7 @@ class PersonEnrolment(Base):
     person_id    = Column(Integer, ForeignKey('people.id'), nullable=False)
     plan_id      = Column(Integer, ForeignKey('health_plans.id'), nullable=False)
     effective_on = Column(String(10), nullable=True)
-    created_at   = Column(DateTime, default=datetime.utcnow)
+    created_at   = Column(DateTime, default=datetime.now)
 
 
 class HealthcareExpense(Base):
@@ -5657,7 +5657,7 @@ class HealthcareExpense(Base):
     __tablename__ = 'healthcare_expenses'
     id          = Column(Integer, primary_key=True)
     incurred_on = Column(String(10), nullable=False)
-    created_at  = Column(DateTime, default=datetime.utcnow)
+    created_at  = Column(DateTime, default=datetime.now)
 
 
 class ExpenseObligationVersion(Base):
@@ -5670,7 +5670,7 @@ class ExpenseObligationVersion(Base):
     effective_seq = Column(Float, nullable=False)
     recorded_seq  = Column(Integer, nullable=False)
     supersedes_id = Column(Integer, ForeignKey('expense_obligation_versions.id'))
-    recorded_at   = Column(DateTime, default=datetime.utcnow)
+    recorded_at   = Column(DateTime, default=datetime.now)
 
     __table_args__ = (Index('ix_eov_expense', 'expense_id'),)
 
@@ -5702,7 +5702,7 @@ class ExpenseFundingAllocation(Base):
     effective_seq  = Column(Float, nullable=False)
     recorded_seq   = Column(Integer, nullable=False)
     supersedes_id  = Column(Integer, ForeignKey('expense_funding_allocations.id'))
-    recorded_at    = Column(DateTime, default=datetime.utcnow)
+    recorded_at    = Column(DateTime, default=datetime.now)
 
     __table_args__ = (Index('ix_efa_expense', 'expense_id'),)
 
@@ -5722,7 +5722,7 @@ class ExpenseDetermination(Base):
     effective_seq = Column(Float, nullable=False)
     recorded_seq  = Column(Integer, nullable=False)
     supersedes_id = Column(Integer, ForeignKey('expense_determinations.id'))
-    recorded_at   = Column(DateTime, default=datetime.utcnow)
+    recorded_at   = Column(DateTime, default=datetime.now)
 
     __table_args__ = (Index('ix_edet_expense', 'expense_id'),)
 
@@ -5748,7 +5748,7 @@ class ExpenseRefund(Base):
     occurred_on   = Column(String(10), nullable=True)
     effective_seq = Column(Float, nullable=False)
     recorded_seq  = Column(Integer, nullable=False)
-    recorded_at   = Column(DateTime, default=datetime.utcnow)
+    recorded_at   = Column(DateTime, default=datetime.now)
 
     __table_args__ = (Index('ix_eref_expense', 'expense_id'),)
 
@@ -5777,7 +5777,7 @@ class ReserveTarget(Base):
     reason      = Column(String(200), nullable=True)
     cleared     = Column(Boolean, default=False)
     seq         = Column(Integer, nullable=False)
-    recorded_at = Column(DateTime, default=datetime.utcnow)
+    recorded_at = Column(DateTime, default=datetime.now)
 
 
 class ReserveAllocation(Base):
@@ -5800,7 +5800,7 @@ class ReserveAllocation(Base):
     reason      = Column(String(200), nullable=True)
     source      = Column(String(40), nullable=True)
     seq         = Column(Integer, nullable=False)
-    recorded_at = Column(DateTime, default=datetime.utcnow)
+    recorded_at = Column(DateTime, default=datetime.now)
 
 
 class TaxRuleVersion(Base):
@@ -5816,7 +5816,7 @@ class TaxRuleVersion(Base):
     version       = Column(String(24), nullable=False)
     effective_seq = Column(Float, nullable=False)
     recorded_seq  = Column(Integer, nullable=False)
-    recorded_at   = Column(DateTime, default=datetime.utcnow)
+    recorded_at   = Column(DateTime, default=datetime.now)
 
 
 class ExpenseMergeLink(Base):
@@ -5826,7 +5826,7 @@ class ExpenseMergeLink(Base):
     id             = Column(Integer, primary_key=True)
     merged_into_id = Column(Integer, ForeignKey('healthcare_expenses.id'), nullable=False)
     merged_from_id = Column(Integer, ForeignKey('healthcare_expenses.id'), nullable=False)
-    created_at     = Column(DateTime, default=datetime.utcnow)
+    created_at     = Column(DateTime, default=datetime.now)
 
 
 # ── Category hierarchy — full list ────────────────────────────────────────────

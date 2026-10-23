@@ -391,7 +391,7 @@ def withdraw_standing(session, standing_id):
     if st is None or st.withdrawn_at is not None:
         return None, 'That statement was not found.'
     utt = utter(session, {'statement': 'withdraw_standing', 'standing_id': st.id, 'payee': st.payee})
-    st.withdrawn_at, st.withdrawn_utterance_id = datetime.utcnow(), utt.id
+    st.withdrawn_at, st.withdrawn_utterance_id = datetime.now(), utt.id
     session.flush()
     return st, None
 

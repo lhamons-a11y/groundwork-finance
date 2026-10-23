@@ -169,7 +169,7 @@ def set_household_fact(session, key, value, source):
     if value == current(session, key):
         return False
     M = _model()
-    session.add(M(key=key, value=value, answered_at=datetime.utcnow(), source=source))
+    session.add(M(key=key, value=value, answered_at=datetime.now(), source=source))
     row = _setting(session, key)
     if value is None:
         if row is not None:

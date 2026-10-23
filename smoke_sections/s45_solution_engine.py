@@ -899,7 +899,7 @@ def run(ctx):
             e = _HE(event_category='sinking_fund_contribution_variance',
                     expected_value=300.0, actual_value=amt,
                     context_json=_json.dumps({'sinking_fund_id': 90901}))
-            e.created_at = _dt.utcnow() - _td(days=30 * (5 - i * 2))
+            e.created_at = _dt.now() - _td(days=30 * (5 - i * 2))
             session.add(e)
         session.commit()
     with ctx.dbs() as session:

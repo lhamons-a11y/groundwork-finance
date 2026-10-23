@@ -105,7 +105,22 @@ function fmtDate(s) {
   const d = new Date(s + 'T00:00:00');
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
-function today() { return new Date().toISOString().slice(0, 10); }
+// Item 109 (LOCAL_CLOCK.md): one clock - the computer's own local date and time. A day is the local calendar day, never
+// the UTC one: toISOString() is UTC, so after 8 pm Eastern it is already tomorrow (and next month on the last evening).
+function _localISODate(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+// A moment, in local time with no zone: how the server writes every moment too.
+function _localStamp(d = new Date()) {
+  return _localISODate(d) + 'T' + [d.getHours(), d.getMinutes(), d.getSeconds()].map(n => String(n).padStart(2, '0')).join(':');
+}
+function today() { return _localISODate(); }
+// A stored YYYY-MM-DD is a local calendar day: new Date('2026-11-01') is UTC midnight, which in the US is still
+// October 31. Anything else is parsed as given (the server writes moments in local time with no zone).
+function _localDay(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ''));
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(s);
+}
 function g(id) { return document.getElementById(id); }
 function setText(id, v) { const e = g(id); if (e) e.textContent = v; }
 
@@ -130,7 +145,7 @@ let _saveTimer     = null;   // debounce timer for scheduleSave()
 const _gwErrorLog = [];
 function _gwLogError(msg, source, line, col, err) {
   const entry = {
-    ts:    new Date().toISOString(),
+    ts:    _localStamp(),
     msg:   String(msg || '').slice(0, 300),
     src:   (source || '').replace(/.*\//, ''),
     line,  col,
@@ -460,7 +475,7 @@ async function buildFinancialProfile() {
       behavior: _calcBehavioralProfile(sbMonths),
       netWorth: _calcNetWorthTrajectory(nwSnapshots),
       seasonal: _calcSeasonalPatterns(),
-      builtAt:  new Date().toISOString(),
+      builtAt:  _localStamp(),
     };
   } catch(e) {
     // Profile failure is non-fatal — app works without it, just without intelligence
@@ -1057,7 +1072,7 @@ function buildSnapshot() {
     monthlyBudget:     _getMonthlyBudget() || 1500,   // 1500 = app default, same coercion boot applies
     bybItems:          S.bybItems,
     netWorth:          S.netWorth,
-    savedAt:           new Date().toISOString(),
+    savedAt:           _localStamp(),
   };
 }
 
@@ -1341,7 +1356,7 @@ function _gwGetOSInfo() {
 }
 
 function _gwBuildReport(userDescription) {
-  const now     = new Date().toISOString().replace('T',' ').slice(0,19);
+  const now     = _localStamp().replace('T',' ');
   const version = typeof GW_VERSION !== 'undefined' ? GW_VERSION : 'unknown';
   const os      = _gwGetOSInfo();
   const SEP     = '─'.repeat(40);
@@ -2164,11 +2179,11 @@ function getPeriodDates(period) {
   const p   = period || S.period;
   const now = new Date();
   if (p === 'mtd') {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+    const start = _localISODate(new Date(now.getFullYear(), now.getMonth(), 1));
     return { start, end: today() };
   } else {
     const end   = today();
-    const start = new Date(now.getTime() - 29*86400000).toISOString().slice(0,10);
+    const start = _localISODate(new Date(now.getTime() - 29*86400000));
     return { start, end };
   }
 }
@@ -2205,7 +2220,7 @@ function getTxnsForPeriod() {
   if (_quarterlyMode) {
     // Last 3 complete months + current month-to-date
     const now   = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth() - 2, 1).toISOString().slice(0,10);
+    const start = _localISODate(new Date(now.getFullYear(), now.getMonth() - 2, 1));
     return S.transactions.filter(t => t.date >= start && t.date <= today());
   }
   // Respects S.period ('mtd' default, or '30d' rolling window — set via setLedgerPeriod)
@@ -2853,10 +2868,10 @@ async function renderCalendar() {
   for (const e of items) {
     const dt = new Date(e.date + 'T12:00:00');
     let key, label, folded = false;
-    if (dt < fourWeeks) { const w = weekStart(dt); key = 'w' + w.toISOString().slice(0, 10); label = 'Week of ' + w.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
+    if (dt < fourWeeks) { const w = weekStart(dt); key = 'w' + _localISODate(w); label = 'Week of ' + w.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
     else {
       key = 'm' + e.date.slice(0, 7); folded = true;
-      label = (e.date.slice(0, 7) === fourWeeks.toISOString().slice(0, 7) ? 'Rest of ' : '') + dt.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      label = (e.date.slice(0, 7) === _localISODate(fourWeeks).slice(0, 7) ? 'Rest of ' : '') + dt.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     }
     if (!byKey[key]) { byKey[key] = { label, rows: [], folded }; groups.push(byKey[key]); }
     byKey[key].rows.push(e);
@@ -2988,7 +3003,7 @@ function _dashRenderFreedMinimums() {
   const content = g('dashFreedMinimumsContent');
   if (!card || !content) return;
 
-  const _dashToday = new Date().toISOString().slice(0, 10);
+  const _dashToday = _localISODate();
   const activeDebts = S.debtCards.filter(c => !c.paidInFull && !(c.endDate && c.endDate < _dashToday));
   if (!activeDebts.length) { card.style.display = 'none'; return; }
 
@@ -7052,7 +7067,7 @@ function clientParseDate(s) {
       return `${yr}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
     }
   }
-  const d=new Date(s); return isNaN(d)?null:d.toISOString().slice(0,10);
+  const d=new Date(s); return isNaN(d)?null:_localISODate(d);
 }
 
 function clientAutoCategory(desc='') {
@@ -7424,7 +7439,7 @@ async function _syncDebtToDb(card) {
       // and every restart silently un-retired paid cards. Date doubles as the
       // flag (null = not paid) and the "paid · March 2026" label.
       paid_off_at:        card.paidInFull
-                            ? (card.paidOffAt || new Date().toISOString().slice(0,10))
+                            ? (card.paidOffAt || _localISODate())
                             : null,
     };
     if (card._dbId) {
@@ -8015,7 +8030,7 @@ function renderBudget() {
 
   const totalIncome = S.incomes.reduce((s,i) => s + i.amount, 0);
   const totalExpenses = S.expenses.reduce((s,e) => s + _rowMonth(e), 0);
-  const _today = new Date().toISOString().slice(0, 10);
+  const _today = _localISODate();
   const activeDebts = S.debtCards.filter(c => !c.paidInFull && !(c.endDate && c.endDate < _today));
   const totalDebt = activeDebts.reduce((s,c) => {
     const pmt = parseFloat(c.minimum) || 0;
@@ -8303,7 +8318,7 @@ function _budgetUpdateRealismSentence(left, totalIncome) {
   if (!el) return;
   // Recalculate if called without arguments (e.g. from renderBudget directly)
   if (left === undefined) {
-    const _tod = new Date().toISOString().slice(0, 10);
+    const _tod = _localISODate();
     totalIncome = S.incomes.reduce((s,i) => s + i.amount, 0);
     const activeDebts = S.debtCards.filter(c => !c.paidInFull && !(c.endDate && c.endDate < _tod));
     const totalDebt   = activeDebts.reduce((s,c) => s + (parseFloat(c.minimum)||0), 0);
@@ -8351,7 +8366,7 @@ function _budgetUpdateLedgerIncomeNote() {
 function _budgetUpdateWhatsLeft() {
   const totalIncome   = S.incomes.reduce((s,i) => s + i.amount, 0);
   const totalExpenses = S.expenses.reduce((s,e) => s + _rowMonth(e), 0);
-  const today         = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const today         = _localISODate(); // YYYY-MM-DD
   const activeDebts   = S.debtCards.filter(c => !c.paidInFull && !(c.endDate && c.endDate < today));
   const totalDebt     = activeDebts.reduce((s,c) => s + (parseFloat(c.minimum)||0), 0);
   // Sinking fund monthly contributions count as committed spending
@@ -8436,7 +8451,7 @@ function _budgetUpdateWhatsLeft() {
   // B0d: two-scenario comparison (current payments vs. minimums-only)
   const twoScenEl = g('budgetTwoScenario');
   if (twoScenEl) {
-    const _tod2 = new Date().toISOString().slice(0, 10);
+    const _tod2 = _localISODate();
     const activeDebts = S.debtCards.filter(c => !c.paidInFull && !(c.endDate && c.endDate < _tod2));
     twoScenEl.innerHTML = _budgetTwoScenarioComparison(activeDebts);
   }
@@ -9043,7 +9058,7 @@ function _budgetConsequenceSentence() {
   if (!worstCat || worstOverage < 5) return '';
 
   // Find the highest-APR active non-lease debt to compute payoff delay against
-  const today2 = new Date().toISOString().slice(0, 10);
+  const today2 = _localISODate();
   const activeDebts = S.debtCards.filter(c =>
     !c.paidInFull &&
     parseFloat(c.rate) > 0 &&
@@ -9226,13 +9241,13 @@ function _budgetRenderDebtRow(card) {
   const limit     = card.creditLimit ? parseFloat(card.creditLimit) : null;
   const isLease   = (card.debtType || 'credit') === 'lease';
   const isLoan    = (card.debtType || 'credit') === 'loan';
-  const today     = new Date().toISOString().slice(0, 10);
+  const today     = _localISODate();
 
   // End date countdown for leases and loans
   let endDateBadge = '';
   if (card.endDate && card.endDate >= today) {
-    const moLeft = Math.round((new Date(card.endDate) - new Date()) / (1000*60*60*24*30.4));
-    const endLbl = new Date(card.endDate).toLocaleDateString('en-US',{month:'short',year:'numeric'});
+    const moLeft = Math.round((_localDay(card.endDate) - new Date()) / (1000*60*60*24*30.4));
+    const endLbl = _localDay(card.endDate).toLocaleDateString('en-US',{month:'short',year:'numeric'});
     const badgeColor = moLeft <= 3 ? 'var(--gold-text)' : 'var(--slate-2)';
     endDateBadge = `<span style="font-size:10px;color:${badgeColor};font-family:var(--font-mono)">${isLease ? 'ends' : 'matures'} ${endLbl}</span>`;
   }
@@ -10187,7 +10202,7 @@ function setCardPaidInFull(id, checked) {
   // Stamp the payoff date (kept on uncheck-recheck within a day; cleared on
   // uncheck). _syncDebtToDb sends it as paid_off_at — the persistence half
   // of the paid flag, which was missing entirely until d21.
-  card.paidOffAt  = checked ? (card.paidOffAt || new Date().toISOString().slice(0,10)) : null;
+  card.paidOffAt  = checked ? (card.paidOffAt || _localISODate()) : null;
   setCardField(id, 'paidInFull', checked);
   calculate();
 
@@ -10373,7 +10388,7 @@ function _showCardPaidOffCelebration(cardName) {
 
 function calcDailyInterest() {
   // Exclude paid-in-full cards and expired leases/loans
-  const today = new Date().toISOString().slice(0, 10);
+  const today = _localISODate();
   return S.debtCards
     .filter(c => !c.paidInFull && !(c.endDate && c.endDate < today))
     .reduce((sum, c) => {
@@ -10924,8 +10939,8 @@ function renderTripPlanner() {
   const mon  = new Date(sat);
   mon.setDate(sat.getDate() + 2);
   if (!g('tripDepart')?.value) {
-    if (g('tripDepart')) g('tripDepart').value = sat.toISOString().slice(0,10);
-    if (g('tripReturn')) g('tripReturn').value = mon.toISOString().slice(0,10);
+    if (g('tripDepart')) g('tripDepart').value = _localISODate(sat);
+    if (g('tripReturn')) g('tripReturn').value = _localISODate(mon);
   }
 
   // Check oil change history
@@ -11774,7 +11789,7 @@ async function _applyTripItinerary() {
     if (!label) { unbooked++; continue; }
     try {
       await API.post('/api/trip/bookings', { trip_label: label, airline: b.airline, amount: b.amount,
-        booked_on: new Date().toISOString().slice(0, 10), paid_with_kind: 'other', confirmation: b.confirmation });
+        booked_on: _localISODate(), paid_with_kind: 'other', confirmation: b.confirmation });
       booked++;
     } catch (e) { _gwErr('_applyTripItinerary')(e); }
   }
@@ -12478,7 +12493,7 @@ async function generateTripBudget() {
   output.style.display = '';
   _renderTripBudgetFallback(content, badge, _tripBudgetData);
   // Saved as before (the trip history learns from it) - the sourced lines only, never a model's prices
-  API.post('/api/trip/budget', { ..._tripBudgetData, generatedAt: new Date().toISOString() }).catch(_gwErr('generateTripBudget'));
+  API.post('/api/trip/budget', { ..._tripBudgetData, generatedAt: _localStamp() }).catch(_gwErr('generateTripBudget'));
 }
 
 // P3: Google Hotels for this trip, in Groundwork's window (the address is built on the server)
@@ -12928,7 +12943,7 @@ async function writeSundayCheckin(show) {
 async function closeSundayCard() {
   const card = g('dashSundayCard');
   if (card) card.style.display = 'none';
-  try { await API.post('/api/checkin/close', { date: (_checkinFacts && _checkinFacts.date) || new Date().toISOString().slice(0, 10) }); }
+  try { await API.post('/api/checkin/close', { date: (_checkinFacts && _checkinFacts.date) || _localISODate() }); }
   catch (e) { _gwErr('closeSundayCard')(e); }
 }
 
@@ -12943,7 +12958,7 @@ let _nightRunDate = null;
 async function _nightNarration() {
   const now = new Date();
   if (now.getHours() < 1 || now.getHours() > 4) return;
-  const key = now.toISOString().slice(0, 10);
+  const key = _localISODate(now);
   if (_nightRunDate === key) return;
   let due;
   try { due = await API.get('/api/checkin/narration-due'); } catch (e) { _gwErr('_nightNarration')(e); return; }
@@ -13522,7 +13537,7 @@ async function acceptTerms() {
   try {
     await API.patch('/api/settings', {
       terms_accepted:    GW_TERMS_VERSION,
-      terms_accepted_at: new Date().toISOString(),
+      terms_accepted_at: _localStamp(),
     });
   } catch (e) { _gwErr('acceptTerms')(e); }
   _dismissTermsModal();
@@ -13889,7 +13904,7 @@ function _obRenderExpenseAnalysis() {
   cont.innerHTML = '';
 
   const now = new Date();
-  const sixMoAgo = new Date(now.getFullYear(), now.getMonth()-6, 1).toISOString().slice(0,10);
+  const sixMoAgo = _localISODate(new Date(now.getFullYear(), now.getMonth()-6, 1));
   const txns = S.transactions.filter(t => t.type==='debit' && t.date>=sixMoAgo
     && t.category!=='Income' && t.category!=='Transfer' && t.category!=='Debt');
 
@@ -13999,7 +14014,7 @@ let _engineSims = {};
 let _engineSimsInFlight = {};
 
 function _simCards() {
-  const todayKey = new Date().toISOString().slice(0, 7);
+  const todayKey = _localISODate().slice(0, 7);
   return S.debtCards
     .filter(c => !c.paidInFull)
     .map(c => ({
@@ -14112,7 +14127,7 @@ function _simulatePayoff(extraPerMonth = 0) {
 }
 
 function _simulatePayoffStrategy(cardList, budget, strategy) {
-  const todayKey = new Date().toISOString().slice(0, 7);
+  const todayKey = _localISODate().slice(0, 7);
   const cards = (cardList || [])
     .filter(c => !c.paidInFull)
     .map(c => ({
@@ -14315,7 +14330,7 @@ async function obNext(step) {
       } else {
         card = {id:S.debtIdCounter++,name,beginBal:String(balance),
                 currentBal:String(balance),rate:String(rate),
-                minimum:String(minimum),startDate:new Date().toISOString().slice(0,10),
+                minimum:String(minimum),startDate:_localISODate(),
                 dueDay:'',_dbId:null,paidInFull:false,context:'',debtType:'credit'};
         S.debtCards.push(card);
         _obDebtRowCards[rowId] = card;
@@ -14914,7 +14929,7 @@ function dismissGettingStarted() {
 // Use this everywhere instead of S.debtCards.filter(c => !c.paidInFull).
 // Leases whose endDate is in the past have no remaining payment obligation.
 function _activeDebtCards() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = _localISODate();
   return S.debtCards.filter(c =>
     !c.paidInFull && !(c.endDate && c.endDate < today)
   );
@@ -14946,7 +14961,7 @@ function calcHasEmergencyBuffer() {
 }
 
 function calcDTI() {
-  const today    = new Date().toISOString().slice(0, 10);
+  const today    = _localISODate();
   const totalMin = S.debtCards
     .filter(c => !c.paidInFull)
     .filter(c => {
@@ -15013,7 +15028,7 @@ function _cardBal(c) {
 // the avalanche/snowball strategy and cascading to the next card if the
 // current target's balance is smaller than the extra available.
 function _thisMonthPaymentPlan() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = _localISODate();
   const data = S.debtCards
     .filter(c => !c.paidInFull)
     .filter(c => !(c.endDate && c.endDate < today)) // exclude expired leases
@@ -15395,12 +15410,12 @@ function _debtCardRowHTML(c, opts={}) {
         // Lease / loan end date countdown
         if (c.paidInFull) return '';   // paid card: no countdown chip
         if (!c.endDate) return '';
-        const today = new Date().toISOString().slice(0,10);
+        const today = _localISODate();
         if (c.endDate < today) {
           return `<span style="font-size:10px;font-family:var(--font-mono);color:var(--slate-2);flex-shrink:0" title="Ended — excluded from DTI">ended ${c.endDate}</span>`;
         }
-        const moLeft = Math.round((new Date(c.endDate) - new Date()) / (1000*60*60*24*30.4));
-        const endLbl = new Date(c.endDate).toLocaleDateString('en-US',{month:'short',year:'numeric'});
+        const moLeft = Math.round((_localDay(c.endDate) - new Date()) / (1000*60*60*24*30.4));
+        const endLbl = _localDay(c.endDate).toLocaleDateString('en-US',{month:'short',year:'numeric'});
         const color  = moLeft <= 3 ? 'var(--gold-text)' : 'var(--slate-2)';
         const label  = _debtType(c._dbId||c.id) === 'lease' ? `lease ends ${endLbl}` : `matures ${endLbl}`;
         return `<span style="font-size:10px;font-family:var(--font-mono);color:${color};flex-shrink:0" title="${moLeft} months remaining">${label}</span>`;
@@ -16169,7 +16184,7 @@ function _debtCalcEndDate(cardId) {
   if (!term || term < 1) return;
   const s = new Date(start + 'T00:00:00');
   s.setMonth(s.getMonth() + term);
-  const iso = s.toISOString().slice(0, 10);
+  const iso = _localISODate(s);
   endEl.value = iso;
   setCardField(cardId, 'endDate', iso);
 }
@@ -16476,7 +16491,7 @@ function _debtWriteHero(result, data, budget, totalMin, intSaved) {
 }
 
 function _debtCalcDTI() {
-  const today  = new Date().toISOString().slice(0, 10);
+  const today  = _localISODate();
   const income = S.incomes ? S.incomes.reduce((s,i) => s + (parseFloat(i.amount)||0), 0) : 0;
   if (!income) return null;
   const data     = getCardData();
@@ -16539,7 +16554,7 @@ function _debtMaybeSuggestCommitment() {
 
   const income = S.incomes ? S.incomes.reduce((s,i) => s + (parseFloat(i.amount)||0), 0) : 0;
   const bills  = S.expenses ? S.expenses.reduce((s,e) => s + _rowMonth(e), 0) : 0;
-  const today_sug = new Date().toISOString().slice(0, 10);
+  const today_sug = _localISODate();
   const mins   = S.debtCards ? S.debtCards.filter(c => !c.paidInFull && !(c.endDate && c.endDate < today_sug)).reduce((s,c) => s + (parseFloat(c.minimum)||0), 0) : 0;
   if (!income) return;
 
@@ -18245,7 +18260,7 @@ async function addHolding() {
     }
     await API.post('/api/investments/transactions', {
       ticker, shares, price_per_share: cost, type: 'buy',
-      date: new Date().toISOString().slice(0,10), account_id: acctId,
+      date: _localISODate(), account_id: acctId,
     });
     closeAddHoldingModal();
     await _loadInvPositions();
@@ -18677,7 +18692,7 @@ function _pslfTotal(data) {
 // count when the user enters when they began income-driven repayment.
 function _monthsBetween(dateStr) {
   if (!dateStr) return 0;
-  const start = new Date(dateStr);
+  const start = _localDay(dateStr);
   if (isNaN(start.getTime())) return 0;
   const now = new Date();
   let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
@@ -18764,7 +18779,7 @@ function renderLoanFlags() {
     const key  = c._dbId || c.id;
     const data = _pslfData(key);
     if (!data?.certifiedUntil) return null;
-    const expiry = new Date(data.certifiedUntil);
+    const expiry = _localDay(data.certifiedUntil);
     const days   = Math.ceil((expiry - today) / 86400000);
     if (days <= 90 && days > 0) return { name: c.name, days, expiry: data.certifiedUntil };
     if (days <= 0) return { name: c.name, days: 0, expiry: data.certifiedUntil, expired: true };
@@ -21271,7 +21286,7 @@ async function saveNWGoal() {
   // after this, so the pace line stays anchored to when the goal was set.
   goals.push({
     id: Date.now(), name, amount, date,
-    startAmount: _nwCurrentTotal(), startDate: new Date().toISOString().slice(0,10),
+    startAmount: _nwCurrentTotal(), startDate: _localISODate(),
   });
 
   await API.patch('/api/settings', { nw_goals_json: JSON.stringify(goals) }).catch(_gwErr('saveNWGoal'));
@@ -22439,11 +22454,11 @@ async function _bybCommit(decision) {
       };
       if (f.needed) {
         const start = new Date();
-        newCard.start_date = start.toISOString().slice(0, 10);
+        newCard.start_date = _localISODate(start);
         if (f.term) {
           const end = new Date(start);
           end.setMonth(end.getMonth() + f.term);
-          newCard.end_date = end.toISOString().slice(0, 10);
+          newCard.end_date = _localISODate(end);
         }
       }
       API.post('/api/debt', newCard).then(res => {
@@ -22876,7 +22891,7 @@ function showHealthPlanForm(kind, id) {
   } else if (kind === 'reading') {
     fields = (p.tier === 'family' ? row('Whose figures', `<select id="hp-person_id" style="font-size:12px;padding:3px 6px"><option value="">The plan's own</option>${(_hpPeople || []).map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>`) : '')
       + row('Deductible met so far', num('deductible_met')) + row('Out-of-pocket so far', num('oop_met'))
-      + row('As of', dt('as_of', new Date().toISOString().slice(0, 10)));
+      + row('As of', dt('as_of', _localISODate()));
     note = 'From your insurer\'s website or your latest statement. Earlier readings are kept.';
   } else {
     fields = `<div style="margin-top:6px">Did it change from a date, or was it always this?</div>
@@ -25585,7 +25600,7 @@ function budgetBillsHtml(bills, checks) {
   const ck = id => ((checks && checks.bills) || []).find(x => x.id === id);
   const accts = (checks && checks.accounts) || [];
   if (!withSite.length) return '';
-  const thisMonth = new Date().toISOString().slice(0, 7);
+  const thisMonth = _localISODate().slice(0, 7);
   const rows = withSite.map(b => {
     const p = b.pending, c = b.confirmed;
     if (p) {
@@ -26117,7 +26132,7 @@ function updateReportPreview() {
   if (!month) return;
   const [yr,mo] = month.split('-').map(Number);
   const start   = `${month}-01`;
-  const end     = new Date(yr,mo,0).toISOString().slice(0,10);
+  const end     = _localISODate(new Date(yr,mo,0));
   const txns    = S.transactions.filter(t => t.date>=start && t.date<=end);
   const income  = txns.filter(_isEarn).reduce((s,t)=>s+t.amount,0);    // transfers on neither side (2026-10-13)
   const spent   = txns.filter(_isSpend).reduce((s,t)=>s+t.amount,0);
@@ -28039,7 +28054,7 @@ let _monthlyReviewBusy = false;
 function _rcMonthFacts(month) {
   const [yr, mo] = month.split('-').map(Number);
   const start = `${yr}-${String(mo).padStart(2, '0')}-01`;
-  const end = new Date(yr, mo, 0).toISOString().slice(0, 10);
+  const end = _localISODate(new Date(yr, mo, 0));
   const txns = S.transactions.filter(t => t.date >= start && t.date <= end);
   const monthName = new Date(yr, mo - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   const spent = txns.filter(_isSpend).reduce((s, t) => s + t.amount, 0);
@@ -28571,7 +28586,7 @@ async function _loadNotLevers() {
 }
 function _findHighLeverageCategory(txns) {
   if (!_notLevers) return null;            // the one list is not loaded: offer nothing rather than guess
-  const now=new Date(), thisMonth=now.toISOString().slice(0,7);
+  const now=new Date(), thisMonth=_localISODate(now).slice(0, 7);
   const lever = cat => cat !== 'Other' && !_notLevers.has(String(cat).trim().toLowerCase());
   const currentMonth={};
   S.transactions.filter(t=>t.type==='debit'&&(t.date||'').slice(0,7)===thisMonth).forEach(t=>{const cat=t.category||'Other';currentMonth[cat]=(currentMonth[cat]||0)+t.amount;});
@@ -29390,7 +29405,7 @@ function _rcMonthlyRefreshPreview() {
   if (!month) return;
   const [yr, mo] = month.split('-').map(Number);
   const start = `${yr}-${String(mo).padStart(2,'0')}-01`;
-  const end   = new Date(yr, mo, 0).toISOString().slice(0,10);
+  const end   = _localISODate(new Date(yr, mo, 0));
   const txns  = S.transactions.filter(t => t.date >= start && t.date <= end);
   // Transfers are money moving between the person's own accounts, never spending or earning (_isSpend / _isEarn, as
   // the dashboard and Annual Summary count them; fixed 2026-10-13 - September 2026's top "spending" was a transfer)
@@ -29495,7 +29510,7 @@ async function _rcMonthlyGenerate() {
   cont.innerHTML=`<div class="card" style="padding:32px;text-align:center"><div style="display:inline-flex;align-items:center;gap:12px;color:var(--slate);font-size:13px"><div class="spinner"></div>Writing your report…</div></div>`;
   const [yr,mo]=month.split('-').map(Number);
   const start=`${yr}-${String(mo).padStart(2,'0')}-01`;
-  const end=new Date(yr,mo,0).toISOString().slice(0,10);
+  const end=_localISODate(new Date(yr,mo,0));
   const txns=S.transactions.filter(t=>t.date>=start&&t.date<=end);
   const monthName=new Date(yr,mo-1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
   // _isSpend, not a raw debit filter — see generateReport(); this is the same
@@ -29537,7 +29552,7 @@ async function _rcMonthlyGenerate() {
     if (!result.ok || !result.text) throw new Error('empty');
     // Item 75 M3/M4: a month in progress is shown, labelled, and never saved; a past month is saved as its review
     // (the earlier one kept), even when it is still waiting for an account - the review then names it.
-    const inProgress = month >= new Date().toISOString().slice(0, 7);
+    const inProgress = month >= _localISODate().slice(0, 7);
     if (stillCurrent()) _rcMonthlyDisplayNarrative(result.text, monthName, false, inProgress ? 'Month in progress - not saved as its review' : '');
     if (!inProgress) {
       await API.post('/api/reports/review', { month, text: result.text, kind: 'written' }).catch(_gwErr('_rcMonthlyGenerate'));
@@ -32486,7 +32501,7 @@ function openRecordTransactionModal() {
   g('recordTxnModal')?.classList.remove('hidden');
   setInvTxnType('buy');
   _ensureInvAccountsLoaded(); // the dropdown was never populated on open
-  const d = g('invTxnDate'); if (d && !d.value) d.value = new Date().toISOString().slice(0,10);
+  const d = g('invTxnDate'); if (d && !d.value) d.value = _localISODate();
 }
 function closeRecordTransactionModal() { g('recordTxnModal')?.classList.add('hidden'); }
 let _invTxnType = 'buy';
@@ -32525,7 +32540,7 @@ async function saveInvTransaction() {
   const total   = parseFloat(g('invTxnTotal')?.value)  || 0;
   const fees    = parseFloat(g('invTxnFees')?.value)   || 0;
   const note    = g('invTxnNote')?.value?.trim() || '';
-  const date    = g('invTxnDate')?.value || new Date().toISOString().slice(0,10);
+  const date    = g('invTxnDate')?.value || _localISODate();
   const type    = _invTxnType;
 
   if (!ticker) { showToast('Missing ticker', 'Enter the ticker symbol', 'error'); return; }

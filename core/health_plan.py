@@ -12,7 +12,7 @@ P1: progress is what the insurer reports, typed by the person with its date. It 
 payment shows what was paid, not what the insurer applied. P7: the terms are taught, and nothing here suggests what
 to do or when.
 """
-from datetime import date, timedelta, timezone
+from datetime import date, timedelta
 
 from core.hsa_fsa import money, day
 
@@ -230,7 +230,7 @@ def plan_state(session, plan, today=None):
                f'out-of-pocket maximum {money(v.previous_oop_max)}' if v.previous_oop_max is not None and v.previous_oop_max != v.oop_max else '']
         was = [w for w in was if w]
         if was:
-            on = v.recorded_at.replace(tzinfo=timezone.utc).astimezone().date()     # stored in UTC; said in local time
+            on = v.recorded_at.date()     # item 109: recorded in the computer's own local time
             notes.append(f'Corrected on {day(on.isoformat())}: it was {" and ".join(was)} before (you said the new figure was always right).')
     newest = max([d for d in (ded[1], oop[1]) if d] or [None]) if reads else None
     last_paid = _last_health_payment(session)

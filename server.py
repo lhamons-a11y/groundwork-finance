@@ -253,7 +253,7 @@ def create_app(static_folder: str = None) -> Flask:
         except ImportError:
             VERSION = '1.0.0.0'
         return jsonify({'status': 'ok', 'version': VERSION,
-                        'timestamp': datetime.utcnow().isoformat()})
+                        'timestamp': datetime.now().isoformat()})
 
     @app.route('/api/save', methods=['GET', 'POST'])
     def save_snapshot():
@@ -269,7 +269,7 @@ def create_app(static_folder: str = None) -> Flask:
                 payload = json.dumps(snapshot)
                 if setting:
                     setting.value      = payload
-                    setting.updated_at = datetime.utcnow()
+                    setting.updated_at = datetime.now()
                 else:
                     session.add(AppSetting(key='app_snapshot', value=payload))
                 session.commit()
@@ -3117,7 +3117,7 @@ def trips_commit():
     with db_session() as session:
         tr.carry_setting(session)
         t = Trip(label=label, depart=(b.get('depart') or '')[:10] or None, ret=(b.get('ret') or '')[:10] or None,
-                 total=total, lines_json=json.dumps(tr.lines_from_budget(b)), status='going', going_at=datetime.utcnow())
+                 total=total, lines_json=json.dumps(tr.lines_from_budget(b)), status='going', going_at=datetime.now())
         session.add(t)
         session.commit()
         return ok(_trip_json(session, t, plan=True))
@@ -3139,7 +3139,7 @@ def trips_edit(tid):
                 return err('A trip can be going, planning or cancelled here; "done" comes after it, on a yes.')
             t.status = b['status']
             if b['status'] == 'going' and not t.going_at:
-                t.going_at = datetime.utcnow()
+                t.going_at = datetime.now()
         if 'sources' in b:
             clean = []
             for s in b.get('sources') or []:
@@ -3240,7 +3240,7 @@ def trips_use_charges(tid):
         t.actual_spent = round(sum(offered[p]['amount'] for p in picked), 2)
         t.actual_txn_ids = ','.join(picked)
         t.status = 'done'
-        t.done_at = datetime.utcnow()
+        t.done_at = datetime.now()
         log_historian_event(session, 'trip_actual', expected_value=round(float(t.total or 0), 2),
                             actual_value=t.actual_spent, context={'trip_id': t.id})
         session.commit()
@@ -3560,7 +3560,7 @@ def yearly_steps_answer():
         if not x:
             return err('There is no question open for that payee.', 404)
         q = x['question']
-        rec = {'month': q['month'], 'answer': answer, 'at': datetime.utcnow().isoformat(timespec='seconds')}
+        rec = {'month': q['month'], 'answer': answer, 'at': datetime.now().isoformat(timespec='seconds')}
         new_amount = None
         if q['kind'] == 'price':
             if answer not in ('yes', 'amount', 'not_sure'):
@@ -4474,7 +4474,7 @@ checkin_bp = Blueprint('checkin', __name__)
 
 # ── Item 76 - the Sunday check-in (SUNDAY_CHECKIN.md S1-S12) and the overnight narration rule (S1/S2) ───────────
 def _newest_import(session):
-    """When the newest imported records arrived (UTC) - hand-kept and Groundwork-written records never count."""
+    """When the newest imported records arrived (local time, item 109) - hand-kept and Groundwork-written records never count."""
     return session.query(func.max(Transaction.created_at)).filter(
         Transaction.source.isnot(None), Transaction.source != '', Transaction.source != 'manual').scalar()
 
@@ -4597,7 +4597,7 @@ def narration_due():
             last_dt = datetime.fromisoformat(last) if last else None
         except (TypeError, ValueError):
             last_dt = None
-        fresh, unwritten = _narration_rule(newest, last_dt, datetime.utcnow())
+        fresh, unwritten = _narration_rule(newest, last_dt, datetime.now())
         ok_to_run = fresh and unwritten
         today = date.today()
         return ok({'run': ok_to_run, 'fresh': fresh, 'unwritten': unwritten,
@@ -4610,7 +4610,7 @@ def narration_done():
     """S1: the night's narration is written - nothing more runs until a newer import arrives."""
     with db_session() as session:
         # full precision: an import in the same second as this must not read as newer than it
-        _set_setting(session, 'narration_last_at', json.dumps(datetime.utcnow().isoformat()))
+        _set_setting(session, 'narration_last_at', json.dumps(datetime.now().isoformat()))
         session.commit()
         return ok({'done': True})
 
@@ -5233,7 +5233,7 @@ def stale_imports(session, today=None):
     The fact is the date the last import landed (its transactions' created_at), not the latest
     transaction date: a quiet account imported yesterday is up to date.
     """
-    now = today or datetime.utcnow()
+    now = today or datetime.now()
     rows = session.query(
         Transaction.account_id, func.max(Transaction.created_at)
     ).filter(
@@ -5263,7 +5263,7 @@ def imports_behind_this_month(session, today=None):
     The imported accounts (hand-kept ones never count) with nothing imported since the month began. While
     any is listed, the month's spending is not known, and a tile says so instead of stating a pace.
     """
-    now = today or datetime.utcnow()
+    now = today or datetime.now()
     start = datetime(now.year, now.month, 1)
     rows = session.query(Transaction.account_id, func.max(Transaction.created_at)).filter(
         Transaction.account_id.isnot(None),
@@ -5649,7 +5649,7 @@ def dashboard_ask():
             shown = e['id'] in _user_tiles(_layout(session)) and e['id'] not in _layout(session)['hidden']
             return ok({'match': {'id': e['id'], 'title': e['title'], 'shown': shown}, 'backed': ok_, 'needs': needs})
         reqs = _dashboard_json(session, 'dashboard_tile_requests', [])
-        reqs.append({'text': text, 'at': datetime.utcnow().isoformat(timespec='seconds')})
+        reqs.append({'text': text, 'at': datetime.now().isoformat(timespec='seconds')})
         reqs = reqs[-_REQUEST_MAX_COUNT:]
         _dashboard_store(session, 'dashboard_tile_requests', reqs)
         session.commit()
@@ -5784,7 +5784,7 @@ def _cache_rows(session, key, rows):
     same series (degree days) on a cold cache: the second insert of the key fails. The rows are still good - this
     request returns them - and its session is rolled back, never left failed for the next query."""
     try:
-        _dashboard_store(session, key, {'fetched_at': datetime.utcnow().isoformat(), 'rows': rows})
+        _dashboard_store(session, key, {'fetched_at': datetime.now().isoformat(), 'rows': rows})
         session.commit()
     except Exception as e:                       # noqa: BLE001 - another request cached the same rows first
         session.rollback()
@@ -5797,7 +5797,7 @@ def _steo(session, series, fetch=True):
     cached = _dashboard_json(session, key, None)
     if cached and cached.get('rows'):
         try:
-            age = datetime.utcnow() - datetime.fromisoformat(cached['fetched_at'])
+            age = datetime.now() - datetime.fromisoformat(cached['fetched_at'])
         except (KeyError, ValueError, TypeError):
             age = timedelta(days=999)
         if age < timedelta(days=STEO_FRESH_DAYS) or not fetch:
@@ -5934,7 +5934,7 @@ def _eia_weekly_gas(session, area, fetch=True, product='EPMR'):
     cached = _dashboard_json(session, key, None)
     if cached and cached.get('rows'):
         try:
-            age = datetime.utcnow() - datetime.fromisoformat(cached['fetched_at'])
+            age = datetime.now() - datetime.fromisoformat(cached['fetched_at'])
         except (KeyError, ValueError, TypeError):
             age = timedelta(days=999)
         if age < timedelta(days=WEEKLY_FRESH_DAYS) or not fetch:
@@ -6003,7 +6003,7 @@ def _eia_weekly_heating(session, area, product, fetch=True):
     cached = _dashboard_json(session, key, None)
     if cached and cached.get('rows'):
         try:
-            age = datetime.utcnow() - datetime.fromisoformat(cached['fetched_at'])
+            age = datetime.now() - datetime.fromisoformat(cached['fetched_at'])
         except (KeyError, ValueError, TypeError):
             age = timedelta(days=999)
         if age < timedelta(days=WEEKLY_FRESH_DAYS) or not fetch:
@@ -7166,7 +7166,7 @@ def _proactive_state(session):
     to survive a restart. `proactive_shown` and `proactive_dismissed` are that
     ledger; nothing else here is state.
     """
-    now = datetime.utcnow()
+    now = datetime.now()
     week = now - timedelta(days=7)
     last_session = session.query(HistorianEntry).filter(
         HistorianEntry.event_category == 'session_start'
@@ -7296,7 +7296,7 @@ def _proactive_candidates(session, cards, budget, strategy):
         })
 
     drivers = []
-    window_start = datetime.utcnow() - timedelta(days=365)
+    window_start = datetime.now() - timedelta(days=365)
     for acct in session.query(DebtAccount).filter(
             DebtAccount.paid_off_at.isnot(None),
             DebtAccount.paid_off_at >= window_start).all():
@@ -7309,8 +7309,8 @@ def _proactive_candidates(session, cards, budget, strategy):
             DebtLedgerEntry.amount > minimum + 1.0).first() is not None
         drivers.append({'name': acct.name, 'monthly': round(minimum, 2),
                         'deliberate': deliberate,
-                        'months_ago': ((datetime.utcnow().year - acct.paid_off_at.year) * 12
-                                       + (datetime.utcnow().month - acct.paid_off_at.month))})
+                        'months_ago': ((datetime.now().year - acct.paid_off_at.year) * 12
+                                       + (datetime.now().month - acct.paid_off_at.month))})
     # Appendix G's checkpoints. G.3b is emphatic that these are not a
     # separate alert channel: same voice, same gate, same budget as every
     # other brake. Materiality is instantiated at G's own timescale rather
@@ -7672,7 +7672,7 @@ def debt_green_light():
     """
     from core.solution import green_light
 
-    window_start = datetime.utcnow() - timedelta(days=365)
+    window_start = datetime.now() - timedelta(days=365)
     today = date.today().strftime('%Y-%m')
     with db_session() as session:
         cards, budget, strategy, undated = _consequence_inputs(session)
@@ -7693,8 +7693,8 @@ def debt_green_light():
                 DebtLedgerEntry.debt_account_id == acct.id,
                 DebtLedgerEntry.entry_type == 'payment',
                 DebtLedgerEntry.amount > minimum + 1.0).first() is not None
-            months_ago = ((datetime.utcnow().year - acct.paid_off_at.year) * 12
-                          + (datetime.utcnow().month - acct.paid_off_at.month))
+            months_ago = ((datetime.now().year - acct.paid_off_at.year) * 12
+                          + (datetime.now().month - acct.paid_off_at.month))
             drivers.append({'name': acct.name, 'monthly': round(minimum, 2),
                             'deliberate': deliberate, 'months_ago': months_ago})
 
@@ -8788,7 +8788,7 @@ def create_debt_ledger_entry(debt_id):
                 checking_transaction_id=linked_txn_id,
                 debt_ledger_entry_id=entry.id,
                 link_indicator='payment_to_card' if entry_type == 'payment' else 'charge_from_card',
-                user_confirmed_at=datetime.utcnow(),
+                user_confirmed_at=datetime.now(),
             )
             session.add(_new_link)
             if entry_type == 'payment':                  # item 93 B11: the household's statement, when someone is answering
@@ -9080,8 +9080,8 @@ def confirm_debt_draft(entry_id):
         if entry.linked_recurring_payment_id:
             rp = session.get(RecurringDebtPayment, entry.linked_recurring_payment_id)
             if rp:
-                rp.last_confirmed_at = datetime.utcnow()
-                rp.last_executed_at = datetime.utcnow()
+                rp.last_confirmed_at = datetime.now()
+                rp.last_executed_at = datetime.now()
 
         debt = session.get(DebtAccount, entry.debt_account_id)
         if debt:
@@ -9199,7 +9199,7 @@ def link_checking_txn_to_debt(txn_id):
             checking_transaction_id=txn_id,
             debt_ledger_entry_id=entry.id,
             link_indicator='payment_to_card',
-            user_confirmed_at=datetime.utcnow(),
+            user_confirmed_at=datetime.now(),
         )
         session.add(_new_link)
         session.flush()
@@ -9280,14 +9280,14 @@ def get_engagement_streak(session) -> dict:
     """The historian's first *engagement* reader — a habit signal, not a pace
     score like the confidence readers. Consecutive-day check-in streak from
     session_start events (distinct days, so many launches/refreshes in one day
-    count once), plus this month's budget_reviewed count. UTC day boundaries,
-    matching how created_at is stored. Honest zero shape when there's no
+    count once), plus this month's budget_reviewed count. Local day boundaries,
+    matching how created_at is stored (item 109). Honest zero shape when there's no
     history yet — the UI self-gates on streak_days the same way the confidence
     cards gate on a null score."""
     starts = session.query(HistorianEntry.created_at).filter(
         HistorianEntry.event_category == 'session_start').all()
     days = sorted({c.date() for (c,) in starts if c is not None}, reverse=True)
-    today = datetime.utcnow().date()
+    today = datetime.now().date()
     streak = 0
     # A streak stays alive if the most recent check-in was today or yesterday;
     # not opening the app *yet today* shouldn't read as broken until a full day
@@ -9372,7 +9372,7 @@ def get_net_worth_milestone_confidence(session, milestone_id, months: int = 12) 
     confidence=None (not a fabricated number) when there's no snapshot
     history yet for this milestone, rather than guessing from the static
     linear projection the UI already shows without any history at all."""
-    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    cutoff = datetime.now() - timedelta(days=30 * months)
     entries = session.query(HistorianEntry).filter(
         HistorianEntry.event_category == 'net_worth_milestone_variance',
         HistorianEntry.created_at >= cutoff,
@@ -9467,7 +9467,7 @@ def get_investment_allocation_confidence(session, asset_class: str, months: int 
     drift history logged by _log_investment_allocation_drift. Mirrors
     get_net_worth_milestone_confidence's shape and honesty rule: returns
     confidence=None (not fabricated) when there's no refresh history yet."""
-    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    cutoff = datetime.now() - timedelta(days=30 * months)
     entries = session.query(HistorianEntry).filter(
         HistorianEntry.event_category == 'investment_allocation_drift',
         HistorianEntry.created_at >= cutoff,
@@ -9527,7 +9527,7 @@ def get_sinking_fund_confidence(session, fund_id: int, months: int = 12) -> dict
     """0-100 pace confidence for a sinking fund, from real contribution
     variance history. Mirrors get_net_worth_milestone_confidence's scoring
     (running ahead of a savings pace is never bad, only behind is)."""
-    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    cutoff = datetime.now() - timedelta(days=30 * months)
     entries = session.query(HistorianEntry).filter(
         HistorianEntry.event_category == 'sinking_fund_contribution_variance',
         HistorianEntry.created_at >= cutoff,
@@ -9577,7 +9577,7 @@ def _log_college_fund_contribution_variance(session, fund_id, expected: float, a
 def get_college_fund_confidence(session, fund_id, months: int = 12) -> dict:
     """0-100 pace confidence for a college fund — identical shape and
     scoring to get_sinking_fund_confidence."""
-    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    cutoff = datetime.now() - timedelta(days=30 * months)
     entries = session.query(HistorianEntry).filter(
         HistorianEntry.event_category == 'college_fund_contribution_variance',
         HistorianEntry.created_at >= cutoff,
@@ -9614,7 +9614,7 @@ def get_payment_variance_for_account(session, debt_account_id: int, months: int 
     which reads current ledger state per recurring pattern — this reads the
     historian's point-in-time record of what happened at confirm time,
     which survives even if the underlying ledger entry is later edited."""
-    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    cutoff = datetime.now() - timedelta(days=30 * months)
     entries = session.query(HistorianEntry).filter(
         HistorianEntry.debt_account_id == debt_account_id,
         HistorianEntry.event_category.in_(['payment_confirmed', 'payment_amount_variance']),
@@ -9695,7 +9695,7 @@ def get_category_patterns(session, merchant_name: str) -> dict:
 def get_budget_variance_by_category(session, category_id: int, months: int = 12) -> dict:
     """Budget vs. actual variance for a category. Scaffold for Phase H2
     Feature 2 — budget_variance_observed isn't written anywhere yet."""
-    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    cutoff = datetime.now() - timedelta(days=30 * months)
     entries = session.query(HistorianEntry).filter(
         HistorianEntry.category_id == category_id,
         HistorianEntry.event_category == 'budget_variance_observed',
@@ -9757,7 +9757,7 @@ def get_llm_miss_log(time_range_days: int = 30) -> dict:
     log_path = DATA_DIR / 'voice_miss_log.jsonl'
     if not log_path.exists():
         return {'gate_flag_count_by_type': {}, 'most_recent_flags': []}
-    cutoff = datetime.utcnow() - timedelta(days=time_range_days)
+    cutoff = datetime.now() - timedelta(days=time_range_days)
     counts, recent = {}, []
     try:
         with open(log_path, 'r', encoding='utf-8') as f:
@@ -10140,7 +10140,7 @@ def bank_agent_recipe_save():
     with db_session() as session:
         if not _bank_agent_url(session, key):
             return err('That account has no bank link.', 400)
-        _set_setting(session, f'bank_recipe:{key}', json.dumps({'steps': clean, 'saved': datetime.utcnow().isoformat()}))
+        _set_setting(session, f'bank_recipe:{key}', json.dumps({'steps': clean, 'saved': datetime.now().isoformat()}))
         session.commit()
     return ok({'key': key, 'steps': clean, 'words': [bank_agent_window.step_words(x) for x in clean]})
 
@@ -10648,7 +10648,7 @@ def bank_agent_bill_checks():
     """B6/B7 for every bill with a confirmed reading: the paying account, the check against the floor (with the
     24-hour notice), and whether its payment has been seen. Computed on every read; nothing is written."""
     from core import bill_check
-    now = datetime.utcnow()            # the Historian's times are UTC (HistorianEntry.created_at)
+    now = datetime.now()            # the Historian's times are local, as every time is (item 109)
     out, accounts = [], []
     with db_session() as session:
         for a in session.query(Account).filter_by(is_active=True).order_by(Account.sort_order, Account.name).all():
@@ -10691,7 +10691,7 @@ def bank_agent_bill_checks():
                 buf = next((x['buffer'] for x in accounts if x['id'] == acct_id), None)
                 chk = bill_check.pay_check(balance, as_of, last, buf, r.amount, earlier, now)
                 row['check'] = chk
-                row['last_download'] = last.isoformat(timespec='minutes') + 'Z' if last else None   # UTC, said so
+                row['last_download'] = last.isoformat(timespec='minutes') if last else None   # local time (item 109)
                 t = paid['txn']
                 row['paid'] = {'state': paid['state'],
                                'txn': ({'id': t['id'], 'date': t['date'].isoformat(), 'amount': t['amount'],
@@ -10732,7 +10732,7 @@ def bank_agent_pay_open():
         r = session.query(BillReading).filter_by(budget_item_id=bid).order_by(BillReading.id.desc()).first()
         balance, as_of, last, _tx = _account_balance_facts(session, acct.id)
         buf = (_setting_json(session, f'bank_buffer:account:{acct.id}') or {}).get('amount')
-        chk = bill_check.pay_check(balance, as_of, last, buf, r.amount if r else None, [], datetime.utcnow())
+        chk = bill_check.pay_check(balance, as_of, last, buf, r.amount if r else None, [], datetime.now())
         name, acct_name = b.name, acct.name
     if not bank_vault.has_login(login_key):
         return err(f'Save a login for {acct_name} first.', 400)
@@ -11920,13 +11920,13 @@ def set_manual_price():
             row.day_change   = price - (row.previous_close or price)
             row.day_change_pct = ((price - (row.previous_close or price)) / (row.previous_close or price) * 100) if row.previous_close else 0
             row.is_manual    = True
-            row.last_updated = datetime.utcnow()
+            row.last_updated = datetime.now()
         else:
             session.add(PriceCache(
                 ticker       = ticker,
                 price        = price,
                 is_manual    = True,
-                last_updated = datetime.utcnow(),
+                last_updated = datetime.now(),
                 source       = 'manual',
             ))
         session.commit()
@@ -12160,7 +12160,7 @@ def manage_asset_classes():
         payload = json.dumps(current)
         if existing:
             existing.value      = payload
-            existing.updated_at = datetime.utcnow()
+            existing.updated_at = datetime.now()
         else:
             session.add(AppSetting(key='inv_asset_classes_json', value=payload))
         session.commit()
@@ -12199,7 +12199,7 @@ def manage_expense_ratios():
             row = _get_setting(session, key)
             if row:
                 row.value      = json.dumps(value)
-                row.updated_at = datetime.utcnow()
+                row.updated_at = datetime.now()
             elif value or key == 'inv_expense_ratios_pct_json':
                 session.add(AppSetting(key=key, value=json.dumps(value)))
         session.commit()
@@ -12576,7 +12576,7 @@ def create_byb_item():
             payoff_impact    = body.get('payoff_impact'),
             whats_left_before = body.get('whats_left_before'),
             whats_left_after  = body.get('whats_left_after'),
-            decided_at       = datetime.utcnow() if decision in ('commit', 'walkaway') else None,
+            decided_at       = datetime.now() if decision in ('commit', 'walkaway') else None,
         )
         session.add(item)
         session.flush()
@@ -12606,7 +12606,7 @@ def resolve_byb_item(item_id):
             return err('Item not found', 404)
         item.decision    = decision
         item.actual_cost = float(body['actual_cost']) if body.get('actual_cost') is not None else None
-        item.decided_at  = datetime.utcnow()
+        item.decided_at  = datetime.now()
         _log_byb_decision(session, item)
         session.commit()
         return ok(_serialize_byb(item))
@@ -13158,7 +13158,7 @@ def trip_bookings_update(booking_id):
         if body.get('status') == 'cancelled' and b.status in ('booked', 'charged'):
             b.status = 'cancelled'
             b.refund_expected = bool(body.get('refund_expected'))
-        b.updated_at = datetime.utcnow()
+        b.updated_at = datetime.now()
         session.commit()
         return ok(_booking_json(b))
 
@@ -13214,7 +13214,7 @@ def trip_bookings_match(booking_id):
                 b.matched_debt_entry_id = row_id
             b.charged_amount = row['amount']
             b.status = 'charged'
-        b.updated_at = datetime.utcnow()
+        b.updated_at = datetime.now()
         session.commit()
         return ok(_booking_json(b))
 
@@ -13695,7 +13695,7 @@ def export_to_file():
                 dest.write_text(output.getvalue(), encoding='utf-8')
             else:
                 payload = {
-                    'exported_at':   datetime.utcnow().isoformat(),
+                    'exported_at':   datetime.now().isoformat(),
                     'health_left_out': (f'{health_left_out} health spending transaction(s) left out; tick "Include '
                                         'health spending" to include them') if health_left_out else None,
                     'transactions':  txn_rows,
@@ -13826,7 +13826,7 @@ def _ai_log_write(body, response='', stop_reason='', model='', stopped=False):
         with db_session() as session:
             if (_get_setting(session, 'ai_log_keep') or AppSetting(value='')).value == 'off':
                 return None
-            session.query(AiLog).filter(AiLog.created_at < datetime.utcnow() - timedelta(days=AI_LOG_DAYS)) \
+            session.query(AiLog).filter(AiLog.created_at < datetime.now() - timedelta(days=AI_LOG_DAYS)) \
                 .delete(synchronize_session=False)
             from core import health_boundary as _hb      # item 45 H6 P6: scrubbed again, whoever called
             row = AiLog(call_id=str(body.get('log_call') or '')[:64], attempt=int(body.get('log_attempt') or 1),
@@ -14032,7 +14032,7 @@ def _ai_log_json(r, full=False):
         v = json.loads(r.voice) if r.voice else None
     except (TypeError, ValueError):
         v = None
-    out = {'id': r.id, 'at': r.created_at.isoformat(timespec='seconds') + 'Z' if r.created_at else None,
+    out = {'id': r.id, 'at': r.created_at.isoformat(timespec='seconds') if r.created_at else None,
            'call_id': r.call_id, 'attempt': r.attempt, 'surface': r.surface, 'stop_reason': r.stop_reason,
            'stopped': bool(r.stopped), 'voice': v, 'model': r.model}
     if full:
@@ -14049,7 +14049,7 @@ def ai_log_list():
     """G1: the log, newest first - one line per attempt (the page groups a request's attempts). G3: this route and
     the four below are the only readers of the table."""
     with db_session() as session:
-        session.query(AiLog).filter(AiLog.created_at < datetime.utcnow() - timedelta(days=AI_LOG_DAYS)) \
+        session.query(AiLog).filter(AiLog.created_at < datetime.now() - timedelta(days=AI_LOG_DAYS)) \
             .delete(synchronize_session=False)
         session.commit()
         rows = session.query(AiLog).order_by(AiLog.id.desc()).limit(300).all()
@@ -14134,7 +14134,7 @@ def ai_voice_miss():
     """
     body = request.get_json(silent=True) or {}
     entry = {
-        'ts':      datetime.utcnow().isoformat() + 'Z',
+        'ts':      datetime.now().isoformat(),
         'surface': str(body.get('surface', 'unknown'))[:80],
         'model':   str(body.get('model', ''))[:80],
         'rules':   body.get('rules') if isinstance(body.get('rules'), list) else [],
@@ -14774,12 +14774,11 @@ _OWN_BACKUP = re.compile(r'^groundwork_backup_\d{8}_\d{6}(_after_upgrade)?\.(gwb
 
 
 def _backup_stamp(name, when=None):
-    """The record of a backup: `at` local time, for saying when; `utc`, for comparing with created_at (which is UTC -
-    compared with local time, a record made hours before the backup would count as added since)."""
+    """The record of a backup: `at`, local time to the microsecond - for saying when, and for comparing with
+    created_at, which is local time too (item 109); a record saved earlier in the same second is before it. A record
+    from before item 109 also carries `utc`, which nothing reads now."""
     ts = when if when is not None else time.time()
-    return {'at': datetime.fromtimestamp(ts).isoformat(timespec='seconds'),
-            'utc': datetime.utcfromtimestamp(ts).isoformat(), 'file': name, 'folder': str(_backups_dir())}   # to the
-                                                    # microsecond: a record saved earlier in the same second is before it
+    return {'at': datetime.fromtimestamp(ts).isoformat(), 'file': name, 'folder': str(_backups_dir())}
 
 
 def _backup_last(session):
@@ -14812,9 +14811,8 @@ def _backup_reminder(session, now=None):
     snooze = _setting_json(session, 'backup_remind_snooze', None)
     last = _backup_last(session)
     since = datetime.fromisoformat(last['at']) if last else None
-    since_utc = datetime.fromisoformat(last.get('utc') or last['at']) if last else None
     added = {'transactions': 0, 'other': 0}
-    q = lambda model: session.query(func.count(model.id)).filter(model.created_at > since_utc).scalar() or 0
+    q = lambda model: session.query(func.count(model.id)).filter(model.created_at > since).scalar() or 0
     if since:
         added['transactions'] = q(Transaction)
         added['other'] = q(Account) + q(DebtAccount) + q(BudgetItem)
@@ -15137,7 +15135,7 @@ def _serialize_sinking_fund(f) -> dict:
 
 def _fund_contributions(session, fund_id: int, months: int = 12):
     """The Historian's contribution events for one fund, inside the window."""
-    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    cutoff = datetime.now() - timedelta(days=30 * months)
     matched = []
     for e in session.query(HistorianEntry).filter(
             HistorianEntry.event_category == 'sinking_fund_contribution_variance',
@@ -15164,7 +15162,7 @@ def fund_contribution_break(session, fund_id: int, months: int = 12):
     if not matched:
         return None
     first = min(e.created_at for e in matched)
-    now = datetime.utcnow()
+    now = datetime.now()
     by_month = {}
     for e in matched:
         k = e.created_at.strftime('%Y-%m')
@@ -15204,7 +15202,7 @@ def fund_observed_monthly(session, fund_id: int, months: int = 12, since: str = 
     first = min(e.created_at for e in matched)
     if since:
         first = datetime(int(since[:4]), int(since[5:7]), 1)
-    now = datetime.utcnow()
+    now = datetime.now()
     span = max(1, (now.year - first.year) * 12 + (now.month - first.month) + 1)
     total = sum(float(e.actual_value or 0) for e in matched)
     return round(total / span, 2), len(matched)

@@ -12,7 +12,8 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20261019-collections'   # item 101 (COLLECTIONS.md): medical_collections (create_all)
+SCHEMA_VERSION = '20261022-local-clock'   # item 109 (LOCAL_CLOCK.md T3): stored UTC moments converted once to local time
+# Before it, '20261019-collections'   # item 101 (COLLECTIONS.md): medical_collections (create_all)
 # Before it, '20261019-medical-bills'   # item 94 (BILL_THAT_LANDS.md): medical_providers, medical_bill_accounts, medical_bill_statements (create_all)
 # Before it, '20261018-household-statements'   # item 93 stages 3-4 (BANK_SIDE_RECORDS.md B2-B4, B8, B11): account_banks, standing_statements, ledger_line_records, earlier_answers, reversal_answers (create_all)
 # Before it, '20261017-named-people'   # item 92: the care_for table (create_all) + health_plan_readings.person_id
@@ -45,7 +46,7 @@ SCHEMA_VERSION = '20261019-collections'   # item 101 (COLLECTIONS.md): medical_c
 # The fingerprint of this file's code at this SCHEMA_VERSION (smoke section s51). Change anything the
 # migration does and s51 fails until BOTH lines above and below are updated - the version first, then
 # the fingerprint s51 prints. A change without a bump is skipped on every existing database.
-SCHEMA_SPEC_SHA256 = '24769963e965d47667173b4d13aaad556671736b980665eddd7bad9b2b58740c'
+SCHEMA_SPEC_SHA256 = 'd901059c95d81000987037c1d25b5c89a7d915583bf224cf52c9048f3e228b0b'
 # The models' fingerprint (item 24, SCHEMA_PIN_MODELS.md P1): every table and column in core/database.py. A model
 # change - a new table, a new column - moves it, and s51 fails until SCHEMA_VERSION is bumped, any new column on an
 # existing table is listed in its _NEW_*_COLUMNS list, this pin is updated, and `python schema_fixture.py` has saved
@@ -540,6 +541,101 @@ def _remove_cloud_ai(session):
     _mark_migration_done(session, flag)
 
 
+# Item 109 (LOCAL_CLOCK.md T3): every moment Groundwork stored in UTC, converted once to the same instant in the
+# computer's own local time, with the daylight-saving offset of that moment. Two DateTime columns were never UTC.
+_CLOCK_FLAG = 'clock_local_v109'
+_CLOCK_NOT_UTC = {('bill_readings', 'read_at'),          # written in local time (server.py, the bill reading)
+                  ('debt_accounts', 'paid_off_at')}      # a day typed on a form
+_CLOCK_SETTING_KEYS = ('narration_last_at', 'yearly_step_answers', 'dashboard_tile_requests')
+_CLOCK_FIELDS = ('at', 'saved', 'fetched_at')
+
+
+def _utc_to_local(v):
+    """A naive UTC datetime -> the same instant as a naive local one, by that moment's own offset."""
+    from datetime import timezone
+    return v.replace(tzinfo=timezone.utc).astimezone().replace(tzinfo=None)
+
+
+def _utc_iso_to_local(s):
+    """The same, for a stored ISO string; anything that isn't one comes back unchanged."""
+    from datetime import datetime
+    if not isinstance(s, str) or len(s) < 16 or s[4:5] != '-' or s[10:11] not in ('T', ' '):
+        return s
+    try:
+        v = datetime.fromisoformat(s.rstrip('Z'))
+    except ValueError:
+        return s
+    if v.tzinfo is not None:
+        return s
+    out = _utc_to_local(v)
+    return out.isoformat(sep=s[10], timespec='microseconds' if '.' in s else 'seconds')
+
+
+def _clock_local_settings(value):
+    """A stored setting's UTC moments (the T3 keys: `at`, `saved`, `fetched_at`), converted; the rest unchanged."""
+    if isinstance(value, str):
+        return _utc_iso_to_local(value)
+    if isinstance(value, list):
+        return [_clock_local_settings(x) for x in value]
+    if isinstance(value, dict):
+        return {k: (_utc_iso_to_local(v) if k in _CLOCK_FIELDS else _clock_local_settings(v) if isinstance(v, (list, dict)) else v)
+                for k, v in value.items()}
+    return value
+
+
+def _clock_local_v109(had_version):
+    """T3, once. A database that never had a schema version is new: nothing in it was ever written in UTC, so the step
+    is only marked done. Plain SQL on the columns the database has: this runs before an old database gains its new
+    columns, and the conversion, the settings, the Historian line and the done-flag are one transaction - a failure
+    leaves nothing converted, and nothing is ever converted twice. Returns how many values moved."""
+    import json
+    from datetime import datetime
+    from core.database import Base
+    from sqlalchemy import DateTime
+    with engine.begin() as conn:
+        if conn.execute(text('SELECT 1 FROM app_settings WHERE key = :k'), {'k': _CLOCK_FLAG}).first():
+            return 0
+        moved = 0
+        if had_version:
+            for table in Base.metadata.sorted_tables:
+                cols = [c.name for c in table.columns
+                        if isinstance(c.type, DateTime) and (table.name, c.name) not in _CLOCK_NOT_UTC]
+                have = {r[1] for r in conn.execute(text(f'PRAGMA table_info("{table.name}")'))}
+                for col in [c for c in cols if c in have]:
+                    rows = conn.execute(text(f'SELECT rowid, "{col}" FROM "{table.name}" WHERE "{col}" IS NOT NULL')).fetchall()
+                    for rowid, val in rows:
+                        try:
+                            v = val if isinstance(val, datetime) else datetime.fromisoformat(str(val))
+                        except ValueError:
+                            continue
+                        conn.execute(text(f'UPDATE "{table.name}" SET "{col}" = :v WHERE rowid = :r'),
+                                     {'v': _utc_to_local(v).isoformat(sep=' ', timespec='microseconds'), 'r': rowid})
+                        moved += 1
+            for k, val in conn.execute(text('SELECT key, value FROM app_settings')).fetchall():
+                k = k or ''
+                if k == 'corrections_kept_since':
+                    new = _utc_iso_to_local(val)
+                elif k in _CLOCK_SETTING_KEYS or k.startswith('bank_recipe:') or '"fetched_at"' in (val or ''):
+                    try:
+                        new = json.dumps(_clock_local_settings(json.loads(val)))
+                    except (TypeError, ValueError):
+                        continue
+                else:
+                    continue
+                if new != val:
+                    conn.execute(text('UPDATE app_settings SET value = :v WHERE key = :k'), {'v': new, 'k': k})
+                    moved += 1
+            conn.execute(text('INSERT INTO historian_entries (event_category, context_json, created_at) VALUES '
+                              "('clock_local', :c, :t)"),
+                         {'c': json.dumps({'moved': moved, 'offset_now_minutes': int(
+                             datetime.now().astimezone().utcoffset().total_seconds() // 60)}),
+                          't': datetime.now().isoformat(sep=' ', timespec='microseconds')})
+        conn.execute(text('INSERT INTO app_settings (key, value) VALUES (:k, :v)'), {'k': _CLOCK_FLAG, 'v': '1'})
+    if moved:
+        logger.info('Item 109: %d stored UTC moments now in local time', moved)
+    return moved
+
+
 def _corrections_kept_since():
     """Item 93 B6: from when every correction is kept. A line imported before this may have been edited with no
     history, so its earliest kept version is only called the bank's when the line came in after this moment."""
@@ -547,7 +643,7 @@ def _corrections_kept_since():
     from core.database import AppSetting, db_session
     with db_session() as session:
         if not session.query(AppSetting).filter_by(key='corrections_kept_since').first():
-            session.add(AppSetting(key='corrections_kept_since', value=datetime.utcnow().isoformat(timespec='seconds')))
+            session.add(AppSetting(key='corrections_kept_since', value=datetime.now().isoformat(timespec='seconds')))
             session.commit()
 
 
@@ -557,7 +653,9 @@ def run_migration_if_needed():
         logger.info('Schema already at %s — migration skipped', SCHEMA_VERSION)
         return
 
+    had_version = _stored_schema_version() is not None
     init_db()
+    _clock_local_v109(had_version)          # item 109: first, before anything else this run writes a local time
     _add_missing_columns('transactions',         _NEW_TRANSACTION_COLUMNS)
     _add_missing_columns('debt_accounts',        _NEW_DEBT_COLUMNS)
     _add_missing_columns('accounts',             _NEW_ACCOUNT_COLUMNS)
