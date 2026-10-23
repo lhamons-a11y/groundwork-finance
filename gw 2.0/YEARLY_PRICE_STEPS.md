@@ -247,3 +247,16 @@ and heating oil appear nowhere in yearly steps; item 26's EIA-priced estimate ca
 ## 9. Acceptance: Rob, 2026-10-21
 
 **Accepted** (Rob: *"accept item 106"*). The live read on Rob's own ledger is still owed, on the Windows machine.
+
+## 10. The live read: Rob's ledger, 2026-10-23
+
+Run read-only on the Windows machine (`scripts/y106_live_read.py`, as one file):
+- 1,493 spending transactions, 275 payees, **2026-01-05 to 2026-10-20 (10 months)**.
+- **No payee spans two years**, so no yearly pattern can exist yet. The earliest a two-step pattern could show is early
+  2027; a projection (three steps) early 2028.
+- **3 payees have one price step** this year: next year's same-month step would make each a pattern.
+- **0 usage bills asked about:** a same-month comparison needs a bill from a year earlier; the ledger starts in January.
+- **1 gas or electric payee left to item 26** (one, not two: the gas bill may sit under another category - to check
+  with Rob).
+
+Older history (a Quicken import) is what would bring patterns forward. The live read owed by section 9 is done.
