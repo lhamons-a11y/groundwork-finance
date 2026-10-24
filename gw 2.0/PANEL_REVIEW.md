@@ -202,3 +202,11 @@ Full suite on Rob's Mac: 3,950 passed, 0 failed. Checked in a browser: the Budge
 - A fund row that is over its target saying "over" in words (the server already reports it).
 - Words for the colour-only states beyond the Budget rows.
 - Rob's screen-reader session (P5).
+
+**Item 113, where it can be tested (Rob, 2026-10-24):** *"my mac does not have a microphone so it will be only tested
+on the windows machine."*
+- Recognition (Vosk and whisper.cpp) is measured on the Windows laptop only.
+- The Mac build can still be checked without a microphone, using recorded audio files: the same model, the same
+  words, so the Mac's recognition is compared with Windows', and how it behaves with no microphone is tested.
+- Nobody speaking into a Mac is a gap to say plainly at release, unless a USB or Bluetooth microphone is used later.
+- Read-aloud (P6) needs only speakers, so it is tested on both.
