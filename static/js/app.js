@@ -16543,11 +16543,14 @@ async function _renderDebtPace() {
   const when = n => { if (n == null) return null; const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + n);
     return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }); };
   const planned = when(p.planned_months), actual = when(p.actual_months);
-  el.innerHTML = `Your debt payments on record averaged <strong style="font-family:var(--font-mono)">${fmt(p.average)}</strong> a month over the last three months, against a plan of <strong style="font-family:var(--font-mono)">${fmt(p.plan)}</strong>. `
+  const mono = v => '<strong style="font-family:var(--font-mono)">' + fmt(v) + '</strong>';
+  const months = p.by_month.map(m => new Date(m.month + '-15').toLocaleDateString('en-US', { month: 'short' }) + ' ' + fmt(m.paid)).join(', ');
+  el.innerHTML = 'Your debt payments on record averaged ' + mono(p.average) + ' a month over the last three months, against a plan of '
+    + mono(p.plan) + '. '
     + (p.below_minimums ? 'That is below the minimums owed. '
-       : actual ? `At that pace the debt-free date is <strong>${actual}</strong>${planned ? ` (the plan's: ${planned})` : ''}. `
+       : actual ? 'At that pace the debt-free date is <strong>' + actual + '</strong>' + (planned ? ' (the plan has ' + planned + ')' : '') + '. '
        : 'At that pace the debt does not clear within 30 years. ')
-    + `<span style="color:var(--slate-2)">From the payments recorded in Debt Payoff: ${p.by_month.map(m => `${new Date(m.month + '-15').toLocaleDateString('en-US', { month: 'short' })} ${fmt(m.paid)}`).join(', ')}.</span>`;
+    + '<span style="color:var(--slate-2)">From the payments recorded in Debt Payoff: ' + months + '.</span>';
   el.style.display = '';
 }
 
@@ -17025,11 +17028,15 @@ function calculate() {
     _debtWriteHero(null, data, budget, totalMin);
     // Panel I-06: no date, and why - the gap in dollars, with the one-tap way back to a plan that can be dated
     const below = budget < totalMin - 0.005;
+    const why = below
+      ? 'Your monthly debt budget, ' + fmt(budget) + ', is ' + fmt(totalMin - budget) + ' below the ' + fmt(totalMin)
+        + ' in minimum payments, so there is no payoff date. The minimums are owed whatever the budget says.'
+        + '<div style="margin-top:8px"><button class="btn btn-secondary btn-sm" onclick="_useMinimumsAsBudget(' + totalMin.toFixed(2)
+        + ')">Use my minimums, ' + fmt(totalMin) + '</button></div>'
+      : 'At ' + fmt(budget) + ' a month the debt does not clear within 30 years, so there is no payoff date. Any amount above the '
+        + fmt(totalMin) + ' in minimums brings one closer.';
     if (results) results.innerHTML = `
-      <div style="color:var(--ember-text);font-size:13px;padding:12px;margin-bottom:12px;line-height:1.6">${below
-        ? `Your monthly debt budget, ${fmt(budget)}, is ${fmt(totalMin - budget)} below the ${fmt(totalMin)} in minimum payments, so there is no payoff date. The minimums are owed whatever the budget says.
-           <div style="margin-top:8px"><button class="btn btn-secondary btn-sm" onclick="_useMinimumsAsBudget(${totalMin.toFixed(2)})">Use my minimums, ${fmt(totalMin)}</button></div>`
-        : `At ${fmt(budget)} a month the debt doesn't clear within 30 years, so there is no payoff date. Any amount above the ${fmt(totalMin)} in minimums brings one closer.`}</div>
+      <div style="color:var(--ember-text);font-size:13px;padding:12px;margin-bottom:12px;line-height:1.6">${why}</div>
       ${_paymentPlanHTML()}`;
     return;
   }

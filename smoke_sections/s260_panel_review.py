@@ -86,13 +86,20 @@ def run(ctx):
     with db_session() as s:
         lid = s.query(DebtAccount).filter_by(name='S260 Auto Loan').first().id
         y, m = today.year, today.month
+        pace_months = []
         for _ in range(3):
             m -= 1
             if m < 1:
                 y, m = y - 1, 12
+            pace_months.append((y, m))
             s.add(DebtLedgerEntry(debt_account_id=lid, entry_type='payment', amount=300.0, entry_date=date(y, m, 10),
                                   source_type='manual', description='S260 pace'))
         s.commit()
+        # payments other sections recorded in the same months count too: the plan sits $150 above the average with them
+        base = {(y, m): sum(float(e.amount or 0) for e in s.query(DebtLedgerEntry).filter_by(entry_type='payment').all()
+                            if e.entry_date and (e.entry_date.year, e.entry_date.month) == (y, m)
+                            and e.description != 'S260 pace') for y, m in pace_months}
+    set_mb(round(sum(base.values()) / 3 + 450, 2))
     pace = (c.get('/api/debt/pace', headers=H).get_json() or {}).get('data') or {}
     with db_session() as s:
         first = s.query(DebtLedgerEntry).filter_by(description='S260 pace').order_by(DebtLedgerEntry.entry_date).first()
@@ -102,12 +109,14 @@ def run(ctx):
     with db_session() as s:
         s.query(DebtLedgerEntry).filter_by(description='S260 pace').delete()
         s.commit()
-    check(f"s260 I-17 three full months paid at $300 against a $450 plan: said, with the date at that pace later than "
+    set_mb(450)
+    alone = base[pace_months[-1]] == 0                      # the deleted month had no other payment on record
+    check(f"s260 I-17 three full months paid $150 a month below the plan: said, with the date at that pace later than "
           f"the plan's; a month with nothing recorded says nothing ({pace.get('state')} {pace.get('average')} "
           f"{pace.get('planned_months')}->{pace.get('actual_months')}; {gap.get('state')})",
-          pace.get('state') == 'short' and pace.get('average') == 300.0 and pace.get('plan') == 450.0
+          pace.get('state') == 'short' and abs(pace.get('plan', 0) - pace.get('average', 0) - 150.0) < 0.02
           and pace.get('actual_months') and pace.get('planned_months') and pace['actual_months'] > pace['planned_months']
-          and gap.get('state') == 'incomplete' and 'id="debtHeroPace"' in ctx.html_src
+          and (gap.get('state') == 'incomplete' if alone else True) and 'id="debtHeroPace"' in ctx.html_src
           and 'async function _renderDebtPace()' in ctx.app_src)
 
     # ── I-16: one "freed minimums" figure, from the minimums on record ───────────────────────────────────────────
@@ -184,7 +193,7 @@ def run(ctx):
     check("s260 I-03/I-06 Reports and Debt Payoff say why there is no date, with the gap and a one-tap 'use my minimums'; "
           "the budget typed on Debt Payoff is the one the server reads",
           "d.reason === 'below_minimums'" in rep and "d.reason === 'never_clears'" in rep
-          and '_useMinimumsAsBudget(' in ctx.app_src and 'Use my minimums, ${fmt(totalMin)}' in ctx.app_src
+          and '_useMinimumsAsBudget(' in ctx.app_src and "')\">Use my minimums, ' + fmt(totalMin)" in ctx.app_src
           and 'calculate();_saveDebtBudgetSoon()' in ctx.html_src
           and "API.patch('/api/settings', { monthly_budget: String(v) })" in ctx.app_src)
 

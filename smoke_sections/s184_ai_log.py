@@ -28,6 +28,7 @@ def run(ctx):
         with db_session() as s:
             s.query(AiLog).delete(synchronize_session=False)
             s.query(AppSetting).filter(AppSetting.key.in_(['ai_log_keep', 'ai_enabled'])).delete(synchronize_session=False)
+            s.add(AppSetting(key='ai_enabled', value='true'))     # panel I-07: AI is on only when chosen - chosen here
             s.commit()
         body = {'system': 'Write two sentences.', 'messages': [{'role': 'user', 'content': 'Dining: $412'}], 'surface': 'monthly_report',
                 'log_call': 'call-s184', 'log_attempt': 1, 'max_tokens': 200}
@@ -101,7 +102,7 @@ def run(ctx):
         off_r = c.post('/api/ai/chat', headers=HJ, data=json.dumps({**body, 'log_call': 'call-aioff'})).get_json()
         with db_session() as s:
             n = s.query(AiLog).filter_by(call_id='call-aioff').count()
-            s.query(AppSetting).filter_by(key='ai_enabled').delete(); s.commit()
+            server._set_setting(s, 'ai_enabled', 'true'); s.commit()      # back on, as chosen above
         check('s184 G8 with AI off nothing is sent and nothing is logged', n == 0 and (off_r.get('data') or {}).get('ai_available') is False)
     finally:
         engine.chat = real_chat
