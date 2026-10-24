@@ -76,7 +76,7 @@ from core.database import ( db_session, DATA_DIR, TripBooking,
     DebtLedgerEntry, RecurringDebtPayment, CheckingTransactionLink,
     HistorianEntry, TripHistory, WillingnessDeclaration,
 )
-from core.consequence import simulate_payoff
+from core.consequence import simulate_payoff, MAX_MONTHS
 from core.solution import MIN_MONTHS_OBSERVED
 from migrate import run_migration_if_needed
 
@@ -6765,6 +6765,16 @@ def _consequence_inputs(session):
     return cards, budget, strategy, undated
 
 
+def _payoff_undatable(cards, budget):
+    """Why the payoff engine gave no date (panel I-03/I-06): the monthly debt budget is below the minimums owed - the
+    gap in dollars - or it covers them but the debt never clears inside the engine's horizon."""
+    minimums = round(sum(float(c.minimum or 0) for c in cards if c.balance > 0.01), 2)
+    if budget < minimums - 0.005:
+        return {'reason': 'below_minimums', 'budget': round(budget, 2), 'minimums': minimums,
+                'gap': round(minimums - budget, 2)}
+    return {'reason': 'never_clears', 'budget': round(budget, 2), 'minimums': minimums}
+
+
 def _debt_month_plan(session):
     """What goes to debt in a month, for every month-budget and "left each month" figure (panel review I-01/I-04: the
     check-in, Before You Buy and the income page counted debt payments as spending but never budgeted for them, so
@@ -7794,6 +7804,11 @@ def report_teaching():
         kw = dict(strategy=strategy, today_key=today, start_month=today)
         base = simulate_payoff(cards, budget, strategy,
                                today_key=today, start_month=today)
+        if base is None or base['months'] >= MAX_MONTHS:
+            # Panel I-03: with no date to move, nothing here can be priced - say why instead of failing (every
+            # finding below is "months sooner or later" against base['months']); a run that ends at the engine's
+            # 30-year cap with debt left has no date either, and "3 months sooner" than never is not a fact
+            return ok({'findings': [], **_payoff_undatable(cards, budget)})
         cats = reallocation_candidates(session)
         rec = trim_candidates(session)
         findings = []

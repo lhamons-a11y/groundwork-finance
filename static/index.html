@@ -1770,7 +1770,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               <div class="card-label">Monthly payment budget</div>
               <div class="field">
                 <label>Total available for debt each month ($)</label>
-                <input type="number" id="monthlyBudget" placeholder="e.g. 1500" min="0" step="0.01" oninput="this.dataset.userSet='1';const _sc=g('debtSuggestedCommitment');if(_sc)_sc.style.display='none';calculate()" value="1500">
+                <input type="number" id="monthlyBudget" placeholder="e.g. 1500" min="0" step="0.01" oninput="this.dataset.userSet='1';const _sc=g('debtSuggestedCommitment');if(_sc)_sc.style.display='none';calculate();_saveDebtBudgetSoon()" value="1500">
               </div>
               <div id="debtSuggestedCommitment" style="display:none;margin-top:8px;font-size:12px;color:var(--slate)"></div>
               <div class="text-xs text-muted mt-3" style="line-height:1.6">Include minimums plus any extra. The more you put in, the faster you get out.</div>

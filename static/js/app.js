@@ -15036,6 +15036,32 @@ const MAX_MONTHS = 360;
 // in-progress edit is immediately visible everywhere), otherwise fall back
 // to stored state. Functions that need the element itself (userSet flag,
 // writing a suggestion into it) still use g('monthlyBudget') directly.
+// The debt budget typed on Debt Payoff is the one every server figure reads (monthly_budget): saved as it is typed,
+// a moment after the last key, not only from Settings (found with panel I-06: the page and the server could each
+// use a different budget until Settings was saved).
+let _debtBudgetTimer = null;
+function _saveDebtBudgetSoon() {
+  clearTimeout(_debtBudgetTimer);
+  _debtBudgetTimer = setTimeout(() => {
+    const v = parseFloat(g('monthlyBudget')?.value);
+    if (!(v >= 0)) return;
+    S.monthlyBudgetSaved = true;
+    API.patch('/api/settings', { monthly_budget: String(v) }).catch(_gwErr('_saveDebtBudgetSoon'));
+  }, 700);
+}
+function _useMinimumsAsBudget(total) {
+  const el = g('monthlyBudget');
+  if (!el) return;
+  const before = el.value;
+  el.value = total;
+  el.dataset.userSet = '1';
+  calculate();
+  _saveDebtBudgetSoon();
+  showToast(`Debt budget set to your minimums, ${fmt(total)}`, '', 'success', () => {
+    el.value = before; calculate(); _saveDebtBudgetSoon();
+  });
+}
+
 function _getMonthlyBudget() {
   const el = g('monthlyBudget');
   if (el && el.value !== '') {
@@ -16958,8 +16984,13 @@ function calculate() {
 
   if (!result) {
     _debtWriteHero(null, data, budget, totalMin);
+    // Panel I-06: no date, and why - the gap in dollars, with the one-tap way back to a plan that can be dated
+    const below = budget < totalMin - 0.005;
     if (results) results.innerHTML = `
-      <div style="color:var(--ember-text);font-size:13px;padding:12px;margin-bottom:12px">Monthly budget (${fmt(budget)}) is below minimum payments (${fmt(totalMin)}). Increase your budget to see a full payoff plan.</div>
+      <div style="color:var(--ember-text);font-size:13px;padding:12px;margin-bottom:12px;line-height:1.6">${below
+        ? `Your monthly debt budget, ${fmt(budget)}, is ${fmt(totalMin - budget)} below the ${fmt(totalMin)} in minimum payments, so there is no payoff date. The minimums are owed whatever the budget says.
+           <div style="margin-top:8px"><button class="btn btn-secondary btn-sm" onclick="_useMinimumsAsBudget(${totalMin.toFixed(2)})">Use my minimums, ${fmt(totalMin)}</button></div>`
+        : `At ${fmt(budget)} a month the debt doesn't clear within 30 years, so there is no payoff date. Any amount above the ${fmt(totalMin)} in minimums brings one closer.`}</div>
       ${_paymentPlanHTML()}`;
     return;
   }

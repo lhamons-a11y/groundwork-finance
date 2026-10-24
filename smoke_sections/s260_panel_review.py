@@ -3,6 +3,8 @@
     I-01/I-04  debt payments are budgeted wherever they are spent: one rule (_debt_month_plan, _debtMonthPlan) for the
                check-in, Before You Buy, the income page and the Budget page - the payoff plan, never below the
                minimums, or the minimums when no plan was saved; a payment on a debt is never offered as a purchase
+    I-03/I-06  a payoff that can't be dated is said (below the minimums by $X, or never clearing), never a 500 or a
+               blank; Debt Payoff offers "use my minimums"; the budget typed there is the one the server reads
 """
 import json
 from datetime import date, timedelta
@@ -104,7 +106,32 @@ def run(ctx):
           'function _debtMonthPlan()' in ctx.app_src and ctx.app_src.count('_debtMonthPlan().amount') >= 2
           and '(your payoff plan; minimums' in ctx.app_src and "'monthlyBudgetSaved'" in ctx.server_src)
 
+    # ── I-03 / I-06: a payoff that can't be dated is said, with the gap and the way back ─────────────────────────────
+    set_mb(200)
+    t1 = c.get('/api/debt/teaching', headers=H)
+    d1 = (t1.get_json() or {}).get('data') or {}
     with db_session() as s:
+        s.query(DebtAccount).filter(DebtAccount.name.in_(['S260 Auto Loan', 'S260 Visa'])).update(
+            {'is_active': False}, synchronize_session=False)
+        s.add(DebtAccount(name='S260 Big Card', current_balance=100000.0, begin_balance=100000.0, interest_rate=30.0,
+                          minimum_payment=2000.0, is_active=True))
+        s.commit()
+    set_mb(2400)                                  # above the minimums, below the $2,500 a month of interest
+    d2 = ((c.get('/api/debt/teaching', headers=H).get_json() or {}).get('data') or {})
+    check(f"s260 I-03 a payoff the engine can't date is a reason, not a crash: below the minimums with the gap, or "
+          f"never clearing ({t1.status_code} {d1.get('reason')} gap {d1.get('gap')}; {d2.get('reason')})",
+          t1.status_code == 200 and d1.get('reason') == 'below_minimums' and d1.get('gap') == 100.0
+          and d1.get('findings') == [] and d2.get('reason') == 'never_clears')
+    rep = (ctx.BASE / 'static' / 'js' / 'teaching' / 'reports.js').read_text(encoding='utf-8')
+    check("s260 I-03/I-06 Reports and Debt Payoff say why there is no date, with the gap and a one-tap 'use my minimums'; "
+          "the budget typed on Debt Payoff is the one the server reads",
+          "d.reason === 'below_minimums'" in rep and "d.reason === 'never_clears'" in rep
+          and '_useMinimumsAsBudget(' in ctx.app_src and 'Use my minimums, ${fmt(totalMin)}' in ctx.app_src
+          and 'calculate();_saveDebtBudgetSoon()' in ctx.html_src
+          and "API.patch('/api/settings', { monthly_budget: String(v) })" in ctx.app_src)
+
+    with db_session() as s:
+        s.query(DebtAccount).filter_by(name='S260 Big Card').delete()
         s.query(Transaction).filter(Transaction.merchant.in_(['S260 AUTO LOAN PMT', 'S260 LENDER', 'S260 GYM'])).delete(
             synchronize_session=False)
         s.query(DebtAccount).filter(DebtAccount.name.in_(['S260 Auto Loan', 'S260 Visa', 'S260 Paid Card'])).delete(
