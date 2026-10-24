@@ -210,3 +210,30 @@ on the windows machine."*
   words, so the Mac's recognition is compared with Windows', and how it behaves with no microphone is tested.
 - Nobody speaking into a Mac is a gap to say plainly at release, unless a USB or Bluetooth microphone is used later.
 - Read-aloud (P6) needs only speakers, so it is tested on both.
+
+### Item 113, measured on Rob's Mac (2026-10-24, recorded audio, no microphone)
+
+Thirty phrases (18 commands, 6 with money, 6 questions) spoken by four macOS voices (Samantha, Reed, Flo, Grandpa)
+into 16 kHz files with `say`, then run through each engine on this Mac. Nothing left the computer.
+
+| Engine | Commands | Money amounts | Questions | Peak memory | Time vs audio | Size added |
+|---|---|---|---|---|---|---|
+| Vosk small, held to the command list | 69/72 | - | - | 165 MB | about 1% | ~80 MB |
+| Vosk small, free speech | 49/72 | 18/24 | 12/24 | 239 MB | 21% | (same) |
+| whisper.cpp base.en | 57/72 | 24/24 | 20/24 | 338 MB | 6% | ~152 MB |
+| **whisper.cpp base.en + a word hint** | **68/72** | **24/24** | **23/24** | 338 MB | 6% | ~152 MB |
+
+- **Scoring:**
+  - a money phrase counts when the dollar amount matches ("$450" or "four hundred fifty");
+  - commands must match exactly (Vosk's "[unk]" for a breath is stripped);
+  - questions are right at 20% word error or less.
+- **The hint is one line of expected words** (debt, payoff, budget, ledger, Kroger, the commands). Without it,
+  Whisper heard "debt" as "that", "death", "test" and "dad's".
+- **Misses left with the hint:** "back" as "But" or "Bye", one "show my debts" as "show my test", one "do I pay" for
+  "am I paying".
+
+**Proposed:**
+- One engine, whisper.cpp base.en with the hint. Vosk would add a second engine and ~80 MB for one command in 72.
+- "Go back" rather than "back".
+- Groundwork says what it heard before acting ("Showing your debts"), with Undo, so a mishearing is visible.
+- The Windows laptop's microphone with real voices is the real test, before any build.
