@@ -39,7 +39,8 @@
     if (p.detail_kind === 'charge') {
       body = 'The <strong>' + fmt(p.dollars) + '</strong> at <strong>' + esc(p.subject)
            + '</strong> cost <strong>' + mo(p.months) + '</strong> on your debt-free date.'
-           + ' There is a way to put them back — it is on the ledger page.';
+           + ' There is a way to put them back — it is on the ledger page.'
+           + (p.txn_id ? hadToButtons(p.txn_id) : '');
     } else if (p.detail_kind === 'overspend') {
       body = '<strong>' + esc(p.subject) + '</strong> has run <strong>' + fmt(p.dollars)
            + '/mo</strong> over its budget every month on record, which costs <strong>'
@@ -199,6 +200,28 @@
     try { render(); } catch (e) { /* teaching never breaks the page under it */ }
     return out;
   };
+
+  // Item 112 P2 (b): "I had to" - a car or home repair, a health cost - is described, never priced in months. The
+  // person's word, kept by the server and taken back with Undo; the charge leaves every lesson and brake.
+  function hadToButtons(id) {
+    var b = function (kind, label) {
+      return '<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="GWTeaching.hadTo(' + id + ',\'' + kind + '\')">' + label + '</button>';
+    };
+    return '<div style="margin-top:6px;font-size:11px;color:var(--slate-2)">Was it something you had to pay? '
+      + b('car', 'A car repair') + ' ' + b('home', 'A home repair') + ' ' + b('health', 'Health') + ' ' + b('other', 'Something else') + '</div>';
+  }
+  function hadTo(id, kind) {
+    API.post('/api/transactions/' + id + '/had-to', { kind: kind }).then(function () {
+      showToast('Kept: you had to pay that', 'It is no longer priced against your debt-free date.', 'success', function () {
+        API.delete('/api/transactions/' + id + '/had-to').then(function () { asked = false; render(); window.renderLedger && window.renderLedger(); });
+      });
+      var card = document.getElementById('dashProactiveCard');
+      if (card) card.remove();
+      document.getElementById('ledgerLesson') && document.getElementById('ledgerLesson').remove();
+    }).catch(function (e) { showToast('Could not keep that', e.message || '', 'error'); });
+  }
+  GWTeaching.hadTo = hadTo;
+  GWTeaching.hadToButtons = hadToButtons;
 
   GWTeaching.proactiveDismiss = dismiss;
   GWTeaching.register('proactive', { render: render, dismiss: dismiss, dismissedHtml: dismissedHtml,

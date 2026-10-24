@@ -6955,6 +6955,50 @@ _LESSON_EXCLUDED_CATEGORIES = {'transfer', 'transfers', 'income', 'debt',
                                'investments'}
 
 
+# ── Item 112 P2 (PANEL_REVIEW.md; ruled 2026-10-24): no brake on spending a fund saved for, or that the person had to ──
+FUNDED_WITHIN = 0.10          # P2 (a): a charge within 10% of what a fund holds, or of its target, is what it was for
+
+
+def _funded_by(session, t):
+    """The active fund this charge was saved for, or None: within FUNDED_WITHIN of the fund's balance or target, or
+    sharing a distinctive word (4+ letters) with the fund's name. A charge that was saved for is not priced in months
+    (the Sorensens' Rome hotel, from the honeymoon fund the app itself tracked)."""
+    from core.database import SinkingFund
+    amt = abs(float(t.amount or 0))
+    if amt <= 0:
+        return None
+    words = {w for w in re.findall(r'[a-z]{4,}', ((t.merchant or '') + ' ' + (t.description or '')).lower())}
+    for f in session.query(SinkingFund).filter_by(is_active=True).all():
+        held, target = float(f.current_amount or 0), float(f.target_amount or 0)
+        near = lambda x: x > 0 and abs(amt - x) <= FUNDED_WITHIN * x
+        named = {w for w in re.findall(r'[a-z]{4,}', (f.name or '').lower())} - {'fund', 'savings', 'saving'}
+        if near(held) or near(target) or (named & words):
+            return f.name
+    return None
+
+
+def _had_to_ids(session):
+    """P2 (b): the charges the person marked "had to" - a car or home repair, health - kept as their word."""
+    return {x.get('id') for x in (_setting_json(session, 'had_to_charges', []) or []) if isinstance(x, dict)}
+
+
+@transactions_bp.route('/<int:txn_id>/had-to', methods=['POST', 'DELETE'])
+def transaction_had_to(txn_id):
+    """P2 (b): "I had to" - the charge is described, never priced in months. DELETE takes the word back (Undo)."""
+    kind = ((request.get_json(silent=True) or {}).get('kind') or 'other')
+    if kind not in ('car', 'home', 'health', 'other'):
+        return err("kind is car, home, health or other", 400)
+    with db_session() as session:
+        if not session.get(Transaction, txn_id):
+            return err('Not found', 404)
+        said = [x for x in (_setting_json(session, 'had_to_charges', []) or []) if isinstance(x, dict) and x.get('id') != txn_id]
+        if request.method == 'POST':
+            said.append({'id': txn_id, 'kind': kind, 'at': datetime.now().isoformat(timespec='seconds')})
+        _set_setting(session, 'had_to_charges', json.dumps(said[-500:]))
+        session.commit()
+        return ok({'id': txn_id, 'had_to': request.method == 'POST'})
+
+
 def large_charge_lesson(session, cards, budget, strategy, days: int = 60,
                         consider: int = 8):
     """The recent charge that cost the most, priced by what it would have done.
@@ -6986,10 +7030,13 @@ def large_charge_lesson(session, cards, budget, strategy, days: int = 60,
     today = date.today().strftime('%Y-%m')
     priced = 0
     debt_ids = _debt_payment_txn_ids(session, [t.id for t in rows])   # panel I-04: a payment on a debt is not a purchase
+    had_to = _had_to_ids(session)                                    # item 112 P2 (b): the person said they had to
     for t in rows:
         if priced >= consider:
             break
-        if t.id in linked or t.id in debt_ids:
+        if t.id in linked or t.id in debt_ids or t.id in had_to:
+            continue
+        if _funded_by(session, t):                                    # item 112 P2 (a): money saved for it
             continue
         cat = session.query(Category).filter_by(id=t.category_id).first() if t.category_id else None
         if cat and (cat.name or '').strip().lower() in _LESSON_EXCLUDED_CATEGORIES:
@@ -7014,6 +7061,7 @@ def large_charge_lesson(session, cards, budget, strategy, days: int = 60,
         return {
             'lesson': lesson,
             'charge': {
+                'id': t.id,
                 'amount': round(float(t.amount or 0), 2),
                 'date': t.date.isoformat() if t.date else None,
                 'name': (t.merchant or t.description or 'that charge'),
@@ -7395,7 +7443,7 @@ def _proactive_candidates(session, cards, budget, strategy):
             'has_path': any(p['closes'] for p in sol['paths']),
             'goal_impact': charge['lesson']['months_cost'],
             'subject': charge['charge']['name'],
-            'detail_kind': 'charge',
+            'detail_kind': 'charge', 'txn_id': charge['charge'].get('id'),
         })
 
     # Item 46 C2: a brake is a cost by definition, and necessary care is not one.
@@ -15349,6 +15397,7 @@ def _serialize_sinking_fund(f) -> dict:
         'name':                 f.name,
         'target_amount':        target,
         'current_amount':       saved,
+        'over_target':          round(saved - target, 2) if target > 0 and saved > target else 0.0,   # item 112 P3
         'deadline':             f.deadline or '',
         'monthly_contribution': contrib,
         'monthly_needed':       monthly_needed,
@@ -15558,9 +15607,102 @@ def deposit_sinking_fund(fund_id):
         f = session.get(SinkingFund, fund_id)
         if not f:
             return err('Fund not found', 404)
-        target = float(f.target_amount or 0)
-        f.current_amount = min(target, float(f.current_amount or 0) + amount) if target > 0                            else float(f.current_amount or 0) + amount
+        # Item 112 P3: a deposit is money that moved - over the target it is shown as over, never quietly capped
+        # (min(target, ...) dropped the extra from the record)
+        f.current_amount = float(f.current_amount or 0) + amount
         _log_sinking_fund_contribution_variance(session, f, amount)
+        session.commit()
+        return ok(_serialize_sinking_fund(f))
+
+
+# ── Item 112 P3 (PANEL_REVIEW.md; ruled 2026-10-24): a fund notices what it paid for ───────────────────────────────
+PURCHASE_DAYS = 60            # a charge this recent may be what a fund was for
+DONE_SHARE = 0.10             # after a yes, a fund with less than this share of its target left is done
+
+
+def _fund_purchase_questions(session, today=None):
+    """Recent charges that look like what an active fund was saving for - within FUNDED_WITHIN of what it holds or of
+    its target - each asked once ("Is this what you were saving for?"). The roof was paid and the fund still said "18
+    months to go" (panel I-13)."""
+    from core.database import SinkingFund
+    today = today or date.today()
+    said = {(a.get('fund_id'), a.get('txn_id')) for a in (_setting_json(session, 'fund_purchase_answers', []) or [])
+            if isinstance(a, dict)}
+    funds = [f for f in session.query(SinkingFund).filter_by(is_active=True).all() if float(f.current_amount or 0) > 0]
+    if not funds:
+        return []
+    rows = session.query(Transaction).filter(Transaction.type == 'debit',
+                                             Transaction.date >= today - timedelta(days=PURCHASE_DAYS)).all()
+    out = []
+    for f in funds:
+        held, target = float(f.current_amount or 0), float(f.target_amount or 0)
+        near = lambda amt, x: x > 0 and abs(amt - x) <= FUNDED_WITHIN * x
+        for t in sorted(rows, key=lambda r: -float(r.amount or 0)):
+            amt = abs(float(t.amount or 0))
+            if (f.id, t.id) in said or not (near(amt, held) or near(amt, target)):
+                continue
+            out.append({'fund_id': f.id, 'fund': f.name, 'held': round(held, 2), 'target': round(target, 2),
+                        'txn_id': t.id, 'amount': round(amt, 2), 'date': t.date.isoformat() if t.date else None,
+                        'payee': t.merchant or t.description or 'a charge'})
+            break                                       # one question per fund at a time
+    return out
+
+
+@sinking_funds_bp.route('/purchases', methods=['GET'])
+def fund_purchases():
+    with db_session() as session:
+        return ok({'questions': _fund_purchase_questions(session)})
+
+
+@sinking_funds_bp.route('/purchases/answer', methods=['POST'])
+@require_json
+def fund_purchase_answer():
+    """P3: the person's answer. Yes spends the charge from the fund - and a fund left with under DONE_SHARE of its
+    target is done; no is kept, so the same charge is not asked about again. The reply carries what Undo needs."""
+    from core.database import SinkingFund
+    b = request.get_json() or {}
+    if b.get('answer') not in ('yes', 'no'):
+        return err("answer is 'yes' or 'no'", 400)
+    with db_session() as session:
+        q = next((x for x in _fund_purchase_questions(session)
+                  if x['fund_id'] == b.get('fund_id') and x['txn_id'] == b.get('txn_id')), None)
+        if not q:
+            return err('There is no such question open.', 404)
+        f = session.get(SinkingFund, q['fund_id'])
+        before = {'current_amount': float(f.current_amount or 0), 'is_active': bool(f.is_active)}
+        answers = _setting_json(session, 'fund_purchase_answers', []) or []
+        answers.append({'fund_id': q['fund_id'], 'txn_id': q['txn_id'], 'answer': b['answer'],
+                        'at': datetime.now().isoformat(timespec='seconds')})
+        _set_setting(session, 'fund_purchase_answers', json.dumps(answers[-500:]))
+        done = False
+        if b['answer'] == 'yes':
+            f.current_amount = max(0.0, round(before['current_amount'] - q['amount'], 2))
+            target = float(f.target_amount or 0)
+            done = f.current_amount <= (DONE_SHARE * target if target > 0 else 0.01)
+            if done:
+                f.is_active = False
+        session.commit()
+        return ok({'fund': f.name, 'spent': q['amount'] if b['answer'] == 'yes' else 0, 'left': round(float(f.current_amount or 0), 2),
+                   'done': done, 'undo': {'fund_id': f.id, 'txn_id': q['txn_id'], **before}})
+
+
+@sinking_funds_bp.route('/purchases/undo', methods=['POST'])
+@require_json
+def fund_purchase_undo():
+    from core.database import SinkingFund
+    b = request.get_json() or {}
+    with db_session() as session:
+        f = session.get(SinkingFund, b.get('fund_id'))
+        if not f:
+            return err('Fund not found', 404)
+        try:
+            f.current_amount = float(b.get('current_amount'))
+        except (TypeError, ValueError):
+            return err('current_amount is needed', 400)
+        f.is_active = bool(b.get('is_active', True))
+        answers = [a for a in (_setting_json(session, 'fund_purchase_answers', []) or [])
+                   if not (isinstance(a, dict) and a.get('fund_id') == f.id and a.get('txn_id') == b.get('txn_id'))]
+        _set_setting(session, 'fund_purchase_answers', json.dumps(answers))
         session.commit()
         return ok(_serialize_sinking_fund(f))
 

@@ -2727,7 +2727,9 @@ function _renderDashSpendingDonut(txns) {
       stroke-linecap="butt" title="${cat}: ${fmt(amt)}"/>`;
   }).join('');
 
-  const donutSvg = `<svg width="120" height="120" viewBox="0 0 120 120" style="flex-shrink:0">
+  // Item 112 P5: the chart says what it shows to a screen reader; the legend beside it is its text
+  const donutLabel = 'Spending by category: ' + top5.map(([cat, amt]) => cat + ' ' + fmt(amt)).join(', ') + '; ' + fmt(total) + ' in all.';
+  const donutSvg = `<svg width="120" height="120" viewBox="0 0 120 120" style="flex-shrink:0" role="img" aria-label="${esc(donutLabel)}">
     <!-- Track -->
     <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="var(--steel)" stroke-width="${SW}"/>
     ${segments}
@@ -7700,6 +7702,7 @@ function _buildBudgetExpenseRowEl(exp, idx) {
     const trendClr  = proj.trending === 'over' ? 'var(--ember-text)' : proj.trending === 'warn' ? 'var(--gold-text)' : 'var(--pine-text)';
     projLabel = `<span style="font-family:var(--font-mono);font-size:11px;color:${trendClr}">${trendIcon} ${gwFig('budget.line_projected', `${fmt(proj.projected)} proj.`, exp.name || catName)}</span>`;
   }
+  projLabel += _budgetStateWords(proj, budget, spent);   // item 112 P5: the colour's meaning, in words
 
   const row = document.createElement('div');
   row.className = 'ledger-row';
@@ -8641,6 +8644,17 @@ function _monthSpendSplit() {
   };
 }
 
+// Item 112 P5 (panel I-23): over and near were said only by a red or amber bar and an arrow. The same state, in words,
+// beside the figures - so it reaches someone who can't tell the colours apart, and a screen reader.
+function _budgetStateWords(proj, budget, spent) {
+  if (!(budget > 0)) return '';
+  const fig = proj ? proj.projected : spent;
+  const word = s => ` <span style="font-size:11px;color:var(--slate)">${s}</span>`;
+  if (fig > budget + 0.005) return word(`${fmt(fig - budget)} over${proj ? ' at this pace' : ''}`);
+  if (proj && proj.trending === 'warn') return word('near the budget');
+  return '';
+}
+
 function _budgetProjection(catName, budgetedAmt) {
   // Blueprint §9 — verbatim algorithm. Returns null before 5 days elapsed
   // or when not in the current calendar month (no projection for past months).
@@ -8705,6 +8719,7 @@ function _budgetRenderExpenseRow(exp, idx) {
                     : 'var(--pine-text)';
     projLabel = `<span style="font-family:var(--font-mono);font-size:11px;color:${trendClr}">${trendIcon} ${gwFig('budget.line_projected', `${fmt(proj.projected)} proj.`, exp.name || catName)}</span>`;
   }
+  projLabel += _budgetStateWords(proj, budget, spent);   // item 112 P5: the colour's meaning, in words
 
   const row = document.createElement('div');
   row.className = 'ledger-row';
@@ -18761,14 +18776,20 @@ function _renderNWChart() {
                  stroke-dasharray="4 3" opacity=".45"/>`;
   }
 
-  chart.innerHTML = `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}">
+  // Item 112 P5: the line, in one sentence - for a screen reader and for anyone who reads before they look
+  const _f = _nwHistory[0], _l = _nwHistory[_nwHistory.length - 1];
+  const nwSummary = _nwHistory.length > 1
+    ? `Net worth went from ${fmt(_f.net_worth)} (${_f.month_label || _f.date}) to ${fmt(_l.net_worth)} (${_l.month_label || _l.date}).`
+      + (proj.length >= 2 ? ` At the recent pace, about ${fmt(proj[Math.min(11, proj.length - 1)].projected)} in ${Math.min(12, proj.length)} months.` : '')
+    : `Net worth ${fmt(_l.net_worth)} (${_l.month_label || _l.date}).`;
+  chart.innerHTML = `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(nwSummary)}">
     <line x1="0" y1="${h/2}" x2="${w}" y2="${h/2}" stroke="rgba(0,0,0,.1)" stroke-width="1"/>
     <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2"/>
     ${projSVG}
     ${_nwHistory.map((d,i)=>`<circle cx="${toX(i)}" cy="${toY(d.net_worth)}" r="${d.notes ? 4.5 : 3}" fill="${color}">${d.notes ? `<title>${esc(d.month_label + ': ' + d.notes)}</title>` : ''}</circle>`).join('')}
     ${proj.length ? `<text x="${w-8}" y="${toY(proj[Math.min(11,proj.length-1)].projected)+4}"
        text-anchor="end" font-size="9" fill="${color}" opacity=".5">12mo</text>` : ''}
-  </svg>` + (_nwNoFigures || []).map(d =>
+  </svg><div style="font-size:11px;color:var(--slate);margin-top:6px">${esc(nwSummary)}</div>` + (_nwNoFigures || []).map(d =>
     `<div style="font-size:10px;color:var(--slate-2);margin-top:4px">${esc(d.month_label)}: recorded without figures \u2014 not a net worth.</div>`).join('')
     + _nwHistory.filter(d => d.notes).slice(-3).map(d =>
     `<div style="font-size:10px;color:var(--slate-2);margin-top:4px">${esc(d.month_label + ': ' + d.notes)}</div>`).join('');
@@ -32076,7 +32097,7 @@ async function _rcRenderNetWorthTimeline() {
       ${debtContrib>0?`<div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">From debt paydown</div><div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--pine-text)">+${fmt(debtContrib)}</div></div>`:''}
     </div>
     <div class="card" style="margin-bottom:20px;padding:16px">
-      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="${esc('Net worth from ' + fmt(first.net_worth) + ' (' + (first.month_label || first.date) + ') to ' + fmt(last.net_worth) + ' (' + (last.month_label || last.date) + ')')}">
         ${zero>PAD&&zero<H-PAD?`<line x1="${PAD}" y1="${zero}" x2="${W-PAD}" y2="${zero}" stroke="var(--steel)" stroke-width="1" stroke-dasharray="4,3"/>`:''}
         <path d="${areaD}" fill="${clr}" opacity=".08"/>
         <polyline points="${pts}" fill="none" stroke="${clr}" stroke-width="2" stroke-linejoin="round"/>

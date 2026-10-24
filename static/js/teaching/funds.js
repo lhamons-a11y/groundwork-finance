@@ -99,13 +99,53 @@
     }).catch(_gwErr('teaching/funds:pace'));
   }
 
+  // Item 112 P3: a fund notices what it paid for. A recent charge near what a fund holds, or its target, is asked
+  // about once - "Is this what you were saving for?" - and a yes takes it out of the fund (the roof was paid and the
+  // fund still said 18 months to go). The person's answer, with Undo.
+  function purchases() {
+    var section = document.getElementById('budgetSinkingFundsCard');
+    if (!section) return;
+    API.get('/api/sinking-funds/purchases').then(function (r) {
+      var old = section.querySelector('[data-gw-fund-purchase]');
+      if (old) old.remove();
+      var qs = (r && r.questions) || [];
+      if (!qs.length) return;
+      var box = document.createElement('div');
+      box.setAttribute('data-gw-fund-purchase', '');
+      box.innerHTML = qs.map(function (q) {
+        var when = q.date ? new Date(q.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+        return '<div style="margin:0 0 10px;padding:10px 12px;border:0.5px solid var(--pine-border);border-radius:8px;background:var(--pine-bg);font-size:12px;color:var(--ink);line-height:1.6">'
+          + 'The <strong style="font-family:var(--font-mono)">' + fmt(q.amount) + '</strong> at <strong>' + esc(q.payee) + '</strong>' + (when ? ' on ' + when : '')
+          + ' is close to what <strong>' + esc(q.fund) + '</strong> holds (' + fmt(q.held) + '). Is this what you were saving for? '
+          + '<button class="btn btn-secondary btn-sm" data-gw-fp="yes" data-fund="' + q.fund_id + '" data-txn="' + q.txn_id + '">Yes, take it from the fund</button> '
+          + '<button class="btn btn-ghost btn-sm" data-gw-fp="no" data-fund="' + q.fund_id + '" data-txn="' + q.txn_id + '">No</button></div>';
+      }).join('');
+      section.insertBefore(box, section.firstChild);
+      box.querySelectorAll('[data-gw-fp]').forEach(function (b) {
+        b.addEventListener('click', function () { answer(+b.dataset.fund, +b.dataset.txn, b.dataset.gwFp); });
+      });
+    }).catch(_gwErr('teaching/funds:purchases'));
+  }
+
+  function answer(fundId, txnId, said) {
+    API.post('/api/sinking-funds/purchases/answer', { fund_id: fundId, txn_id: txnId, answer: said }).then(function (r) {
+      var title = said === 'yes'
+        ? (r.done ? r.fund + ': done - ' + fmt(r.spent) + ' paid from it' : r.fund + ': ' + fmt(r.spent) + ' paid from it, ' + fmt(r.left) + ' left')
+        : 'Kept: that was not from ' + r.fund;
+      showToast(title, '', 'success', function () {
+        API.post('/api/sinking-funds/purchases/undo', r.undo).then(function () { loadSinkingFunds(); });
+      });
+      loadSinkingFunds();
+    }).catch(function (e) { showToast('Could not keep that', e.message || '', 'error'); });
+  }
+
   // The wrap. app.js renders the section and has no idea this happens after.
   var original = window._budgetRenderSinkingFundsSection;
   window._budgetRenderSinkingFundsSection = function () {
     var out = original.apply(this, arguments);
     // The render is async: the rows do not exist until it settles.
     Promise.resolve(out).then(function () {
-      try { render(); } catch (e) { /* teaching never breaks the page under it */ }
+      try { render(); purchases(); } catch (e) { /* teaching never breaks the page under it */ }
     });
     return out;
   };
