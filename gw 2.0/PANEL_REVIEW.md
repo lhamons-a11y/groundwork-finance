@@ -155,3 +155,30 @@ commands now."*
   - a test that no audio leaves the machine;
   - measurements on Rob's Mac and the Windows laptop, including how well it hears money ("four hundred fifty
     dollars").
+
+### Item 113 (proposed): on the computer only, and which open engine
+
+**Rob, 2026-10-24:** *"Sending the data to someone though is kinda of a deal breaker for me."* So this is a hard rule,
+not a preference:
+- **Voice never leaves the computer.** The audio, the words recognised and the speech read aloud all stay on the
+  machine. Nothing is sent, nothing is kept.
+- **The browser engine's own speech recognition is never used.** It sends audio to Google, Microsoft or Apple, so the
+  page disables it rather than merely not calling it.
+- **Read-aloud uses voices installed on the machine only** (no online "Natural" voices).
+- **The gate holds it:** a test that recognition and read-aloud make no network request, and that the browser's
+  recognition is absent from the code.
+
+**The open engines (all run on the computer; licences checked again at build):**
+
+| | Licence | Size | Fits | Weak at |
+|---|---|---|---|---|
+| whisper.cpp (Whisper) | MIT | 75-150 MB, English tiny/base | spoken questions; the same family and graphics paths as the engine (llama.cpp) | heavier; short clips, not streaming |
+| Vosk (Kaldi) | Apache 2.0 | about 50 MB, small English | commands: streams, and can be held to a fixed phrase list | open-ended speech |
+| Moonshine | MIT | about 30-60 MB | short commands, fast on small machines | newer, English only |
+| Sherpa-ONNX | Apache 2.0 | varies | streaming, many models | more to package |
+
+**Proposed:**
+- **Measure two before choosing:** Vosk held to the command list, and whisper.cpp for spoken questions. Measure on
+  Rob's Mac and the Windows laptop: words right (money especially - "four hundred fifty dollars", "$1,650"), the time
+  to an answer, the memory used and the size added.
+- **Possibly ship both:** Vosk always on hand for commands, Whisper only when someone speaks a question.
