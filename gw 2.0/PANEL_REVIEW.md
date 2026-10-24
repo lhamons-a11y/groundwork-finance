@@ -237,3 +237,10 @@ into 16 kHz files with `say`, then run through each engine on this Mac. Nothing 
 - "Go back" rather than "back".
 - Groundwork says what it heard before acting ("Showing your debts"), with Undo, so a mishearing is visible.
 - The Windows laptop's microphone with real voices is the real test, before any build.
+
+**Item 113 ruled (Rob, 2026-10-24):** *"i accept your recommendations"*:
+- whisper.cpp base.en with the word hint, one engine;
+- "go back" for "back";
+- Groundwork says what it heard before acting, with Undo;
+- the Windows laptop's microphone with real voices as the real test;
+- on this computer only, push to talk, off by default (the hard rule above).
