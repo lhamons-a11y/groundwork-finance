@@ -182,3 +182,22 @@ not a preference:
   Rob's Mac and the Windows laptop: words right (money especially - "four hundred fifty dollars", "$1,650"), the time
   to an answer, the memory used and the size added.
 - **Possibly ship both:** Vosk always on hand for commands, Whisper only when someone speaks a question.
+
+## 6. Built: P1-P5, P7 (2026-10-24), s261
+
+| | What | Commit |
+|---|---|---|
+| P2 | A charge a fund saved for (within 10% of its balance or target, or sharing a word with its name) is never priced; "I had to" (car, home, health, other) on the brake and the Ledger lesson, with Undo | a9ccf7a |
+| P3 | "Is this what you were saving for?" on a recent charge near a fund's balance: yes spends it, and closes a fund with under a tenth of its target left; no is kept; Undo. Deposits are never capped at the target | a9ccf7a |
+| P5 | Over and near the budget said in words beside the colour; the spending donut and both net-worth charts carry a text summary. Contrast was already AA (item 77) | a9ccf7a |
+| P1 | Pay with no schedule, landing several times a week, read by the week: a typical, low and high week over 13 (empty weeks count as $0), as facts; counted toward monthly income | 0b64d85 |
+| P4 | Budget edits record who made them in Household mode; one partner's cut and the other's restore read undecided, and "Is this a shared decision?" is asked | 0b64d85 |
+| P7 | Outside help (NFCC, 211, CFPB, lawhelp.org) from the ? help; "Print a summary" and the check-in's "Print this" | 0b64d85 |
+
+Full suite on Rob's Mac: 3,950 passed, 0 failed. Checked in a browser: the Budget rows' words and the Outside help page.
+
+**Still owed:**
+- The CFPB number and the consumerfinance.gov and lawhelp.org addresses, confirmed on their own sites before release.
+- A fund row that is over its target saying "over" in words (the server already reports it).
+- Words for the colour-only states beyond the Budget rows.
+- Rob's screen-reader session (P5).
