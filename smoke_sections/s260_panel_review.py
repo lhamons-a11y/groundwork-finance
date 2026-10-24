@@ -77,7 +77,62 @@ def run(ctx):
     check(f"s260 I-04 Before You Buy's 'left each month' takes off the debt payments, as its own calculator does ({im['left_now']})",
           abs(im['left_now'] - round(income - outflow - 450.0, 2)) < 0.01)
 
+    # ── I-17: payments on record short of the plan: the date at that pace, beside the plan's ────────────────────────
+    from core.database import DebtLedgerEntry
     today = date.today()
+    with db_session() as s:
+        lid = s.query(DebtAccount).filter_by(name='S260 Auto Loan').first().id
+        y, m = today.year, today.month
+        for _ in range(3):
+            m -= 1
+            if m < 1:
+                y, m = y - 1, 12
+            s.add(DebtLedgerEntry(debt_account_id=lid, entry_type='payment', amount=300.0, entry_date=date(y, m, 10),
+                                  source_type='manual', description='S260 pace'))
+        s.commit()
+    pace = (c.get('/api/debt/pace', headers=H).get_json() or {}).get('data') or {}
+    with db_session() as s:
+        first = s.query(DebtLedgerEntry).filter_by(description='S260 pace').order_by(DebtLedgerEntry.entry_date).first()
+        s.delete(first)
+        s.commit()
+    gap = (c.get('/api/debt/pace', headers=H).get_json() or {}).get('data') or {}
+    with db_session() as s:
+        s.query(DebtLedgerEntry).filter_by(description='S260 pace').delete()
+        s.commit()
+    check(f"s260 I-17 three full months paid at $300 against a $450 plan: said, with the date at that pace later than "
+          f"the plan's; a month with nothing recorded says nothing ({pace.get('state')} {pace.get('average')} "
+          f"{pace.get('planned_months')}->{pace.get('actual_months')}; {gap.get('state')})",
+          pace.get('state') == 'short' and pace.get('average') == 300.0 and pace.get('plan') == 450.0
+          and pace.get('actual_months') and pace.get('planned_months') and pace['actual_months'] > pace['planned_months']
+          and gap.get('state') == 'incomplete' and 'id="debtHeroPace"' in ctx.html_src
+          and 'async function _renderDebtPace()' in ctx.app_src)
+
+    # ── I-16: one "freed minimums" figure, from the minimums on record ───────────────────────────────────────────
+    fm = ctx.app_src.split('function _freedMinimums() {')[1].split('\n}\n')[0]
+    check("s260 I-16 the Dashboard and the Budget page show one freed-minimums figure, against the minimum on record "
+          "(a paid-off debt at $0), not a calculated one; no 'redirect to savings'",
+          'parseFloat(card.minimum) ||' in fm and '(card.paidInFull || bal <= 0.01) ? 0' in fm
+          and 'const fm = _freedMinimums();' in ctx.app_src and 'return f ? Math.round(f.freed) : null;' in ctx.app_src
+          and 'you can redirect to savings' not in ctx.app_src)
+
+    # ── I-22: "whose pay" is asked only of a household of two ────────────────────────────────────────────────────
+    with db_session() as s:
+        saved_people = {k: (r.value if (r := s.query(AppSetting).filter_by(key=k).first()) else None)
+                        for k in ('household_user1', 'household_user2')}
+        for k in saved_people:
+            s.query(AppSetting).filter_by(key=k).delete()
+        s.add(AppSetting(key='household_user1', value='Maya'))
+        s.commit()
+    one = (c.get('/api/checkin', headers=H).get_json() or {}).get('data') or {}
+    with db_session() as s:
+        for k, v in saved_people.items():
+            s.query(AppSetting).filter_by(key=k).delete()
+            if v is not None:
+                s.add(AppSetting(key=k, value=v))
+        s.commit()
+    check(f"s260 I-22 with one person named, the check-in never asks whose pay it is ({one.get('ask_whose')})",
+          one.get('ask_whose') == [] and one.get('people') == ['Maya'])
+
     debt_cat = None
     with db_session() as s:
         debt_cat = (s.query(Category).filter_by(name='Debt').first() or Category(name='Debt'))
@@ -129,6 +184,84 @@ def run(ctx):
           and '_useMinimumsAsBudget(' in ctx.app_src and 'Use my minimums, ${fmt(totalMin)}' in ctx.app_src
           and 'calculate();_saveDebtBudgetSoon()' in ctx.html_src
           and "API.patch('/api/settings', { monthly_budget: String(v) })" in ctx.app_src)
+
+    # ── I-02: every trophy is held to the threshold in its own description (a fresh database, in its own process) ──
+    prog = r'''
+import json, os, sys, tempfile
+os.environ['GROUNDWORK_DATA_DIR'] = tempfile.mkdtemp(prefix='s260_trophies_')
+sys.path.insert(0, os.getcwd())
+from server import create_app, _GW_TOKEN
+from core.database import DebtAccount, DebtBalanceHistory, NetWorthSnapshot, db_session
+app = create_app(); c = app.test_client(); H = {'X-GW-Token': _GW_TOKEN}
+def earned():
+    t = {x['id']: x['earned'] for x in c.get('/api/trophies', headers=H).get_json()['data']['trophies']}
+    return {k: t.get(k) for k in ('chipping_away', 'halfway', 'zero_crossing', 'moving_needle', 'groundwork_laid')}
+with db_session() as s:
+    d = DebtAccount(name='Card', current_balance=973.0, begin_balance=1000.0, interest_rate=20.0, minimum_payment=25.0, is_active=True)
+    s.add(d); s.flush()
+    for m, b in (('2026-06', 1000.0), ('2026-09', 973.0)):
+        s.add(DebtBalanceHistory(debt_id=d.id, month=m, balance=b, payment=50.0, min_payment=25.0))
+    for m, nw in (('2026-06', 5000.0), ('2026-07', 5000.0), ('2026-08', 4900.0), ('2026-09', 5000.0)):
+        s.add(NetWorthSnapshot(snapshot_date=m, net_worth=nw, assets=nw + 1000, liabilities=1000.0))
+    s.commit()
+before = earned()
+with db_session() as s:
+    s.query(DebtBalanceHistory).filter_by(month='2026-09').update({'balance': 400.0})
+    s.query(DebtAccount).update({'current_balance': 400.0})
+    for r, nw, li in zip(s.query(NetWorthSnapshot).order_by(NetWorthSnapshot.snapshot_date).all(),
+                         (-500.0, 200.0, 300.0, 400.0), (1000.0, 700.0, 550.0, 400.0)):
+        r.net_worth, r.liabilities = nw, li            # debt paid down: the person's own part (D.6 attribution)
+    s.commit()
+print(json.dumps({'before': before, 'after': earned()}))
+'''
+    import subprocess
+    import sys as _sys
+    r = subprocess.run([_sys.executable, '-c', prog], capture_output=True, text=True, cwd=str(ctx.BASE), timeout=300)
+    try:
+        tr = json.loads((r.stdout.strip().splitlines() or ['{}'])[-1])
+    except ValueError:
+        tr = {}
+        print('        s260 trophies stderr:', r.stderr[-600:])
+    b, a = tr.get('before') or {}, tr.get('after') or {}
+    check(f"s260 I-02 at 2.7% paid down, positive from the first snapshot, debt still owed and nothing invested: none of "
+          f"Chipping away, Halfway, Zero crossing, Moving the needle or Groundwork laid is earned ({b})",
+          b and not any(b.get(k) for k in ('chipping_away', 'halfway', 'zero_crossing', 'moving_needle', 'groundwork_laid')))
+    check(f"s260 I-02 at 60% paid down, and below zero then three months above it: Chipping away, Halfway and Zero "
+          f"crossing are earned; Groundwork laid still is not (debt owed, nothing invested) ({a})",
+          a.get('chipping_away') and a.get('halfway') and a.get('zero_crossing') and not a.get('groundwork_laid'))
+
+    # ── I-07: AI is on only when the person chose it ─────────────────────────────────────────────────────────────
+    ai_prog = r'''
+import json, os, sys, tempfile
+os.environ['GROUNDWORK_DATA_DIR'] = tempfile.mkdtemp(prefix='s260_ai_')
+sys.path.insert(0, os.getcwd())
+import server
+from server import create_app, _GW_TOKEN
+from core.database import AppSetting, db_session
+app = create_app(); c = app.test_client(); H = {'X-GW-Token': _GW_TOKEN}
+fresh = {'settings': c.get('/api/settings', headers=H).get_json()['data'].get('ai_enabled'), 'on': server._ai_is_enabled()}
+with db_session() as s:                       # an install from before: finished setup, no key, not yet settled
+    s.query(AppSetting).filter(AppSetting.key.in_(['ai_choice_settled', 'ai_enabled'])).delete(synchronize_session=False)
+    s.add(AppSetting(key='onboarding_complete', value='true')); s.commit()
+server._settle_ai_choice()
+upgraded = server._ai_is_enabled()
+with db_session() as s:                       # after settling, a key that goes missing (a restore) is off
+    s.query(AppSetting).filter_by(key='ai_enabled').delete(); s.commit()
+server._settle_ai_choice()
+print(json.dumps({'fresh': fresh, 'upgraded': upgraded, 'missing_after': server._ai_is_enabled(), 'error': server._ai_on(None)}))
+'''
+    r = subprocess.run([_sys.executable, '-c', ai_prog], capture_output=True, text=True, cwd=str(ctx.BASE), timeout=300)
+    try:
+        ai = json.loads((r.stdout.strip().splitlines() or ['{}'])[-1])
+    except ValueError:
+        ai = {}
+        print('        s260 ai stderr:', r.stderr[-600:])
+    check(f"s260 I-07 AI is off until chosen - a new install reads off; an install from before that finished setup on "
+          f"the old default keeps AI on, written once; after that a missing key is off ({ai})",
+          ai.get('fresh') == {'settings': 'false', 'on': False} and ai.get('upgraded') is True
+          and ai.get('missing_after') is False and ai.get('error') is False
+          and "return False  # a database that can't be read" in ctx.server_src
+          and "_aiEnabled     = data.settings['ai_enabled'] === 'true'" in ctx.app_src)
 
     # ── I-05: a balance the record brings to $0 is asked about, and $0 is a real balance ────────────────────────────
     from core.database import DebtLedgerEntry

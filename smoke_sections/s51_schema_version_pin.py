@@ -53,7 +53,31 @@ def schema_spec_sha256(source):
                 and isinstance(getattr(body[0], 'value', None), ast.Constant)
                 and isinstance(body[0].value.value, str)):
             node.body = body[1:] or [ast.Pass()]
-    return hashlib.sha256(ast.dump(tree, include_attributes=False).encode('utf-8')).hexdigest()
+    return hashlib.sha256(_stable_dump(tree).encode('utf-8')).hexdigest()
+
+
+def _stable_dump(node):
+    """The AST as text that reads the same on every Python (panel I-08): ast.dump's own text moved between 3.12 and 3.13,
+    which began leaving out empty and None fields, so the pin failed on 3.13 with nothing changed. Here every node is
+    its class and its set fields, by name, always - and a field a newer Python adds, unset (None, [], or a 0/False flag
+    such as 3.15's Import.is_lazy), leaves no trace. A literal's value is always kept: 0 and None are different code."""
+    import json as _json
+
+    def walk(n):
+        if isinstance(n, ast.AST):
+            out = [type(n).__name__]
+            for f in n._fields:
+                v = getattr(n, f, None)
+                if v is None or v == []:
+                    continue
+                if isinstance(v, (bool, int)) and not v and not (isinstance(n, ast.Constant) and f == 'value'):
+                    continue                        # an unset flag (3.15's Import.is_lazy = 0); a literal 0 still counts
+                out.append([f, walk(v)])
+            return out
+        if isinstance(n, list):
+            return [walk(x) for x in n]
+        return repr(n)
+    return _json.dumps(walk(node))
 
 
 def run(ctx):

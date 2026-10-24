@@ -194,6 +194,7 @@ def create_app(static_folder: str = None) -> Flask:
     # Item 82 R3 (L3b): a dated copy first, whenever the database is about to be migrated.
     _pre = _backup_before_migration()
     run_migration_if_needed()
+    _settle_ai_choice()
     # ... and the migrated database backed up as well (Rob 2026-10-22): the person has a backup of what they now have,
     # and it counts as their latest for the backup reminder
     if _pre and not _pre.get('error'):
@@ -4556,11 +4557,14 @@ def checkin_get():
                                           'projection': {'month': p['month'], 'amount': p['amount']}})
         key = today.isoformat()
         f['last_import'] = _last_import_state(_newest_import(session), datetime.now())
+        people = [r.value for r in (_get_setting(session, 'household_user1'), _get_setting(session, 'household_user2'))
+                  if r is not None and (r.value or '').strip()]
+        if len(people) < 2:
+            f['ask_whose'] = []                     # panel I-22: with one person, every paycheck is theirs - never asked
         return ok({**f, 'date': key, 'is_sunday': today.weekday() == 6,
                    'written': _setting_json(session, f'checkin_text_{key}'),
                    'closed': bool(_setting_json(session, f'checkin_closed_{key}')),
-                   'people': [r.value for r in (_get_setting(session, 'household_user1'), _get_setting(session, 'household_user2'))
-                              if r is not None and (r.value or '').strip()]})
+                   'people': people})
 
 
 @checkin_bp.route('/written', methods=['POST'])
@@ -7083,6 +7087,10 @@ proactive_bp = Blueprint('proactive', __name__)
 trophies_bp = Blueprint('trophies', __name__)
 
 
+# Panel I-02: the share of the starting debt each paydown trophy names in its own description
+PAYDOWN_NEEDED = {'chipping_away': 0.10, 'halfway': 0.50}
+
+
 @trophies_bp.route('', methods=['GET'])
 def list_trophies():
     """Every trophy, with the receipt behind it or the reason there is none.
@@ -7185,9 +7193,12 @@ def list_trophies():
             if proof_kind == 'balance_history':
                 if paid_share is None:
                     return {'proven': None}, []
-                return ({'proven': paid_share > 0},
+                # Panel I-02: each trophy's own threshold - "10% of your starting debt", "half" - never "any at all"
+                need = PAYDOWN_NEEDED.get(trophy_id, 0.0)
+                return ({'proven': paid_share >= need if need else paid_share > 0},
                         [{'label': 'paid down', 'value': round(paid_share * 100, 1),
                           'unit': 'percent'},
+                         {'label': 'needed', 'value': round(need * 100), 'unit': 'percent'},
                          {'label': 'months of history', 'value': len(months_sorted),
                           'unit': 'count'}])
             if proof_kind == 'engine_interest':
@@ -7199,6 +7210,24 @@ def list_trophies():
                 return ({'proven': interest_saved >= 1000},
                         [{'label': 'interest saved vs minimums only',
                           'value': round(interest_saved), 'unit': 'money'}])
+            if proof_kind == 'net_worth_series' and trophy_id == 'zero_crossing':
+                # Panel I-02: a crossing needs a below-zero month on record - positive from the first snapshot is
+                # not "crossed zero" - and then positive months that held
+                below = next((i for i, x in enumerate(snaps) if x['net_worth'] < 0), None)
+                if below is None:
+                    return ({'held': False if snaps else None, 'attributable': attributable(snaps)},
+                            [{'label': 'below zero on record', 'value': 'never', 'unit': 'text'}])
+                after = snaps[below + 1:]
+                up = next((i for i, x in enumerate(after) if x['net_worth'] > 0), None)
+                return ({'held': held(after[up:], lambda s: s['net_worth'] > 0) if up is not None else False,
+                         'attributable': attributable(snaps)},
+                        [{'label': 'below zero on record', 'value': snaps[below]['date'].isoformat()
+                          if hasattr(snaps[below]['date'], 'isoformat') else str(snaps[below]['date']), 'unit': 'text'}])
+            if proof_kind == 'net_worth_series' and trophy_id == 'moving_needle':
+                # "improved three months in a row": three rises in a row, not three positive months
+                rises = [{'rise': b['net_worth'] - a['net_worth']} for a, b in zip(snaps, snaps[1:])]
+                return ({'held': held(rises, lambda r: r['rise'] > 0), 'attributable': attributable(snaps)},
+                        [{'label': 'snapshots on record', 'value': len(snaps), 'unit': 'count'}])
             if proof_kind == 'net_worth_series':
                 return ({'held': held(snaps, lambda s: s['net_worth'] > 0),
                          'attributable': attributable(snaps)},
@@ -7217,8 +7246,15 @@ def list_trophies():
                          {'label': 'minimums total', 'value': round(minimum_total, 2),
                           'unit': 'money'}])
             if proof_kind == 'composite':
-                return ({'held': held(snaps, lambda s: s['net_worth'] > 0),
-                         'attributable': attributable(snaps)}, [])
+                # Panel I-02: "Debt free, positive net worth, investments started" - all three, each on record
+                debt_free = not open_balances
+                invested = session.query(InvestmentLot).filter(InvestmentLot.is_closed == False,   # noqa: E712
+                                                               InvestmentLot.shares_remaining > 0).count() > 0
+                nw = held(snaps, lambda s: s['net_worth'] > 0)
+                return ({'held': (nw if (debt_free and invested) else False),
+                         'attributable': attributable(snaps)},
+                        [{'label': 'balances still open', 'value': len(open_balances), 'unit': 'count'},
+                         {'label': 'investments on record', 'value': 'yes' if invested else 'none', 'unit': 'text'}])
             # Everything else: the record does not carry it yet, and the honest
             # answer is to say which record is missing rather than to guess.
             return {'proven': None, 'held': None}, []
@@ -8808,6 +8844,49 @@ def _apply_ledger_balance_effect(debt: DebtAccount, entry: DebtLedgerEntry, sign
     debt.current_balance = round(debt.current_balance + sign * delta, 2)
 
 
+PACE_MONTHS = 3          # panel I-17: the last three full months of payments, against the plan
+
+
+@debt_bp.route('/pace', methods=['GET'])
+def debt_pace():
+    """Panel I-17: the payoff date assumes the plan; when the payments on record fall short of it, the date at the pace
+    actually paid, beside the planned one - so a date that slides says why. Said only when each of the last three full
+    months has payments on record: a month with none is a gap in the record, not evidence of paying less."""
+    from core.database import DebtLedgerEntry
+    with db_session() as session:
+        cards, budget, strategy, _undated = _consequence_inputs(session)
+        plan = _debt_month_plan(session)
+        if not cards or plan['basis'] != 'plan':
+            return ok({'state': 'no_plan'})
+        today = date.today()
+        months = []
+        y, m = today.year, today.month
+        for _ in range(PACE_MONTHS):
+            m -= 1
+            if m < 1:
+                y, m = y - 1, 12
+            months.append(f'{y:04d}-{m:02d}')
+        paid = {k: 0.0 for k in months}
+        for e in session.query(DebtLedgerEntry).filter(DebtLedgerEntry.entry_type == 'payment').all():
+            k = e.entry_date.strftime('%Y-%m') if e.entry_date else None
+            if k in paid:
+                paid[k] += float(e.amount or 0)
+        if any(v <= 0 for v in paid.values()):
+            return ok({'state': 'incomplete', 'months': sorted(paid)})
+        avg = round(sum(paid.values()) / PACE_MONTHS, 2)
+        if avg >= plan['amount'] * 0.99:
+            return ok({'state': 'on_plan', 'average': avg, 'plan': plan['amount']})
+        kw = dict(today_key=today.strftime('%Y-%m'), start_month=today.strftime('%Y-%m'))
+        planned = simulate_payoff(cards, budget, strategy, **kw)
+        escrow = plan['amount'] - budget                     # the plan's escrow share, which never pays the balance
+        actual = simulate_payoff(cards, max(0.0, avg - escrow), strategy, **kw)
+        dated = lambda r: r['months'] if r and r['months'] < MAX_MONTHS else None
+        return ok({'state': 'short', 'average': avg, 'plan': plan['amount'], 'months': sorted(paid),
+                   'by_month': [{'month': k, 'paid': round(paid[k], 2)} for k in sorted(paid)],
+                   'planned_months': dated(planned), 'actual_months': dated(actual),
+                   'below_minimums': avg < plan['minimums'] - 0.005})
+
+
 @debt_bp.route('/<int:debt_id>/not-paid-off', methods=['POST'])
 def debt_not_paid_off(debt_id):
     """Panel I-05: "Not yet" to "Is this paid off?" - kept for this zero, so it is asked again only if the balance
@@ -9947,9 +10026,9 @@ def get_settings():
     with db_session() as session:
         settings = {s.key: s.value for s in session.query(AppSetting).all()}
 
-    # Default ai_enabled to 'true' if not yet set
+    # Panel I-07: a choice never made reads as off
     if 'ai_enabled' not in settings:
-        settings['ai_enabled'] = 'true'
+        settings['ai_enabled'] = 'false'
 
     return ok(settings)
 
@@ -10909,7 +10988,7 @@ def bootstrap():
             # ── Settings & preferences ─────────────────────────────────────────
             settings = {s.key: s.value for s in session.query(AppSetting).all()}
             if 'ai_enabled' not in settings:
-                settings['ai_enabled'] = 'true'
+                settings['ai_enabled'] = 'false'                # panel I-07: never chosen is off
 
             # ── Budget items ───────────────────────────────────────────────────
             from core.database import BudgetItem
@@ -14035,15 +14114,40 @@ def _get_eia_api_key() -> str:
     return _get_config_value('EIA_API_KEY')
 
 
+def _ai_on(value) -> bool:
+    """Whether a stored ai_enabled value is a yes. Missing or blank is not (panel I-07)."""
+    return (value or '').strip().lower() in ('true', '1', 'on', 'yes')
+
+
+def _settle_ai_choice():
+    """Panel I-07, once per database: until now a missing ai_enabled read as on. An install that finished setup on that
+    default has been using AI, so its key is written 'true' - nothing changes for it. Every database after this is
+    settled, and from then on a missing key is off: a new install, a skipped first-run screen, a restored backup that
+    never had the choice."""
+    try:
+        with db_session() as session:
+            if _get_setting(session, 'ai_choice_settled'):
+                return
+            if _get_setting(session, 'ai_enabled') is None:
+                done = _get_setting(session, 'onboarding_complete')
+                if done and (done.value or '').lower() == 'true':
+                    _set_setting(session, 'ai_enabled', 'true')
+            _set_setting(session, 'ai_choice_settled', datetime.now().isoformat(timespec='seconds'))
+            session.commit()
+    except Exception:                                     # noqa: BLE001 - never stops the app opening
+        logging.getLogger('groundwork').warning('ai choice: could not be settled')
+
+
 def _ai_is_enabled() -> bool:
     """Check if AI features are enabled in app_settings."""
     try:
         with db_session() as session:
             row = _get_setting(session, 'ai_enabled')
-            # Default to enabled if key not yet set
-            return row is None or row.value != 'false'
+            # Panel I-07: AI is the person's choice to turn on - a key never written is off (an install that had it
+            # on by the old default got the key written once, _settle_ai_choice)
+            return _ai_on(row.value if row else None)
     except Exception:
-        return True  # default on if DB not available
+        return False  # a database that can't be read can't say the person chose AI: off
 
 
 @ai_bp.route('/status', methods=['GET'])

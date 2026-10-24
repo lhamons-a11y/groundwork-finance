@@ -46,7 +46,9 @@ SCHEMA_VERSION = '20261022-local-clock'   # item 109 (LOCAL_CLOCK.md T3): stored
 # The fingerprint of this file's code at this SCHEMA_VERSION (smoke section s51). Change anything the
 # migration does and s51 fails until BOTH lines above and below are updated - the version first, then
 # the fingerprint s51 prints. A change without a bump is skipped on every existing database.
-SCHEMA_SPEC_SHA256 = 'd901059c95d81000987037c1d25b5c89a7d915583bf224cf52c9048f3e228b0b'
+# (Re-pinned 2026-10-24 without a bump: the migration did not change, the fingerprint's method did - panel I-08, so
+# the same file reads the same on Python 3.12, 3.13 and 3.15.)
+SCHEMA_SPEC_SHA256 = '09aef85e996f9c92a8dc4548f44ee39d5e75c4b7993aa21fcd230bd9fad20306'
 # The models' fingerprint (item 24, SCHEMA_PIN_MODELS.md P1): every table and column in core/database.py. A model
 # change - a new table, a new column - moves it, and s51 fails until SCHEMA_VERSION is bumped, any new column on an
 # existing table is listed in its _NEW_*_COLUMNS list, this pin is updated, and `python schema_fixture.py` has saved

@@ -136,7 +136,7 @@ function openExternal(url) {
 }
 
 // ─── Global flags (set during boot from bootstrap data) ───────────────────────
-let _aiEnabled     = true;   // updated by restoreFromBootstrap
+let _aiEnabled     = false;  // updated by restoreFromBootstrap - off until the person's choice is read (panel I-07)
 let _saveTimer     = null;   // debounce timer for scheduleSave()
 
 // ── Global error handler — catches ALL uncaught JS errors and promise rejections
@@ -1610,7 +1610,7 @@ function restoreFromBootstrap(data) {
 
   // AI settings (avoids second round trip)
   if (data.settings) {
-    _aiEnabled     = data.settings['ai_enabled'] !== 'false';
+    _aiEnabled     = data.settings['ai_enabled'] === 'true';     // panel I-07: on only when chosen
     S.prefs        = S.prefs || {};
     S.prefs.aiEnabled = _aiEnabled;
     // AI is local-only (CLOUD_AI_REMOVAL.md): no provider, no key.
@@ -2997,7 +2997,7 @@ function _renderDashSeasonalAlert() {
 // ── CP5: Dashboard Level 3 — Freed minimums widget ───────────────────────────
 // Blueprint §12 Level 3.
 // "Your minimum payment burden has dropped from $712/month to $595/month since January.
-//  You've freed $117/month — that's $1,404/year you can redirect to savings."
+//  You've freed $117/month — that's $1,404/year." (the "redirect it to savings" advice is gone: panel I-18)
 // Reads from _debtHistoryCache (loaded when Budget page opens).
 // Shows only when there's at least one month of history showing a decrease.
 function _dashRenderFreedMinimums() {
@@ -3005,45 +3005,12 @@ function _dashRenderFreedMinimums() {
   const content = g('dashFreedMinimumsContent');
   if (!card || !content) return;
 
-  const _dashToday = _localISODate();
-  const activeDebts = S.debtCards.filter(c => !c.paidInFull && !(c.endDate && c.endDate < _dashToday));
-  if (!activeDebts.length) { card.style.display = 'none'; return; }
-
-  const yearKey = String(new Date().getFullYear());
-
-  // For each card: find earliest snapshot in the history cache this year.
-  // Compare that starting minimum to the current calculated minimum.
-  let startingTotal = 0;
-  let currentTotal  = 0;
-  let hasHistory    = false;
-
-  for (const card of activeDebts) {
-    const bal  = _cardBal(card);
-    const apr  = parseFloat(card.rate) || 0;
-    const currMin = apr > 0 ? _calcMinPayment(bal, apr) : parseFloat(card.minimum)||0;
-    currentTotal += currMin;
-
-    const history   = _debtHistoryCache[String(card._dbId)] || [];
-    const yearSnaps = history.filter(h => h.month.startsWith(yearKey));
-    if (yearSnaps.length) {
-      const earliest = yearSnaps[yearSnaps.length - 1]; // sorted newest-first, so last = earliest
-      startingTotal += earliest.min_payment;
-      hasHistory     = true;
-    } else {
-      // No history yet for this card — use current minimum as the baseline
-      startingTotal += currMin;
-    }
-  }
-
-  if (!hasHistory || startingTotal <= currentTotal + 1) {
-    // No meaningful decrease yet — hide the widget
-    card.style.display = 'none';
-    return;
-  }
-
-  const freed     = Math.round(startingTotal - currentTotal);
+  const fm = _freedMinimums();                             // panel I-16: the Budget page's figure; all paid off counts
+  if (!fm || fm.freed < 1) { card.style.display = 'none'; return; }
+  const startingTotal = fm.from, currentTotal = fm.to;
+  const freed     = Math.round(fm.freed);
   const yearlyVal = freed * 12;
-  const sinceLabel = `since January ${yearKey}`;
+  const sinceLabel = fm.since;
 
   content.innerHTML = `
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -3060,8 +3027,7 @@ function _dashRenderFreedMinimums() {
           You've freed
           <span style="font-family:var(--font-mono);font-weight:600;font-size:15px;color:var(--pine-text)">${fmt(freed)}/month</span>
           — that's
-          <span style="font-family:var(--font-mono);font-weight:500;color:var(--pine-text)">${fmt(yearlyVal)}/year</span>
-          you can redirect to savings.
+          <span style="font-family:var(--font-mono);font-weight:500;color:var(--pine-text)">${fmt(yearlyVal)}/year</span>.
         </div>
       </div>
       <div style="flex-shrink:0;text-align:right">
@@ -9207,26 +9173,35 @@ function _budgetPlanForecast() {
 // ── Freed minimums this year ──────────────────────────────────────────────────
 // From debt_balance_history: compare earliest 2026 snapshot min to current calc min
 // for each card. Sum the freed amount across all cards.
-function _budgetFreedMinimumsThisYear(cards) {
+// Panel I-16: one figure for "freed minimums", everywhere. The Dashboard and the Budget page each worked it out their own
+// way - one netted rises against drops, the other counted drops only, and both compared January with a *calculated*
+// minimum rather than the one on record, so the Dashboard said $593.91 while the minimums on record still totalled
+// $714. Now: each debt with history this year, its earliest minimum this year against its minimum on record today
+// (estimated only when none is recorded) - and a debt since paid off at $0, the minimum it no longer asks for.
+function _freedMinimums() {
   const yearKey = String(new Date().getFullYear());
-  let freed = 0;
-  let hasData = false;
-
-  for (const card of cards) {
-    if (card.paidInFull || !card._dbId) continue;
-    const history = _debtHistoryCache[String(card._dbId)] || [];
-    // Find earliest snapshot in this calendar year
-    const yearSnaps = history.filter(h => h.month.startsWith(yearKey));
+  let from = 0, to = 0, any = false, fromJanuary = false;
+  for (const card of S.debtCards || []) {
+    if (!card._dbId) continue;
+    const yearSnaps = (_debtHistoryCache[String(card._dbId)] || []).filter(h => h.month.startsWith(yearKey));
     if (!yearSnaps.length) continue;
-    const earliest  = yearSnaps[yearSnaps.length - 1]; // sorted newest first, so last = oldest
-    const bal       = _cardBal(card);
-    const apr       = parseFloat(card.rate) || 0;
-    const currentMin= apr > 0 ? _calcMinPayment(bal, apr) : parseFloat(card.minimum)||0;
-    freed   += Math.max(0, earliest.min_payment - currentMin);
-    hasData  = true;
+    const earliest = yearSnaps[yearSnaps.length - 1];   // sorted newest first, so last = oldest
+    const bal = _cardBal(card);
+    const apr = parseFloat(card.rate) || 0;
+    const now = (card.paidInFull || bal <= 0.01) ? 0
+      : (parseFloat(card.minimum) || (apr > 0 ? _calcMinPayment(bal, apr) : 0));
+    from += parseFloat(earliest.min_payment) || 0;
+    to += now;
+    any = true;
+    if (earliest.month === `${yearKey}-01`) fromJanuary = true;
   }
-
-  return hasData ? Math.round(freed) : null;
+  if (!any) return null;
+  return { from: Math.round(from * 100) / 100, to: Math.round(to * 100) / 100,
+           freed: Math.round((from - to) * 100) / 100, since: fromJanuary ? `since January ${yearKey}` : 'this year' };
+}
+function _budgetFreedMinimumsThisYear(_cards) {          // the one figure (above); callers' lists no longer decide it
+  const f = _freedMinimums();
+  return f ? Math.round(f.freed) : null;
 }
 
 function _budgetRenderDebtRow(card) {
@@ -16537,6 +16512,27 @@ function _debtShowTab(tab) {
 }
 
 // CP-D0: Write hero band from result
+// Panel I-17: the date above assumes the plan. When each of the last three full months has payments on record and they
+// averaged less than the plan, say so - and the date at that pace beside the planned one - so a date that slides says
+// why. Silent when the record has a gap (a month with no payments recorded is not proof of paying less).
+let _debtPaceTimer = null;
+async function _renderDebtPace() {
+  const el = g('debtHeroPace');
+  if (!el) return;
+  let p;
+  try { p = await API.get('/api/debt/pace'); } catch (e) { _gwErr('_renderDebtPace')(e); el.style.display = 'none'; return; }
+  if (!p || p.state !== 'short') { el.style.display = 'none'; return; }
+  const when = n => { if (n == null) return null; const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + n);
+    return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }); };
+  const planned = when(p.planned_months), actual = when(p.actual_months);
+  el.innerHTML = `Your debt payments on record averaged <strong style="font-family:var(--font-mono)">${fmt(p.average)}</strong> a month over the last three months, against a plan of <strong style="font-family:var(--font-mono)">${fmt(p.plan)}</strong>. `
+    + (p.below_minimums ? 'That is below the minimums owed. '
+       : actual ? `At that pace the debt-free date is <strong>${actual}</strong>${planned ? ` (the plan's: ${planned})` : ''}. `
+       : 'At that pace the debt does not clear within 30 years. ')
+    + `<span style="color:var(--slate-2)">From the payments recorded in Debt Payoff: ${p.by_month.map(m => `${new Date(m.month + '-15').toLocaleDateString('en-US', { month: 'short' })} ${fmt(m.paid)}`).join(', ')}.</span>`;
+  el.style.display = '';
+}
+
 function _debtWriteHero(result, data, budget, totalMin, intSaved) {
   const heroDate     = g('debtHeroDate');
   const heroDuration = g('debtHeroDuration');
@@ -17029,6 +17025,8 @@ function calculate() {
 
   // Write hero band
   _debtWriteHero(result, data, budget, totalMin, intSaved);
+  clearTimeout(_debtPaceTimer);              // panel I-17: the date at the pace actually paid, when short - after the
+  _debtPaceTimer = setTimeout(_renderDebtPace, 900);   // typed budget has been saved (700 ms), never per keystroke
 
   // Achievement checks
   const pctPaid = data.reduce((s,c)=>s+(c.beginBal-c.balance),0) / Math.max(1,data.reduce((s,c)=>s+c.beginBal,0));
