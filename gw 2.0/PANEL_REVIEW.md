@@ -197,7 +197,8 @@ not a preference:
 Full suite on Rob's Mac: 3,950 passed, 0 failed. Checked in a browser: the Budget rows' words and the Outside help page.
 
 **Still owed:**
-- The CFPB number and the consumerfinance.gov and lawhelp.org addresses, confirmed on their own sites before release.
+- ~~The CFPB number and the two addresses~~ - confirmed by Rob 2026-10-24: consumerfinance.gov, (855) 411-2372,
+  lawhelp.org.
 - A fund row that is over its target saying "over" in words (the server already reports it).
 - Words for the colour-only states beyond the Budget rows.
 - Rob's screen-reader session (P5).

@@ -26619,7 +26619,7 @@ function _bkWordsHTML() {
 
 // Item 112 P7 (a): outside help, findable without a crisis - the money help above, plus the CFPB (rights, complaints)
 // and LawHelp.org (free legal aid, state by state). Every link opens outside Groundwork, only when clicked; nothing is
-// sent. (The CFPB number and both new addresses to be confirmed against their own sites before release.)
+// sent. (The CFPB number, 1-855-411-2372, and consumerfinance.gov and lawhelp.org confirmed by Rob, 2026-10-24.)
 const _outsideHelp = () => [          // a function: the care lists it starts from are declared further down
   ...CARE_MONEY,
   { name: 'Consumer Financial Protection Bureau', how: 'Your rights with lenders, collectors and banks - and a complaint the company has to answer. Call 1-855-411-2372', links: [['Call', 'tel:18554112372'], ['consumerfinance.gov', 'https://www.consumerfinance.gov/']] },
