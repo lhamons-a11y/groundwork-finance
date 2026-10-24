@@ -130,8 +130,42 @@ def run(ctx):
           and 'calculate();_saveDebtBudgetSoon()' in ctx.html_src
           and "API.patch('/api/settings', { monthly_budget: String(v) })" in ctx.app_src)
 
+    # ── I-05: a balance the record brings to $0 is asked about, and $0 is a real balance ────────────────────────────
+    from core.database import DebtLedgerEntry
     with db_session() as s:
-        s.query(DebtAccount).filter_by(name='S260 Big Card').delete()
+        s.query(DebtAccount).filter_by(name='S260 Big Card').update({'is_active': False}, synchronize_session=False)
+        z = DebtAccount(name='S260 Zero Card', current_balance=0.0, begin_balance=900.0, interest_rate=20.0,
+                        minimum_payment=25.0, is_active=True)
+        s.add(z)
+        s.flush()
+        s.add(DebtLedgerEntry(debt_account_id=z.id, entry_type='payment', amount=900.0,
+                              entry_date=date.today() - timedelta(days=12), source_type='manual'))
+        s.commit()
+        zid = z.id
+        ser = server.serialize_debt_account(s.get(DebtAccount, zid), s)
+    trophies = {t['id']: t for t in ((c.get('/api/trophies', headers=H).get_json() or {}).get('data') or {}).get('trophies', [])}
+    zero_open = next((p['value'] for p in (trophies.get('zero') or {}).get('proof') or []
+                      if p.get('label') == 'balances still open'), None)
+    np = c.post(f'/api/debt/{zid}/not-paid-off', headers=H)
+    with db_session() as s:
+        ser2 = server.serialize_debt_account(s.get(DebtAccount, zid), s)
+    check(f"s260 I-05 a balance brought to $0 and not called paid off is asked about from its last payment's date; "
+          f"'not yet' is kept for that zero; the Trophy Room counts $0 as closed ({ser['reached_zero']} "
+          f"{ser['zero_since']}; after not yet {ser2['reached_zero']}; open {zero_open})",
+          ser['reached_zero'] and ser['zero_since'] == (date.today() - timedelta(days=12)).isoformat()
+          and np.status_code == 200 and not ser2['reached_zero'] and zero_open == 0)
+    check("s260 I-05 the Debt Payoff row asks 'Is it paid off?' and a yes is dated when it reached $0",
+          'function _paidOffAskHTML(c)' in ctx.app_src and "card.paidOffAt = card.zeroSince" in ctx.app_src
+          and ctx.app_src.count('${_paidOffAskHTML(c)}') == 2 and 'reachedZero: !!d.reached_zero' in ctx.app_src)
+
+    with db_session() as s:
+        s.query(DebtLedgerEntry).filter_by(debt_account_id=zid).delete()
+        s.query(DebtAccount).filter(DebtAccount.name.in_(['S260 Big Card', 'S260 Zero Card'])).delete(synchronize_session=False)
+        row = s.query(AppSetting).filter_by(key='paid_off_not_yet').first()
+        if row:
+            s.delete(row)
+        s.commit()
+    with db_session() as s:
         s.query(Transaction).filter(Transaction.merchant.in_(['S260 AUTO LOAN PMT', 'S260 LENDER', 'S260 GYM'])).delete(
             synchronize_session=False)
         s.query(DebtAccount).filter(DebtAccount.name.in_(['S260 Auto Loan', 'S260 Visa', 'S260 Paid Card'])).delete(

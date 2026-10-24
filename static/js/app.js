@@ -1532,6 +1532,7 @@ function restoreFromBootstrap(data) {
             d.end_date             || '',
             d.linked_txn_count     ?? null);
     S.debtCards[S.debtCards.length - 1].paidOffAt = d.paid_off_at || null;
+    Object.assign(S.debtCards[S.debtCards.length - 1], { reachedZero: !!d.reached_zero, zeroSince: d.zero_since || null });   // panel I-05
     Object.assign(S.debtCards[S.debtCards.length - 1], {   // V2
       rateSource: d.interest_rate_source || null, minSource: d.minimum_payment_source || null,
       statementAsOf: d.statement_as_of || null });
@@ -15466,6 +15467,30 @@ function _debtBloomFields(c, debtType, _dds) {
       </div>`;
 }
 
+// Panel I-05: a balance the record brought to $0 is asked about once - "Is this paid off?" - instead of waiting for
+// someone to find the checkbox (the Trophy Room said "the ledger does not show it" for ten months). Yes marks it paid
+// from its last payment's date; Not yet is kept for this zero.
+function _paidOffAskHTML(c) {
+  if (!c.reachedZero || c.paidInFull) return '';
+  const since = c.zeroSince ? new Date(c.zeroSince + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+  return `<div data-gw-paidoff-ask style="flex-basis:100%;order:99;margin:6px 0 2px;padding:8px 10px;border:0.5px solid var(--pine-border);border-radius:8px;background:var(--pine-bg);font-size:12px;color:var(--ink)">`
+    + `${esc(c.name || 'This debt')} is at $0.00${since ? ` since ${since}` : ''}. Is it paid off? `
+    + `<button class="btn btn-secondary btn-sm" onclick="_answerPaidOff(${c.id}, true)">Yes, it's paid off</button> `
+    + `<button class="btn btn-ghost btn-sm" onclick="_answerPaidOff(${c.id}, false)">Not yet</button></div>`;
+}
+async function _answerPaidOff(id, yes) {
+  const card = S.debtCards.find(x => x.id === id);
+  if (!card) return;
+  card.reachedZero = false;
+  if (yes) {
+    card.paidOffAt = card.zeroSince || card.paidOffAt;      // the date it reached $0, not the day the question was answered
+    setCardPaidInFull(id, true);
+    return;
+  }
+  if (card._dbId) API.post(`/api/debt/${card._dbId}/not-paid-off`, {}).catch(_gwErr('_answerPaidOff'));
+  _renderCardList();
+}
+
 function _debtCardRowHTML(c, opts={}) {
   const pslfKey = c._dbId || c.id;
   const flagged = _pslfIsFlagged(pslfKey);
@@ -15475,9 +15500,9 @@ function _debtCardRowHTML(c, opts={}) {
   if (!_openCards.has(c.id)) {
     const programLabel = flagged ? (PSLF_PROGRAMS[_pslfData(pslfKey)?.program || 'pslf']?.label || 'PSLF') : '';
     return `
-    <div class="debt-card-row" id="dc-${c.id}" style="display:flex;align-items:center;gap:10px;padding:10px 16px;${c.paidInFull ? 'opacity:.6' : ''}">
+    <div class="debt-card-row" id="dc-${c.id}" style="display:flex;align-items:center;gap:10px;padding:10px 16px;${c.paidInFull ? 'opacity:.6' : ''}${_paidOffAskHTML(c) ? 'flex-wrap:wrap;' : ''}">
       <input type="checkbox" ${c.paidInFull ? 'checked' : ''} title="Paid in full"
-        onchange="setCardPaidInFull(${c.id}, this.checked)">
+        onchange="setCardPaidInFull(${c.id}, this.checked)">${_paidOffAskHTML(c)}
       <div style="flex:1;font-size:13px;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name||'Card')}</div>
       ${c.paidInFull
         // Option 2 (d21): display-only paid treatment. The stored currentBal is
@@ -15550,7 +15575,7 @@ function _debtCardRowHTML(c, opts={}) {
   // ── Expanded: full editable row ─────────────────────────────────────────
   const debtType = _debtType(pslfKey);
   return `
-    <div class="debt-card-row" id="dc-${c.id}" style="${c.paidInFull ? 'opacity:.75' : ''}">
+    <div class="debt-card-row" id="dc-${c.id}" style="${c.paidInFull ? 'opacity:.75' : ''}">${_paidOffAskHTML(c)}
       <div class="debt-card-name">
         <input type="checkbox" ${c.paidInFull ? 'checked' : ''} title="Paid in full"
           onchange="setCardPaidInFull(${c.id}, this.checked)">

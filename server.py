@@ -670,6 +670,16 @@ def serialize_debt_account(d: DebtAccount, session=None) -> dict:
     end_date    = getattr(d, 'end_date',    None)
     credit_limit= getattr(d, 'credit_limit',None)
     paid_off_at = getattr(d, 'paid_off_at', None)
+    # Panel I-05: a balance the record has brought to $0 that nobody has called paid off is asked about ("Is this paid
+    # off?") - from the date of its last payment, unless the person already said "not yet" to that same zero
+    zero_since = None
+    if session is not None and d.is_active and not paid_off_at and d.current_balance is not None \
+            and float(d.current_balance) <= 0.01:
+        last = session.query(func.max(DebtLedgerEntry.entry_date)).filter(
+            DebtLedgerEntry.debt_account_id == d.id, DebtLedgerEntry.entry_type == 'payment').scalar()
+        zero_since = (last or date.today()).isoformat()
+        if (_setting_json(session, 'paid_off_not_yet', {}) or {}).get(str(d.id)) == zero_since:
+            zero_since = None
 
     return {
         'id':                   d.id,
@@ -690,6 +700,8 @@ def serialize_debt_account(d: DebtAccount, session=None) -> dict:
         'credit_limit':         credit_limit,
         'is_active':            d.is_active,
         'paid_off_at':          paid_off_at.isoformat() if paid_off_at else None,
+        'reached_zero':         zero_since is not None,
+        'zero_since':           zero_since,
         # A boolean only; the address stays behind the /portal routes (F5).
         'has_portal':           _debt_portal_url(session, d) is not None,
         # V2
@@ -7152,8 +7164,9 @@ def list_trophies():
         # Keyed on the proof kind alone, a single cleared card proved "you are
         # debt free" while two balances were still open — a false trophy, which
         # is the one failure this module exists to prevent.
-        open_balances = [d for d in actives
-                         if float(d.current_balance or d.begin_balance or 0) > 0]
+        open_balances = [d for d in actives                     # panel I-05: 0 is a real balance, as in
+                         if float(d.current_balance if d.current_balance is not None    # _consequence_inputs
+                                  else (d.begin_balance or 0)) > 0.01]
 
         def evidence_for(spec, trophy_id=None):
             proof_kind = spec.get('proof')
@@ -8793,6 +8806,23 @@ def _apply_ledger_balance_effect(debt: DebtAccount, entry: DebtLedgerEntry, sign
     if debt.current_balance is None:
         return
     debt.current_balance = round(debt.current_balance + sign * delta, 2)
+
+
+@debt_bp.route('/<int:debt_id>/not-paid-off', methods=['POST'])
+def debt_not_paid_off(debt_id):
+    """Panel I-05: "Not yet" to "Is this paid off?" - kept for this zero, so it is asked again only if the balance
+    goes back up and reaches $0 another time."""
+    with db_session() as session:
+        d = session.get(DebtAccount, debt_id)
+        if not d:
+            return err('Not found', 404)
+        since = serialize_debt_account(d, session).get('zero_since')
+        said = _setting_json(session, 'paid_off_not_yet', {}) or {}
+        if since:
+            said[str(debt_id)] = since
+            _set_setting(session, 'paid_off_not_yet', json.dumps(said))
+            session.commit()
+        return ok({'not_yet': since})
 
 
 @debt_bp.route('/<int:debt_id>/ledger', methods=['GET'])
