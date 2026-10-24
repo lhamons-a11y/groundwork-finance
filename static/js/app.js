@@ -12952,6 +12952,7 @@ async function renderSundayCard() {
     + (written ? `<div style="margin-bottom:10px">${esc(written)}</div>` : '')
     + `<div style="${written ? 'font-size:12px;color:var(--slate);border-top:0.5px solid var(--steel);padding-top:8px' : ''}">${facts.map(l => `<div>${esc(l)}</div>`).join('')}</div>`
     + whose
+    + `<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" onclick="printSession()">Print this</button></div>`   // item 112 P7 (b)
     + (!written && aiEnabled() ? `<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" onclick="writeSundayCheckin(true)">Write it now</button>
         <span style="font-size:11px;color:var(--slate-2)">Normally written overnight after a new import.</span></div>` : '');
 }
@@ -13371,7 +13372,9 @@ function _renderHelpFaq(filter) {
              border-radius:var(--r-sm);padding:8px 12px;margin-bottom:18px;
              background:var(--paper);color:var(--ink)">
     <div style="font-size:12px;color:var(--slate);margin:-8px 0 18px">Something not right?
-      <button class="btn btn-ghost btn-sm" onclick="g('helpOverlay').classList.add('hidden'); openFeedbackModal()">⚑ Report a problem</button></div>`;
+      <button class="btn btn-ghost btn-sm" onclick="g('helpOverlay').classList.add('hidden'); openFeedbackModal()">⚑ Report a problem</button>
+      <button class="btn btn-ghost btn-sm" onclick="showOutsideHelp()">Outside help</button>
+      <button class="btn btn-ghost btn-sm" onclick="g('helpOverlay').classList.add('hidden'); printSession()">Print a summary</button></div>`;
   // (Rob 2026-10-22: the top bar's Report button moved here)
   const care = careLevel(f);                  // item 104: typed into the guide's search, the same words come first
   if (care) html += careHTML(care) + '<div style="height:18px"></div>';
@@ -25317,6 +25320,9 @@ function _payFactsHtml(st) {
       <button class="btn btn-secondary btn-sm" onclick="incomePayKind('${esc(p.payer)}', 'hourly')">Yes, it can</button>
       <button class="btn btn-ghost btn-sm" onclick="incomePayKind('${esc(p.payer)}', 'salary')">No, it's the same each time</button>
       <div style="font-size:11px;color:var(--slate-2)">Your answer picks how Groundwork reads this pay. Until then it watches nothing here.</div></div>`;
+    // Item 112 P1: pay with no schedule (gig work), by the week - facts, never an alarm
+    if (p.state === 'weekly' && p.weekly) return `<div style="padding:6px 0">${name(p)}: pay with no set schedule, so Groundwork reads it by the week.
+      Over the last ${p.weekly.weeks} weeks a typical week brought in ${fmt(p.weekly.typical)}, a low week ${fmt(p.weekly.low)} and the highest ${fmt(p.weekly.high)}.</div>`;
     if (p.rule === 'hourly' && p.ordinary != null) return `<div style="padding:6px 0">${name(p)}: your ordinary ${_PAY_EVERY[p.every] || 'check'} is about ${fmt(p.ordinary)}.
       Overtime added ${fmt(p.overtime.recent)} over the last ${p.overtime.weeks} weeks; ${fmt(p.overtime.before)} the ${p.overtime.weeks} weeks before.
       <button class="btn btn-ghost btn-sm" onclick="incomePayKind('${esc(p.payer)}', 'salary')">It doesn't pay overtime</button></div>`;
@@ -26609,6 +26615,56 @@ function _bkWordsHTML() {
         <button class="btn btn-secondary btn-sm" onclick="backupPrintWords()">Print</button>
         <button class="btn btn-primary btn-sm" onclick="backupWroteItDown()">I've written it down</button></div>
     </div>`;
+}
+
+// Item 112 P7 (a): outside help, findable without a crisis - the money help above, plus the CFPB (rights, complaints)
+// and LawHelp.org (free legal aid, state by state). Every link opens outside Groundwork, only when clicked; nothing is
+// sent. (The CFPB number and both new addresses to be confirmed against their own sites before release.)
+const _outsideHelp = () => [          // a function: the care lists it starts from are declared further down
+  ...CARE_MONEY,
+  { name: 'Consumer Financial Protection Bureau', how: 'Your rights with lenders, collectors and banks - and a complaint the company has to answer. Call 1-855-411-2372', links: [['Call', 'tel:18554112372'], ['consumerfinance.gov', 'https://www.consumerfinance.gov/']] },
+  { name: 'Free legal aid', how: 'Legal help with debt, collections, housing and benefits, found by your state', links: [['lawhelp.org', 'https://www.lawhelp.org/']] },
+];
+function outsideHelpHTML() {
+  return `<div class="care" role="region" aria-label="Outside help">
+    <div style="font-size:14px;font-weight:600;color:var(--ink)">Outside help</div>
+    <div style="font-size:12px;color:var(--slate);line-height:1.6;margin-top:4px">Free or low-cost help from real people. Each link opens outside Groundwork; nothing is sent from here.</div>
+    ${_outsideHelp().map(l => _careLine(l)).join('')}
+    <div style="font-size:12px;color:var(--slate);line-height:1.6;margin-top:12px">If it ever feels like more than money, you can call or text <strong>988</strong> any time.</div>
+    ${_careLine(CARE_988)}</div>`;
+}
+function showOutsideHelp() {
+  const content = g('helpFaqContent');
+  if (!content) return;
+  content.innerHTML = `<button class="btn btn-ghost btn-sm" onclick="_renderHelpFaq('')">‹ Back to help</button>` + outsideHelpHTML();
+}
+
+// Item 112 P7 (b): one printed page of where things stand - the check-in's facts and the month's figures - for a
+// counsellor or a partner. Printed from the same sheet as the recovery key, and emptied again after.
+async function printSession() {
+  const sheet = g('bkPrintSheet');
+  if (!sheet) return;
+  let f = null;
+  try { f = await API.get('/api/checkin'); } catch (e) { _gwErr('printSession')(e); }
+  const today = new Date();
+  const income = (S.incomes || []).reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
+  const spending = (S.expenses || []).reduce((s, e) => s + _rowMonth(e), 0);
+  const dp = _debtMonthPlan();
+  const active = (S.debtCards || []).filter(c => !c.paidInFull && _cardBal(c) > 0.01);
+  const debts = active.map(c => `<li>${esc(c.name || 'Debt')}: ${fmt(_cardBal(c))} owed${c.rate ? `, ${esc(String(c.rate))}% APR` : ''}${c.minimum ? `, minimum ${fmt(parseFloat(c.minimum))}` : ''}</li>`).join('');
+  sheet.innerHTML = `<h1>Groundwork - where things stand</h1>
+    <p>${esc(today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }))}. Every figure is from this computer's own records.</p>
+    ${f ? `<h2>This week and month</h2><ul>${_checkinLines(f).map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
+    <h2>The month's plan</h2>
+    <ul><li>Income: ${fmt(income)}</li><li>Spending lines: ${fmt(spending)}</li>
+      <li>Debt payments: ${fmt(dp.amount)} (${dp.basis === 'plan' ? 'the payoff plan' : 'the minimums'})</li>
+      <li>Left after the plan: ${fmt(income - spending - dp.amount)}</li></ul>
+    ${debts ? `<h2>Debts</h2><ul>${debts}</ul>` : ''}`;
+  const done = () => { document.body.classList.remove('bk-printing'); sheet.innerHTML = ''; window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  document.body.classList.add('bk-printing');
+  window.print();
+  setTimeout(() => { if (!window.matchMedia('print').matches) done(); }, 60000);
 }
 
 // The words print from their own sheet at the top of the page (index.html #bkPrintSheet), because the app-wide print

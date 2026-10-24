@@ -3,6 +3,7 @@
     P2  no brake on spending a fund saved for; "I had to" describes a charge rather than pricing it
     P3  a fund notices what it paid for, and a deposit over the target is kept, never capped
     P5  colour states in words; charts that say what they show
+    P1  gig pay read by the week   P4  who changed what, in Household mode   P7  outside help, a printed summary
 """
 import json
 from datetime import date, timedelta
@@ -82,6 +83,54 @@ def run(ctx):
           and 'role="img" aria-label="${esc(donutLabel)}"' in app and 'aria-label="${esc(nwSummary)}"' in app
           and "${esc(nwSummary)}</div>" in app)
 
+    # ── P1: gig pay, read by the week ────────────────────────────────────────────────────────────────────────────
+    import random
+    from core import income_change as ic
+    rnd = random.Random(2610)
+    end = date(2026, 10, 20)
+    gig = sorted({end - timedelta(days=rnd.randint(0, 120)) for _ in range(60)})
+    checks = [(d, round(rnd.uniform(35, 210), 2)) for d in gig]
+    j = ic.judge_payer('uber instant pay', checks, None, end, end)
+    sparse = ic.judge_payer('odd jobs', [(end - timedelta(days=k), 300.0) for k in (3, 40, 95, 160, 230)], None, end, end)
+    check(f"s261 P1 pay with no schedule landing several times a week is read by the week - a typical, low and high "
+          f"week over 13 weeks - and counts toward monthly income; rare odd pay stays unknown ({j.get('state')} "
+          f"{j.get('weekly')}; {sparse.get('state')})",
+          j.get('state') == 'weekly' and j['weekly']['weeks'] == 13 and j['weekly']['low'] <= j['weekly']['typical'] <= j['weekly']['high']
+          and j.get('per_month') and sparse.get('state') == 'unknown'
+          and "p.state === 'weekly' && p.weekly" in ctx.app_src)
+
+    # ── P4: one partner's cut and the other's restore is not a decision ────────────────────────────────────────────
+    from core import willingness as wl
+    cut = {'id': 1, 'date': '2026-03-02', 'category': 'Restaurants', 'old': 400.0, 'new': 250.0, 'by': 1, 'by_name': 'Darnell'}
+    put = {'id': 2, 'date': '2026-04-05', 'category': 'Restaurants', 'old': 250.0, 'new': 400.0, 'by': 2, 'by_name': 'Keisha'}
+    differ = wl._reading('Restaurants', [cut, put], {}, set(), {})
+    agreed = wl._reading('Restaurants', [cut, {**put, 'shared': True}], {}, set(), {})
+    alone = wl._reading('Restaurants', [cut, {**put, 'by': 1}], {}, set(), {})
+    sh = c.post('/api/willingness/shared', headers=HJ, data=json.dumps({'restore_id': 999999, 'answer': 'shared'}))
+    with db_session() as s:
+        kept = json.loads((s.query(AppSetting).filter_by(key='shared_decisions').first() or AppSetting(value='[]')).value)
+    wjs = (ctx.BASE / 'static' / 'js' / 'teaching' / 'willingness.js').read_text(encoding='utf-8')
+    check(f"s261 P4 one partner's cut and the other's restore reads undecided, never 'something you keep', until they say "
+          f"it was shared; one person's own restore reads as before ({differ['reason']}, {agreed['reason']}, {alone['reason']})",
+          differ['stance'] == 'unclassified' and differ['reason'] == 'partners_differ'
+          and agreed['stance'] == 'sacred' and alone['stance'] == 'sacred'
+          and sh.status_code == 200 and any(a.get('restore_id') == 999999 and a.get('answer') == 'shared' for a in kept)
+          and 'Is this a shared decision?' in wjs and "'budget_item_id': item.id, 'name': item.name," in ctx.server_src
+          and "'item_type': item.type, **_edit_by(session)}" in ctx.server_src)
+
+    # ── P7: outside help, and a printed summary ──────────────────────────────────────────────────────────────────
+    check("s261 P7 an Outside help page from the ? help (NFCC, 211, the CFPB, free legal aid; links open only when "
+          "clicked) and a one-page printed summary, from the help and the check-in",
+          'function outsideHelpHTML()' in app and 'consumerfinance.gov' in app and 'lawhelp.org' in app
+          and 'onclick="showOutsideHelp()">Outside help</button>' in app and 'async function printSession()' in app
+          and 'printSession()">Print a summary</button>' in app and 'onclick="printSession()">Print this</button>' in app
+          and '#bkPrintSheet h2{' in ctx.html_src)
+
+    with db_session() as s:
+        row = s.query(AppSetting).filter_by(key='shared_decisions').first()
+        if row:
+            s.delete(row)
+        s.commit()
     with db_session() as s:
         s.query(Transaction).filter(Transaction.id.in_([hid, bid])).delete(synchronize_session=False)
         s.query(SinkingFund).filter_by(id=fid).delete()

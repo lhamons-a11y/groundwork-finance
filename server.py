@@ -2377,6 +2377,9 @@ def _willingness_inputs(session, months: int = 12) -> dict:
     # The user's own budget edits. The category is the item's category as it stands now: budget items key
     # category by name, and an edit made to "Dining" is about whatever that item is today.
     edits = []
+    said_shared = {a.get('restore_id'): a.get('answer') for a in (_setting_json(session, 'shared_decisions', []) or [])
+                   if isinstance(a, dict)}
+    shared = {k for k, v in said_shared.items() if v == 'shared'}
     from core import plan_edits                         # item 80: a plan's Undo is not the person's decisions
     adj = session.query(HistorianEntry).filter(
         HistorianEntry.event_category == 'budget_adjusted').order_by(HistorianEntry.created_at, HistorianEntry.id).all()
@@ -2391,7 +2394,10 @@ def _willingness_inputs(session, months: int = 12) -> dict:
                 or e.expected_value is None or e.actual_value is None or e.created_at is None):
             continue
         edits.append({'id': e.id, 'date': e.created_at.strftime('%Y-%m-%d'), 'category': item.category,
-                      'old': float(e.expected_value), 'new': float(e.actual_value)})
+                      'old': float(e.expected_value), 'new': float(e.actual_value),
+                      # item 112 P4: who made it (Household mode), and whether the partners said a reversal was shared
+                      'by': c.get('by'), 'by_name': c.get('by_name'), 'shared': e.id in shared,
+                      'shared_answer': said_shared.get(e.id)})
 
     # Spending by category and month, over complete months only - the current month is half-recorded by
     # definition. Transfers are money moving between the user's own accounts, not spending.
@@ -2483,6 +2489,27 @@ def willingness_picture():
         s = willingness_state(session)
         s.pop('effective')
         return ok(s)
+
+
+@willingness_bp.route('/shared', methods=['POST'])
+@require_json
+def willingness_shared():
+    """Item 112 P4: the partners' answer to "Is this a shared decision?" about one reversal - 'shared' lets the restore
+    count as what the household keeps; 'not_yet' keeps it undecided and stops the question. Kept as their word."""
+    b = request.get_json() or {}
+    if b.get('answer') not in ('shared', 'not_yet'):
+        return err("answer is 'shared' or 'not_yet'", 400)
+    try:
+        rid = int(b.get('restore_id'))
+    except (TypeError, ValueError):
+        return err('restore_id is needed', 400)
+    with db_session() as session:
+        said = [a for a in (_setting_json(session, 'shared_decisions', []) or [])
+                if isinstance(a, dict) and a.get('restore_id') != rid]
+        said.append({'restore_id': rid, 'answer': b['answer'], 'at': datetime.now().isoformat(timespec='seconds')})
+        _set_setting(session, 'shared_decisions', json.dumps(said[-500:]))
+        session.commit()
+        return ok(willingness_state(session))
 
 
 @willingness_bp.route('/declarations', methods=['POST'])
@@ -6497,7 +6524,7 @@ def update_budget_item(item_id):
                     session, 'budget_adjusted',
                     expected_value=_old_amount, actual_value=_new_amount,
                     context={'budget_item_id': item.id, 'name': item.name,
-                             'item_type': item.type},
+                             'item_type': item.type, **_edit_by(session)},
                 )
         if 'category' in body:
             cat_name = (body['category'] or '').strip()
@@ -6721,6 +6748,19 @@ def _payoff_minimum(d):
     if split and split.get('known'):
         return split['pi']
     return float(d.minimum_payment or 0)
+
+
+def _edit_by(session):
+    """Item 112 P4: in Household mode (two people named), who is making a budget edit - the person who is answering
+    (item 93's "who's here"). Nothing when one person keeps the budget, or no one has said who is here: an edit is
+    never blocked for want of a name, and an edit with no name is read as before."""
+    names = [r.value for r in (_get_setting(session, 'household_user1'), _get_setting(session, 'household_user2'))
+             if r is not None and (r.value or '').strip()]
+    if len(names) < 2:
+        return {}
+    from core import household_statements as hs
+    p = hs.speaker(session)
+    return {'by': p.id, 'by_name': p.display_name} if p else {}
 
 
 def _consequence_inputs(session):

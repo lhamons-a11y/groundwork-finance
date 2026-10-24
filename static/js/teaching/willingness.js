@@ -75,6 +75,11 @@
         + _date(x.cut.date) + ', then set it back to ' + fmt(x.restore.new) + ' on ' + _date(x.restore.date)
         + '. Groundwork reads it as something you keep.';
     }
+    if (r.reason === 'partners_differ') {         // item 112 P4: a disagreement is not a decision
+      return c + ': ' + esc(x.cut.by_name || 'one of you') + ' lowered its budget from ' + fmt(x.cut.old) + ' to ' + fmt(x.cut.new)
+        + ' on ' + _date(x.cut.date) + ', and ' + esc(x.restore.by_name || 'the other') + ' set it back to ' + fmt(x.restore.new)
+        + ' on ' + _date(x.restore.date) + '. Groundwork does not read that as a decision either way.';
+    }
     if (r.reason === 'break') return _breakText(r);
     if (r.reason === 'probation') {
       return c + ': you lowered its budget from ' + fmt(x.cut.old) + ' to ' + fmt(x.cut.new) + ' on '
@@ -268,6 +273,14 @@
         + '</details><div style="margin-top:8px"><button class="btn btn-secondary btn-sm" data-gw-planmark="' + esc(pr.apply_at) + '">Mark them as the plan\'s</button>'
         + '<span style="font-size:11px;color:var(--slate-2);margin-left:8px">Nothing is deleted - the record keeps every change.</span></div></div>');
     });
+    // Item 112 P4: one partner's cut, the other's restore - asked once, never concluded
+    claims.filter(function (r) { return r.reason === 'partners_differ' && !(r.receipt.restore || {}).shared_answer; })
+      .forEach(function (r) {
+        needs.push('<div class="card" style="border-left:3px solid var(--gold)"><div class="card-label">Is this a shared decision?</div>'
+          + '<div style="font-size:12px;color:var(--ink);line-height:1.7">' + _claimText(r) + '</div>'
+          + '<div style="margin-top:8px"><button class="btn btn-secondary btn-sm" data-gw-shared="shared" data-gw-restore="' + r.receipt.restore.id + '">Yes, we decided together</button> '
+          + '<button class="btn btn-ghost btn-sm" data-gw-shared="not_yet" data-gw-restore="' + r.receipt.restore.id + '">Not yet</button></div></div>');
+      });
     if (strat) needs.push(strat);
     if (inc) needs.push(inc);
     if (claims.length) {
@@ -378,6 +391,18 @@
       var r = await API.post('/api/willingness/plan-repair/mark', { apply_at: b.getAttribute('data-gw-planmark') });
       showToast('Marked ' + r.marked + ' changes as the plan\'s', 'The working picture no longer reads them as yours.');
     } catch (e) { _gwErr('willingness plan mark')(e); return; }
+    render();
+  });
+
+  // Item 112 P4: the partners' answer about one reversal, kept as their word
+  document.addEventListener('click', async function (ev) {
+    var b = ev.target && ev.target.closest && ev.target.closest('[data-gw-shared]');
+    if (!b) return;
+    ev.preventDefault();
+    try {
+      await API.post('/api/willingness/shared', { restore_id: +b.getAttribute('data-gw-restore'), answer: b.getAttribute('data-gw-shared') });
+      showToast(b.getAttribute('data-gw-shared') === 'shared' ? 'Kept: a shared decision' : 'Kept: not decided yet', '', 'success');
+    } catch (e) { _gwErr('willingness shared')(e); return; }
     render();
   });
 

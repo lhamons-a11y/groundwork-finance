@@ -93,6 +93,11 @@ def _reading(category, edits, spend, ledger_months, income):
         later = [e for e in edits if (e['date'], e['id']) > (cut['date'], cut['id'])]
         restore = next((e for e in later if e['new'] >= cut['old']), None)
         if restore:
+            # Item 112 P4 (panel I-14): one partner cut it and the other put it back - a disagreement, not a
+            # decision, until they say it was shared. Never "something you keep" on one person's restore.
+            if cut.get('by') and restore.get('by') and cut['by'] != restore['by'] and not restore.get('shared'):
+                return {**base, 'stance': 'unclassified', 'reason': 'partners_differ',
+                        'receipt': {'cut': cut, 'restore': restore}}
             return {**base, 'stance': 'sacred', 'reason': 'restored',
                     'receipt': {'cut': cut, 'restore': restore}}
 
@@ -188,7 +193,8 @@ def observed_readings(categories, edits, spend, ledger_months, income, debits):
     """E.2's reading for each budgeted category not on the necessity floor.
 
     `categories`     the budgeted expense categories, by name
-    `edits`          the user's budget edits: [{id, date 'YYYY-MM-DD', category, old, new}], oldest first
+    `edits`          the user's budget edits: [{id, date 'YYYY-MM-DD', category, old, new, by?, by_name?, shared?}],
+                     oldest first - `by` the person who made it, in Household mode (item 112 P4)
     `spend`          {(category, 'YYYY-MM'): debits} for months the ledger holds
     `ledger_months`  the complete months the ledger holds any spending in (the current month excluded)
     `income`         {'YYYY-MM': income} - only months with income on record appear

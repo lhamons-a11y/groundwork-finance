@@ -59,6 +59,26 @@ def pay_schedule(dates):
     return None
 
 
+GIG_WEEKS = 13               # P1: the weekly view reads the last thirteen weeks
+GIG_PER_WEEK = 1.5           # P1: pay with no schedule landing this often (a week, over the last 8) is read by the week
+
+
+def weekly_view(checks, end):
+    """P1: pay with no schedule, by the week - a typical week, a low week and a high week over the last GIG_WEEKS. Weeks
+    with nothing count as $0 (for gig work they are real). None unless it lands often enough to read this way."""
+    from datetime import timedelta
+    recent = [d for d, _ in checks if end - timedelta(weeks=8) < d <= end]
+    if len(recent) < GIG_PER_WEEK * 8:
+        return None
+    weeks = [0.0] * GIG_WEEKS
+    for d, a in checks:
+        i = (end - d).days // 7
+        if 0 <= i < GIG_WEEKS:
+            weeks[i] += a
+    return {'weeks': GIG_WEEKS, 'typical': round(_median(weeks), 2), 'low': round(_q(weeks, 0.1), 2),
+            'high': round(max(weeks), 2)}
+
+
 def _window(checks, end, weeks):
     from datetime import timedelta
     return [a for d, a in checks if end - timedelta(weeks=weeks) < d <= end]
@@ -70,6 +90,7 @@ def judge_payer(name, checks, kind, today, records_end):
       'drop'     D4-D6 (steady pay) or D8 (hourly): a drop, with the per-check and monthly figures
       'missing'  D7: the usual payday passed and the account kept recording - asked, never counted as zero
       'ask'      D10: checks spread widely and the kind of pay is not known - no alarm, only facts
+      'weekly'   item 112 P1: no schedule, but several deposits a week (gig work) - read by the week, facts only
       'steady'   nothing to say
       'unknown'  too few checks, or no regular rhythm"""
     from datetime import timedelta
@@ -77,6 +98,13 @@ def judge_payer(name, checks, kind, today, records_end):
     sched = pay_schedule(dates)
     out = {'payer': name, 'kind': kind, 'checks': len(checks)}
     if not sched:
+        wk = weekly_view(checks, dates[-1]) if dates else None
+        if wk:
+            # Item 112 P1 (panel I-11): pay that lands several times a week with no schedule (gig work, Uber) was
+            # "unknown" for two years, and every income feature skipped it. It is read by the week instead - facts,
+            # never an alarm - and its typical week counts toward monthly income.
+            return {**out, 'state': 'weekly', 'every': 7, 'per_month': round(52 / 12, 4), 'last': dates[-1].isoformat(),
+                    'typical': wk['typical'], 'weekly': wk}
         return {**out, 'state': 'unknown'}
     every, per_month = sched
     out.update(every=every, per_month=round(per_month, 4), last=dates[-1].isoformat())
