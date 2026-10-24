@@ -8671,7 +8671,7 @@ function _budgetProjection(catName, budgetedAmt) {
 
   return {
     spent:     Math.round(spent * 100) / 100,
-    projected: Math.round(projected),
+    projected: Math.round(projected * 100) / 100,   // to the cent, like spent: rounded to dollars it could read below what was already spent
     pct:       budgetedAmt > 0 ? projected / budgetedAmt : 0,
     spentPct:  budgetedAmt > 0 ? spent / budgetedAmt : 0,
     trending:  projected > budgetedAmt        ? 'over'
