@@ -2113,7 +2113,7 @@ function awardAchievement(id) {
   _playAchievementFanfare();
   // Toast — icon + name + brief type label
   const typeLabel = a.type === 'mastery' ? '✦ Mastery' : a.type === 'discipline' ? '● Discipline' : '○ Awareness';
-  showToast(`${a.icon}  ${a.name}`, `${typeLabel} · ${a.desc.slice(0,60)}`, 'success');
+  _queueAchievementToast(a, typeLabel);       // panel I-21: trophies earned together are one toast, not a stack
   // Write to DB
   _syncAchievementToDb(id, a.section || 'general').catch(_gwErr('awardAchievement'));
   // Refresh trophy strip on dashboard if visible
@@ -2126,9 +2126,31 @@ function awardAchievement(id) {
 // Pending soft-deletes: id → { timer, snapshot }
 const _pendingDeletes = {};
 
+// Panel I-21: stacked achievement toasts covered the Trophy Room's last trophy and Net Worth's Add button. Trophies
+// earned within the same moment (a first import can earn several) are said in one toast, naming them.
+let _achToastQ = [], _achToastT = null;
+function _queueAchievementToast(a, typeLabel) {
+  _achToastQ.push({ a, typeLabel });
+  clearTimeout(_achToastT);
+  _achToastT = setTimeout(() => {
+    const q = _achToastQ;
+    _achToastQ = [];
+    if (q.length === 1) { showToast(`${q[0].a.icon}  ${q[0].a.name}`, `${q[0].typeLabel} · ${q[0].a.desc.slice(0, 60)}`, 'success'); return; }
+    const names = q.slice(0, 3).map(x => x.a.name).join(', ') + (q.length > 3 ? ` and ${q.length - 3} more` : '');
+    showToast(`${q.length} trophies earned`, `${names} - in the Trophy Room`, 'success');
+  }, 400);
+}
 function showToast(title, sub = '', type = 'success', undoFn = null) {
   const stack = g('toastStack');
   if (!stack) return;
+  // Panel I-21: never a column of toasts over the page - the oldest without an Undo makes room (one with an Undo
+  // waits out its own time)
+  const TOAST_MAX = 3;
+  while ((stack.children || []).length >= TOAST_MAX) {
+    const old = [...stack.children].find(t => !t.querySelector('.toast-undo'));
+    if (!old) break;
+    old.remove();
+  }
   const el = document.createElement('div');
   el.className = `toast ${type === 'error' ? 'error' : type === 'warning' ? 'warning' : type === 'info' ? 'info' : ''}`;
   el.innerHTML = `
@@ -8295,18 +8317,14 @@ function _budgetUpdateRealismSentence(left, totalIncome) {
   }
   if (!totalIncome || totalIncome <= 0) { el.textContent = ''; return; }
   const pct = Math.round((left / totalIncome) * 100);
+  // Panel I-18: the fact, never a verdict or an instruction - the grades and the to-do lines that were here went
+  // against Groundwork's own rule that it shows and never tells people what they should do
   if (left < 0) {
     el.style.color = 'var(--ember-text)';
-    el.textContent = `Plan overspends by ${fmt(Math.abs(left))}. Trim an expense or reduce a commitment.`;
-  } else if (pct >= 20) {
-    el.style.color = 'var(--pine-text)';
-    el.textContent = `Saving ${pct}% of income. Solid cushion.`;
-  } else if (pct >= 10) {
-    el.style.color = 'var(--slate)';
-    el.textContent = `Saving ${pct}% of income. Aim for 15–20%.`;
+    el.textContent = `The plan sends out ${fmt(Math.abs(left))} a month more than comes in.`;
   } else {
-    el.style.color = 'var(--gold-text)';
-    el.textContent = `Saving ${pct}% of income. Prioritize debt paydown to free cash.`;
+    el.style.color = 'var(--slate)';
+    el.textContent = `${pct}% of income, ${fmt(left)} a month, is left after the plan.`;
   }
 }
 
@@ -11014,7 +11032,7 @@ async function _checkOilChange() {
       }
     } else {
       alert.style.display = '';
-      alert.innerHTML = '⚠ No oil change found in your ledger. Consider checking before a long drive.';
+      alert.innerHTML = '⚠ No oil change is on record in your ledger.';     // panel I-18: the fact, not advice
     }
   } catch(e) {
     alert.style.display = 'none';
@@ -16671,7 +16689,7 @@ function _debtMaybeSuggestCommitment() {
   sugEl.style.display = '';
   // item 110 V7: the suggestion keeps its number and says where it comes from - no "healthy" verdict
   sugEl.innerHTML = `Suggested <b style="font-family:var(--font-mono)">${gwFig('debt.suggested', fmt(sug.suggestedMonthlyBudget))}</b>: your minimums plus 20% of your income, from the 50/30/20 split.
-    <span onclick="g('monthlyBudget').value=${sug.suggestedMonthlyBudget};g('monthlyBudget').dataset.userSet='1';g('debtSuggestedCommitment').style.display='none';calculate()"
+    <span onclick="g('monthlyBudget').value=${sug.suggestedMonthlyBudget};g('monthlyBudget').dataset.userSet='1';g('debtSuggestedCommitment').style.display='none';calculate();_saveDebtBudgetSoon()"
       style="color:var(--pine-text);cursor:pointer;text-decoration:underline;margin-left:4px">Use this</span>`;
 
   _debtSuggestionShown = true;
@@ -26001,7 +26019,7 @@ function renderSettings() {
 }
 
 function saveSettings() {
-  const pct    = parseFloat(g('settingsSavingsPct')?.value)||5;
+  const pct    = parseFloat(g('settingsSavingsPct')?.value)||10;      // panel I-18: the one default (boot and snapshot: 10)
   const budget = parseFloat(g('settingsMonthlyBudget')?.value)||0;
   const method = g('settingsDebtMethod')?.value||'avalanche';
   const homeState = g('settingsHomeState')?.value || '';
@@ -29284,7 +29302,7 @@ const _REPORT_CATALOG = [
     id:        'income_savings',
     section:   'Building',
     title:     'Income & Savings Rate',
-    sub:       'Monthly income, expenses, savings rate trend, vs. 15–20% target.',
+    sub:       'Monthly income, expenses and the savings rate over time.',
     icon:      '◷',
     aiUtility: 'medium',
     action:    () => _rcOpenReport('income_savings'),
@@ -31946,7 +31964,7 @@ function _rcRenderIncomeSavings() {
       <div style="font-size:13px;color:var(--slate)">How much you're saving as a percentage of income each month.</div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:24px">
-      <div class="card" style="padding:14px${avgRate>=15?';border-color:var(--pine-border)':''}"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Avg savings rate</div><div style="font-family:var(--font-mono);font-size:22px;font-weight:600;color:${avgRate>=20?'var(--pine-text)':avgRate>=10?'var(--gold-text)':'var(--ember-text)'}">${avgRate}%</div><div style="font-size:11px;color:var(--slate);margin-top:2px">Target: 15-20%</div></div>
+      <div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Avg savings rate</div><div style="font-family:var(--font-mono);font-size:22px;font-weight:600;color:var(--ink)">${avgRate}%</div><div style="font-size:11px;color:var(--slate);margin-top:2px">of income, 12-month average</div></div>
       <div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Trend</div><div style="font-size:18px;font-weight:600;color:${improving?'var(--pine-text)':'var(--slate)'}">${improving?'Improving':'Mixed'}</div><div style="font-size:11px;color:var(--slate);margin-top:2px">last 3 months</div></div>
       <div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Best month</div><div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--pine-text)">${bestMonth.rate}%</div><div style="font-size:11px;color:var(--slate);margin-top:2px">${bestMonth.lbl}${bestIsPartial ? ' (so far)' : ''}</div></div>
       <div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Lowest month</div><div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:${worstMonth.rate<0?'var(--ember-text)':'var(--gold-text)'}">${worstMonth.rate}%</div><div style="font-size:11px;color:var(--slate);margin-top:2px">${worstMonth.lbl}${worstIsPartial ? ' (so far)' : ''}</div></div>
@@ -31986,7 +32004,7 @@ function _rcRenderIncomeSavings() {
     const latestIsPartial  = _isPartialMonth(latest);
     const dataLines = [
       `Months of data: ${moWithData.length}`,
-      `Average savings rate (12-month): ${avgRate}% (target: 15–20%)`,
+      `Average savings rate (12-month): ${avgRate}%`,                    // panel I-18: no target the person did not set
       `Best month: ${bestMonth.lbl} at ${bestMonth.rate}%`,
       `Lowest month: ${worstMonth.lbl} at ${worstMonth.rate}%`,
       ...(trendDir ? [`3-month trend: ${trendDir}`] : []),
@@ -32003,8 +32021,8 @@ function _rcRenderIncomeSavings() {
       ...moWithData.slice(-6).map(m => `  ${m.lbl}: income ${fmt(m.inc)}, expenses ${fmt(m.exp)}, rate ${m.rate}%`),
       '',
       latestIsPartial
-        ? `In 2-3 short paragraphs: focus mainly on the completed months (everything before ${latest.lbl}) — state that savings rate against the 15-20% target plainly, with the actual numbers. Mention ${latest.lbl} only briefly, explicitly noting it's still in progress and too early to judge. Name the best and worst month above and their exact rates, stated as plain facts — not a command, and never calculate a new number yourself. No headers. Use only the numbers given above.`
-        : 'In 2-3 short paragraphs: state this savings rate against the 15-20% target plainly, with the actual numbers. Name the best and worst month above and their exact rates, stated as plain facts — not a command, and never calculate a new number yourself. No headers. Use only the numbers given above.',
+        ? `In 2-3 short paragraphs: focus mainly on the completed months (everything before ${latest.lbl}) — state that savings rate plainly, with the actual numbers. Mention ${latest.lbl} only briefly, explicitly noting it's still in progress and too early to judge. Name the best and worst month above and their exact rates, stated as plain facts — not a command, and never calculate a new number yourself. No headers. Use only the numbers given above.`
+        : 'In 2-3 short paragraphs: state this savings rate plainly, with the actual numbers. Name the best and worst month above and their exact rates, stated as plain facts — not a command, and never calculate a new number yourself. No headers. Use only the numbers given above.',
     ].filter(Boolean).join('\n');
     _rcAnalyzeWithAI('income_savings', dataLines, buildPrompt, body);
   }

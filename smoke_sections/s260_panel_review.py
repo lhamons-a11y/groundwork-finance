@@ -5,6 +5,9 @@
                minimums, or the minimums when no plan was saved; a payment on a debt is never offered as a purchase
     I-03/I-06  a payoff that can't be dated is said (below the minimums by $X, or never clearing), never a 500 or a
                blank; Debt Payoff offers "use my minimums"; the budget typed there is the one the server reads
+    I-02 trophies held to their own descriptions   I-05 a debt at $0 is asked about; $0 is real   I-07 AI off unless
+    chosen   I-16 one freed-minimums figure   I-17 payments short of the plan: the date at that pace   I-22 "whose
+    pay" only for two   I-18 no prescriptive wording   I-19/I-20/I-21 the Low display items
 """
 import json
 from datetime import date, timedelta
@@ -262,6 +265,24 @@ print(json.dumps({'fresh': fresh, 'upgraded': upgraded, 'missing_after': server.
           and ai.get('missing_after') is False and ai.get('error') is False
           and "return False  # a database that can't be read" in ctx.server_src
           and "_aiEnabled     = data.settings['ai_enabled'] === 'true'" in ctx.app_src)
+
+    # ── The Low items: I-18 wording, I-19 the said-history card, I-20 no future price date, I-21 toasts ──────────
+    app = ctx.app_src
+    check("s260 I-18 no prescriptive wording: no 'Solid cushion', 'Aim for 15-20%', 'Trim an expense', 'Consider "
+          "checking', no 15-20% target or its red/amber/green grade; one savings default",
+          not any(w in app for w in ('Solid cushion', 'Aim for 15', 'Prioritize debt paydown', 'Trim an expense',
+                                     'Consider checking before', 'Target: 15-20%', '(target: 15', 'vs. 15'))
+          and "parseFloat(g('settingsSavingsPct')?.value)||10" in app
+          and 'is left after the plan.' in app)
+    wil = (ctx.BASE / 'static' / 'js' / 'teaching' / 'willingness.js').read_text(encoding='utf-8')
+    check("s260 I-19 the said-history card's title says how many it holds, so closed it never reads as empty",
+          "Everything you have said, in order ('\n        + history.length + ')</summary>'" in wil)
+    check("s260 I-20 a price is never dated after today",
+          "min(price_row.last_updated.date(), date.today())" in ctx.server_src)
+    toast = app.split('function showToast(')[1].split('\n}\n')[0]
+    check("s260 I-21 trophies earned together are one toast; never more than three toasts, an Undo never pushed out",
+          '_queueAchievementToast(a, typeLabel)' in app and 'trophies earned' in app
+          and '(stack.children || []).length >= TOAST_MAX' in toast and "!t.querySelector('.toast-undo')" in toast)
 
     # ── I-05: a balance the record brings to $0 is asked about, and $0 is a real balance ────────────────────────────
     from core.database import DebtLedgerEntry

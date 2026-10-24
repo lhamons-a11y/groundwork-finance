@@ -293,7 +293,9 @@
         }).join('') + '</div>';
     }
     if (history.length) {
-      saidHtml += '<details class="card mt-5"><summary class="card-label" style="cursor:pointer">Everything you have said, in order</summary>'
+      // panel I-19: closed, the card read as empty beside three statements - its title says how many it holds
+      saidHtml += '<details class="card mt-5"><summary class="card-label" style="cursor:pointer">Everything you have said, in order ('
+        + history.length + ')</summary>'
         + history.slice().reverse().map(_historyRow).join('') + '</details>';
     }
     // T2: a question is never buried - the page opens on Needs you when anything waits there

@@ -11987,8 +11987,8 @@ def _compute_portfolio_positions(session, account_id=None, skip_refresh=False):
             'price_stale':     not priced,          # (kept for older readers) true = no price on record
             'priced':          priced,
             # V4: every price carries its date; a manual price says so. No threshold, no verdict.
-            'price_date':      (price_row.last_updated.date().isoformat()
-                                if priced and price_row.last_updated else None),
+            'price_date':      (min(price_row.last_updated.date(), date.today()).isoformat()   # panel I-20: never a
+                                if priced and price_row.last_updated else None),                 # date after today
             'price_manual':    bool(priced and price_row.is_manual),
             # V3: shares with no cost basis on record - in the value, left out of the gain
             'no_basis_shares': round(no_basis_shares, 6) if no_basis_shares > 0.00001 else 0,
