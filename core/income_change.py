@@ -230,21 +230,27 @@ def _payoff(cards, budget, kw):
     return r['months'] if r else None
 
 
-def scenarios(change, outflow, lines, effective, cards, debt_budget, cushion, answer=None, kw=None, fixed=()):
+def scenarios(change, outflow, lines, effective, cards, debt_budget, cushion, answer=None, kw=None, fixed=(),
+              debt_payments=0.0):
     """I3: five futures for one recorded drop. `change` from detect; `outflow` the month's budgeted expenses;
+    `debt_payments` what goes to debt each month (server _debt_month_plan) - income has to cover it as well as the
+    expenses, so the gap counts it (panel review I-04: without it every gap was short by the debt payments);
     `cushion` cash the person holds above their own floors (None when not known); `answer` the person's word on
     whether it lasts ('lasting' | 'temporary' | 'unsure' | None). Debt figures use the one payoff engine.
 
     Each: {'key', 'title', 'assumptions': [str], 'gap', 'debt_months', 'figures': [{label, value, kind}], ...}."""
     kw = kw or {}
     level, before = change['to'], change['from']
-    gap = round(max(0.0, outflow - level), 2)
+    debt_payments = round(float(debt_payments or 0), 2)
+    gap = round(max(0.0, outflow + debt_payments - level), 2)
     base_months = _payoff(cards, debt_budget, kw)
     minimums = round(sum(c.minimum for c in cards), 2) if cards else 0.0
     extra = max(0.0, round(debt_budget - minimums, 2))
     obs = [{'label': 'Recorded income now', 'value': level, 'kind': 'observed'},
            {'label': 'Recorded income before', 'value': before, 'kind': 'observed'},
            {'label': 'Budgeted spending', 'value': round(outflow, 2), 'kind': 'observed'}]
+    if debt_payments:
+        obs.append({'label': 'Debt payments', 'value': debt_payments, 'kind': 'observed'})
     _res = __import__('core.health_reserve', fromlist=['input_line']).input_line(cards, debt_budget)
     if _res:
         obs.append(_res)            # item 90 D4
@@ -290,7 +296,7 @@ def scenarios(change, outflow, lines, effective, cards, debt_budget, cushion, an
     # 5. Income comes back - for comparison
     out.append({'key': 'income_returns', 'title': 'Income comes back',
                 'assumptions': [f'Income returns to about ${before:,.0f} a month.'],
-                'gap': round(max(0.0, outflow - before), 2), 'debt_months': base_months,
+                'gap': round(max(0.0, outflow + debt_payments - before), 2), 'debt_months': base_months,
                 'figures': [{'label': 'Recorded income before', 'value': before, 'kind': 'observed'}]})
 
     for s in out:

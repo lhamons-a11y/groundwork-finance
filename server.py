@@ -2580,8 +2580,10 @@ def _income_change_state(session):
             said[x.get('line_id')] = x['answer']
     debt_names = [d.name for d in session.query(DebtAccount).filter_by(is_active=True).all()]
     kinds = classify(lines, debt_names, said)
+    debt = _debt_month_plan(session)['amount']           # panel I-04: income covers the debt payments too
     sc = ic.scenarios(change, outflow, lines, effective, cards, debt_budget, round(cushion, 2) if known else None,
-                      answer=answer, kw=dict(strategy=strategy, today_key=today, start_month=today), fixed=set(kinds))
+                      answer=answer, kw=dict(strategy=strategy, today_key=today, start_month=today), fixed=set(kinds),
+                      debt_payments=debt)
     by_id = {ln['id']: ln for ln in lines}
     sc['contracts'] = [{'id': i, 'name': by_id[i]['name'], 'amount': by_id[i]['amount'], 'why': k['why']}
                        for i, k in kinds.items() if k['kind'] == 'contract']
@@ -2591,8 +2593,9 @@ def _income_change_state(session):
     return {'change': change, 'answer': answer, 'outflow': outflow, 'goal': household.current(session, 'surplus_goal'),
             'snoozed': (_get_setting(session, 'income_change_snooze') or AppSetting(value='')).value == today,
             'applied': applied, 'payers': pay['payers'],
-            # D9: the money first - what is left after the budgeted spending, before and now
-            'left_before': round(change['from'] - outflow, 2), 'left_now': round(change['to'] - outflow, 2), **sc}
+            # D9: the money first - what is left after the budgeted spending and the debt payments, before and now
+            'debt_payments': debt,
+            'left_before': round(change['from'] - outflow - debt, 2), 'left_now': round(change['to'] - outflow - debt, 2), **sc}
 
 
 # ── Item 66 - possible futures (SCENARIOS.md SC1-SC7) ──────────────────────────────────────────────────────────
@@ -4498,7 +4501,9 @@ def checkin_get():
         today = date.today()
         amts = budget_month_amounts(session)
         items = session.query(BudgetItem).filter_by(is_active=True, type='expense').all()
-        budget = sum((amts.get(i.id) or {}).get('month_amount', i.amount or 0) or 0 for i in items)
+        spending = sum((amts.get(i.id) or {}).get('month_amount', i.amount or 0) or 0 for i in items)
+        debt = _debt_month_plan(session)                    # panel I-01: what is spent includes debt payments, so
+        budget = spending + debt['amount']                  # what is budgeted does too
         recurring = _setting_json(session, 'recurring_items_json', []) or []
         f = ck.facts(session, today, budget_month=budget, pay=_pay_state(session, today)['payers'],
                      payer_people=_setting_json(session, 'payer_people', {}) or {},
@@ -4510,6 +4515,7 @@ def checkin_get():
         for a in _setting_json(session, 'evidence_answers', []) or []:
             if isinstance(a, dict):
                 said[a.get('id')] = a.get('answer')
+        f['budget_parts'] = {'spending': round(spending, 2), 'debt': debt['amount'], 'debt_basis': debt['basis']}
         f['goals'] = []
         if any(acts.get(i) == 'checkin_goals' and v == 'yes' for i, v in said.items()):
             from core.database import SinkingFund
@@ -6759,6 +6765,33 @@ def _consequence_inputs(session):
     return cards, budget, strategy, undated
 
 
+def _debt_month_plan(session):
+    """What goes to debt in a month, for every month-budget and "left each month" figure (panel review I-01/I-04: the
+    check-in, Before You Buy and the income page counted debt payments as spending but never budgeted for them, so
+    every household with debt read as over budget by its debt payments).
+
+    The payoff plan saved in Debt Payoff (monthly_budget), never less than the minimums, which are owed whatever the
+    plan says; the minimums when no plan was saved (never boot's 1500 default). Whole payments: a mortgage's escrow
+    leaves the account too, though it doesn't reduce the debt. {'amount', 'minimums', 'plan', 'basis'}."""
+    today = date.today()
+    debts = [d for d in session.query(DebtAccount).filter_by(is_active=True).all()
+             if float(d.current_balance if d.current_balance is not None else (d.begin_balance or 0)) > 0.01
+             and not (d.end_date and d.end_date < today)]                  # as the page's own active-debt filter
+    minimums = round(sum(float(d.minimum_payment or 0) for d in debts), 2)
+    row = session.query(AppSetting).filter_by(key='monthly_budget').first()
+    try:
+        plan = float(row.value) if row and row.value not in (None, '') else None
+    except (TypeError, ValueError):
+        plan = None
+    if not debts:
+        return {'amount': 0.0, 'minimums': 0.0, 'plan': plan, 'basis': 'no_debt'}
+    if plan is None:
+        return {'amount': minimums, 'minimums': minimums, 'plan': None, 'basis': 'minimums'}
+    if plan < minimums:
+        return {'amount': minimums, 'minimums': minimums, 'plan': plan, 'basis': 'minimums_above_plan'}
+    return {'amount': round(plan, 2), 'minimums': minimums, 'plan': plan, 'basis': 'plan'}
+
+
 @debt_bp.route('/decision-impact', methods=['POST'])
 def debt_decision_impact():
     """What a decision does to the payoff date — Pillar 1's one deterministic core.
@@ -6926,10 +6959,11 @@ def large_charge_lesson(session, cards, budget, strategy, days: int = 60,
 
     today = date.today().strftime('%Y-%m')
     priced = 0
+    debt_ids = _debt_payment_txn_ids(session, [t.id for t in rows])   # panel I-04: a payment on a debt is not a purchase
     for t in rows:
         if priced >= consider:
             break
-        if t.id in linked:
+        if t.id in linked or t.id in debt_ids:
             continue
         cat = session.query(Category).filter_by(id=t.category_id).first() if t.category_id else None
         if cat and (cat.name or '').strip().lower() in _LESSON_EXCLUDED_CATEGORIES:
@@ -10911,6 +10945,9 @@ def bootstrap():
             # ── App preferences (previously in snapshot) ───────────────────────
             prefs = {
                 'monthlyBudget':  float(settings.get('monthly_budget',  1500) or 1500),
+                # panel I-01: whether a payoff plan was ever saved - with none, a month's debt payments are the
+                # minimums, never the 1500 the payoff engine starts from
+                'monthlyBudgetSaved': settings.get('monthly_budget') not in (None, ''),
                 'savingsPct':     float(settings.get('savings_pct',      10)  or 10),
                 'debtMethod':     settings.get('debt_method',     'avalanche'),
                 'proactiveDial':  settings.get('proactive_dial',  'normal'),
@@ -12333,7 +12370,8 @@ def _byb_impact(session, monthly=0.0, one_time=0.0, cards=None, budget=None, str
     items = session.query(BudgetItem).filter_by(is_active=True).all()
     income = sum(float(i.amount or 0) for i in items if i.type == 'income')
     outflow = sum((month_amts.get(i.id) or {}).get('month_amount', i.amount or 0) or 0 for i in items if i.type == 'expense')
-    left_now = round(income - outflow, 2)
+    debt = _debt_month_plan(session)['amount']          # panel I-04: debt payments leave the account too, as
+    left_now = round(income - outflow - debt, 2)        # the main calculator (_bybSandboxCalc) already counts
     kw = dict(strategy=strategy, today_key=today.strftime('%Y-%m'), start_month=today.strftime('%Y-%m'))
     payoff_now = payoff_with = None
     if cards:
@@ -12356,6 +12394,27 @@ def _byb_impact(session, monthly=0.0, one_time=0.0, cards=None, budget=None, str
             'assumption': byb_offer.assumption(monthly, one_time)}
 
 
+def _debt_payment_txn_ids(session, ids):
+    """Of these transactions, the ones that are payments on a debt Groundwork tracks: linked to a Debt Payoff entry,
+    filed under Debt (or a category under it), or paid to a payee that names one of the person's debts."""
+    from core.database import DebtLedgerEntry
+    ids = set(ids)
+    if not ids:
+        return set()
+    out = {r[0] for r in session.query(DebtLedgerEntry.linked_checking_transaction_id).filter(
+        DebtLedgerEntry.linked_checking_transaction_id.in_(ids)).all() if r[0]}
+    debt_cat = session.query(Category).filter(func.lower(Category.name) == 'debt').first()
+    cat_ids = {debt_cat.id} | {c.id for c in session.query(Category).filter_by(parent_id=debt_cat.id).all()} if debt_cat else set()
+    names = [_norm_payee(d.name) for d in session.query(DebtAccount).filter_by(is_active=True).all()]
+    names = [n for n in names if len(n) >= 4]
+    for tid, cid, m, desc in session.query(Transaction.id, Transaction.category_id, Transaction.merchant,
+                                           Transaction.description).filter(Transaction.id.in_(ids)).all():
+        payee = _norm_payee(m or desc)
+        if cid in cat_ids or any(n in payee for n in names):
+            out.add(tid)
+    return out
+
+
 @byb_bp.route('/offers', methods=['GET'])
 def byb_offers():
     """Item 73 Y1 + Y6: purchases that never came through Before You Buy, brought to it from the record - a new
@@ -12369,6 +12428,8 @@ def byb_offers():
         from core import recurring_groups as rg
         rows = session.query(Transaction.merchant, Transaction.account_id, Transaction.date, Transaction.amount,
                              Transaction.id).filter(Transaction.type == 'debit', Transaction.date >= window).all()
+        debt_ids = _debt_payment_txn_ids(session, [r[4] for r in rows])     # panel I-04: a payment on a debt
+        rows = [r for r in rows if r[4] not in debt_ids]                    # is not a new purchase
         budgeted = [b.name for b in session.query(BudgetItem).filter_by(is_active=True).all()]
         cards, budget, strategy, _undated = _consequence_inputs(session)
         # item 108: a new repeating charge is one payee from one account, offered under its label; it is matched to

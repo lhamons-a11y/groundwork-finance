@@ -1595,6 +1595,7 @@ function restoreFromBootstrap(data) {
   // currently mounted.
   const mb = prefs.monthlyBudget || 1500;
   S.monthlyBudget = mb;
+  S.monthlyBudgetSaved = !!prefs.monthlyBudgetSaved;     // panel I-01: no saved plan means the minimums
   if (g('monthlyBudget'))         g('monthlyBudget').value         = mb;
   if (g('settingsMonthlyBudget')) g('settingsMonthlyBudget').value = mb;
   if (prefs.savingsPct && g('settingsSavingsPct')) g('settingsSavingsPct').value = prefs.savingsPct;
@@ -8032,10 +8033,8 @@ function renderBudget() {
   const totalExpenses = S.expenses.reduce((s,e) => s + _rowMonth(e), 0);
   const _today = _localISODate();
   const activeDebts = S.debtCards.filter(c => !c.paidInFull && !(c.endDate && c.endDate < _today));
-  const totalDebt = activeDebts.reduce((s,c) => {
-    const pmt = parseFloat(c.minimum) || 0;
-    return s + pmt;
-  }, 0);
+  const _dp = _debtMonthPlan();                  // panel I-01: the payoff plan, or the minimums - one rule
+  const totalDebt = _dp.amount;
   // totalSinking must be defined here — it's referenced in the template literal below
   const totalSinking = (_sinkingFunds || []).reduce((s,f) => s + (parseFloat(f.monthlyContrib)||0), 0);
   const totalOut = totalExpenses + totalDebt + totalSinking;
@@ -8133,7 +8132,9 @@ function renderBudget() {
           <span style="font-family:var(--font-mono);color:var(--ember-text)" id="wl-expenses" data-fig="budget.expenses">− ${fmt(totalExpenses)}</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px">
-          <span style="color:var(--slate)">Debt payments</span>
+          <span style="color:var(--slate)">Debt payments${_dp.basis === 'plan' && _dp.amount > _dp.minimums + 0.005
+            ? ` <span style="font-size:11px;color:var(--slate-2)">(your payoff plan; minimums ${fmt(_dp.minimums)})</span>`
+            : _dp.basis !== 'no_debt' ? ' <span style="font-size:11px;color:var(--slate-2)">(the minimums)</span>' : ''}</span>
           <span style="font-family:var(--font-mono);color:var(--ember-text)" id="wl-debt" data-fig="budget.debt_payments">− ${fmt(totalDebt)}</span>
         </div>
         ${totalSinking > 0 ? `
@@ -8321,7 +8322,7 @@ function _budgetUpdateRealismSentence(left, totalIncome) {
     const _tod = _localISODate();
     totalIncome = S.incomes.reduce((s,i) => s + i.amount, 0);
     const activeDebts = S.debtCards.filter(c => !c.paidInFull && !(c.endDate && c.endDate < _tod));
-    const totalDebt   = activeDebts.reduce((s,c) => s + (parseFloat(c.minimum)||0), 0);
+    const totalDebt   = _debtMonthPlan().amount;
     const totalExpenses = S.expenses.reduce((s,e) => s + _rowMonth(e), 0);
     left = totalIncome - totalExpenses - totalDebt;
   }
@@ -8368,7 +8369,7 @@ function _budgetUpdateWhatsLeft() {
   const totalExpenses = S.expenses.reduce((s,e) => s + _rowMonth(e), 0);
   const today         = _localISODate(); // YYYY-MM-DD
   const activeDebts   = S.debtCards.filter(c => !c.paidInFull && !(c.endDate && c.endDate < today));
-  const totalDebt     = activeDebts.reduce((s,c) => s + (parseFloat(c.minimum)||0), 0);
+  const totalDebt     = _debtMonthPlan().amount;
   // Sinking fund monthly contributions count as committed spending
   const totalSinking  = (_sinkingFunds || []).reduce((s,f) => s + (parseFloat(f.monthlyContrib)||0), 0);
   const totalOut      = totalExpenses + totalDebt + totalSinking;
@@ -12876,7 +12877,12 @@ function _checkinLines(f) {
     (w.last_week > 0 ? `, ${ch === 0 ? 'the same as' : `${fmt(Math.abs(ch))} ${ch > 0 ? 'more than' : 'less than'}`} the week before (${fmt(w.last_week)}).` : '.'));
   if (w.moved > 0) lines.push(`${fmt(w.moved)} moved between your own accounts - not spending.`);
   const m = f.month;
-  if (m.budget) lines.push(`This month so far: ${fmt(m.spent)} of the ${fmt(m.budget)} budgeted, ${m.left >= 0 ? `with ${fmt(m.left)} left` : `${fmt(Math.abs(m.left))} past it`} for the ${m.days_left} day${m.days_left !== 1 ? 's' : ''} that remain.`);
+  // panel I-01: what is spent includes debt payments, so the budget it is measured against says it includes them
+  const bp = f.budget_parts;
+  const parts = bp && bp.debt > 0
+    ? ` (${fmt(bp.spending)} of spending and ${fmt(bp.debt)} of debt payments${bp.debt_basis === 'plan' ? ', your payoff plan' : ', your minimums'})`
+    : '';
+  if (m.budget) lines.push(`This month so far: ${fmt(m.spent)} of the ${fmt(m.budget)} budgeted${parts}, ${m.left >= 0 ? `with ${fmt(m.left)} left` : `${fmt(Math.abs(m.left))} past it`} for the ${m.days_left} day${m.days_left !== 1 ? 's' : ''} that remain.`);
   if (f.interest && f.interest.week > 0) lines.push(`Your debts cost about ${fmt(f.interest.week)} in interest this week - about ${fmt(f.interest.month)} a month at these balances, whatever else is paid.`);
   if (f.bills && f.bills.length) lines.push('Due this week: ' + f.bills.map(b => `${b.name}${b.amount != null ? ` (${fmt(b.amount)})` : ''}, ${day(b.date)}`).join('; ') + '.');
   if (f.goals && f.goals.length) lines.push('Your goals: ' + f.goals.map(gl => `${gl.name}, ${fmt(gl.saved)} of ${fmt(gl.target)}` +
@@ -15038,6 +15044,20 @@ function _getMonthlyBudget() {
     return v;
   }
   return parseFloat(S.monthlyBudget) || 0;
+}
+
+// What goes to debt in a month - the server's _debt_month_plan, the same rule (panel review I-01/I-04): the payoff
+// plan, never less than the minimums; the minimums when no plan was ever saved. Every "out" and "left each month"
+// figure counts this, so the Budget page, the check-in and Before You Buy agree.
+function _debtMonthPlan() {
+  const today = _localISODate();
+  const active = (S.debtCards || []).filter(c => !c.paidInFull && !(c.endDate && c.endDate < today) && _cardBal(c) > 0.01);
+  const minimums = active.reduce((s, c) => s + (parseFloat(c.minimum) || 0), 0);
+  if (!active.length) return { amount: 0, minimums: 0, basis: 'no_debt' };
+  if (!S.monthlyBudgetSaved) return { amount: minimums, minimums, basis: 'minimums' };
+  const plan = _getMonthlyBudget();
+  return plan < minimums ? { amount: minimums, minimums, basis: 'minimums_above_plan' }
+                         : { amount: plan, minimums, basis: 'plan' };
 }
 
 // ── Canonical card balance ───────────────────────────────────────────────────
@@ -25244,7 +25264,7 @@ function incomeChangeHtml(st) {
   // D9: the money first - dollars a month, and what it leaves after the budgeted spending - then the checks behind it
   const who = esc(String(ch.payer || '').replace(/\b\w/g, x => x.toUpperCase()));
   const fact = `Your pay from ${who} is about <b>${fmt(ch.monthly_drop)} a month less</b>. `
-    + (st.left_before != null ? `After your budgeted spending that leaves about ${fmt(st.left_now)} a month, from ${fmt(st.left_before)}. ` : '')
+    + (st.left_before != null ? `After your budgeted spending${st.debt_payments > 0 ? ` and ${fmt(st.debt_payments)} of debt payments` : ''} that leaves about ${fmt(st.left_now)} a month, from ${fmt(st.left_before)}. ` : '')
     + `<span style="color:var(--slate)">${ch.rule === 'hourly'
         ? `Your ordinary ${_PAY_EVERY[ch.every] || 'check'} was about ${fmt(ch.per_check_before)}; over the last 12 weeks it has been about ${fmt(ch.per_check_now)}. Overtime is not counted in either.`
         : `Your checks were about ${fmt(ch.per_check_before)}; the last ones have been about ${fmt(ch.per_check_now)}, since ${_billDate(ch.month + '-01').replace(/ \d+,/, '')}.`}</span>`;
@@ -27516,12 +27536,12 @@ const EXPLAIN_KINDS = {
 // shows what it is, how it is worked out and the record it is read from; Explain reads only these, never page text.
 const FIGS = {
   'budget.income':        { label: 'Income this month', means: 'the total of your income lines on the Budget page', record: 'app_settings → app_snapshot.incomes' },
-  'budget.out_planned':   { label: 'Going out this month (planned)', means: 'your expense lines, plus debt minimum payments, plus sinking-fund contributions', record: 'app_settings → app_snapshot.expenses and .debtCards; sinking_funds' },
-  'budget.out_projected': { label: 'Going out this month (at this month\'s pace)', means: 'what your expense categories will reach by month-end if spending continues at this month\'s daily pace, plus debt minimum payments and sinking-fund contributions', record: 'transactions (this month) for the pace; app_settings → app_snapshot.debtCards; sinking_funds' },
+  'budget.out_planned':   { label: 'Going out this month (planned)', means: 'your expense lines, plus debt payments (your payoff plan, or the minimums), plus sinking-fund contributions', record: 'app_settings → app_snapshot.expenses and .debtCards; sinking_funds' },
+  'budget.out_projected': { label: 'Going out this month (at this month\'s pace)', means: 'what your expense categories will reach by month-end if spending continues at this month\'s daily pace, plus debt payments (your payoff plan, or the minimums) and sinking-fund contributions', record: 'transactions (this month) for the pace; app_settings → app_snapshot.debtCards; sinking_funds' },
   'budget.left_header_planned':   { label: 'Left this month (planned)', means: 'income less everything planned to go out', record: 'app_settings → app_snapshot' },
   'budget.left_header_projected': { label: 'Left this month (at this month\'s pace)', means: 'income less what will go out if spending continues at this month\'s pace', record: 'app_settings → app_snapshot; transactions (this month)' },
   'budget.expenses':      { label: 'Expenses (planned)', means: 'the total of your expense budget lines for the month', record: 'budget_items; app_settings → app_snapshot.expenses' },
-  'budget.debt_payments': { label: 'Debt payments (planned)', means: 'the total of the minimum payments on your active debts', record: 'app_settings → app_snapshot.debtCards (minimum)' },
+  'budget.debt_payments': { label: 'Debt payments (planned)', means: 'what goes to debt each month: your payoff plan from Debt Payoff, never less than the minimums owed - or the minimums when no plan was saved', record: 'app_settings → monthly_budget (the payoff plan); debt_accounts (minimum)' },
   'budget.sinking':       { label: 'Sinking funds (planned)', means: 'the total of your monthly sinking-fund contributions', record: 'sinking_funds (monthly contribution)' },
   'budget.left':          { label: 'Left to save or spend (planned)', means: 'income less expenses, debt payments and sinking funds - the room in the plan, not money in an account', record: 'app_settings → app_snapshot; sinking_funds' },
   'budget.left_projected':{ label: 'Left at this month\'s pace', means: 'income less what your expense categories will reach by month-end at this month\'s daily pace, debt payments and sinking funds', record: 'transactions (this month); app_settings → app_snapshot' },
@@ -32836,7 +32856,7 @@ async function renderBybFromRecord() {
         ? `New: <b>${esc(o.name)}</b>, ${fmt(o.amount)} every ${esc(o.every)} since ${_billDate(o.since)} (about ${fmt(o.monthly)} a month).`
         : `<b>${esc(o.name)}</b>, ${fmt(o.amount)} on ${_billDate(o.since)}.`;
       const lines = [];
-      if (im.left_with != null) lines.push(`What's left each month: ${fmt(im.left_now)} → ${fmt(im.left_with)}.`);
+      if (im.left_with != null) lines.push(`What's left each month, after your budget and debt payments: ${fmt(im.left_now)} → ${fmt(im.left_with)}.`);
       if (im.payoff_months_now != null) lines.push(`Debt-free in: ${when(im.payoff_months_now)} → ${when(im.payoff_months_with)}.`);
       (im.goals || []).forEach(gl => lines.push(`${esc(gl.name)}: ${_monthName(gl.date_now)} → ${gl.date_with ? _monthName(gl.date_with) : 'not reached at this rate'}.`));
       return `<div style="padding:10px 0;border-top:1px solid var(--steel)" data-byb-offer="${esc(o.key)}">
