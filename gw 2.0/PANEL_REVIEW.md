@@ -94,3 +94,22 @@ clear that screenshots are not a test. *Recommended.*
 2. **P5:** the three page changes now, and will you arrange a screen-reader session?
 3. **P6:** its own item - which pages make the simple list?
 4. **P7:** (a) and (b), or one of them?
+
+---
+
+## 4. Ruling: Rob, 2026-10-24
+
+**P1, P2, P3, P4, P5 and P7 accepted as written** (Rob: *"i accept p1-p5 and p7 as written"*). Build order as
+proposed: P2, P3, P5's three page changes, P1, P7, P4 last. The screen-reader session (P5) is Rob's to arrange.
+
+**P6 held** (Rob: *"I like this approach. I want to sit on this"*). Rob wants text size app-wide, not per page - *"so
+we can fix css style issues in the html"*. The approach he liked, for when he picks it up:
+- **Measured:** 2,339 hard-coded pixel font sizes (index.html 458, app.js 1,765, teaching 116), none relative, about
+  15 sizes from 9px to 28px, about 250 at 9-10px. A text-size setting can't reach any of them today.
+- **Proposed:**
+  - A type scale of about six named sizes in rem, every hard-coded size replaced by the nearest one, and an 11px
+    floor (which also serves P5).
+  - One Text size setting (100 / 115 / 130%) that changes the root size.
+  - Every page screenshotted at all three sizes, and fixed-height places (top bar, Ask pill, badges) fixed.
+- **Rejected:** browser zoom - quick, but it leaves every hard-coded size and enlarges spacing with the text.
+- **Undecided:** whether the "simple mode" (fewer pages) stays in P6.
