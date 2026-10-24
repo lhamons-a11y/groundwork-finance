@@ -113,3 +113,45 @@ we can fix css style issues in the html"*. The approach he liked, for when he pi
   - Every page screenshotted at all three sizes, and fixed-height places (top bar, Ask pill, badges) fixed.
 - **Rejected:** browser zoom - quick, but it leaves every hard-coded size and enlarges spacing with the text.
 - **Undecided:** whether the "simple mode" (fewer pages) stays in P6.
+
+## 5. P6, held: two additions (Rob, 2026-10-24)
+
+**P6b. Read aloud.** Rob: *"The LLM or assistant can also read the area that the cursor is nearby out loud."*
+- **What it reads:** after a short pause (about 0.7 s), the text or figure under the cursor - and, with the keyboard,
+  the one in focus. A figure is read with its item 103 tag ("Debt payments: $450 a month, your payoff plan").
+- **Whose words:** Groundwork's own fixed words, not the model's. The text on the page and the figure tags are
+  already checked; a model wording what is spoken could misread a figure aloud.
+- **The voice:** the computer's own speech, and only voices installed on the machine (some Windows "Natural" voices
+  are online).
+- **Settings:** off by default, beside Text size, with slower / normal / faster. Esc stops it.
+- **Not a screen reader:** it must stay off when one is in use, or everything is spoken twice. It doesn't replace
+  P5's session.
+
+**P6c. "Would you like this explained further?"** Rob: *"after the reading of the section the ai should ask would you
+like this explain further, then it reads that section of explain."*
+- After a section is read, Groundwork asks, in its fixed words, whether to explain it further.
+- On yes (spoken, Enter or a click), it reads that section's Explain (item 103): the fixed words for what it works
+  out and, with AI on, the checked lines on what the figures mean.
+- With AI off, the fixed words only. The question never depends on AI being on.
+
+**Open for P6:**
+- (a) Read on hover automatically, on a key, or both (proposed: both, the key as the default).
+- (b) Whether simple mode stays in P6.
+
+**Proposed as its own item (113): voice commands.** Rob: *"this causes another add on ... we have to add voice
+commands now."*
+- **On-device recognition only:** whisper.cpp, the same family and graphics paths as the engine (llama.cpp), about
+  75-150 MB. The browser engine's built-in recognition sends audio to Google, Microsoft or Apple, which would break
+  the local-only promise.
+- **Push to talk, never always listening.** An indicator shows while listening. The audio is turned into words and
+  never kept.
+- **A closed command set:**
+  - answers: yes, no, stop, repeat, slower, faster, read this, read the page, next, back;
+  - navigation, through the Ask box's existing commands (item 102 A6-A8);
+  - anything else goes to the Ask box, as if typed.
+- **Off by default.** The operating system asks for the microphone the first time.
+- **Before it is built:**
+  - the website and privacy copy need a line on the microphone;
+  - a test that no audio leaves the machine;
+  - measurements on Rob's Mac and the Windows laptop, including how well it hears money ("four hundred fifty
+    dollars").
