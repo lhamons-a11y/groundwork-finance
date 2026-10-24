@@ -63,12 +63,12 @@
     const rows = (d && d.findings) || [];
     // Panel I-03: with no payoff date there is nothing to price against - say so, with the gap, rather than nothing
     if (!rows.length && d && d.reason === 'below_minimums') {
-      return `<div class="card"><div class="card-label">What this month cost, and what changes it</div><div style="font-size:13px;color:var(--slate);line-height:1.6">`
+      return `<div class="card"><div class="card-label">What this month cost, and what changes it</div><div style="font-size:var(--fs-base);color:var(--slate);line-height:1.6">`
         + `Your debt budget, ${fmt(d.budget)} a month, is ${fmt(d.gap)} below the ${fmt(d.minimums)} in minimums owed, so there is no payoff date to measure a change against. `
         + `Debt Payoff can set the budget to your minimums.</div></div>`;
     }
     if (!rows.length && d && d.reason === 'never_clears') {
-      return `<div class="card"><div class="card-label">What this month cost, and what changes it</div><div style="font-size:13px;color:var(--slate);line-height:1.6">`
+      return `<div class="card"><div class="card-label">What this month cost, and what changes it</div><div style="font-size:var(--fs-base);color:var(--slate);line-height:1.6">`
         + `At ${fmt(d.budget)} a month the debt doesn't clear within 30 years, so there is no payoff date to measure a change against.</div></div>`;
     }
     if (!rows.length) return '';
@@ -91,13 +91,13 @@
 
     return `<div class="card">
       <div class="card-label">What this month cost, and what changes it</div>
-      <div style="font-size:12px;color:var(--slate);line-height:1.7;margin-bottom:10px">
+      <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.7;margin-bottom:10px">
         Computed from your ledger, not written by the AI. Each line shows the figures behind it.
       </div>
       ${rows.map(f => `
         <div style="padding:10px 0;border-bottom:1px solid var(--steel)">
-          <div style="font-size:12px;color:var(--slate);line-height:1.8">${_rcTeachingSentence(f)}</div>
-          <div style="font-size:10px;font-family:var(--font-mono);color:var(--slate-2);margin-top:4px">${proof(f)}</div>
+          <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.8">${_rcTeachingSentence(f)}</div>
+          <div style="font-size:var(--fs-xs);font-family:var(--font-mono);color:var(--slate-2);margin-top:4px">${proof(f)}</div>
         </div>`).join('')}
     </div>`;
   }

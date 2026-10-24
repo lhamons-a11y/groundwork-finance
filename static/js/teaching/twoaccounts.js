@@ -11,11 +11,11 @@
 
   function saidHtml(said) {
     if (!said || !said.length) return '';
-    return '<div style="font-size:11px;color:var(--slate-2);margin-top:8px">What you said about charges paid from two accounts:</div>'
+    return '<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:8px">What you said about charges paid from two accounts:</div>'
       + said.map(function (s) {
-          return '<div style="font-size:12px;color:var(--ink);margin-top:4px">' + esc(s.payee) + ', $'
+          return '<div style="font-size:var(--fs-sm);color:var(--ink);margin-top:4px">' + esc(s.payee) + ', $'
             + Number(s.amount).toFixed(2) + ': ' + esc(WORDS[s.answer] || s.answer)
-            + ' <span style="font-size:11px;color:var(--slate-2)">(' + esc(String(s.at).slice(0, 10)) + ')</span>'
+            + ' <span style="font-size:var(--fs-xs);color:var(--slate-2)">(' + esc(String(s.at).slice(0, 10)) + ')</span>'
             + ' <button class="btn btn-ghost btn-sm" data-gw-two-undo="' + esc(String(s.n)) + '">Undo</button></div>';
         }).join('');
   }

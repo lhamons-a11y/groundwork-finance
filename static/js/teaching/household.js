@@ -56,7 +56,7 @@
     return '<div class="field" data-gw-q="' + key + '"><label>' + esc(q.asks) + '</label>'
       + '<div data-gw-fact="' + key + '" data-gw-multi="1" data-gw-source="' + source + '">'
       + Object.keys(q.words).map(function (v) {
-          return '<label style="display:inline-block;margin:2px 12px 2px 0;font-size:12px"><input type="checkbox" value="' + v + '"'
+          return '<label style="display:inline-block;margin:2px 12px 2px 0;font-size:var(--fs-sm)"><input type="checkbox" value="' + v + '"'
             + (have.indexOf(v) >= 0 ? ' checked' : '') + '> ' + esc(q.words[v]) + '</label>';
         }).join('')
       + '</div>' + (source === 'settings' ? '<div data-gw-municipal-services>' + _municipalServices(value) + '</div>' : '')
@@ -81,7 +81,7 @@
         ? esc(w[s]) + ': on your municipal utility bill (filed under Municipal Utilities).'
         : esc(w[s]) + ': not on your municipal bill. If you pay for it, its own company\'s charge is filed under ' + esc(SERVICE_LEAF[s]) + '.';
     });
-    return '<div style="font-size:11px;color:var(--slate-2);line-height:1.7;margin-top:4px">' + lines.join('<br>') + '</div>';
+    return '<div style="font-size:var(--fs-xs);color:var(--slate-2);line-height:1.7;margin-top:4px">' + lines.join('<br>') + '</div>';
   }
 
   function _select(key, value, source) {
@@ -222,7 +222,7 @@
       });
     }
     card.innerHTML = '<div class="card-label">Your home</div>'
-      + '<div style="font-size:12px;color:var(--slate-2);margin-bottom:12px">What these answers turn on is the estimates on your Budget page. Choose "Skip for now" to withdraw an answer: nothing is assumed in its place.</div>'
+      + '<div style="font-size:var(--fs-sm);color:var(--slate-2);margin-bottom:12px">What these answers turn on is the estimates on your Budget page. Choose "Skip for now" to withdraw an answer: nothing is assumed in its place.</div>'
       + Object.keys(Q).map(function (k) { return _select(k, (facts[k] || {}).value || '', 'settings'); }).join('');
     _applyConditions(card);
   }
@@ -250,7 +250,7 @@
   function ask(host, keys, facts, done) {
     var open = keys.filter(function (k) { return (Q[k] || k === 'home_state') && !((facts[k] || {}).value); });
     if (!open.length) { host.innerHTML = ''; return; }
-    host.innerHTML = '<div style="font-size:12px;color:var(--slate);margin-top:8px" data-gw-inline>'
+    host.innerHTML = '<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:8px" data-gw-inline>'
       + open.map(function (k) { return _select(k, '', 'inline_prompt'); }).join('') + '</div>';
     host.onchange = function (ev) {
       var f = ev.target.closest('[data-gw-fact]');

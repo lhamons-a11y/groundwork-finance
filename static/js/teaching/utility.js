@@ -53,7 +53,7 @@
     if (!host) {
       host = document.createElement('div');
       host.id = 'gwHiddenEstimates';
-      host.style.cssText = 'font-size:12px;color:var(--slate-2);margin-top:12px;line-height:1.9';
+      host.style.cssText = 'font-size:var(--fs-sm);color:var(--slate-2);margin-top:12px;line-height:1.9';
     }
     cont.appendChild(host);
     host.innerHTML = 'Hidden estimates: ' + ks.map(function (k) {
@@ -77,7 +77,7 @@
     var cont = g('budgetContent');
     if (!cont) return;
     var old = g(k.id);
-    if (old) old.innerHTML = '<div class="card-label">' + esc(k.title) + '</div><div style="font-size:12px;color:var(--slate-2)">Loading EIA\'s outlook\u2026</div>';
+    if (old) old.innerHTML = '<div class="card-label">' + esc(k.title) + '</div><div style="font-size:var(--fs-sm);color:var(--slate-2)">Loading EIA\'s outlook\u2026</div>';
     var d = await _load(k.kind);
     var W = _words();
     if (!d || !W || (!d.bills && d.saved_amount === null)) { if (old) old.remove(); delete _hidden[k.kind]; _hiddenLine(); return; }
@@ -92,34 +92,34 @@
         + k.kind + '"' + (d.follow === v ? ' checked' : '') + '> ' + label + '</label>';
     };
     var html = '<div class="card-label">' + esc(title) + '</div>'
-      + t.lines.map(function (l) { return '<div style="font-size:12px;color:var(--slate);line-height:1.7">' + esc(l) + '</div>'; }).join('')
-      + '<div style="margin-top:8px;font-size:12px;color:var(--slate)">'
+      + t.lines.map(function (l) { return '<div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.7">' + esc(l) + '</div>'; }).join('')
+      + '<div style="margin-top:8px;font-size:var(--fs-sm);color:var(--slate)">'
       + radio('follow', 'Follow this estimate') + radio('not_follow', 'Do not follow')
-      + (k.noLag ? '' : ' \u00b7 bills pay for <select data-gw-util-lag data-kind="' + k.kind + '" style="font-size:12px">'
+      + (k.noLag ? '' : ' \u00b7 bills pay for <select data-gw-util-lag data-kind="' + k.kind + '" style="font-size:var(--fs-sm)">'
       + [0, 1, 2].map(function (n) {
           return '<option value="' + n + '"' + (d.lag === n ? ' selected' : '') + '>' + ['the same month', 'the month before', 'two months before'][n] + '</option>';
         }).join('') + '</select>')
       + ' <button type="button" class="btn btn-primary btn-sm" data-gw-util-submit data-kind="' + k.kind + '" disabled>Submit</button> '
       + _hideBtn(k.kind)
-      + '<div data-gw-util-status style="font-size:11px;color:var(--slate-2);margin-top:4px">'
+      + '<div data-gw-util-status style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px">'
       + (_saved(k.kind) ? 'Saved.' : '') + '</div></div>'
       + '<div data-gw-ask></div>'
-      + '<div class="gw-src" style="font-size:10px;color:var(--slate-2);margin-top:8px">' + esc(t.source || '') + '</div>';
+      + '<div class="gw-src" style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:8px">' + esc(t.source || '') + '</div>';
     if (d.not_applicable) {                       // the household's answer settled it - nothing new to follow
       // Rob 2026-10-03: a household that moved (renters often do) may still follow this from before. That choice is
       // said, never changed for them, and the card offers the choice and Submit so they can stop following it.
       var stale = d.follow === 'follow';
       html = '<div class="card-label">' + esc(k.title) + '</div>'
-        + '<div style="font-size:12px;color:var(--slate);line-height:1.7">' + esc(d.not_applicable) + '</div>'
-        + (stale ? '<div style="font-size:12px;color:var(--slate);line-height:1.7">You still follow this estimate from before. '
+        + '<div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.7">' + esc(d.not_applicable) + '</div>'
+        + (stale ? '<div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.7">You still follow this estimate from before. '
             + 'It no longer applies, so your saved amount sets the budget; choose Do not follow and press Submit to stop following it.</div>'
-            + '<div style="margin-top:8px;font-size:12px;color:var(--slate)">' + radio('follow', 'Follow this estimate')
+            + '<div style="margin-top:8px;font-size:var(--fs-sm);color:var(--slate)">' + radio('follow', 'Follow this estimate')
             + radio('not_follow', 'Do not follow')
             + ' <button type="button" class="btn btn-primary btn-sm" data-gw-util-submit data-kind="' + k.kind + '" disabled>Submit</button>'
-            + '<div data-gw-util-status style="font-size:11px;color:var(--slate-2);margin-top:4px"></div></div>'
-          : _saved(k.kind) ? '<div style="font-size:12px;color:var(--slate);margin-top:6px">Saved: you no longer follow this estimate.</div>'
+            + '<div data-gw-util-status style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px"></div></div>'
+          : _saved(k.kind) ? '<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:6px">Saved: you no longer follow this estimate.</div>'
           : '')
-        + '<div style="font-size:11px;color:var(--slate-2);margin-top:6px">Change this in Settings, under Your home.</div>'
+        + '<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:6px">Change this in Settings, under Your home.</div>'
         + '<div style="margin-top:6px">' + _hideBtn(k.kind) + '</div>';
     }
     var card = g(k.id);
@@ -177,7 +177,7 @@
       if (!text) return;
       var note = document.createElement('div');
       note.setAttribute('data-gw-month-note', '');
-      note.style.cssText = 'font-size:11px;color:var(--slate-2);margin:4px 0 0 46px;line-height:1.5';
+      note.style.cssText = 'font-size:var(--fs-xs);color:var(--slate-2);margin:4px 0 0 46px;line-height:1.5';
       note.textContent = text;
       row.appendChild(note);
     });
@@ -236,7 +236,7 @@
     if (!host) {
       host = document.createElement('div');
       host.id = 'rcUtilityEstimate';
-      host.style.cssText = 'font-size:12px;color:var(--slate);line-height:1.7;margin:8px 0';
+      host.style.cssText = 'font-size:var(--fs-sm);color:var(--slate);line-height:1.7;margin:8px 0';
       anchor.parentNode.insertBefore(host, anchor.nextSibling);
     }
     host.innerHTML = lines.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('');

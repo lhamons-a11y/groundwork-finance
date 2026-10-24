@@ -55,7 +55,7 @@
         + ` <strong>${Math.abs(e.bias_pct)}%</strong> ${e.direction === 'under' ? 'above' : 'below'}`
         + ` your estimate.`);
     }
-    return `<div class="card mb-3" style="font-size:12px;color:var(--slate);line-height:1.8">
+    return `<div class="card mb-3" style="font-size:var(--fs-sm);color:var(--slate);line-height:1.8">
       ${parts.join('')}
     </div>`;
   }
@@ -65,7 +65,7 @@
     const e = _bybMemoryData && _bybMemoryData.estimate;
     if (!e || e.direction === 'even') return '';
     const over = e.direction === 'under';
-    return `<div style="font-size:11px;color:var(--slate-2);line-height:1.6;margin-top:6px">
+    return `<div style="font-size:var(--fs-xs);color:var(--slate-2);line-height:1.6;margin-top:6px">
       Your last ${e.samples} priced purchases came in
       <strong>${Math.abs(e.bias_pct)}%</strong> ${over ? 'above' : 'below'} what you estimated.
     </div>`;
@@ -170,7 +170,7 @@
     const worth = gl.months_sooner
       ? `, capacity worth <strong>${gl.months_sooner} month${gl.months_sooner !== 1 ? 's' : ''}</strong> on your date`
       : '';
-    return `<div style="font-size:12px;color:var(--pine-text);line-height:1.8;margin-bottom:10px">
+    return `<div style="font-size:var(--fs-sm);color:var(--pine-text);line-height:1.8;margin-bottom:10px">
       ${lead}${worth}. This <strong style="font-family:var(--font-mono)">${fmt(monthly)}/mo</strong>
       fits inside it, and uses <strong style="font-family:var(--font-mono)">${fmt(monthly)}</strong> of it.
     </div>`;
@@ -184,7 +184,7 @@
     if (m.honest_no && m.honest_no.unaffordable) {
       // Not a longer delay — a wall. The number is what makes it payable at all.
       const cap = m.honest_no.max_payable_monthly;
-      return `<div style="font-size:12px;color:var(--ember-text);line-height:1.7;margin-bottom:12px">`
+      return `<div style="font-size:var(--fs-sm);color:var(--ember-text);line-height:1.7;margin-bottom:12px">`
         + (cap
             ? `At <strong>${fmt(cap)}/mo</strong> or less this stays payable. Above that your `
               + `minimum payments stop being covered, which is not a later date — it is no date at all.`
@@ -214,7 +214,7 @@
     if (!phrases.length) return _bybGreenLightHTML();
     const joined = phrases.join('; ');
     return _bybGreenLightHTML()
-      + `<div style="font-size:12px;color:var(--slate);line-height:1.7;margin-bottom:12px">`
+      + `<div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.7;margin-bottom:12px">`
       + `${joined.charAt(0).toUpperCase()}${joined.slice(1)}.</div>`;
   }
 

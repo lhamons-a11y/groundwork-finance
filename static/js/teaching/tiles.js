@@ -35,7 +35,7 @@
     if (old) old.remove();
     var s = document.createElement('div');
     s.className = 'gw-src';
-    s.style.cssText = 'font-size:10px;color:var(--slate-2);margin-top:8px';
+    s.style.cssText = 'font-size:var(--fs-xs);color:var(--slate-2);margin-top:8px';
     s.textContent = text;
     el.appendChild(s);
   }
@@ -51,7 +51,7 @@
     if (!t) { card.style.display = 'none'; card.innerHTML = ''; return; }
     card.innerHTML = '<div class="card-label">Investments</div>'
       + t.lines.map(function (l) {
-        return '<div style="font-size:12px;color:var(--slate);line-height:1.7;padding:2px 0">' + esc(l) + '</div>';
+        return '<div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.7;padding:2px 0">' + esc(l) + '</div>';
       }).join('');
     card.style.display = '';
     _source('dashInvestmentsCard', t.source);
@@ -133,7 +133,7 @@
       rows.sort(function (a, b) { return a.days - b.days; });
       if (rows.length) {
         upc.innerHTML = rows.slice(0, 5).map(function (r) {
-          return '<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--steel);font-size:12px">'
+          return '<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--steel);font-size:var(--fs-sm)">'
             + '<span style="flex:1;color:var(--ink)">' + esc(r.label) + '</span>'
             + '<span style="font-family:var(--font-mono);color:var(--slate)">' + (r.amount > 0 ? fmt(r.amount) : '') + '</span>'
             + '<span style="font-family:var(--font-mono);color:var(--slate-2)">' + (r.days === 0 ? 'today' : r.days === 1 ? 'tomorrow' : 'in ' + r.days + 'd') + '</span></div>';

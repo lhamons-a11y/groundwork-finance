@@ -55,7 +55,7 @@
 
     return `<div class="card mb-5" id="debtCycle" style="border-left:3px solid var(--gold)">
       <div class="card-label">You have been here before</div>
-      <div style="font-size:12px;color:var(--slate);line-height:1.8">${line}${cost}</div>
+      <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.8">${line}${cost}</div>
     </div>`;
   }
 
@@ -92,7 +92,7 @@
       const o = dn.optimal_order;
       return `<div class="card mb-5" id="debtAccelerations">
         <div class="card-label">What moves your date most</div>
-        <div style="font-size:12px;color:var(--slate);line-height:1.7">
+        <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.7">
           Nothing in your record moves it further than the plan you already have.
           Your ${esc(o.strategy)} order clears you
           <strong style="color:var(--pine-text)">${o.months_better} month${o.months_better !== 1 ? 's' : ''}</strong>
@@ -104,18 +104,18 @@
     const line = (a) => `
       <div style="display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid var(--steel)">
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;color:var(--ink)">${esc(a.label.charAt(0).toUpperCase() + a.label.slice(1))}</div>
-          <div style="font-size:11px;color:var(--slate-2);line-height:1.6">${esc(a.detail)}</div>
+          <div style="font-size:var(--fs-base);color:var(--ink)">${esc(a.label.charAt(0).toUpperCase() + a.label.slice(1))}</div>
+          <div style="font-size:var(--fs-xs);color:var(--slate-2);line-height:1.6">${esc(a.detail)}</div>
         </div>
         <div style="text-align:right;white-space:nowrap">
-          <div style="font-family:var(--font-mono);font-size:13px;color:var(--pine-text)">${a.months_saved} mo sooner</div>
-          <div style="font-family:var(--font-mono);font-size:11px;color:var(--slate-2)">${fmt(a.interest_saved)} less interest</div>
+          <div style="font-family:var(--font-mono);font-size:var(--fs-base);color:var(--pine-text)">${a.months_saved} mo sooner</div>
+          <div style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--slate-2)">${fmt(a.interest_saved)} less interest</div>
         </div>
       </div>`;
 
     return `<div class="card mb-5" id="debtAccelerations">
       <div class="card-label">What moves your date most</div>
-      <div style="font-size:12px;color:var(--slate);line-height:1.7;margin-bottom:10px">
+      <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.7;margin-bottom:10px">
         From <strong>${_payoffDateLabel(d.base.months)}</strong>, on what your ledger already records.
         Each of these is one change on its own — not a plan to do all of them — and each
         assumes the money freed goes toward the debt.

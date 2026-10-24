@@ -40,7 +40,7 @@
 
     return `<div class="card mb-5" id="nwCapacity">
       <div class="card-label">What this number now covers</div>
-      <div style="font-size:12px;color:var(--slate);line-height:1.8">
+      <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.8">
         Your savings and cash (<strong style="font-family:var(--font-mono)">${fmt(d.liquid)}</strong>)
         now cover what you owe on <strong>${esc(c.name)}</strong>
         (<strong style="font-family:var(--font-mono)">${fmt(c.balance)}</strong>). Clearing it ${outcome}.

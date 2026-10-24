@@ -52,7 +52,7 @@
     const v = _trophyVerdicts[id];
     if (!v) return '';
     if (v.class === 'setup') {
-      return `<div style="font-size:10px;color:var(--slate-2);margin-top:5px">Setup step — not an earned trophy.</div>`;
+      return `<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:5px">Setup step — not an earned trophy.</div>`;
     }
     const proof = (v.proof || [])
       .filter(p => p.value !== null && p.value !== undefined && p.value !== '')
@@ -64,12 +64,12 @@
       }).join(' · ');
 
     if (v.earned === true) {
-      return `<div style="font-size:10px;font-family:var(--font-mono);color:var(--pine-text);margin-top:5px">
+      return `<div style="font-size:var(--fs-xs);font-family:var(--font-mono);color:var(--pine-text);margin-top:5px">
         ${proof || 'proved by your ledger'}
       </div>`;
     }
     if (v.earned === null) {
-      return `<div style="font-size:10px;color:var(--slate-2);margin-top:5px">${esc(v.reason)}</div>`;
+      return `<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:5px">${esc(v.reason)}</div>`;
     }
     return '';
   }

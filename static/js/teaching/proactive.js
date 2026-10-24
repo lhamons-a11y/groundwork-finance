@@ -81,9 +81,9 @@
     return '<div class="card mb-4" id="dashProactiveCard"'
       + ' style="border-left:3px solid ' + accent + ';background:' + tint + '">'
       + '<div style="display:flex;align-items:flex-start;gap:12px">'
-      + '<div style="flex:1;font-size:12px;color:var(--slate);line-height:1.8">' + body + '</div>'
+      + '<div style="flex:1;font-size:var(--fs-sm);color:var(--slate);line-height:1.8">' + body + '</div>'
       + '<button onclick="GWTeaching.proactiveDismiss()" title="Dismiss"'
-      + ' style="background:none;border:none;color:var(--slate-2);font-size:16px;'
+      + ' style="background:none;border:none;color:var(--slate-2);font-size:var(--fs-lg);'
       + 'line-height:1;cursor:pointer;padding:0 2px">×</button>'
       + '</div></div>';
   }
@@ -122,10 +122,10 @@
   // concluded from the clicks, and the pace is the dial's alone (U3).
   function dismissedHtml(r) {
     var days = (r && r.cooldown_days) || 60;
-    var h = '<div style="font-size:12px;color:var(--slate)">Dismissed. Groundwork won\'t bring this up again for ' + days + ' days.</div>';
+    var h = '<div style="font-size:var(--fs-sm);color:var(--slate)">Dismissed. Groundwork won\'t bring this up again for ' + days + ' days.</div>';
     if (r && r.ask_silence) {
       var c = esc(r.ask_silence);
-      h += '<div style="font-size:12px;color:var(--ink);margin-top:8px">Stop bringing up ' + c + ' on its own? Insights about it stay on their pages.</div>'
+      h += '<div style="font-size:var(--fs-sm);color:var(--ink);margin-top:8px">Stop bringing up ' + c + ' on its own? Insights about it stay on their pages.</div>'
         + '<div style="margin-top:6px"><button class="btn btn-secondary btn-sm" data-gw-silence="yes">Yes, stop</button> '
         + '<button class="btn btn-ghost btn-sm" data-gw-silence="no">No</button></div>';
     }
@@ -134,7 +134,7 @@
 
   function answerSilence(card, category, yes) {
     API.post('/api/proactive/silence', { category: category, silence: !!yes }).then(function () {
-      card.innerHTML = '<div style="font-size:12px;color:var(--slate)">' + (yes
+      card.innerHTML = '<div style="font-size:var(--fs-sm);color:var(--slate)">' + (yes
         ? 'Groundwork won\'t bring up ' + esc(category) + ' on its own. Undo it any time in Settings, under how often Groundwork speaks up.'
         : 'Noted - ' + esc(category) + ' can still come up.') + '</div>';
     }).catch(function () {});
@@ -163,9 +163,9 @@
   // setting, nothing inferred. Under the dial (#proactiveSilenced); app.js knows nothing of it.
   function silencedHtml(cats) {
     if (!cats || !cats.length) return '';
-    return '<div style="font-size:11px;color:var(--slate-2);margin-top:8px">You asked Groundwork not to bring these up on its own (they stay on their pages):</div>'
+    return '<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:8px">You asked Groundwork not to bring these up on its own (they stay on their pages):</div>'
       + cats.map(function (c) {
-          return '<div style="font-size:12px;color:var(--ink);margin-top:4px">' + esc(c)
+          return '<div style="font-size:var(--fs-sm);color:var(--ink);margin-top:4px">' + esc(c)
             + ' <button class="btn btn-ghost btn-sm" data-gw-unsilence="' + esc(c) + '">Undo</button></div>';
         }).join('');
   }
@@ -205,9 +205,9 @@
   // person's word, kept by the server and taken back with Undo; the charge leaves every lesson and brake.
   function hadToButtons(id) {
     var b = function (kind, label) {
-      return '<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="GWTeaching.hadTo(' + id + ',\'' + kind + '\')">' + label + '</button>';
+      return '<button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="GWTeaching.hadTo(' + id + ',\'' + kind + '\')">' + label + '</button>';
     };
-    return '<div style="margin-top:6px;font-size:11px;color:var(--slate-2)">Was it something you had to pay? '
+    return '<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--slate-2)">Was it something you had to pay? '
       + b('car', 'A car repair') + ' ' + b('home', 'A home repair') + ' ' + b('health', 'Health') + ' ' + b('other', 'Something else') + '</div>';
   }
   function hadTo(id, kind) {

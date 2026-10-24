@@ -1082,13 +1082,13 @@ function showGwErrors() {
   const existing = document.getElementById('gwErrorModal');
   if (existing) existing.remove();
   const rows = _gwErrorLog.map(e => `
-    <div style="border-bottom:1px solid var(--steel);padding:8px 0;font-size:12px">
+    <div style="border-bottom:1px solid var(--steel);padding:8px 0;font-size:var(--fs-sm)">
       <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-        <span style="font-family:var(--font-mono);color:var(--ember-text);font-size:11px">${e.src}:${e.line}</span>
-        <span style="color:var(--slate-2);font-size:10px">${e.ts.slice(11,19)}</span>
+        <span style="font-family:var(--font-mono);color:var(--ember-text);font-size:var(--fs-xs)">${e.src}:${e.line}</span>
+        <span style="color:var(--slate-2);font-size:var(--fs-xs)">${e.ts.slice(11,19)}</span>
       </div>
       <div style="color:var(--ink);word-break:break-word">${esc(e.msg)}</div>
-      ${e.stack ? `<div style="font-family:var(--font-mono);font-size:10px;color:var(--slate-2);white-space:pre-wrap;word-break:break-all;margin-top:3px">${esc(e.stack)}</div>` : ''}
+      ${e.stack ? `<div style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--slate-2);white-space:pre-wrap;word-break:break-all;margin-top:3px">${esc(e.stack)}</div>` : ''}
     </div>`).join('');
   const modal = document.createElement('div');
   modal.id        = 'gwErrorModal';
@@ -1100,7 +1100,7 @@ function showGwErrors() {
         <button class="modal-close" onclick="document.getElementById('gwErrorModal').remove()">×</button>
       </div>
       <div class="modal-body" style="padding:16px">
-        <div style="font-size:12px;color:var(--slate);margin-bottom:12px">
+        <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:12px">
           Caught JS errors this session. Copy and share when reporting bugs.
         </div>
         ${rows}
@@ -1166,7 +1166,7 @@ function _offerAutoImport(item) {
     z-index:200;display:flex;flex-direction:column;gap:10px;
     animation:slideUp .18s ease;`;
   el.innerHTML = `
-    <div style="font-size:13px;color:var(--ink);line-height:1.5">
+    <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.5">
       ${item.kind === 'statement'
         ? `📄 Statement downloaded: <b style="font-weight:600">${esc(item.filename)}</b>. Open it to review?`
         : item.fetched_for && item.fetched_for.name
@@ -1177,13 +1177,13 @@ function _offerAutoImport(item) {
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button onclick="_acceptAutoImport()"
-        style="font-size:12px;font-family:inherit;background:var(--sky);color:#fff;
+        style="font-size:var(--fs-sm);font-family:inherit;background:var(--sky);color:#fff;
                border:none;border-radius:var(--r-md);padding:6px 14px;cursor:pointer;
                font-weight:500">
         ${item.kind === 'statement' ? 'Open statement' : 'Import now'}
       </button>
       <button onclick="document.getElementById('autoImportPrompt')?.remove()"
-        style="font-size:12px;font-family:inherit;background:none;
+        style="font-size:var(--fs-sm);font-family:inherit;background:none;
                border:1px solid var(--steel-2);border-radius:var(--r-md);
                padding:6px 14px;cursor:pointer;color:var(--ink)">
         Not this file
@@ -1276,7 +1276,7 @@ async function _checkForUpdates() {
         <div class="modal-footer">
           <button class="btn btn-secondary" onclick="_dismissUpdateModal()">Remind me later</button>
           <button onclick="window.pywebview?.api?.open_external('https://groundworkfinance.app/changelog') || window.open('https://groundworkfinance.app/changelog','_blank')"
-            style="font-size:12px;font-family:inherit;background:none;border:none;
+            style="font-size:var(--fs-sm);font-family:inherit;background:none;border:none;
                    color:var(--slate-2);cursor:pointer;padding:6px 4px;
                    text-decoration:underline">
             What changed
@@ -1401,15 +1401,15 @@ function openFeedbackModal() {
       </div>
       <div class="modal-body" style="padding:20px">
         <div class="field" style="margin-bottom:16px">
-          <label style="font-size:12px;font-weight:600;color:var(--slate);display:block;margin-bottom:6px">What were you doing when this happened?</label>
+          <label style="font-size:var(--fs-sm);font-weight:600;color:var(--slate);display:block;margin-bottom:6px">What were you doing when this happened?</label>
           <textarea id="gwFeedbackDesc" rows="4" placeholder="e.g. I tapped the Lease button on a debt card and nothing changed…"
-            style="width:100%;padding:10px;border:1px solid var(--steel);border-radius:var(--r-md);font-size:13px;font-family:var(--font-body);resize:vertical;background:var(--paper);color:var(--ink)"></textarea>
+            style="width:100%;padding:10px;border:1px solid var(--steel);border-radius:var(--r-md);font-size:var(--fs-base);font-family:var(--font-body);resize:vertical;background:var(--paper);color:var(--ink)"></textarea>
         </div>
         <div style="background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-md);padding:12px;margin-bottom:16px">
-          <div style="font-size:11px;font-weight:600;color:var(--slate);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Report preview</div>
-          <pre id="gwFeedbackPreview" style="font-size:11px;font-family:var(--font-mono);color:var(--slate);white-space:pre-wrap;word-break:break-word;margin:0;max-height:140px;overflow-y:auto"></pre>
+          <div style="font-size:var(--fs-xs);font-weight:600;color:var(--slate);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Report preview</div>
+          <pre id="gwFeedbackPreview" style="font-size:var(--fs-xs);font-family:var(--font-mono);color:var(--slate);white-space:pre-wrap;word-break:break-word;margin:0;max-height:140px;overflow-y:auto"></pre>
         </div>
-        <div id="gwFeedbackNote" style="font-size:11px;color:var(--slate-2);margin-bottom:16px">Groundwork sends nothing. This preview is the complete report, and printing is the only action offered — what you do with the printout is yours.</div>
+        <div id="gwFeedbackNote" style="font-size:var(--fs-xs);color:var(--slate-2);margin-bottom:16px">Groundwork sends nothing. This preview is the complete report, and printing is the only action offered — what you do with the printout is yours.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button id="gwFeedbackPrintBtn" class="btn btn-primary" onclick="_gwPrintFeedback()" disabled style="flex:1;min-width:140px;opacity:.5">Preparing report...</button>
           <button class="btn btn-ghost" onclick="document.getElementById('gwFeedbackModal').remove()">Close</button>
@@ -1765,7 +1765,7 @@ function _showViewError(name, e) {
   const el = g(`view-${name}`);
   if (!el) return;
   const box = document.createElement('div');
-  box.style.cssText = 'padding:16px;margin-bottom:16px;font-family:monospace;font-size:12px;'
+  box.style.cssText = 'padding:16px;margin-bottom:16px;font-family:monospace;font-size:var(--fs-sm);'
     + 'color:var(--ember-text);background:#fff;border:2px solid #dc2626;border-radius:8px;'
     + 'white-space:pre-wrap;word-break:break-word';
   box.innerHTML = `<strong>Render error in ${name}:</strong><br><br>${e?.message || e}<br><br>`
@@ -2458,7 +2458,7 @@ function _renderHealthCard(totalIncome, spent, projected, daysLeft, streak, tota
   verdict.style.color = verdictColor;
   // In commission mode, note that income is the 6-month rolling average
   const smoothNote = S.lifeStage?.commissionMode && S.profile?.income?.avg6
-    ? `<span style="font-size:11px;color:var(--slate)"> · using ${fmt(S.profile.income.avg6)}/mo average</span>`
+    ? `<span style="font-size:var(--fs-xs);color:var(--slate)"> · using ${fmt(S.profile.income.avg6)}/mo average</span>`
     : '';
   sub.innerHTML = subText + smoothNote;
   card.style.borderColor = overBudget ? 'var(--ember)' : watchIt ? 'var(--gold)' : '';
@@ -2493,8 +2493,8 @@ function _renderHealthCard(totalIncome, spent, projected, daysLeft, streak, tota
 
     // Emergency buffer nudge — quiet but persistent for lean-mode users
     const bufferNudge = (lean && !hasBuffer && totalDebt > 0)
-      ? `<span style="color:var(--gold-text);font-size:11px">⚠ No emergency buffer yet —
-           <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:0 4px;color:var(--gold-text)"
+      ? `<span style="color:var(--gold-text);font-size:var(--fs-xs)">⚠ No emergency buffer yet —
+           <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs);padding:0 4px;color:var(--gold-text)"
              onclick="showView('networth')">add savings →</button>
          </span>`
       : '';
@@ -2504,7 +2504,7 @@ function _renderHealthCard(totalIncome, spent, projected, daysLeft, streak, tota
       const growing = S.profile?.spending?.growingCategories;
       if (!growing || !growing.length) return '';
       const top = growing[0];
-      return `<span style="color:var(--gold-text);font-size:11px">
+      return `<span style="color:var(--gold-text);font-size:var(--fs-xs)">
         ${esc(top.category)} trending +${top.trendPct}% over 6 months</span>`;
     })();
 
@@ -2566,7 +2566,7 @@ function _renderDashHeroCard(totalDebt) {
   let nwDeltaHTML = '';
   if (_nwHistory && _nwHistory.length >= 2) {
     const delta = _nwHistory[_nwHistory.length-1].net_worth - _nwHistory[_nwHistory.length-2].net_worth;
-    nwDeltaHTML = `<span style="font-size:12px;color:${delta>=0?'var(--pine-text)':'var(--ember-text)'}">${delta>=0?'↑':'↓'} ${fmt(Math.abs(delta))} this month</span>`;
+    nwDeltaHTML = `<span style="font-size:var(--fs-sm);color:${delta>=0?'var(--pine-text)':'var(--ember-text)'}">${delta>=0?'↑':'↓'} ${fmt(Math.abs(delta))} this month</span>`;
   }
 
   let html = '';
@@ -2597,14 +2597,14 @@ function _renderDashHeroCard(totalDebt) {
 
     html = `
       ${eliminated > 0 ? `
-      <div style="font-family:var(--font-mono);font-size:32px;font-weight:600;color:var(--pine-text);line-height:1">${fmt(eliminated)}</div>
-      <div style="font-size:13px;color:var(--slate);margin:4px 0 10px">${pctElim}% of your debt is gone</div>
+      <div style="font-family:var(--font-mono);font-size:var(--fs-5xl);font-weight:600;color:var(--pine-text);line-height:1">${fmt(eliminated)}</div>
+      <div style="font-size:var(--fs-base);color:var(--slate);margin:4px 0 10px">${pctElim}% of your debt is gone</div>
       <div style="height:4px;background:var(--steel);border-radius:99px;overflow:hidden;margin-bottom:12px">
         <div style="height:100%;width:${pctElim}%;background:var(--pine);border-radius:99px;transition:width .5s ease"></div>
       </div>` : `
-      <div style="font-family:var(--font-mono);font-size:32px;font-weight:600;color:var(--ember-text);line-height:1">${fmt(totalDebt)}</div>
-      <div style="font-size:13px;color:var(--slate);margin:4px 0 12px">total debt remaining</div>`}
-      <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--slate);margin-bottom:12px">
+      <div style="font-family:var(--font-mono);font-size:var(--fs-5xl);font-weight:600;color:var(--ember-text);line-height:1">${fmt(totalDebt)}</div>
+      <div style="font-size:var(--fs-base);color:var(--slate);margin:4px 0 12px">total debt remaining</div>`}
+      <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:var(--fs-sm);color:var(--slate);margin-bottom:12px">
         ${_debtTrusted && payoffDate ? `<span><span style="color:var(--slate-2)">Debt-free:</span> <span style="font-family:var(--font-mono)">${payoffDate}</span> <span style="color:var(--slate-2)">(${_planName()}, ${fmt(_getMonthlyBudget())}/mo)</span>${
           S.debtCards.some(c => _debtUnknowns(c).length)
             ? ` <span style="color:var(--gold-text)" title="${_debtAssumptionNote(S.debtCards)}">· assumes figures not entered</span>` : ''}</span>` : ''}
@@ -2614,7 +2614,7 @@ function _renderDashHeroCard(totalDebt) {
         ${!_debtTrusted ? `<span style="color:var(--slate-2)">Verify balances to project your payoff date</span>` : ''}
       </div>
       <span onclick="showView('reports');setTimeout(()=>{ if(typeof _rcOpenReport==='function') _rcOpenReport('debt_payoff'); },80)"
-        style="font-size:12px;color:var(--pine-text);cursor:pointer;text-decoration:underline;text-underline-offset:2px">
+        style="font-size:var(--fs-sm);color:var(--pine-text);cursor:pointer;text-decoration:underline;text-underline-offset:2px">
         See full payoff plan →
       </span>`;
 
@@ -2630,15 +2630,15 @@ function _renderDashHeroCard(totalDebt) {
     // now gets its own explicit warning state instead of a fake number.
     if (payoffResult === null && totalDebt > 0) {
       html = `
-        <div style="font-family:var(--font-mono);font-size:32px;font-weight:600;color:var(--ember-text);line-height:1">⚠</div>
-        <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:14px;color:var(--ink);margin:4px 0 12px">
+        <div style="font-family:var(--font-mono);font-size:var(--fs-5xl);font-weight:600;color:var(--ember-text);line-height:1">⚠</div>
+        <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-md);color:var(--ink);margin:4px 0 12px">
           Your budget doesn't cover your minimum payments
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--slate);margin-bottom:12px">
+        <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:var(--fs-sm);color:var(--slate);margin-bottom:12px">
           ${nwDeltaHTML}
         </div>
         <span onclick="showView('debt')"
-          style="font-size:12px;color:var(--ember-text);cursor:pointer;text-decoration:underline;text-underline-offset:2px">
+          style="font-size:var(--fs-sm);color:var(--ember-text);cursor:pointer;text-decoration:underline;text-underline-offset:2px">
           Review your debt plan →
         </span>`;
     } else {
@@ -2648,11 +2648,11 @@ function _renderDashHeroCard(totalDebt) {
       const freeDate = payoffResult?.freeDate || '';
 
       html = `
-      <div style="font-family:var(--font-mono);font-size:32px;font-weight:600;color:var(--pine-text);line-height:1">${gwFig('dash.debt_months', `${months} months`)}</div>
-      <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:14px;color:var(--slate);margin:4px 0 12px">
+      <div style="font-family:var(--font-mono);font-size:var(--fs-5xl);font-weight:600;color:var(--pine-text);line-height:1">${gwFig('dash.debt_months', `${months} months`)}</div>
+      <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-md);color:var(--slate);margin:4px 0 12px">
         ${freeDate ? `Debt-free by ${gwFig('dash.debt_free_date', freeDate)}` : 'to debt-free'}
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--slate)">
+      <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:var(--fs-sm);color:var(--slate)">
         ${nwDeltaHTML}
         ${interestSaved >= 50 ? `<span style="color:var(--pine-text)">✓ ${gwFig('dash.interest_saved', fmt(interestSaved))} saved vs minimums</span>` : ''}
       </div>`;
@@ -2669,11 +2669,11 @@ function _renderDashHeroCard(totalDebt) {
       ? `<span><span style="color:var(--slate-2)">DTI:</span> <span style="font-family:var(--font-mono)">${dti.toFixed(1)}%</span></span>` : '';
 
     html = `
-      <div style="font-family:var(--font-mono);font-size:32px;font-weight:600;color:${netWorthVal>=0?'var(--pine-text)':'var(--ember-text)'};line-height:1">
+      <div style="font-family:var(--font-mono);font-size:var(--fs-5xl);font-weight:600;color:${netWorthVal>=0?'var(--pine-text)':'var(--ember-text)'};line-height:1">
         ${netWorthVal<0?'−':''}${fmt(Math.abs(netWorthVal))}
       </div>
-      <div style="font-size:13px;color:var(--slate);margin:4px 0 10px">net worth</div>
-      <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--slate)">
+      <div style="font-size:var(--fs-base);color:var(--slate);margin:4px 0 10px">net worth</div>
+      <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:var(--fs-sm);color:var(--slate)">
         ${nwDeltaHTML}
         ${dtiHtml}
       </div>`;
@@ -2737,11 +2737,11 @@ function _renderDashSpendingDonut(txns) {
     <text x="${cx}" y="${cy-4}" text-anchor="middle" font-family="var(--font-mono)"
           font-size="11" font-weight="600" fill="var(--ink)">${fmt(total,0).replace('$','')}</text>
     <text x="${cx}" y="${cy+10}" text-anchor="middle" font-family="var(--font-body)"
-          font-size="9" fill="var(--slate)">spent</text>
+          font-size="11" fill="var(--slate)">spent</text>
   </svg>`;
 
   const legend = top5.map(([cat, amt], i) => `
-    <div style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:4px">
+    <div style="display:flex;align-items:center;gap:6px;font-size:var(--fs-sm);margin-bottom:4px">
       <span style="width:8px;height:8px;border-radius:50%;background:${colors[i]};flex-shrink:0"></span>
       <span style="flex:1;color:var(--slate);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(cat)}</span>
       <span style="font-family:var(--font-mono);color:var(--ink);flex-shrink:0">${fmt(amt)}</span>
@@ -2754,7 +2754,7 @@ function _renderDashSpendingDonut(txns) {
         ${legend}
         <div style="margin-top:6px">
           <span onclick="showView('reports');setTimeout(()=>{ if(typeof _rcOpenReport==='function') _rcOpenReport('spending_breakdown'); },80)"
-            style="font-size:11px;color:var(--pine-text);cursor:pointer;text-decoration:underline;text-underline-offset:2px">
+            style="font-size:var(--fs-xs);color:var(--pine-text);cursor:pointer;text-decoration:underline;text-underline-offset:2px">
             Full breakdown →
           </span>
         </div>
@@ -2775,14 +2775,14 @@ async function renderPriceChanges() {
   if (!_priceChanges.length) { box.innerHTML = ''; return; }
   const day = iso => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   box.innerHTML = `<div class="card mt-5"><div class="card-label">Price changes</div>
-    <div style="font-size:12px;color:var(--slate);margin-bottom:8px">Recurring charges that moved to a new amount and stayed there for at least two charges. Groundwork shows what the charges say; it doesn't know why a price changed.</div>`
+    <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:8px">Recurring charges that moved to a new amount and stayed there for at least two charges. Groundwork shows what the charges say; it doesn't know why a price changed.</div>`
     + _priceChanges.map((c, i) => `<div style="padding:8px 0;border-bottom:0.5px solid var(--steel-2)">
-        <div style="font-size:13px;color:var(--ink)">${esc(c.sentence)}</div>
-        <details style="font-size:11px;color:var(--slate);margin-top:4px"><summary style="cursor:pointer">The charges</summary>
+        <div style="font-size:var(--fs-base);color:var(--ink)">${esc(c.sentence)}</div>
+        <details style="font-size:var(--fs-xs);color:var(--slate);margin-top:4px"><summary style="cursor:pointer">The charges</summary>
           ${c.records.map(r => `<div style="font-family:var(--font-mono)">${day(r.date)} &nbsp; ${fmt(r.amount)}</div>`).join('')}</details>
-        ${c.line && !c.line_matches ? `<div style="margin-top:6px;font-size:12px;color:var(--slate)">Your budget line <b style="color:var(--ink)">${esc(c.line.name)}</b> is ${fmt(c.line.amount)} a month.
+        ${c.line && !c.line_matches ? `<div style="margin-top:6px;font-size:var(--fs-sm);color:var(--slate)">Your budget line <b style="color:var(--ink)">${esc(c.line.name)}</b> is ${fmt(c.line.amount)} a month.
           <button class="btn btn-secondary btn-sm" onclick="applyPriceChange(${i})">Change it to ${fmt(c.after)}</button></div>`
-        : c.line ? `<div style="margin-top:6px;font-size:12px;color:var(--slate)">Your budget line ${esc(c.line.name)} already says ${fmt(c.line.amount)}.</div>` : ''}
+        : c.line ? `<div style="margin-top:6px;font-size:var(--fs-sm);color:var(--slate)">Your budget line ${esc(c.line.name)} already says ${fmt(c.line.amount)}.</div>` : ''}
       </div>`).join('') + '</div>';
 }
 
@@ -2826,11 +2826,11 @@ async function renderLookThrough() {
   try { _lookThrough = await API.get('/api/first-import'); } catch (e) { _gwErr('renderLookThrough')(e); box.innerHTML = ''; return; }
   const f = _lookThrough;
   const card = inner => `<div class="card mb-4"><div class="card-label">Yearly bills and heavy months</div>${inner}</div>`;
-  if (!f.enough) { box.innerHTML = card(`<div style="font-size:12px;color:var(--slate)">${esc(f.message)}</div>`); return; }
+  if (!f.enough) { box.innerHTML = card(`<div style="font-size:var(--fs-sm);color:var(--slate)">${esc(f.message)}</div>`); return; }
   const all = [...f.renewals.map(x => ({ ...x, kind: 'renewal' })), ...f.heavy.map(x => ({ ...x, kind: 'heavy' }))];
   const open = all.filter(x => !x.answer);
   if (!_lookThroughOpen) {
-    box.innerHTML = card(`<div style="font-size:12px;color:var(--slate);line-height:1.6">Your record covers ${f.months} full months.
+    box.innerHTML = card(`<div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6">Your record covers ${f.months} full months.
       Groundwork can look through it for bills that come once or twice a year and months that run heavy.
       Each one is shown with its records and asked about; nothing changes unless you say yes.</div>
       <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="_lookThroughOpen = true; renderLookThrough()">Look through it${open.length ? ` (${open.length})` : ''}</button>`);
@@ -2844,14 +2844,14 @@ async function renderLookThrough() {
       ? x.records.map(r => `<div style="font-family:var(--font-mono)">${day(r.date)} &nbsp; ${fmt(r.amount)}</div>`).join('')
       : x.categories.map(c => `<div>${esc(c.category)}: ${fmt(c.amount)} that month, against a usual ${fmt(c.usual)}</div>`).join('');
     return `<div style="padding:8px 0;border-bottom:0.5px solid var(--steel-2)">
-      <div style="font-size:13px;color:var(--ink)">${esc(x.sentence)}</div>
-      <details style="font-size:11px;color:var(--slate);margin-top:4px"><summary style="cursor:pointer">${x.kind === 'renewal' ? 'The charges' : 'What stood above its usual month'}</summary>${recs}</details>
-      <div style="margin-top:6px;font-size:12px;color:var(--slate);display:flex;gap:6px;align-items:center;flex-wrap:wrap">${q}
+      <div style="font-size:var(--fs-base);color:var(--ink)">${esc(x.sentence)}</div>
+      <details style="font-size:var(--fs-xs);color:var(--slate);margin-top:4px"><summary style="cursor:pointer">${x.kind === 'renewal' ? 'The charges' : 'What stood above its usual month'}</summary>${recs}</details>
+      <div style="margin-top:6px;font-size:var(--fs-sm);color:var(--slate);display:flex;gap:6px;align-items:center;flex-wrap:wrap">${q}
         ${btn('yes', 'Yes')}${btn('no', 'No')}${btn('not_sure', 'Not sure')}</div></div>`;
   };
-  box.innerHTML = card(`<div style="font-size:12px;color:var(--slate);margin-bottom:6px">A yes puts a yearly bill on this calendar and in your possible futures. No and Not sure are kept, so Groundwork doesn't ask again.</div>`
-    + (all.length ? all.map(ask).join('') : '<div style="font-size:12px;color:var(--slate)">Nothing in the record comes once or twice a year at the same amount.</div>')
-    + (f.heavy_note ? `<div style="font-size:11px;color:var(--slate);margin-top:8px">${esc(f.heavy_note)}</div>` : ''));
+  box.innerHTML = card(`<div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:6px">A yes puts a yearly bill on this calendar and in your possible futures. No and Not sure are kept, so Groundwork doesn't ask again.</div>`
+    + (all.length ? all.map(ask).join('') : '<div style="font-size:var(--fs-sm);color:var(--slate)">Nothing in the record comes once or twice a year at the same amount.</div>')
+    + (f.heavy_note ? `<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:8px">${esc(f.heavy_note)}</div>` : ''));
 }
 
 async function answerLookThrough(i, answer) {
@@ -2872,7 +2872,7 @@ async function _offerLookThrough() {
   if (!o.offer) return;
   API.post('/api/first-import/offered', {}).catch(_gwErr('_offerLookThrough:offered'));
   confirmAction('Look through your history?',
-    `<div style="font-size:13px;line-height:1.6;color:var(--slate)">Your record now covers ${o.months} full months. Groundwork can look through it for bills that come once or twice a year, and show you what it finds with the records. Nothing changes unless you say yes.</div>`,
+    `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--slate)">Your record now covers ${o.months} full months. Groundwork can look through it for bills that come once or twice a year, and show you what it finds with the records. Nothing changes unless you say yes.</div>`,
     () => { _lookThroughOpen = true; showView('calendar'); }, 'Look through it', false);
 }
 
@@ -2883,7 +2883,7 @@ async function renderCalendar() {
   let d;
   try { d = await API.get('/api/calendar?days=365'); } catch (e) { _gwErr('renderCalendar')(e); box.innerHTML = ''; return; }
   const items = d.entries || [];
-  if (!items.length) { box.innerHTML = '<div class="card"><div style="font-size:13px;color:var(--slate)">Nothing dated is on record yet. Due days on your debts, your recurring bills, gift occasions, trips and fund dates all show up here.</div></div>'; return; }
+  if (!items.length) { box.innerHTML = '<div class="card"><div style="font-size:var(--fs-base);color:var(--slate)">Nothing dated is on record yet. Due days on your debts, your recurring bills, gift occasions, trips and fund dates all show up here.</div></div>'; return; }
   const today = new Date(d.from + 'T12:00:00');
   const weekStart = dt => { const x = new Date(dt); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
   // Item 79 U3 (UI_AUDIT.md, ruled 2026-10-13): the next four weeks open, week by week; everything after them folded
@@ -2902,24 +2902,24 @@ async function renderCalendar() {
     if (!byKey[key]) { byKey[key] = { label, rows: [], folded }; groups.push(byKey[key]); }
     byKey[key].rows.push(e);
   }
-  const legend = `<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--slate);margin-bottom:12px">
+  const legend = `<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:var(--fs-xs);color:var(--slate);margin-bottom:12px">
       <span><b style="color:var(--ink)">Confirmed</b>: a date you entered or a biller stated</span>
       <span><b style="color:var(--ink)">Expected</b>: worked out from your record</span>
       <span><b style="color:var(--ink)">Possible</b>: a yearly bill you confirmed, in its usual month</span></div>`;
   const rowsHTML = gp => gp.rows.map(e => `
       <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:0.5px solid var(--steel-2);cursor:${e.view ? 'pointer' : 'default'}" ${e.view ? `onclick="showView('${e.view}')"` : ''}>
         <span style="width:22px;text-align:center">${_CAL_KIND[e.kind] || '•'}</span>
-        <span style="font-family:var(--font-mono);font-size:12px;color:var(--slate);min-width:64px">${new Date(e.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-        <span style="flex:1;font-size:13px;color:var(--ink)">${esc(e.title)}${e.person ? ` <span style="color:var(--slate)">(${esc(e.person)})</span>` : ''}
-          <span style="display:block;font-size:11px;color:var(--slate)">${esc(e.source)}</span></span>
-        ${e.amount ? `<span style="font-family:var(--font-mono);font-size:12px">${fmt(e.amount)}</span>` : ''}
-        <span style="font-size:10px;padding:2px 8px;border-radius:999px;border:1px solid var(--steel);color:${e.certainty === 'confirmed' ? 'var(--pine-text)' : 'var(--slate)'}">${_CAL_CERT[e.certainty]}</span>
+        <span style="font-family:var(--font-mono);font-size:var(--fs-sm);color:var(--slate);min-width:64px">${new Date(e.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+        <span style="flex:1;font-size:var(--fs-base);color:var(--ink)">${esc(e.title)}${e.person ? ` <span style="color:var(--slate)">(${esc(e.person)})</span>` : ''}
+          <span style="display:block;font-size:var(--fs-xs);color:var(--slate)">${esc(e.source)}</span></span>
+        ${e.amount ? `<span style="font-family:var(--font-mono);font-size:var(--fs-sm)">${fmt(e.amount)}</span>` : ''}
+        <span style="font-size:var(--fs-xs);padding:2px 8px;border-radius:999px;border:1px solid var(--steel);color:${e.certainty === 'confirmed' ? 'var(--pine-text)' : 'var(--slate)'}">${_CAL_CERT[e.certainty]}</span>
       </div>`).join('');
   const total = gp => gp.rows.reduce((s, e) => s + (Number(e.amount) || 0), 0);
   box.innerHTML = legend + groups.map(gp => gp.folded
     ? `<details class="card mb-4"><summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:10px;align-items:baseline">
          <span class="card-label" style="margin:0">${esc(gp.label)}</span>
-         <span style="font-size:12px;color:var(--slate)">${gp.rows.length} date${gp.rows.length === 1 ? '' : 's'}${total(gp) ? `, ${fmt(total(gp))}` : ''} ▸</span></summary>
+         <span style="font-size:var(--fs-sm);color:var(--slate)">${gp.rows.length} date${gp.rows.length === 1 ? '' : 's'}${total(gp) ? `, ${fmt(total(gp))}` : ''} ▸</span></summary>
          <div style="margin-top:8px">${rowsHTML(gp)}</div></details>`
     : `<div class="card mb-4"><div class="card-label">${esc(gp.label)}</div>${rowsHTML(gp)}</div>`).join('');
 }
@@ -2980,11 +2980,11 @@ function _renderDashUpcoming() {
   content.innerHTML = top5.map(item => `
     <div style="display:flex;align-items:center;gap:10px;padding:5px 0;
                 border-bottom:1px solid var(--steel)">
-      <span style="font-size:14px;flex-shrink:0">${item.icon}</span>
-      <span style="flex:1;font-size:12px;color:var(--ink);
+      <span style="font-size:var(--fs-md);flex-shrink:0">${item.icon}</span>
+      <span style="flex:1;font-size:var(--fs-sm);color:var(--ink);
                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(item.label)}">${esc(item.label)}</span>
-      <span style="font-family:var(--font-mono);font-size:12px;color:var(--slate);flex-shrink:0">${item.amount>0?fmt(item.amount):''}</span>
-      <span style="font-family:var(--font-mono);font-size:11px;color:${item.color};flex-shrink:0">${item.dateLabel}</span>
+      <span style="font-family:var(--font-mono);font-size:var(--fs-sm);color:var(--slate);flex-shrink:0">${item.amount>0?fmt(item.amount):''}</span>
+      <span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:${item.color};flex-shrink:0">${item.dateLabel}</span>
     </div>`).join('');
 
   // Remove last border
@@ -3040,29 +3040,29 @@ function _dashRenderFreedMinimums() {
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
       <div style="flex:1;min-width:200px">
         <div class="card-label" style="margin-bottom:8px;color:var(--pine-text)">Minimum payments dropping</div>
-        <div style="font-size:13px;color:var(--ink);line-height:1.7">
+        <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.7">
           Your minimum payment burden has dropped from
           <span style="font-family:var(--font-mono);font-weight:500">${fmt(startingTotal)}/month</span>
           to
           <span style="font-family:var(--font-mono);font-weight:500;color:var(--pine-text)">${fmt(currentTotal)}/month</span>
           ${sinceLabel}.
         </div>
-        <div style="margin-top:8px;font-size:13px;color:var(--ink)">
+        <div style="margin-top:8px;font-size:var(--fs-base);color:var(--ink)">
           You've freed
-          <span style="font-family:var(--font-mono);font-weight:600;font-size:15px;color:var(--pine-text)">${fmt(freed)}/month</span>
+          <span style="font-family:var(--font-mono);font-weight:600;font-size:var(--fs-lg);color:var(--pine-text)">${fmt(freed)}/month</span>
           — that's
           <span style="font-family:var(--font-mono);font-weight:500;color:var(--pine-text)">${fmt(yearlyVal)}/year</span>.
         </div>
       </div>
       <div style="flex-shrink:0;text-align:right">
-        <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:4px">Freed/month</div>
-        <div style="font-family:var(--font-mono);font-size:28px;font-weight:600;color:var(--pine-text)">${fmt(freed)}</div>
+        <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:4px">Freed/month</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-4xl);font-weight:600;color:var(--pine-text)">${fmt(freed)}</div>
       </div>
     </div>
     <div style="margin-top:14px;height:5px;background:var(--steel);border-radius:99px;overflow:hidden">
       <div style="height:100%;width:${Math.min(100, Math.round((freed / startingTotal) * 100))}%;background:var(--pine);border-radius:99px;transition:width .6s ease"></div>
     </div>
-    <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--slate-2)">
+    <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:var(--fs-xs);color:var(--slate-2)">
       <span>Started ${sinceLabel}</span>
       <span>${Math.round((freed / startingTotal) * 100)}% reduction</span>
     </div>
@@ -3094,12 +3094,12 @@ function _renderNextAchCard() {
     <div class="dash-next-ach">
       <span class="dash-next-ach-icon">${a.icon}</span>
       <div style="flex:1">
-        <div style="font-size:13px;font-weight:600;color:var(--ink)">${a.name}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">${a.unlockHint}</div>
+        <div style="font-size:var(--fs-base);font-weight:600;color:var(--ink)">${a.name}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${a.unlockHint}</div>
         <div class="dash-next-ach-prog">
           <div class="dash-next-ach-fill" style="width:${clampedPct}%"></div>
         </div>
-        <div style="font-size:10px;font-family:var(--font-mono);color:var(--slate-2);margin-top:3px">${esc(label)} · ${clampedPct}%</div>
+        <div style="font-size:var(--fs-xs);font-family:var(--font-mono);color:var(--slate-2);margin-top:3px">${esc(label)} · ${clampedPct}%</div>
       </div>
     </div>`;
 }
@@ -3494,7 +3494,7 @@ function _renderLedgerAcctSwitcher() {
         ? 'color:var(--ember-text)'
         : (spendable >= 0 ? 'color:var(--pine-text)' : 'color:var(--ember-text)');
       const balTitle         = fromRunning ? 'From bank statement' : 'Estimated from txns';
-      const debtTag          = isDebt ? ' <span style="font-size:9px;opacity:.7">DEBT</span>' : '';
+      const debtTag          = isDebt ? ' <span style="font-size:var(--fs-xs);opacity:.7">DEBT</span>' : '';
       return `<div class="acct-switcher-item ${a===current?'active':''}" onclick="pickLedgerAccount(${JSON.stringify(a).replace(/\x22/g,'&quot;')})">
         <span class="acct-item-dot"></span>
         <span class="acct-item-name">${esc(a)}${debtTag}</span>
@@ -3561,15 +3561,15 @@ async function openLedgerBank(ev) {
     <div class="acct-switcher-item" style="gap:6px">
       <span class="acct-item-name">${esc(x.name)}</span>
       ${_fetchKeys.has(fk(x))
-        ? `<button class="tb-btn" style="padding:3px 8px;font-size:11px" title="Groundwork follows the steps you showed it; the file waits for your review" onclick="event.stopPropagation();g('ledgerBankMenu').classList.remove('open');startFetchAll(['${fk(x)}'])">⟳ Get transactions</button>`
-        : `<button class="tb-btn" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();g('ledgerBankMenu').classList.remove('open');_openBankPortal('${x.kind}', ${x.id}, 'window')">Open</button>`}
-      <button class="tb-btn" style="padding:3px 8px;font-size:11px" title="Open in your usual browser" onclick="event.stopPropagation();g('ledgerBankMenu').classList.remove('open');_openBankPortal('${x.kind}', ${x.id}, 'browser')">Browser</button>
+        ? `<button class="tb-btn" style="padding:3px 8px;font-size:var(--fs-xs)" title="Groundwork follows the steps you showed it; the file waits for your review" onclick="event.stopPropagation();g('ledgerBankMenu').classList.remove('open');startFetchAll(['${fk(x)}'])">⟳ Get transactions</button>`
+        : `<button class="tb-btn" style="padding:3px 8px;font-size:var(--fs-xs)" onclick="event.stopPropagation();g('ledgerBankMenu').classList.remove('open');_openBankPortal('${x.kind}', ${x.id}, 'window')">Open</button>`}
+      <button class="tb-btn" style="padding:3px 8px;font-size:var(--fs-xs)" title="Open in your usual browser" onclick="event.stopPropagation();g('ledgerBankMenu').classList.remove('open');_openBankPortal('${x.kind}', ${x.id}, 'browser')">Browser</button>
     </div>`);
   menu.innerHTML = (rows.length ? rows.join('') : `
-    <div style="padding:10px;font-size:12px;color:var(--slate);line-height:1.5">
+    <div style="padding:10px;font-size:var(--fs-sm);color:var(--slate);line-height:1.5">
       No bank websites yet. Add one to an account in Settings → Accounts, or to a card in its budget panel.
     </div>`) + `
-    <div style="padding:6px 10px 8px;font-size:11px;color:var(--slate-2);border-top:1px solid var(--mist-2);margin-top:4px;line-height:1.5">
+    <div style="padding:6px 10px 8px;font-size:var(--fs-xs);color:var(--slate-2);border-top:1px solid var(--mist-2);margin-top:4px;line-height:1.5">
       Save your download to your Downloads folder and Groundwork will offer to import it.
     </div>`;
   menu.style.left = ''; menu.style.right = '';
@@ -3666,7 +3666,7 @@ function _updateBulkToolbar() {
       background:var(--ink);color:var(--paper);
       border-radius:var(--r-lg);box-shadow:var(--shadow-md);
       padding:10px 16px;display:flex;align-items:center;gap:12px;
-      z-index:200;font-size:13px;white-space:nowrap;
+      z-index:200;font-size:var(--fs-base);white-space:nowrap;
       animation:slideUp .15s ease;
     `;
     document.body.appendChild(bar);
@@ -3678,30 +3678,30 @@ function _updateBulkToolbar() {
     .join('');
 
   bar.innerHTML = `
-    <span style="font-family:var(--font-mono);font-size:12px;opacity:.7">
+    <span style="font-family:var(--font-mono);font-size:var(--fs-sm);opacity:.7">
       ${count} selected
     </span>
     <select id="bulkCatSelect"
-      style="font-size:12px;padding:5px 8px;border:1px solid rgba(255,255,255,.2);
+      style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid rgba(255,255,255,.2);
              border-radius:var(--r-sm);background:rgba(255,255,255,.1);color:var(--paper);
              cursor:pointer">
       <option value="">Change category…</option>
       ${catOpts}
     </select>
     <button onclick="_applyBulkCategory()"
-      style="font-size:12px;font-family:inherit;background:var(--pine-text);color:#fff;
+      style="font-size:var(--fs-sm);font-family:inherit;background:var(--pine-text);color:#fff;
              border:none;border-radius:var(--r-md);padding:6px 12px;cursor:pointer;
              font-weight:500">
       Apply
     </button>
     <button onclick="_bulkDeleteSelected()"
-      style="font-size:12px;font-family:inherit;background:none;
+      style="font-size:var(--fs-sm);font-family:inherit;background:none;
              border:1px solid rgba(255,255,255,.2);color:#fca5a5;
              border-radius:var(--r-md);padding:6px 10px;cursor:pointer">
       Delete
     </button>
     <button onclick="_clearBulkSelection()"
-      style="font-size:12px;font-family:inherit;background:none;
+      style="font-size:var(--fs-sm);font-family:inherit;background:none;
              border:1px solid rgba(255,255,255,.2);color:var(--paper);
              border-radius:var(--r-md);padding:6px 10px;cursor:pointer">
       Cancel
@@ -4107,7 +4107,7 @@ function renderLedger() {
     </div>`;
   }).join('') + (shownTxns < totalTxns
     ? `<div style="text-align:center;padding:16px">
-         <div style="font-size:12px;color:var(--slate);margin-bottom:8px">
+         <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:8px">
            Showing the most recent ${shownTxns} of ${totalTxns} transactions</div>
          <button class="btn btn-sm btn-secondary" onclick="_ledgerShowAll=true;renderLedger()">
            Show all ${totalTxns}</button>
@@ -4517,10 +4517,10 @@ async function renderLedgerReimburse(fromLedger) {
   _reimburseLoaded = true;
   if (first && fromLedger && said === 'yes') renderLedger();   // the rows pick up their ↩ once the answer is known
   if (!said) {
-    el.innerHTML = `<div class="card mb-4" style="font-size:12px;color:var(--ink)">Do you buy things for work and get paid back by your employer?
+    el.innerHTML = `<div class="card mb-4" style="font-size:var(--fs-sm);color:var(--ink)">Do you buy things for work and get paid back by your employer?
       <button class="btn btn-secondary btn-sm" onclick="reimburseSaid('yes')">Yes</button>
       <button class="btn btn-ghost btn-sm" onclick="reimburseSaid('no')">No</button>
-      <div style="font-size:11px;color:var(--slate-2);margin-top:2px">With a yes, a purchase can be marked "my employer pays this back", so it isn't counted as your spending.</div></div>`;
+      <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:2px">With a yes, a purchase can be marked "my employer pays this back", so it isn't counted as your spending.</div></div>`;
     return;
   }
   if (said !== 'yes') { el.innerHTML = ''; return; }
@@ -4528,17 +4528,17 @@ async function renderLedgerReimburse(fromLedger) {
   const waiting = items.filter(i => i.status === 'waiting');
   const paid = items.filter(i => i.status === 'paid');
   el.innerHTML = `<div class="card mb-4"><div class="card-label">Paid back by work</div>
-    <div style="font-size:11px;color:var(--slate-2);margin-bottom:6px">Mark a purchase with ↩ on its row. Marked purchases and the repayments for them aren't counted as spending or income.
+    <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-bottom:6px">Mark a purchase with ↩ on its row. Marked purchases and the repayments for them aren't counted as spending or income.
       <button class="btn btn-ghost btn-sm" onclick="reimburseSaid('no')">I don't do this</button></div>
-    ${waiting.length ? waiting.map(i => `<div style="padding:8px 0;border-top:1px solid var(--steel);font-size:12px">
+    ${waiting.length ? waiting.map(i => `<div style="padding:8px 0;border-top:1px solid var(--steel);font-size:var(--fs-sm)">
       <b>${esc(i.name)}</b>, ${fmt(i.amount)} on ${_billDate(i.date)}${i.paid_back ? ` - ${fmt(i.paid_back)} paid back so far, ${fmt(i.left)} to go` : ' - waiting to be paid back'}
       ${(i.candidates || []).length ? `<div style="margin-top:4px;color:var(--slate)">Is it one of these deposits?</div>${i.candidates.map(c => `<div style="margin-top:2px">
         <button class="btn btn-secondary btn-sm" onclick="reimburseMatch(${i.id}, ${c.id})">Match ${fmt(c.would_apply)}</button>
         ${fmt(c.amount)} on ${_billDate(c.date)} from ${esc(c.name)}${c.carries_more ? ' <span style="color:var(--slate-2)">(this deposit carries other money too, so it stays where it is; the paid-back part is recorded against this purchase)</span>' : ''}</div>`).join('')}` : '<div style="color:var(--slate-2);margin-top:2px">No deposit on record yet that could be the repayment.</div>'}
       <div style="margin-top:4px">${i.matches.length ? '' : `<button class="btn btn-ghost btn-sm" onclick="reimburseUnmark(${i.id})">Not a work purchase</button>`}
         <button class="btn btn-ghost btn-sm" onclick="reimburseWriteOff(${i.id})">It won't be paid back</button></div></div>`).join('')
-      : '<div style="font-size:12px;color:var(--slate)">Nothing waiting to be paid back.</div>'}
-    ${paid.length ? `<details style="margin-top:6px"><summary style="font-size:11px;color:var(--sky);cursor:pointer">Paid back (${paid.length})</summary>${paid.map(i => `<div style="font-size:12px;padding:3px 0">${esc(i.name)}, ${fmt(i.amount)}: paid back ${i.matches.map(m => `${fmt(m.amount)} on ${_billDate(m.date)} <button class="btn btn-ghost btn-sm" onclick="reimburseUnmatch(${m.id})">Undo</button>`).join(', ')}</div>`).join('')}</details>` : ''}
+      : '<div style="font-size:var(--fs-sm);color:var(--slate)">Nothing waiting to be paid back.</div>'}
+    ${paid.length ? `<details style="margin-top:6px"><summary style="font-size:var(--fs-xs);color:var(--sky);cursor:pointer">Paid back (${paid.length})</summary>${paid.map(i => `<div style="font-size:var(--fs-sm);padding:3px 0">${esc(i.name)}, ${fmt(i.amount)}: paid back ${i.matches.map(m => `${fmt(m.amount)} on ${_billDate(m.date)} <button class="btn btn-ghost btn-sm" onclick="reimburseUnmatch(${m.id})">Undo</button>`).join(', ')}</div>`).join('')}</details>` : ''}
   </div>`;
 }
 
@@ -4596,7 +4596,7 @@ function _ledgerRowHTML(t) {
   const anchorKey = t.account || '';
   const isAnchor  = _reconAnchors[anchorKey] === t.id;
   const balanceCell = balance
-    ? `${balance}${isAnchor ? '<span style="color:var(--pine-text);font-size:10px;margin-left:4px;vertical-align:middle" title="Reconciled here">✓</span>' : ''}`
+    ? `${balance}${isAnchor ? '<span style="color:var(--pine-text);font-size:var(--fs-xs);margin-left:4px;vertical-align:middle" title="Reconciled here">✓</span>' : ''}`
     : '';
 
   // Color comes from S.categories (Settings). Tints are derived so a deep
@@ -4619,7 +4619,7 @@ function _ledgerRowHTML(t) {
     <div class="row-check"><input type="checkbox" class="txn-check" data-id="${t.id}" onclick="event.stopPropagation();_onTxnCheckChange()"></div>
     <div><div class="cat-icon" style="background:${iconBg};border-color:${iconBorder};color:${catStyle.color}">${_renderCatIcon(catStyle.icon, catStyle.color, 18)}</div></div>
     <div class="cell-date">${fmtDate(t.date)}</div>
-    <div class="cell-desc" title="${esc(fullDesc)}">${t.pending ? '<span class="badge" style="margin-right:6px;font-size:10px;color:var(--slate);border:0.5px solid var(--steel-2);border-radius:var(--r-sm);padding:0 4px" title="The bank\'s file said this line was still pending">pending</span>' : ''}${t.corrected || t.was_pending ? `<span style="margin-right:5px;color:var(--slate);font-size:11px" title="${t.corrected ? 'You corrected this line. Double-click to see the earlier versions.' : 'This line was pending first. Double-click to see both.'}">✎</span>` : ''}${esc(primary)}${debtLinkIcon}${sub ? `<div class="merchant-sub">${esc(sub)}</div>` : ''}</div>
+    <div class="cell-desc" title="${esc(fullDesc)}">${t.pending ? '<span class="badge" style="margin-right:6px;font-size:var(--fs-xs);color:var(--slate);border:0.5px solid var(--steel-2);border-radius:var(--r-sm);padding:0 4px" title="The bank\'s file said this line was still pending">pending</span>' : ''}${t.corrected || t.was_pending ? `<span style="margin-right:5px;color:var(--slate);font-size:var(--fs-xs)" title="${t.corrected ? 'You corrected this line. Double-click to see the earlier versions.' : 'This line was pending first. Double-click to see both.'}">✎</span>` : ''}${esc(primary)}${debtLinkIcon}${sub ? `<div class="merchant-sub">${esc(sub)}</div>` : ''}</div>
     <div class="cell-account">${esc(acctMain)}${acctTail ? `<span class="acct-suffix">${esc(acctTail)}</span>` : ''}</div>
     <div class="cell-cat"><span class="cat-dot" style="background:${catStyle.color}"></span><span class="cat-name">${esc(t.category||'Other')}</span></div>
     <div class="cell-amount ${sign}">${prefix}${fmtD(t.amount)}</div>
@@ -4765,17 +4765,17 @@ function _openEditBloom(row) {
 
     <!-- Split panel — hidden until Split is clicked -->
     <div id="bloomSplitPanel" style="display:none;margin-top:0;padding:14px 18px 0;border-top:1px solid var(--mist-2)">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--slate);margin-bottom:10px">
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--slate);margin-bottom:10px">
         Split transaction — amounts must total <span id="splitTotalTarget" style="font-family:var(--font-mono)">${fmt(t.amount)}</span>
       </div>
       <div id="splitRows"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
-        <button onclick="_addSplitRow(${t.amount})" style="font-size:12px;font-family:inherit;background:none;border:1px dashed var(--steel-2);border-radius:var(--r-sm);padding:5px 10px;cursor:pointer;color:var(--slate)">+ Add line</button>
-        <span id="splitRemaining" style="font-family:var(--font-mono);font-size:12px;color:var(--slate)"></span>
+        <button onclick="_addSplitRow(${t.amount})" style="font-size:var(--fs-sm);font-family:inherit;background:none;border:1px dashed var(--steel-2);border-radius:var(--r-sm);padding:5px 10px;cursor:pointer;color:var(--slate)">+ Add line</button>
+        <span id="splitRemaining" style="font-family:var(--font-mono);font-size:var(--fs-sm);color:var(--slate)"></span>
       </div>
       <div style="margin-top:12px;display:flex;justify-content:flex-end;gap:8px">
-        <button onclick="_cancelSplit()" style="font-size:12px;font-family:inherit;background:none;border:1px solid var(--steel-2);border-radius:var(--r-md);padding:6px 12px;cursor:pointer;color:var(--ink)">Cancel split</button>
-        <button onclick="_applySplit(${id})" style="font-size:12px;font-family:inherit;background:var(--pine-text);border:none;border-radius:var(--r-md);padding:6px 12px;cursor:pointer;color:#fff;font-weight:500">Apply split</button>
+        <button onclick="_cancelSplit()" style="font-size:var(--fs-sm);font-family:inherit;background:none;border:1px solid var(--steel-2);border-radius:var(--r-md);padding:6px 12px;cursor:pointer;color:var(--ink)">Cancel split</button>
+        <button onclick="_applySplit(${id})" style="font-size:var(--fs-sm);font-family:inherit;background:var(--pine-text);border:none;border-radius:var(--r-md);padding:6px 12px;cursor:pointer;color:#fff;font-weight:500">Apply split</button>
       </div>
     </div>
   `;
@@ -4851,15 +4851,15 @@ function _addSplitRow(suggestedAmt = 0, suggestedCat = '') {
   div.className = 'split-row';
   div.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px';
   div.innerHTML = `
-    <select class="split-cat edit-field" style="flex:1;font-size:12px">
+    <select class="split-cat edit-field" style="flex:1;font-size:var(--fs-sm)">
       ${cats.map(c => `<option${c===suggestedCat?' selected':''}>${esc(c)}</option>`).join('')}
     </select>
     <input type="number" class="split-amt edit-field mono" step="0.01" min="0"
       value="${suggestedAmt > 0 ? suggestedAmt.toFixed(2) : ''}"
-      placeholder="0.00" style="width:90px;font-size:12px"
+      placeholder="0.00" style="width:90px;font-size:var(--fs-sm)"
       oninput="_updateSplitRemaining()">
     ${idx > 1 ? `<button onclick="this.closest('.split-row').remove();_updateSplitRemaining()"
-      style="background:none;border:none;color:var(--slate-2);font-size:16px;cursor:pointer;padding:0 4px;line-height:1">×</button>` : '<span style="width:22px"></span>'}
+      style="background:none;border:none;color:var(--slate-2);font-size:var(--fs-lg);cursor:pointer;padding:0 4px;line-height:1">×</button>` : '<span style="width:22px"></span>'}
   `;
   container.appendChild(div);
 }
@@ -5116,26 +5116,26 @@ function _showRecurringPrompt(merchant, category, recurHint = null, alreadyHasRu
   `;
 
   const ruleSection = alreadyHasRule ? '' : `<div id="rrpRule" style="display:flex;flex-direction:column;gap:10px">
-    <div style="font-size:13px;color:var(--ink);line-height:1.5">
+    <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.5">
       ${question || `<b style="font-weight:600">${esc(merchant)}</b> was changed to
       <b style="font-weight:600">${esc(category)}</b>.
       Always categorize this merchant this way on future imports?`}
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button onclick="_promptAcceptRule()"
-        style="font-size:12px;font-family:inherit;background:var(--pine-text);color:#fff;
+        style="font-size:var(--fs-sm);font-family:inherit;background:var(--pine-text);color:#fff;
                border:none;border-radius:var(--r-md);padding:6px 14px;cursor:pointer;
                font-weight:500">
         Yes, always
       </button>
       <button onclick="_rrpClose('rule')"
-        style="font-size:12px;font-family:inherit;background:none;
+        style="font-size:var(--fs-sm);font-family:inherit;background:none;
                border:1px solid var(--steel-2);border-radius:var(--r-md);
                padding:6px 14px;cursor:pointer;color:var(--ink)">
         No thanks
       </button>
       <button onclick="_promptSuppressMerchant()"
-        style="font-size:12px;font-family:inherit;background:none;border:none;
+        style="font-size:var(--fs-sm);font-family:inherit;background:none;border:none;
                color:var(--slate-2);cursor:pointer;padding:6px 4px;
                text-decoration:underline">
         Never ask for this merchant
@@ -5146,26 +5146,26 @@ function _showRecurringPrompt(merchant, category, recurHint = null, alreadyHasRu
   // pattern and isn't already a recurring transaction.
   const billSection = recurHint ? `<div id="rrpBill" style="display:flex;flex-direction:column;gap:10px">
     <div id="rrpBillText" style="${alreadyHasRule ? '' : 'border-top:1px solid var(--steel);padding-top:10px;'}
-                font-size:13px;color:var(--ink);line-height:1.5">
+                font-size:var(--fs-base);color:var(--ink);line-height:1.5">
       This looks like a monthly bill — about <b style="font-weight:600;font-family:var(--font-mono)">${fmt(recurHint.amount)}</b>
       around day ${recurHint.day}. Add it to recurring transactions so it shows in Upcoming?
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button onclick="_promptAcceptBill()"
-        style="font-size:12px;font-family:inherit;background:var(--pine-text);color:#fff;
+        style="font-size:var(--fs-sm);font-family:inherit;background:var(--pine-text);color:#fff;
                border:none;border-radius:var(--r-md);padding:6px 14px;cursor:pointer;
                font-weight:500">
         Add recurring bill
       </button>
       <button onclick="_rrpClose('bill')"
-        style="font-size:12px;font-family:inherit;background:none;
+        style="font-size:var(--fs-sm);font-family:inherit;background:none;
                border:1px solid var(--steel-2);border-radius:var(--r-md);
                padding:6px 14px;cursor:pointer;color:var(--ink)">
         No thanks
       </button>
       ${alreadyHasRule ? `
       <button onclick="_promptSuppressMerchant()"
-        style="font-size:12px;font-family:inherit;background:none;border:none;
+        style="font-size:var(--fs-sm);font-family:inherit;background:none;border:none;
                color:var(--slate-2);cursor:pointer;padding:6px 4px;
                text-decoration:underline">
         Never ask for this merchant
@@ -5271,7 +5271,7 @@ async function renderNewVendorCard() {
   const n = _newVendors.length;
   box.innerHTML = `<div class="card mb-4" style="border-left:3px solid var(--pine)">
     <div class="card-label">New vendor${n > 1 ? ` · 1 of ${n}` : ''}</div>
-    <div style="font-size:13px;color:var(--ink);line-height:1.6">
+    <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.6">
       Groundwork found a new transaction from <b style="font-weight:600">${esc(v.merchant)}</b>, a vendor it hasn't seen
       before: ${fmt(v.txn.amount)} on ${fmtDate(v.txn.date)}${v.count > 1 ? ` (and ${v.count - 1} more)` : ''}.
       Your bank labelled it <b style="font-weight:600">${esc(v.label)}</b>, so it's filed under
@@ -6071,7 +6071,7 @@ function renderImportRules() {
   if (!el) return;
 
   if (!_importRules.length) {
-    el.innerHTML = `<div style="font-size:12px;color:var(--slate);padding:8px 0">
+    el.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate);padding:8px 0">
       No rules yet. Add a rule to automatically categorize transactions on every import.
     </div>`;
     return;
@@ -6080,7 +6080,7 @@ function renderImportRules() {
   el.innerHTML = _importRules.map((rule, idx) => `
     <div style="display:flex;align-items:center;gap:10px;padding:7px 0;
                 border-bottom:0.5px solid var(--steel-2)">
-      <div style="flex:1;font-size:12px">
+      <div style="flex:1;font-size:var(--fs-sm)">
         <span style="color:var(--slate)">Description </span>
         <span style="color:var(--ink)">${esc(rule.type === 'startsWith' ? 'starts with' : 'contains')}</span>
         <strong style="color:var(--sky)"> "${esc(rule.value)}"</strong>
@@ -6089,7 +6089,7 @@ function renderImportRules() {
         ${rule.direction ? `<span style="color:var(--slate-2)"> (${rule.direction === 'credit' ? 'deposits only' : 'charges only'})</span>` : ''}
       </div>
       <button onclick="deleteImportRule(${idx})"
-        style="font-size:11px;padding:2px 8px;border-radius:20px;background:none;
+        style="font-size:var(--fs-xs);padding:2px 8px;border-radius:20px;background:none;
                border:0.5px solid var(--steel);cursor:pointer;
                color:var(--slate)">Remove</button>
     </div>`
@@ -6101,7 +6101,7 @@ function showAddImportRule() {
 
   confirmAction(
     'Add categorization rule',
-    `<div style="font-size:12px;color:var(--slate);margin-bottom:12px;line-height:1.6">
+    `<div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:12px;line-height:1.6">
        When a transaction description matches this rule, it will automatically be assigned the category you choose.
      </div>
      <div class="field mb-3">
@@ -6244,7 +6244,7 @@ async function handleImportFile(evt) {
 
   const preview = g('importPreview');
   if (preview) {
-    preview.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:16px 0;font-size:13px;color:var(--slate)">
+    preview.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:16px 0;font-size:var(--fs-base);color:var(--slate)">
       <div class="spinner"></div>Analyzing file…</div>`;
   }
 
@@ -6295,7 +6295,7 @@ async function handleImportFile(evt) {
       g('importConfirmBtn').disabled  = false;
       g('importConfirmBtn').textContent = `Import ${_importRecords.length} transactions`;
     } catch(e2) {
-      if (preview) preview.innerHTML = `<div style="color:var(--ember-text);font-size:13px;padding:12px 0">Could not parse file: ${e2.message}</div>`;
+      if (preview) preview.innerHTML = `<div style="color:var(--ember-text);font-size:var(--fs-base);padding:12px 0">Could not parse file: ${e2.message}</div>`;
     }
   }
 }
@@ -6308,7 +6308,7 @@ async function handleImportFile(evt) {
 async function handlePdfStatementFile(file) {
   const preview = g('importPreview');
   if (preview) {
-    preview.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:16px 0;font-size:13px;color:var(--slate)">
+    preview.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:16px 0;font-size:var(--fs-base);color:var(--slate)">
       <div class="spinner"></div>Reading statement…</div>`;
   }
   if (g('importConfirmBtn')) g('importConfirmBtn').disabled = true;
@@ -6322,7 +6322,7 @@ async function handlePdfStatementFile(file) {
 
     const data = res.data || res;
     if (data.ai_available === false) {
-      if (preview) preview.innerHTML = `<div style="color:var(--ember-text);font-size:13px;padding:12px 0">
+      if (preview) preview.innerHTML = `<div style="color:var(--ember-text);font-size:var(--fs-base);padding:12px 0">
         ${esc(data.message || 'AI extraction is unavailable — check your AI settings and try again.')}
       </div>`;
       return;
@@ -6347,7 +6347,7 @@ async function handlePdfStatementFile(file) {
         : 'Import statement';
     }
   } catch (e) {
-    if (preview) preview.innerHTML = `<div style="color:var(--ember-text);font-size:13px;padding:12px 0">Could not read statement: ${esc(e.message)}</div>`;
+    if (preview) preview.innerHTML = `<div style="color:var(--ember-text);font-size:var(--fs-base);padding:12px 0">Could not read statement: ${esc(e.message)}</div>`;
   }
 }
 
@@ -6376,7 +6376,7 @@ function _renderPdfSummaryPanel(summary, warnings, cached) {
   panel.id = 'importPdfSummaryPanel';
   panel.style.cssText = 'margin-top:16px;border:1px solid var(--steel);border-radius:var(--r-md);overflow:hidden';
   panel.innerHTML = `
-    <div style="padding:10px 14px;background:var(--mist);border-bottom:1px solid var(--steel);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2)">
+    <div style="padding:10px 14px;background:var(--mist);border-bottom:1px solid var(--steel);font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2)">
       Statement summary${cached ? ' · from a previous read of this file' : ''} — AI-extracted, check against your statement and correct anything wrong before importing
     </div>
     <div style="padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:10px 16px">
@@ -6385,7 +6385,7 @@ function _renderPdfSummaryPanel(summary, warnings, cached) {
         const emphasize = key === 'newBalance';
         const missing = val === null || val === undefined || val === '';
         return `<div>
-          <div style="font-size:10px;color:var(--slate-2);text-transform:uppercase;letter-spacing:.05em">${label}</div>
+          <div style="font-size:var(--fs-xs);color:var(--slate-2);text-transform:uppercase;letter-spacing:.05em">${label}</div>
           <div style="display:flex;align-items:center;gap:4px;margin-top:2px">
             <span style="font-size:${emphasize?'16px':'13px'};color:var(--slate-2)">${prefix}</span>
             <input type="number" step="0.01" data-key="${key}" data-pdf-summary-field="1"
@@ -6399,16 +6399,16 @@ function _renderPdfSummaryPanel(summary, warnings, cached) {
         </div>`;
       }).join('')}
       <div>
-        <div style="font-size:10px;color:var(--slate-2);text-transform:uppercase;letter-spacing:.05em">Statement period</div>
-        <div style="font-size:13px;margin-top:2px">
+        <div style="font-size:var(--fs-xs);color:var(--slate-2);text-transform:uppercase;letter-spacing:.05em">Statement period</div>
+        <div style="font-size:var(--fs-base);margin-top:2px">
           ${summary?.statementPeriod ? esc(fmtDate(summary.statementPeriod)) : `<span style="color:var(--slate-2)">not found on statement</span>`}
         </div>
       </div>
     </div>
-    ${warnings?.length ? `<div style="padding:8px 14px;background:var(--gold-bg);border-top:1px solid var(--gold-border);font-size:11px;color:var(--gold-text);line-height:1.6">
+    ${warnings?.length ? `<div style="padding:8px 14px;background:var(--gold-bg);border-top:1px solid var(--gold-border);font-size:var(--fs-xs);color:var(--gold-text);line-height:1.6">
       ⚠️ ${warnings.map(esc).join(' · ')}
     </div>` : ''}
-    <div id="pdfSummaryBalanceNote" style="padding:8px 14px;background:var(--gold-bg);border-top:1px solid var(--gold-border);font-size:11px;color:var(--gold-text);${summary?.newBalance == null ? '' : 'display:none'}">
+    <div id="pdfSummaryBalanceNote" style="padding:8px 14px;background:var(--gold-bg);border-top:1px solid var(--gold-border);font-size:var(--fs-xs);color:var(--gold-text);${summary?.newBalance == null ? '' : 'display:none'}">
       No balance was found on this statement — the debt card won't be updated unless you enter one above.
     </div>
   `;
@@ -6443,13 +6443,13 @@ function renderImportPreview(data) {
       <!-- Bank badge + count -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate)">Detected:</span>
-          <span style="background:var(--sky-bg);color:var(--sky);border:1px solid var(--sky-border);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600">${esc(_importBank)}</span>
+          <span style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate)">Detected:</span>
+          <span style="background:var(--sky-bg);color:var(--sky);border:1px solid var(--sky-border);border-radius:20px;padding:2px 10px;font-size:var(--fs-sm);font-weight:600">${esc(_importBank)}</span>
         </div>
-        <span style="font-family:var(--font-mono);font-size:13px;font-weight:600">${_importRecords.length || data.records_count} transactions</span>
+        <span style="font-family:var(--font-mono);font-size:var(--fs-base);font-weight:600">${_importRecords.length || data.records_count} transactions</span>
       </div>
 
-      ${warnings.length ? `<div style="background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:var(--r-md);padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--gold-text)">
+      ${warnings.length ? `<div style="background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:var(--r-md);padding:8px 12px;margin-bottom:12px;font-size:var(--fs-sm);color:var(--gold-text)">
         ⚠️ ${warnings.join(' · ')}
       </div>` : ''}
 
@@ -6467,20 +6467,20 @@ function renderImportPreview(data) {
         const allBudgetCats = _categoryNames();
         return `
         <div style="background:var(--mist);border:1px solid var(--sky-border);border-radius:var(--r-md);padding:12px;margin-bottom:12px">
-          <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sky);margin-bottom:8px">
+          <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sky);margin-bottom:8px">
             Map bank categories → your budget
           </div>
-          <div style="font-size:12px;color:var(--slate);margin-bottom:10px;line-height:1.5">
+          <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:10px;line-height:1.5">
             These bank categories don't match your budget. Map them once and they'll be remembered for every future import.
           </div>
           <div id="categoryMappingRows" style="display:flex;flex-direction:column;gap:8px">
             ${unmapped.map(bankCat => `
               <div style="display:flex;align-items:center;gap:10px">
-                <span style="font-size:12px;font-weight:500;min-width:140px;color:var(--ink)">${esc(bankCat)}</span>
-                <span style="font-size:12px;color:var(--slate)">→</span>
+                <span style="font-size:var(--fs-sm);font-weight:500;min-width:140px;color:var(--ink)">${esc(bankCat)}</span>
+                <span style="font-size:var(--fs-sm);color:var(--slate)">→</span>
                 <select data-bank-cat="${esc(bankCat)}" onchange="applyAndSaveCategoryMapping(this)"
                   style="flex:1;background:var(--paper);border:1px solid var(--steel);border-radius:4px;
-                         font-size:12px;padding:4px 8px;color:var(--ink)">
+                         font-size:var(--fs-sm);padding:4px 8px;color:var(--ink)">
                   <option value="">— choose category —</option>
                   ${allBudgetCats.map(c =>
                     `<option value="${esc(c)}">${esc(c)}</option>`
@@ -6494,10 +6494,10 @@ function renderImportPreview(data) {
 
       <!-- Category breakdown -->
       <div style="background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-md);padding:12px;margin-bottom:12px">
-        <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:8px">Categories auto-assigned</div>
+        <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:8px">Categories auto-assigned</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px">
           ${Object.entries(catSummary).map(([cat, count]) =>
-            `<span style="background:var(--paper);border:1px solid var(--steel);border-radius:20px;padding:2px 8px;font-size:11px">
+            `<span style="background:var(--paper);border:1px solid var(--steel);border-radius:20px;padding:2px 8px;font-size:var(--fs-xs)">
               ${esc(cat)} <strong>${count}</strong>
             </span>`
           ).join('')}
@@ -6505,14 +6505,14 @@ function renderImportPreview(data) {
       </div>
 
       <!-- Sample rows -->
-      <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px">Preview</div>
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px">Preview</div>
       <div style="max-height:200px;overflow-y:auto;border:1px solid var(--steel);border-radius:var(--r-md)">
-        <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <table style="width:100%;border-collapse:collapse;font-size:var(--fs-sm)">
           <thead><tr style="background:var(--mist)">
-            <th style="padding:6px 10px;text-align:left;font-weight:600;color:var(--slate-2);font-size:10px;letter-spacing:.06em">Date</th>
-            <th style="padding:6px 10px;text-align:left;font-weight:600;color:var(--slate-2);font-size:10px;letter-spacing:.06em">Description</th>
-            <th style="padding:6px 10px;text-align:left;font-weight:600;color:var(--slate-2);font-size:10px;letter-spacing:.06em">Category</th>
-            <th style="padding:6px 10px;text-align:right;font-weight:600;color:var(--slate-2);font-size:10px;letter-spacing:.06em">Amount</th>
+            <th style="padding:6px 10px;text-align:left;font-weight:600;color:var(--slate-2);font-size:var(--fs-xs);letter-spacing:.06em">Date</th>
+            <th style="padding:6px 10px;text-align:left;font-weight:600;color:var(--slate-2);font-size:var(--fs-xs);letter-spacing:.06em">Description</th>
+            <th style="padding:6px 10px;text-align:left;font-weight:600;color:var(--slate-2);font-size:var(--fs-xs);letter-spacing:.06em">Category</th>
+            <th style="padding:6px 10px;text-align:right;font-weight:600;color:var(--slate-2);font-size:var(--fs-xs);letter-spacing:.06em">Amount</th>
           </tr></thead>
           <tbody>
             ${sample.map((t, i) => `<tr style="border-top:1px solid var(--steel)">
@@ -6520,7 +6520,7 @@ function renderImportPreview(data) {
               <td style="padding:6px 10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.description)}</td>
               <td style="padding:4px 10px">
                 <select data-idx="${i}" onchange="updateImportCategory(this)"
-                  style="background:var(--mist);border:1px solid var(--steel);border-radius:4px;font-size:11px;padding:2px 6px;color:var(--ink);outline:none">
+                  style="background:var(--mist);border:1px solid var(--steel);border-radius:4px;font-size:var(--fs-xs);padding:2px 6px;color:var(--ink);outline:none">
                   ${(()=>{
   const tree=_catTree('all');
   const opts=['<option value="">Select category…</option>'];
@@ -6541,7 +6541,7 @@ function renderImportPreview(data) {
           </tbody>
         </table>
         ${(data.records_count||_importRecords.length) > sample.length
-          ? `<div style="padding:8px 12px;font-size:11px;color:var(--slate-2);background:var(--mist)">…and ${(data.records_count||_importRecords.length) - sample.length} more transactions</div>`
+          ? `<div style="padding:8px 12px;font-size:var(--fs-xs);color:var(--slate-2);background:var(--mist)">…and ${(data.records_count||_importRecords.length) - sample.length} more transactions</div>`
           : ''}
       </div>
     </div>`;
@@ -6621,10 +6621,10 @@ async function _afterImportDownloadsChoice(file) {
     background:var(--paper);border:1px solid var(--steel);border-left:3px solid var(--sky);
     border-radius:var(--r-lg);box-shadow:var(--shadow-md);padding:14px 18px;max-width:480px;
     width:calc(100vw - 48px);z-index:200;display:flex;flex-direction:column;gap:10px;`;
-  const b = 'font-size:12px;font-family:inherit;border-radius:var(--r-md);padding:6px 12px;cursor:pointer';
+  const b = 'font-size:var(--fs-sm);font-family:inherit;border-radius:var(--r-md);padding:6px 12px;cursor:pointer';
   const what = kind === 'statements' ? 'statements' : 'bank files';
   el.innerHTML = `
-    <div style="font-size:13px;color:var(--ink);line-height:1.5">
+    <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.5">
       Remove <b style="font-weight:600">${esc(file.name)}</b> from your Downloads? Your transactions stay in Groundwork.
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -7364,7 +7364,7 @@ function _nonPrincipalPart(c) {
 function _mortgageSplitHTML(c) {
   const s = _mortgageSplit(c);
   if (!s) return '';
-  const box = t => `<div style="grid-column:1/-1;font-size:12px;line-height:1.55;color:var(--slate);margin-top:4px">${t}</div>`;
+  const box = t => `<div style="grid-column:1/-1;font-size:var(--fs-sm);line-height:1.55;color:var(--slate);margin-top:4px">${t}</div>`;
   if (!s.known) {
     return box(`Add the balance, APR and payoff / maturity date so Groundwork can separate principal &amp; interest from escrow. Until then, projections assume the whole payment reduces what you owe, which projects payoff early if part of it is escrow.`);
   }
@@ -7617,16 +7617,16 @@ function _budgetRenderGroupedExpenses() {
     `;
     header.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:16px;width:28px;text-align:center;color:${color}">
+        <span style="font-size:var(--fs-lg);width:28px;text-align:center;color:${color}">
           ${_renderCatIcon(pcs.icon, color, 16)}
         </span>
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px">
-            <span style="font-size:13px;font-weight:600;color:var(--ink)">${esc(parentName)}</span>
+            <span style="font-size:var(--fs-base);font-weight:600;color:var(--ink)">${esc(parentName)}</span>
             <div style="display:flex;gap:10px;align-items:baseline;flex-shrink:0">
-              ${totalSpent > 0 ? `<span style="font-family:var(--font-mono);font-size:11px;color:var(--slate)">${gwFig('budget.group_spent', `${fmt(totalSpent)} spent`, parentName, '@' + parentName)}</span>` : ''}
-              <span style="font-family:var(--font-mono);font-size:13px;color:var(--ink)">${gwFig('budget.group_budget', fmt(totalBudget), parentName)}</span>
-              <span style="font-size:11px;color:var(--slate-2)">${isExpanded ? '▴' : '▾'} ${items.length}</span>
+              ${totalSpent > 0 ? `<span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--slate)">${gwFig('budget.group_spent', `${fmt(totalSpent)} spent`, parentName, '@' + parentName)}</span>` : ''}
+              <span style="font-family:var(--font-mono);font-size:var(--fs-base);color:var(--ink)">${gwFig('budget.group_budget', fmt(totalBudget), parentName)}</span>
+              <span style="font-size:var(--fs-xs);color:var(--slate-2)">${isExpanded ? '▴' : '▾'} ${items.length}</span>
             </div>
           </div>
           ${totalBudget > 0 ? `
@@ -7700,7 +7700,7 @@ function _buildBudgetExpenseRowEl(exp, idx) {
   if (proj) {
     const trendIcon = proj.trending === 'over' ? '↑' : proj.trending === 'warn' ? '↗' : '';
     const trendClr  = proj.trending === 'over' ? 'var(--ember-text)' : proj.trending === 'warn' ? 'var(--gold-text)' : 'var(--pine-text)';
-    projLabel = `<span style="font-family:var(--font-mono);font-size:11px;color:${trendClr}">${trendIcon} ${gwFig('budget.line_projected', `${fmt(proj.projected)} proj.`, exp.name || catName)}</span>`;
+    projLabel = `<span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:${trendClr}">${trendIcon} ${gwFig('budget.line_projected', `${fmt(proj.projected)} proj.`, exp.name || catName)}</span>`;
   }
   projLabel += _budgetStateWords(proj, budget, spent);   // item 112 P5: the colour's meaning, in words
 
@@ -7712,14 +7712,14 @@ function _buildBudgetExpenseRowEl(exp, idx) {
   const iconBorder = _catTintBorder(cs.color);
   row.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px">
-      <div><div class="cat-icon" style="background:${iconBg};border-color:${iconBorder};color:${cs.color};width:24px;height:24px;font-size:12px">${_renderCatIcon(cs.icon, cs.color, 14)}</div></div>
+      <div><div class="cat-icon" style="background:${iconBg};border-color:${iconBorder};color:${cs.color};width:24px;height:24px;font-size:var(--fs-sm)">${_renderCatIcon(cs.icon, cs.color, 14)}</div></div>
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px">
-          <span style="font-size:12px;font-weight:500;color:var(--ink)">${esc(exp.name||catName)}</span>
+          <span style="font-size:var(--fs-sm);font-weight:500;color:var(--ink)">${esc(exp.name||catName)}</span>
           <div style="display:flex;gap:8px;align-items:baseline;flex-shrink:0">
-            ${spent > 0 ? `<span style="font-family:var(--font-mono);font-size:11px;color:var(--slate)">${gwFig('budget.line_spent', fmt(spent), exp.name || catName, catName)}</span>` : ''}
+            ${spent > 0 ? `<span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--slate)">${gwFig('budget.line_spent', fmt(spent), exp.name || catName, catName)}</span>` : ''}
             ${projLabel}
-            <span style="font-family:var(--font-mono);font-size:12px;color:var(--ink)">${gwFig('budget.line_budget', fmt(budget), exp.name || catName)}</span>
+            <span style="font-family:var(--font-mono);font-size:var(--fs-sm);color:var(--ink)">${gwFig('budget.line_budget', fmt(budget), exp.name || catName)}</span>
           </div>
         </div>
         ${budget > 0 ? `
@@ -7759,11 +7759,11 @@ async function _budgetRenderSinkingFundsSection() {
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div>
           <div class="card-label" style="margin:0">Saving toward</div>
-          <div style="font-size:12px;color:var(--slate);margin-top:3px">Sinking funds — Christmas, car repairs, vacation, anything annual.</div>
+          <div style="font-size:var(--fs-sm);color:var(--slate);margin-top:3px">Sinking funds — Christmas, car repairs, vacation, anything annual.</div>
         </div>
         <button class="btn-add" style="margin:0" onclick="showView('budget');_budgetShowSinkingFundAdd()">+ Add fund</button>
       </div>
-      <div style="font-size:12px;color:var(--slate);padding:8px 0">
+      <div style="font-size:var(--fs-sm);color:var(--slate);padding:8px 0">
         No sinking funds yet. Add one and the monthly contribution shows up here as a budget line.
       </div>`;
     return;
@@ -7785,7 +7785,7 @@ async function _budgetRenderSinkingFundsSection() {
     const conf     = confResults[idx];
     const confPct  = conf && conf.confidence_pct;
     const confBadge = (confPct != null)
-      ? `<span style="font-size:10px;font-family:var(--font-mono);color:${confPct>=70?'var(--pine-text)':confPct>=40?'var(--gold-text)':'var(--ember-text)'}" title="${esc(conf.reasoning||'')}">${confPct}% on pace</span>`
+      ? `<span style="font-size:var(--fs-xs);font-family:var(--font-mono);color:${confPct>=70?'var(--pine-text)':confPct>=40?'var(--gold-text)':'var(--ember-text)'}" title="${esc(conf.reasoning||'')}">${confPct}% on pace</span>`
       : '';
 
     let deadline = '';
@@ -7800,20 +7800,20 @@ async function _budgetRenderSinkingFundsSection() {
     return `
       <div data-fund-id="${f.id}" style="padding:10px 0;border-bottom:0.5px solid var(--steel-2)">
         <div style="display:flex;align-items:center;gap:10px">
-          <div style="font-size:18px;width:28px;text-align:center">🎯</div>
+          <div style="font-size:var(--fs-xl);width:28px;text-align:center">🎯</div>
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px">
-              <span style="font-size:13px;font-weight:500;color:var(--ink)">${esc(f.name)}</span>
+              <span style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">${esc(f.name)}</span>
               <div style="display:flex;gap:8px;align-items:baseline;flex-shrink:0">
                 ${confBadge}
-                <span style="font-family:var(--font-mono);font-size:11px;color:var(--slate)">${fmt(saved)} saved</span>
-                <span style="font-family:var(--font-mono);font-size:13px;color:var(--pine-text)">${fmt(contrib)}/mo</span>
+                <span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--slate)">${fmt(saved)} saved</span>
+                <span style="font-family:var(--font-mono);font-size:var(--fs-base);color:var(--pine-text)">${fmt(contrib)}/mo</span>
               </div>
             </div>
             <div style="height:4px;background:var(--steel);border-radius:2px;overflow:hidden;margin-bottom:3px">
               <div style="height:100%;width:${pct.toFixed(1)}%;background:${barColor};border-radius:2px;transition:width .4s"></div>
             </div>
-            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--slate-2)">
+            <div style="display:flex;justify-content:space-between;font-size:var(--fs-xs);color:var(--slate-2)">
               <span>${Math.round(pct)}% of ${fmt(target)} ${filled ? '✓ Funded' : ''}</span>
               <span>${deadline}</span>
             </div>
@@ -7828,7 +7828,7 @@ async function _budgetRenderSinkingFundsSection() {
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <div>
         <div class="card-label" style="margin:0">Saving toward</div>
-        <div style="font-size:12px;color:var(--slate);margin-top:2px">
+        <div style="font-size:var(--fs-sm);color:var(--slate);margin-top:2px">
           ${fmt(totalContrib)}/month set aside across ${funds.length} fund${funds.length!==1?'s':''}
         </div>
       </div>
@@ -7861,11 +7861,11 @@ function _sfRenderAdvisorEntry(funds) {
   card.innerHTML = `
     <div id="sfAdvisorAIEntry" style="display:flex;align-items:center;justify-content:space-between;gap:16px">
       <div>
-        <div style="font-size:13px;font-weight:500;color:var(--ink)">Groundwork's savings-goals analysis</div>
-        <div style="font-size:12px;color:var(--slate);margin-top:2px">AI-powered read of your sinking funds' pace toward their targets</div>
+        <div style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">Groundwork's savings-goals analysis</div>
+        <div style="font-size:var(--fs-sm);color:var(--slate);margin-top:2px">AI-powered read of your sinking funds' pace toward their targets</div>
       </div>
       <button onclick="_sfLaunchAdvisorAI()"
-        style="font-size:12px;padding:7px 16px;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
+        style="font-size:var(--fs-sm);padding:7px 16px;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
         ✦ Generate
       </button>
     </div>`;
@@ -7986,7 +7986,7 @@ function _utilityPriceContext(catName) {
 function _utilityBenchmarkNote(catName) {
   const ctx = _utilityPriceContext(catName);
   if (!ctx) return '';
-  return `<div style="margin-top:6px;font-size:10px;color:var(--slate-2)">
+  return `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--slate-2)">
     ⛽ ${esc(ctx.areaLabel)} avg ${ctx.label} price${ctx.period ? ` (${esc(ctx.period)})` : ''}: <strong style="color:var(--slate)">${esc(ctx.priceStr)}</strong> · source: EIA
   </div>`;
 }
@@ -8074,7 +8074,7 @@ function renderBudget() {
       <div id="budgetIncomeRows">
         ${S.incomes.length === 0 ? _budgetEmptyState('No income sources yet.', 'Add your take-home pay to get started.') : ''}
       </div>
-      <div id="budgetIncomeLedgerNote" style="display:none;font-size:12px;color:var(--slate);margin-top:10px;font-family:var(--font-mono)"></div>
+      <div id="budgetIncomeLedgerNote" style="display:none;font-size:var(--fs-sm);color:var(--slate);margin-top:10px;font-family:var(--font-mono)"></div>
     </div>
 
     <!-- EXPENSES SECTION -->
@@ -8088,7 +8088,7 @@ function renderBudget() {
       </div>
       ${_budgetDataMonths() >= 3 ? `
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--steel)">
-        <button class="btn btn-sm btn-ghost" onclick="_budgetPrefillFromHistory()" style="font-size:12px;color:var(--slate)">
+        <button class="btn btn-sm btn-ghost" onclick="_budgetPrefillFromHistory()" style="font-size:var(--fs-sm);color:var(--slate)">
           ↻ Pre-fill from my last 6 months →
         </button>
       </div>` : ''}
@@ -8099,7 +8099,7 @@ function renderBudget() {
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${activeDebts.length ? 16 : 0}px">
         <div>
           <div class="card-label" style="margin:0">Debt Payments</div>
-          ${activeDebts.length ? '' : '<div style="font-size:12px;color:var(--slate);margin-top:3px">Commitments this month.</div>'}
+          ${activeDebts.length ? '' : '<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:3px">Commitments this month.</div>'}
         </div>
         <button class="btn-add" style="margin:0" onclick="showView('debt')" title="Manage debt accounts in Debt Payoff">Manage debts ›</button>
       </div>
@@ -8115,48 +8115,48 @@ function renderBudget() {
     <div class="card" id="budgetWhatsLeftCard" style="border-color:${left >= 0 ? 'var(--pine-border)' : 'var(--ember-border)'};background:${left >= 0 ? 'var(--pine-bg)' : 'var(--ember-bg)'}">
       <div class="card-label" style="margin-bottom:16px;color:${left >= 0 ? 'var(--pine-text)' : 'var(--ember-text)'}">What's Left</div>
       <div style="display:flex;flex-direction:column;gap:10px">
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:var(--fs-base)">
           <span style="color:var(--slate)">Income</span>
           <span style="font-family:var(--font-mono);color:var(--pine-text)" id="wl-income" data-fig="budget.income">${fmt(totalIncome)}</span>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:var(--fs-base)">
           <span style="color:var(--slate)">Expenses</span>
           <span style="font-family:var(--font-mono);color:var(--ember-text)" id="wl-expenses" data-fig="budget.expenses">− ${fmt(totalExpenses)}</span>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:var(--fs-base)">
           <span style="color:var(--slate)">Debt payments${_dp.basis === 'plan' && _dp.amount > _dp.minimums + 0.005
-            ? ` <span style="font-size:11px;color:var(--slate-2)">(your payoff plan; minimums ${fmt(_dp.minimums)})</span>`
-            : _dp.basis !== 'no_debt' ? ' <span style="font-size:11px;color:var(--slate-2)">(the minimums)</span>' : ''}</span>
+            ? ` <span style="font-size:var(--fs-xs);color:var(--slate-2)">(your payoff plan; minimums ${fmt(_dp.minimums)})</span>`
+            : _dp.basis !== 'no_debt' ? ' <span style="font-size:var(--fs-xs);color:var(--slate-2)">(the minimums)</span>' : ''}</span>
           <span style="font-family:var(--font-mono);color:var(--ember-text)" id="wl-debt" data-fig="budget.debt_payments">− ${fmt(totalDebt)}</span>
         </div>
         ${totalSinking > 0 ? `
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:var(--fs-base)">
           <span style="color:var(--slate)">Sinking funds</span>
           <span style="font-family:var(--font-mono);color:var(--ember-text)" id="wl-sinking" data-fig="budget.sinking">− ${fmt(totalSinking)}</span>
         </div>` : '<div id="wl-sinking" style="display:none"></div>'}
         <div style="border-top:1px solid var(--steel);padding-top:12px;display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:14px;font-weight:600;color:var(--ink)">Left to save or spend</span>
+          <span style="font-size:var(--fs-md);font-weight:600;color:var(--ink)">Left to save or spend</span>
           <div style="text-align:right">
-            <div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--ink)" id="wl-left" data-fig="budget.left">${fmt(left)}</div>
-            <div style="font-size:10px;color:var(--slate-2);margin-top:1px">planned</div>
+            <div style="font-family:var(--font-mono);font-size:var(--fs-xl);font-weight:600;color:var(--ink)" id="wl-left" data-fig="budget.left">${fmt(left)}</div>
+            <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:1px">planned</div>
           </div>
         </div>
         <!-- CP2: projected left — hidden until projection engine has data -->
         <div id="wl-left-projected" style="display:none;justify-content:space-between;align-items:center;padding-top:6px">
-          <span style="font-size:12px;color:var(--slate)">Projected at this rate</span>
+          <span style="font-size:var(--fs-sm);color:var(--slate)">Projected at this rate</span>
           <div style="text-align:right">
-            <span class="wl-proj-val" data-fig="budget.left_projected" style="font-family:var(--font-mono);font-size:15px;font-weight:600"></span>
+            <span class="wl-proj-val" data-fig="budget.left_projected" style="font-family:var(--font-mono);font-size:var(--fs-lg);font-weight:600"></span>
           </div>
         </div>
       </div>
-      <div id="budgetRealismSentence" style="margin-top:14px;font-size:12px;color:var(--slate);line-height:1.5"></div>
-      <div id="budgetConsequence"     style="margin-top:6px;font-size:12px;color:var(--slate);line-height:1.5"></div>
+      <div id="budgetRealismSentence" style="margin-top:14px;font-size:var(--fs-sm);color:var(--slate);line-height:1.5"></div>
+      <div id="budgetConsequence"     style="margin-top:6px;font-size:var(--fs-sm);color:var(--slate);line-height:1.5"></div>
       <!-- B0d: Two-scenario comparison (current payments vs. minimums-only) -->
       <div id="budgetTwoScenario"     style="margin-top:6px"></div>
     </div>
 
     <!-- Cross-link to Reports -->
-    <div style="text-align:center;margin-top:20px;font-size:12px;color:var(--slate-2)">
+    <div style="text-align:center;margin-top:20px;font-size:var(--fs-sm);color:var(--slate-2)">
       Want to see where the money actually went?
       <span onclick="showView('reports')"
         style="color:var(--slate);cursor:pointer;text-decoration:underline;text-underline-offset:2px">
@@ -8196,17 +8196,17 @@ function renderBudget() {
           ? ` · ${card.paidInFull}` : '';
         div.innerHTML = `
           <div style="display:flex;align-items:center;gap:8px">
-            <span style="color:var(--pine-text);font-size:13px">✓</span>
+            <span style="color:var(--pine-text);font-size:var(--fs-base)">✓</span>
             <span style="font-family:'Playfair Display',Georgia,serif;font-style:italic;
-                         font-size:13px;color:var(--pine-text)">${esc(card.name||'Card')}</span>
-            <span style="font-family:var(--font-mono);font-size:11px;color:var(--pine-text);opacity:.7">
+                         font-size:var(--fs-base);color:var(--pine-text)">${esc(card.name||'Card')}</span>
+            <span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--pine-text);opacity:.7">
               Paid off${esc(paidAt)}
             </span>
           </div>
           <button onclick="confirmAction('Archive ${esc(card.name||'this card')}?',
             'It will be removed from your active list.',
             () => { removeCard(${card.id}); renderBudget(); }, 'Archive', false)"
-            style="font-size:11px;color:var(--pine-text);background:none;border:none;
+            style="font-size:var(--fs-xs);color:var(--pine-text);background:none;border:none;
                    cursor:pointer;opacity:.7;text-decoration:underline;
                    text-underline-offset:2px">
             Archive
@@ -8235,7 +8235,7 @@ function renderBudget() {
 // ── Budget helper: empty state ────────────────────────────────────────────────
 function _budgetEmptyState(title, sub) {
   return `<div class="empty-state" style="padding:16px 0 4px">
-    <div class="empty-state-title" style="font-size:13px">${esc(title)}</div>
+    <div class="empty-state-title" style="font-size:var(--fs-base)">${esc(title)}</div>
     <div class="empty-state-sub">${esc(sub)}</div>
   </div>`;
 }
@@ -8274,25 +8274,25 @@ function _budgetCheckShortfall(activeDebts) {
 
   const banner = document.createElement('div');
   banner.id = 'budgetShortfallBanner';
-  banner.style.cssText = 'margin-top:14px;padding:14px 16px;background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-sm);font-size:13px;line-height:1.7';
+  banner.style.cssText = 'margin-top:14px;padding:14px 16px;background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-sm);font-size:var(--fs-base);line-height:1.7';
   banner.innerHTML = `
-    <div style="font-size:13px;color:var(--ink);margin-bottom:10px">
+    <div style="font-size:var(--fs-base);color:var(--ink);margin-bottom:10px">
       Your projected expenses leave <strong style="font-family:var(--font-mono)">${fmt(available)}</strong>
       for debt this month, but your combined minimums total
       <strong style="font-family:var(--font-mono)">${fmt(totalMins)}</strong>.
       You're <strong style="font-family:var(--font-mono);color:var(--ember-text)">${fmt(shortfall)}</strong> short this month.
     </div>
-    <div style="font-size:12px;color:var(--slate);margin-bottom:10px">
+    <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:10px">
       This happens. Here's what the Consumer Financial Protection Bureau recommends:
     </div>
-    <ol style="font-size:12px;color:var(--slate);margin:0 0 12px 18px;padding:0;line-height:1.8">
+    <ol style="font-size:var(--fs-sm);color:var(--slate);margin:0 0 12px 18px;padding:0;line-height:1.8">
       <li>Add up income and expenses — look for costs to cut. Decide how much you can actually afford to pay.</li>
       <li>Call your credit card company — explain why you can't pay the minimum and how much you can pay. Many will work with you.</li>
       <li>Consider nonprofit credit counseling — they can help manage money and negotiate with creditors.</li>
       <li>Watch out for for-profit debt settlement companies — they often charge upfront fees and can make things worse.</li>
     </ol>
     <a href="${CFPB_CANT_PAY_URL}" onclick="openExternal('${CFPB_CANT_PAY_URL}');return false;"
-      style="font-size:12px;color:var(--pine-text);text-decoration:underline;text-underline-offset:2px;cursor:pointer">
+      style="font-size:var(--fs-sm);color:var(--pine-text);text-decoration:underline;text-underline-offset:2px;cursor:pointer">
       What to do when you can't pay your credit card bills (CFPB) →
     </a>
   `;
@@ -8474,10 +8474,10 @@ function _budgetRenderIncomeRow(inc, idx) {
   row.innerHTML = `
     <div><div class="cat-icon" style="background:${iconBg};border-color:${iconBorder};color:${cs.color}">${_renderCatIcon(cs.icon, cs.color, 18)}</div></div>
     <div style="flex:1;min-width:0">
-      <div style="font-size:13px;font-weight:500;color:var(--ink)">${esc(inc.name||'Income source')}</div>
-      <div style="font-size:11px;color:var(--slate)">${esc(inc.type||'Payroll')}</div>
+      <div style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">${esc(inc.name||'Income source')}</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate)">${esc(inc.type||'Payroll')}</div>
     </div>
-    <div style="font-family:var(--font-mono);font-size:14px;color:var(--pine-text);flex-shrink:0">${fmt(inc.amount)}</div>
+    <div style="font-family:var(--font-mono);font-size:var(--fs-md);color:var(--pine-text);flex-shrink:0">${fmt(inc.amount)}</div>
   `;
   row.onclick = () => _budgetOpenIncomeBloom(row, inc, idx);
   cont.appendChild(row);
@@ -8510,21 +8510,21 @@ function _budgetBuildIncomeBloom(inc, idx) {
   bloom.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
       <div class="field" style="margin:0">
-        <label style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Source name</label>
+        <label style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Source name</label>
         <input type="text" class="bloom-name" placeholder="e.g. City of Millbrook — Payroll"
           value="${esc(inc.name||'')}"
-          style="width:100%;font-size:13px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
+          style="width:100%;font-size:var(--fs-base);border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
       </div>
       <div class="field" style="margin:0">
-        <label style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Monthly amount</label>
+        <label style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Monthly amount</label>
         <input type="number" class="bloom-amount" placeholder="0" min="0" step="0.01"
           value="${inc.amount||''}"
-          style="width:100%;font-family:var(--font-mono);font-size:13px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
+          style="width:100%;font-family:var(--font-mono);font-size:var(--fs-base);border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
       </div>
     </div>
     <div class="field" style="margin:0 0 12px">
-      <label style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Type</label>
-      <select class="bloom-type" style="font-size:12px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
+      <label style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Type</label>
+      <select class="bloom-type" style="font-size:var(--fs-sm);border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
         <option value="salary"     ${(inc.type||'salary')==='salary'     ?'selected':''}>Payroll / Salary</option>
         <option value="variable"   ${(inc.type||'')==='variable'   ?'selected':''}>Variable / Bonus</option>
         <option value="freelance"  ${(inc.type||'')==='freelance'  ?'selected':''}>Freelance / 1099</option>
@@ -8649,7 +8649,7 @@ function _monthSpendSplit() {
 function _budgetStateWords(proj, budget, spent) {
   if (!(budget > 0)) return '';
   const fig = proj ? proj.projected : spent;
-  const word = s => ` <span style="font-size:11px;color:var(--slate)">${s}</span>`;
+  const word = s => ` <span style="font-size:var(--fs-xs);color:var(--slate)">${s}</span>`;
   if (fig > budget + 0.005) return word(`${fmt(fig - budget)} over${proj ? ' at this pace' : ''}`);
   if (proj && proj.trending === 'warn') return word('near the budget');
   return '';
@@ -8717,7 +8717,7 @@ function _budgetRenderExpenseRow(exp, idx) {
     const trendClr  = proj.trending === 'over' ? 'var(--ember-text)'
                     : proj.trending === 'warn' ? 'var(--gold-text)'
                     : 'var(--pine-text)';
-    projLabel = `<span style="font-family:var(--font-mono);font-size:11px;color:${trendClr}">${trendIcon} ${gwFig('budget.line_projected', `${fmt(proj.projected)} proj.`, exp.name || catName)}</span>`;
+    projLabel = `<span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:${trendClr}">${trendIcon} ${gwFig('budget.line_projected', `${fmt(proj.projected)} proj.`, exp.name || catName)}</span>`;
   }
   projLabel += _budgetStateWords(proj, budget, spent);   // item 112 P5: the colour's meaning, in words
 
@@ -8732,18 +8732,18 @@ function _budgetRenderExpenseRow(exp, idx) {
       <div><div class="cat-icon" style="background:${iconBg};border-color:${iconBorder};color:${cs.color}">${_renderCatIcon(cs.icon, cs.color, 18)}</div></div>
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:5px">
-          <span style="font-size:13px;font-weight:500;color:var(--ink)">${esc(exp.name||catName)}</span>
+          <span style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">${esc(exp.name||catName)}</span>
           <div style="display:flex;gap:10px;align-items:baseline;flex-shrink:0">
-            ${spent > 0 ? `<span style="font-family:var(--font-mono);font-size:12px;color:var(--slate)">${gwFig('budget.line_spent', `${fmt(spent)} spent`, exp.name || catName, catName)}</span>` : ''}
+            ${spent > 0 ? `<span style="font-family:var(--font-mono);font-size:var(--fs-sm);color:var(--slate)">${gwFig('budget.line_spent', `${fmt(spent)} spent`, exp.name || catName, catName)}</span>` : ''}
             ${projLabel}
-            <span style="font-family:var(--font-mono);font-size:13px;color:var(--ink)">${gwFig('budget.line_budget', fmt(budget), exp.name || catName)}</span>
+            <span style="font-family:var(--font-mono);font-size:var(--fs-base);color:var(--ink)">${gwFig('budget.line_budget', fmt(budget), exp.name || catName)}</span>
           </div>
         </div>
         ${budget > 0 ? `
         <div style="position:relative;height:4px;background:var(--steel);border-radius:2px;overflow:hidden">
           <div style="position:absolute;inset:0 auto 0 0;width:${Math.min(100, barPct)}%;background:${barColor};border-radius:2px;transition:width .4s ease"></div>
         </div>
-        <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:10px;color:var(--slate-2)">
+        <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:var(--fs-xs);color:var(--slate-2)">
           <span>${gwFig('budget.line_pct', `${barPct}%${proj ? ' projected' : spent > 0 ? ' spent' : ''}`, exp.name || catName)}</span>
           <span style="color:var(--slate-2)">${esc(exp.cat||'')}</span>
         </div>` : ''}
@@ -8821,7 +8821,7 @@ function _budgetBuildExpenseBloom(exp, idx) {
     if (proj)       rows.push(`<span style="color:var(--slate)">Projected: </span><span style="font-family:var(--font-mono);color:${proj.trending==='over'?'var(--ember-text)':proj.trending==='warn'?'var(--gold-text)':'var(--pine-text)'}">${fmt(proj.projected)}</span>`);
     if (budget > 0) rows.push(`<span style="color:var(--slate)">Budgeted: </span><span style="font-family:var(--font-mono)">${fmt(budget)}</span>`);
     if (rows.length) {
-      spendSummary = `<div style="font-size:12px;display:flex;gap:16px;flex-wrap:wrap;padding:8px 10px;background:var(--mist);border-radius:var(--r-sm);margin-bottom:12px">${rows.join('<span style="color:var(--steel-2);margin:0 2px">·</span>')}</div>`;
+      spendSummary = `<div style="font-size:var(--fs-sm);display:flex;gap:16px;flex-wrap:wrap;padding:8px 10px;background:var(--mist);border-radius:var(--r-sm);margin-bottom:12px">${rows.join('<span style="color:var(--steel-2);margin:0 2px">·</span>')}</div>`;
     }
   }
 
@@ -8829,7 +8829,7 @@ function _budgetBuildExpenseBloom(exp, idx) {
   let avgNote = '';
   if (avg6 !== null && avg6 > 0) {
     const tight = budget > 0 && avg6 > budget * 1.1;
-    avgNote = `<div style="font-size:11px;color:${tight?'var(--gold-text)':'var(--slate)'};margin-bottom:12px">
+    avgNote = `<div style="font-size:var(--fs-xs);color:${tight?'var(--gold-text)':'var(--slate)'};margin-bottom:12px">
       6-month average: <span style="font-family:var(--font-mono)">${fmt(avg6)}</span>${tight ? ' — your budget may be tight' : ''}
     </div>`;
   }
@@ -8843,21 +8843,21 @@ function _budgetBuildExpenseBloom(exp, idx) {
     ${spendSummary}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
       <div class="field" style="margin:0">
-        <label style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Description</label>
+        <label style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Description</label>
         <input type="text" class="bloom-name" placeholder="e.g. Honda lease"
           value="${esc(exp.name||'')}"
-          style="width:100%;font-size:13px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
+          style="width:100%;font-size:var(--fs-base);border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
       </div>
       <div class="field" style="margin:0">
-        <label style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Monthly budget</label>
+        <label style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Monthly budget</label>
         <input type="number" class="bloom-amount" placeholder="0" min="0" step="0.01"
           value="${exp.amount||''}"
-          style="width:100%;font-family:var(--font-mono);font-size:13px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
+          style="width:100%;font-family:var(--font-mono);font-size:var(--fs-base);border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
       </div>
     </div>
     <div class="field" style="margin:0 0 10px">
-      <label style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Category</label>
-      <select class="bloom-cat" style="font-size:12px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
+      <label style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Category</label>
+      <select class="bloom-cat" style="font-size:var(--fs-sm);border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
         ${_buildCatTreeOptions()}
       </select>
     </div>
@@ -8867,7 +8867,7 @@ function _budgetBuildExpenseBloom(exp, idx) {
       <button class="btn btn-sm btn-ghost"   onclick="_budgetCancelBloom(this)">Cancel</button>
       ${idx >= 0 ? `<button class="btn btn-sm btn-ghost" style="margin-left:auto;color:var(--ember-text)" onclick="_budgetDeleteExpense(${idx})">Remove</button>` : ''}
       ${catName && catName !== 'Other' && spent > 0 ? `
-      <button class="btn btn-sm btn-ghost" style="margin-left:${idx >= 0 ? '0' : 'auto'};color:var(--pine-text);font-size:11px"
+      <button class="btn btn-sm btn-ghost" style="margin-left:${idx >= 0 ? '0' : 'auto'};color:var(--pine-text);font-size:var(--fs-xs)"
         onclick="showView('ledger');setTimeout(()=>{const cf=g('ledgerCatFilter');if(cf){cf.value=${JSON.stringify(catName)};renderLedger();updateLedgerStats();}},80)">
         See ${fmt(spent)} in Ledger →
       </button>` : ''}
@@ -8949,19 +8949,19 @@ function _budgetPrefillFromHistory() {
   panel.innerHTML = `
     <div style="background:var(--paper);border-radius:var(--r-lg) var(--r-lg) 0 0;padding:24px;width:100%;max-width:520px;max-height:80vh;overflow-y:auto">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <div style="font-size:16px;font-weight:600;color:var(--ink)">Pre-fill from history</div>
-        <button onclick="document.getElementById('budgetPrefillPanel')?.remove()" style="background:none;border:none;font-size:20px;color:var(--slate);cursor:pointer;padding:0 4px">×</button>
+        <div style="font-size:var(--fs-lg);font-weight:600;color:var(--ink)">Pre-fill from history</div>
+        <button onclick="document.getElementById('budgetPrefillPanel')?.remove()" style="background:none;border:none;font-size:var(--fs-2xl);color:var(--slate);cursor:pointer;padding:0 4px">×</button>
       </div>
-      <div style="font-size:12px;color:var(--slate);margin-bottom:16px">Based on ${months.length} months of imports. Edit any amount before applying.</div>
+      <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:16px">Based on ${months.length} months of imports. Edit any amount before applying.</div>
       <div id="prefillRows" style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
         ${suggestions.map((s, i) => {
           const cs = _categoryStyle(s.cat);
           return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--mist);border-radius:var(--r-sm)">
             <div style="flex-shrink:0">${_renderCatIcon(cs.icon, cs.color, 14)}</div>
-            <span style="flex:1;font-size:13px;color:var(--ink)">${esc(s.cat)}</span>
-            <span style="font-size:10px;color:var(--slate-2)">${s.months}mo avg</span>
+            <span style="flex:1;font-size:var(--fs-base);color:var(--ink)">${esc(s.cat)}</span>
+            <span style="font-size:var(--fs-xs);color:var(--slate-2)">${s.months}mo avg</span>
             <input type="number" class="prefill-amt" data-cat="${esc(s.cat)}" value="${s.avg}" min="0" step="0.01"
-              style="width:80px;font-family:var(--font-mono);font-size:13px;text-align:right;border:1px solid var(--steel);border-radius:var(--r-sm);padding:4px 6px;background:var(--paper);color:var(--ink)">
+              style="width:80px;font-family:var(--font-mono);font-size:var(--fs-base);text-align:right;border:1px solid var(--steel);border-radius:var(--r-sm);padding:4px 6px;background:var(--paper);color:var(--ink)">
           </div>`;
         }).join('')}
       </div>
@@ -9259,7 +9259,7 @@ function _budgetRenderDebtRow(card) {
     const moLeft = Math.round((_localDay(card.endDate) - new Date()) / (1000*60*60*24*30.4));
     const endLbl = _localDay(card.endDate).toLocaleDateString('en-US',{month:'short',year:'numeric'});
     const badgeColor = moLeft <= 3 ? 'var(--gold-text)' : 'var(--slate-2)';
-    endDateBadge = `<span style="font-size:10px;color:${badgeColor};font-family:var(--font-mono)">${isLease ? 'ends' : 'matures'} ${endLbl}</span>`;
+    endDateBadge = `<span style="font-size:var(--fs-xs);color:${badgeColor};font-family:var(--font-mono)">${isLease ? 'ends' : 'matures'} ${endLbl}</span>`;
   }
 
   // Due date status — suppress entirely if payment already confirmed this month.
@@ -9299,13 +9299,13 @@ function _budgetRenderDebtRow(card) {
     progressBar = `<div style="margin-top:5px;height:4px;background:var(--steel);border-radius:2px;overflow:hidden">
       <div style="width:${paidPct}%;height:100%;background:${barColor};border-radius:2px;transition:width .5s ease"></div>
     </div>
-    <div style="font-size:10px;color:var(--slate-2);margin-top:2px">${paidPct}% paid</div>`;
+    <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:2px">${paidPct}% paid</div>`;
   }
 
   // CP4 Level 1: minimum decay badge
   const decay = _budgetMinDecay(card);
   const decayBadge = (decay && decay.freed > 0)
-    ? `<span style="font-size:10px;color:var(--pine-text);background:var(--pine-bg);border:1px solid var(--pine-border);border-radius:10px;padding:1px 6px;margin-left:6px">↓ min ${fmt(decay.freed)}</span>`
+    ? `<span style="font-size:var(--fs-xs);color:var(--pine-text);background:var(--pine-bg);border:1px solid var(--pine-border);border-radius:10px;padding:1px 6px;margin-left:6px">↓ min ${fmt(decay.freed)}</span>`
     : '';
 
   // Utilization bar (only when credit limit entered)
@@ -9338,17 +9338,17 @@ function _budgetRenderDebtRow(card) {
       <div><div class="cat-icon" style="background:var(--ember-bg);border-color:var(--ember-border);color:var(--ember-text)">${_renderCatIcon(isLease ? 'car' : isLoan ? 'bank' : 'credit-card', 'var(--ember-text)', 18)}</div></div>
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
-          <span style="font-size:13px;font-weight:500;color:var(--ink)">${esc(card.name||'Debt account')}${decayBadge}</span>
-          <span style="font-family:var(--font-mono);font-size:14px;color:var(--ember-text);flex-shrink:0">${fmt(min)}/mo</span>
+          <span style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">${esc(card.name||'Debt account')}${decayBadge}</span>
+          <span style="font-family:var(--font-mono);font-size:var(--fs-md);color:var(--ember-text);flex-shrink:0">${fmt(min)}/mo</span>
         </div>
-        <div style="font-size:11px;display:flex;gap:10px;align-items:center;margin-top:2px;flex-wrap:wrap">
-          ${isLease ? `<span style="color:var(--slate-2);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.04em">Lease</span>` : isLoan ? `<span style="color:var(--slate-2);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.04em">Loan</span>` : ''}
+        <div style="font-size:var(--fs-xs);display:flex;gap:10px;align-items:center;margin-top:2px;flex-wrap:wrap">
+          ${isLease ? `<span style="color:var(--slate-2);font-size:var(--fs-xs);font-weight:500;text-transform:uppercase;letter-spacing:.04em">Lease</span>` : isLoan ? `<span style="color:var(--slate-2);font-size:var(--fs-xs);font-weight:500;text-transform:uppercase;letter-spacing:.04em">Loan</span>` : ''}
           ${dueLabel ? `<span style="color:${dueColor};font-family:var(--font-mono)">${esc(dueLabel)}</span>` : ''}
           ${bal > 0  ? `<span style="color:var(--slate)">Balance ${fmt(bal)}</span>` : ''}
           ${apr > 0  ? `<span style="color:var(--slate-2)">${apr}% APR</span>` : ''}
           ${endDateBadge}
           ${card.linkedAccountId && card.calculatedBalance !== null
-            ? `<span style="color:var(--pine-text);font-size:10px">● from imports</span>` : ''}
+            ? `<span style="color:var(--pine-text);font-size:var(--fs-xs)">● from imports</span>` : ''}
         </div>
         ${progressBar}
         ${utilBar}
@@ -9452,12 +9452,12 @@ function _budgetOpenSchedulerPopup(cardId) {
   `;
 
   const explainer = _schedulerExplainerDismissed ? '' : `
-    <div style="font-size:12px;color:var(--slate);margin-bottom:14px;line-height:1.6">
+    <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:14px;line-height:1.6">
       <strong style="color:var(--ink)">${esc(card.name||'This card')}</strong>
       has your highest APR (${parseFloat(card.rate)||0}%). Putting extra here
       costs the least in total interest — that's the avalanche method.
     </div>
-    <div style="font-size:12px;color:var(--slate);margin-bottom:14px;line-height:1.6">
+    <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:14px;line-height:1.6">
       Where the extra comes from:
       <span style="font-family:var(--font-mono)">${fmt(sched.available)}</span> available
       after expenses, minus <span style="font-family:var(--font-mono)">${fmt(sched.otherMins)}</span>
@@ -9468,10 +9468,10 @@ function _budgetOpenSchedulerPopup(cardId) {
     <div style="background:var(--paper);border-radius:var(--r-lg) var(--r-lg) 0 0;
                 padding:24px 20px;width:100%;max-width:480px;
                 box-shadow:0 -4px 24px rgba(0,0,0,.12)">
-      <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:4px">
+      <div style="font-size:var(--fs-lg);font-weight:600;color:var(--ink);margin-bottom:4px">
         ${esc(card.name||'Debt card')}
       </div>
-      <div style="font-size:12px;color:var(--gold-text);font-weight:600;
+      <div style="font-size:var(--fs-sm);color:var(--gold-text);font-weight:600;
                   letter-spacing:.06em;text-transform:uppercase;margin-bottom:16px">
         Avalanche target this month
       </div>
@@ -9479,14 +9479,14 @@ function _budgetOpenSchedulerPopup(cardId) {
       ${explainer}
 
       <div style="background:var(--mist);border-radius:var(--r-sm);padding:14px;
-                  margin-bottom:16px;font-size:13px">
+                  margin-bottom:16px;font-size:var(--fs-base)">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px">
           <span style="color:var(--slate)">Suggested payment</span>
           <span style="font-family:var(--font-mono);font-weight:600;color:var(--ink)">
             ${fmt(sched.suggestedPayment)}
           </span>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:11px">
+        <div style="display:flex;justify-content:space-between;font-size:var(--fs-xs)">
           <span style="color:var(--slate-2)">Minimum ${fmt(parseFloat(card.minimum)||0)} + extra ${fmt(sched.availableExtra)}</span>
         </div>
       </div>
@@ -9494,19 +9494,19 @@ function _budgetOpenSchedulerPopup(cardId) {
       <div style="display:flex;gap:10px;margin-bottom:${_schedulerExplainerDismissed ? 0 : 14}px">
         <button onclick="_budgetAcceptScheduler(${card.id})"
           style="flex:1;background:var(--pine-text);color:#fff;border:none;
-                 border-radius:var(--r-md);padding:11px 0;font-size:14px;
+                 border-radius:var(--r-md);padding:11px 0;font-size:var(--fs-md);
                  font-weight:500;cursor:pointer">
           Accept ${fmt(sched.suggestedPayment)}
         </button>
         <button onclick="_budgetAdjustScheduler(${card.id}, ${sched.suggestedPayment})"
           style="flex:1;background:none;border:1px solid var(--steel);color:var(--ink);
-                 border-radius:var(--r-md);padding:11px 0;font-size:14px;cursor:pointer">
+                 border-radius:var(--r-md);padding:11px 0;font-size:var(--fs-md);cursor:pointer">
           Adjust
         </button>
       </div>
 
       ${!_schedulerExplainerDismissed ? `
-      <label style="display:flex;align-items:center;gap:8px;font-size:12px;
+      <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);
                     color:var(--slate);cursor:pointer">
         <input type="checkbox" id="schedNoDescChk"
                onchange="_schedulerExplainerDismissed=this.checked;_saveSchedulerPrefs()">
@@ -9573,7 +9573,7 @@ function _budgetTwoScenarioComparison(activeDebts) {
   const minStyle = minNever ? 'color:var(--ember-text)' : '';
 
   return `<div style="display:flex;justify-content:space-between;padding-top:8px;
-                       border-top:1px solid var(--steel);margin-top:8px;font-size:11px;
+                       border-top:1px solid var(--steel);margin-top:8px;font-size:var(--fs-xs);
                        color:var(--slate)">
     <span>At minimums only: <span style="font-family:var(--font-mono);${minStyle}">${minDate}</span></span>
     <span>Your ${_planName()} plan at ${fmt(_getMonthlyBudget())}/mo: <span style="font-family:var(--font-mono);color:var(--pine-text)">${currentDate}</span></span>
@@ -9592,13 +9592,13 @@ function _budgetRenderDebtSummary(activeDebts) {
   const lines = [];
 
   if (plan === undefined) {
-    lines.push(`<div style="font-size:12px;color:var(--slate);line-height:1.6">Payoff forecast: working it out…</div>`);
+    lines.push(`<div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6">Payoff forecast: working it out…</div>`);
   } else if (plan) {
     let summaryText = `Payoff forecast (your ${_planName()} plan, ${fmt(_getMonthlyBudget())}/mo): ${_payoffDateLabel(plan.months)}`;   // V4, V10
     // Only against a minimums run that finishes: a 30-year cut-off would understate it.
     const saves = mins && !mins.capped ? mins.totalInterest - plan.totalInterest : 0;
     if (saves > 0) summaryText += ` · Saves ${fmt(saves)} vs. minimums only`;
-    lines.push(`<div style="font-size:12px;color:var(--slate);line-height:1.6">${summaryText}</div>`);
+    lines.push(`<div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6">${summaryText}</div>`);
   }
 
   if (freed !== null && freed > 0) {
@@ -9606,11 +9606,11 @@ function _budgetRenderDebtSummary(activeDebts) {
     const sinceLabel = Object.values(_debtHistoryCache).some(h =>
       h.some(s => s.month === jan)
     ) ? ' since January' : ' this year';
-    lines.push(`<div style="font-size:12px;color:var(--pine-text);margin-top:3px">Freed minimums${sinceLabel}: +${fmt(freed)}/month</div>`);
+    lines.push(`<div style="font-size:var(--fs-sm);color:var(--pine-text);margin-top:3px">Freed minimums${sinceLabel}: +${fmt(freed)}/month</div>`);
   }
 
   if (plan) {
-    lines.push(`<button onclick="showView('reports');setTimeout(()=>_rcOpenReport('debt_payoff'),80)" style="background:none;border:none;padding:0;font-size:12px;color:var(--pine-text);cursor:pointer;margin-top:6px;text-decoration:underline;text-underline-offset:2px;font-weight:500">See full payoff plan →</button>`);
+    lines.push(`<button onclick="showView('reports');setTimeout(()=>_rcOpenReport('debt_payoff'),80)" style="background:none;border:none;padding:0;font-size:var(--fs-sm);color:var(--pine-text);cursor:pointer;margin-top:6px;text-decoration:underline;text-underline-offset:2px;font-weight:500">See full payoff plan →</button>`);
   }
 
   // ── Credit utilization summary ──
@@ -9622,12 +9622,12 @@ function _budgetRenderDebtSummary(activeDebts) {
     // A metric, not a prescription: the figure is shown plainly — no target
     // sentence, and no threshold colours that would say the same thing
     // without words. What a "good" utilization is was never Groundwork's to set.
-    lines.push(`<div style="font-size:12px;color:var(--slate);margin-top:6px">Combined credit utilization: ${utilPct}% across ${cardsWithLimits.length} card${cardsWithLimits.length!==1?'s':''} with limits.</div>`);
+    lines.push(`<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:6px">Combined credit utilization: ${utilPct}% across ${cardsWithLimits.length} card${cardsWithLimits.length!==1?'s':''} with limits.</div>`);
   }
 
   // V6: say what the projections above assumed for figures that weren't entered.
   const _assumed = _debtAssumptionNote(activeDebts);
-  if (_assumed) lines.push(`<div style="font-size:12px;color:var(--gold-text);margin-top:6px;line-height:1.5">${_assumed}</div>`);
+  if (_assumed) lines.push(`<div style="font-size:var(--fs-sm);color:var(--gold-text);margin-top:6px;line-height:1.5">${_assumed}</div>`);
 
   if (lines.length) {
     summaryEl.innerHTML = lines.join('');
@@ -9644,21 +9644,21 @@ function _budgetRenderDebtSummary(activeDebts) {
 // address belongs to the bank; the field says so.
 
 const _PORTAL_INPUT_ATTRS = `type="url" placeholder="https://www.yourbank.com" aria-label="Bank website"
-          style="font-size:12px;padding:5px 7px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper);font-family:var(--font-mono)"`;
+          style="font-size:var(--fs-sm);padding:5px 7px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper);font-family:var(--font-mono)"`;
 
 // The caller writes its own <input> with a literal id, so the ghost-ID
 // tripwire in smoke_test.py sees the element every lookup refers to.
 function _portalFieldHTML(inputHTML) {
   return `
       <div style="display:flex;flex-direction:column;gap:4px;padding:6px 4px">
-        <span style="font-size:11px;color:var(--slate)">Bank website</span>
+        <span style="font-size:var(--fs-xs);color:var(--slate)">Bank website</span>
         ${inputHTML}
-        <span style="font-size:11px;color:var(--slate-2);line-height:1.5">This is the address Groundwork will open. Groundwork doesn't check that it belongs to your bank. Make sure it does.</span>
+        <span style="font-size:var(--fs-xs);color:var(--slate-2);line-height:1.5">This is the address Groundwork will open. Groundwork doesn't check that it belongs to your bank. Make sure it does.</span>
       </div>`;
 }
 
 function _portalButtonsHTML(kind, id) {
-  const btn = `font-size:11px;font-family:inherit;border-radius:var(--r-md);padding:4px 9px;cursor:pointer;white-space:nowrap`;
+  const btn = `font-size:var(--fs-xs);font-family:inherit;border-radius:var(--r-md);padding:4px 9px;cursor:pointer;white-space:nowrap`;
   // Item 67 (Rob): an account with saved download steps gets them from this button; the browser one stays a plain visit
   const fkey = `${kind === 'account' ? 'account' : 'card'}:${id}`;
   const main = _fetchKeys.has(fkey)
@@ -9681,7 +9681,7 @@ async function _openBankPortal(kind, id, mode) {
     if (result === 'engine_unavailable') {
       confirmAction(
         "Groundwork can't open your bank here on this computer",
-        `<div style="line-height:1.7;font-size:13px;color:var(--slate)">This computer's built-in web engine isn't available to Groundwork, so the bank can't open in its own window. Your usual browser works the same way: download your transactions or statement there and Groundwork will offer to import them.</div>`,
+        `<div style="line-height:1.7;font-size:var(--fs-base);color:var(--slate)">This computer's built-in web engine isn't available to Groundwork, so the bank can't open in its own window. Your usual browser works the same way: download your transactions or statement there and Groundwork will offer to import them.</div>`,
         () => _openBankPortal(kind, id, 'browser'),
         'Open in my browser',
         false
@@ -9721,9 +9721,9 @@ function _askPortalConflict(conflict, done) {
     background:var(--paper);border:1px solid var(--steel);border-left:3px solid var(--sky);
     border-radius:var(--r-lg);box-shadow:var(--shadow-md);padding:14px 18px;
     max-width:480px;width:calc(100vw - 48px);z-index:200;display:flex;flex-direction:column;gap:10px;`;
-  const b = `font-size:12px;font-family:inherit;border-radius:var(--r-md);padding:6px 12px;cursor:pointer`;
+  const b = `font-size:var(--fs-sm);font-family:inherit;border-radius:var(--r-md);padding:6px 12px;cursor:pointer`;
   el.innerHTML = `
-    <div style="font-size:13px;color:var(--ink);line-height:1.5">
+    <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.5">
       This card opens <b style="font-weight:600;word-break:break-all">${esc(conflict.card_url)}</b>, and
       <b style="font-weight:600">${esc(conflict.account_name)}</b> opens <b style="font-weight:600;word-break:break-all">${esc(conflict.account_url)}</b>.
       A linked card uses one bank website. Which one?
@@ -9748,11 +9748,11 @@ async function _bloomLoadPortal(el) {
   const box = `padding:10px 12px;background:var(--mist);border-radius:var(--r-sm)`;
   if (d.owner === 'account') {
     el.innerHTML = `<div style="${box}">
-      <div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);margin-bottom:6px">Bank website</div>
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);margin-bottom:6px">Bank website</div>
       ${d.url
-        ? `<div style="font-size:12px;color:var(--ink);margin-bottom:8px">Uses <b style="font-weight:600">${esc(d.account_name || 'its account')}</b>'s bank website. Change it in Settings → Accounts.</div>
+        ? `<div style="font-size:var(--fs-sm);color:var(--ink);margin-bottom:8px">Uses <b style="font-weight:600">${esc(d.account_name || 'its account')}</b>'s bank website. Change it in Settings → Accounts.</div>
            <div style="display:flex;gap:6px;flex-wrap:wrap">${_portalButtonsHTML('card', dbId)}</div>`
-        : `<div style="font-size:12px;color:var(--slate-2)">No bank website yet. Add one to <b style="font-weight:600">${esc(d.account_name || 'its account')}</b> in Settings → Accounts.</div>`}
+        : `<div style="font-size:var(--fs-sm);color:var(--slate-2)">No bank website yet. Add one to <b style="font-weight:600">${esc(d.account_name || 'its account')}</b> in Settings → Accounts.</div>`}
     </div>`;
     return;
   }
@@ -9807,7 +9807,7 @@ function _budgetAprAlertHTML(card) {
   return `
     <div style="margin-bottom:14px;padding:12px 14px;background:var(--gold-bg);
                 border:1px solid var(--gold-border);border-radius:var(--r-sm);
-                font-size:12px;line-height:1.6">
+                font-size:var(--fs-sm);line-height:1.6">
       <div style="font-weight:600;color:var(--gold-text);margin-bottom:6px">⚠ APR may have changed</div>
       <div style="color:var(--ink)">
         Groundwork calculated <strong style="font-family:var(--font-mono)">${alert.implied_apr}%</strong>
@@ -9830,7 +9830,7 @@ function _budgetAprAlertHTML(card) {
           Enter manually
         </button>
       </div>
-      <div style="font-size:11px;color:var(--slate-2);margin-top:6px">
+      <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:6px">
         Verify against your statement before updating. Groundwork never auto-updates your rate.
       </div>
     </div>`;
@@ -9878,31 +9878,31 @@ function _budgetBuildDebtBloom(card) {
 
   const linkSection = `
     <div style="margin-bottom:14px;padding:10px 12px;background:var(--mist);border-radius:var(--r-sm)">
-      <div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);margin-bottom:6px">
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);margin-bottom:6px">
         Link to imported account
         <span title="Link this debt card to one of your imported bank accounts. After linking, importing that account's statement will automatically update this card's balance." style="cursor:help;color:var(--slate-2)"> ⓘ</span>
       </div>
       <select class="bloom-debt-link"
         onchange="_budgetBloomLinkAccount(this)"
-        style="width:100%;font-size:12px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
+        style="width:100%;font-size:var(--fs-sm);border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
         <option value="">Not linked</option>
         ${acctOptions}
       </select>
       ${card.linkedAccountId
-        ? `<div style="font-size:11px;color:var(--pine-text);margin-top:5px">● Importing this account updates this card's balance automatically.</div>`
-        : `<div style="font-size:11px;color:var(--slate-2);margin-top:5px">Import a statement from a linked account to keep this balance current.</div>`}
+        ? `<div style="font-size:var(--fs-xs);color:var(--pine-text);margin-top:5px">● Importing this account updates this card's balance automatically.</div>`
+        : `<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:5px">Import a statement from a linked account to keep this balance current.</div>`}
     </div>
     ${card._dbId ? `<div class="bloom-portal" data-db-id="${card._dbId}" style="margin-bottom:14px"></div>` : ''}`;
 
   // Balance cross-check: if calculated balance from imports differs from entered
   const calcBal = card.calculatedBalance;
   const crossCheck = (calcBal !== null && calcBal !== undefined && Math.abs(calcBal - bal) > 1)
-    ? `<div style="margin-bottom:12px;padding:10px 12px;background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-sm);font-size:12px;line-height:1.6">
+    ? `<div style="margin-bottom:12px;padding:10px 12px;background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-sm);font-size:var(--fs-sm);line-height:1.6">
         ${card.balanceBasis === 'bank'
           ? `Your bank's last reported balance is ${fmt(calcBal)}. You entered ${fmt(bal)}.`
           : `Imported activity adds up to ${fmt(calcBal)}. You entered ${fmt(bal)}.`}<br>
         Difference: ${fmt(Math.abs(calcBal - bal))} — likely interest or a fee.<br>
-        <div style="font-size:11px;color:var(--slate-2);margin-top:4px">Updates the balance field below. Hit Save to apply.</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px">Updates the balance field below. Hit Save to apply.</div>
         <div style="display:flex;gap:8px;margin-top:8px">
           <button class="btn btn-sm btn-ghost" onclick="_budgetCrossCheckUse(this,'${calcBal}')">Use Groundwork's ${fmt(calcBal)}</button>
           <button class="btn btn-sm btn-ghost" onclick="_budgetCrossCheckUse(this,'${bal}')">Use statement's ${fmt(bal)}</button>
@@ -9916,53 +9916,53 @@ function _budgetBuildDebtBloom(card) {
   bloom.dataset.debtId = card.id;
   bloom.style.cssText = 'border-left:3px solid var(--ember);background:var(--ember-bg);padding:14px 16px;border-radius:var(--r-sm);margin:4px 0';
   bloom.innerHTML = `
-    <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:12px">${esc(card.name||'Debt account')}</div>
+    <div style="font-size:var(--fs-base);font-weight:600;color:var(--ink);margin-bottom:12px">${esc(card.name||'Debt account')}</div>
     ${_budgetAprAlertHTML(card)}
     ${crossCheck}
-    <div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);margin-bottom:8px">Payment</div>
+    <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);margin-bottom:8px">Payment</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
       <div>
-        <label style="font-size:11px;color:var(--slate);display:block;margin-bottom:3px">This month's payment</label>
+        <label style="font-size:var(--fs-xs);color:var(--slate);display:block;margin-bottom:3px">This month's payment</label>
         <input type="number" class="bloom-debt-payment" min="0" step="0.01" value="${(min!=null&&min!=='')?min:(calcMin||'')}"
           oninput="_budgetDebtBloomCalc(this.closest('.budget-bloom'))"
-          style="width:100%;font-family:var(--font-mono);font-size:13px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
-        <div style="font-size:11px;color:var(--slate-2);margin-top:3px">
+          style="width:100%;font-family:var(--font-mono);font-size:var(--fs-base);border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
+        <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:3px">
           Minimum: <span class="bloom-min-display" style="font-family:var(--font-mono)">${fmt(calcMin)}</span>
         </div>
       </div>
       <div>
-        <label style="font-size:11px;color:var(--slate);display:block;margin-bottom:3px">Due day of month</label>
+        <label style="font-size:var(--fs-xs);color:var(--slate);display:block;margin-bottom:3px">Due day of month</label>
         <input type="number" class="bloom-debt-due" min="1" max="31" value="${card.dueDay!=null?card.dueDay:''}"
-          style="width:100%;font-family:var(--font-mono);font-size:13px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
+          style="width:100%;font-family:var(--font-mono);font-size:var(--fs-base);border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
       </div>
     </div>
-    <div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);margin-bottom:8px">Balance and rate — enter from your statement</div>
+    <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);margin-bottom:8px">Balance and rate — enter from your statement</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
       <div>
-        <label style="font-size:11px;color:var(--slate);display:block;margin-bottom:3px">Current balance</label>
+        <label style="font-size:var(--fs-xs);color:var(--slate);display:block;margin-bottom:3px">Current balance</label>
         <input type="number" class="bloom-debt-bal" min="0" step="0.01" value="${bal!=null?bal:''}"
           oninput="_budgetDebtBloomCalc(this.closest('.budget-bloom'))"
-          style="width:100%;font-family:var(--font-mono);font-size:13px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
+          style="width:100%;font-family:var(--font-mono);font-size:var(--fs-base);border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
       </div>
       <div>
-        <label style="font-size:11px;color:var(--slate);display:block;margin-bottom:3px">APR (%)</label>
+        <label style="font-size:var(--fs-xs);color:var(--slate);display:block;margin-bottom:3px">APR (%)</label>
         <input type="number" class="bloom-debt-apr" min="0" max="100" step="0.1" value="${apr!=null?apr:''}"
           oninput="_budgetDebtBloomCalc(this.closest('.budget-bloom'))"
-          style="width:100%;font-family:var(--font-mono);font-size:13px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
+          style="width:100%;font-family:var(--font-mono);font-size:var(--fs-base);border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
       </div>
       <div>
-        <label style="font-size:11px;color:var(--slate);display:block;margin-bottom:3px">
+        <label style="font-size:var(--fs-xs);color:var(--slate);display:block;margin-bottom:3px">
           Credit limit
           <span title="Optional. Groundwork uses this only to calculate your utilization ratio — it never leaves your computer." style="cursor:help;color:var(--slate-2)">ⓘ</span>
         </label>
         <input type="number" class="bloom-debt-limit" min="0" step="0.01" value="${limit!=null?limit:''}"
           oninput="_budgetDebtBloomCalc(this.closest('.budget-bloom'))"
-          style="width:100%;font-family:var(--font-mono);font-size:13px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
+          style="width:100%;font-family:var(--font-mono);font-size:var(--fs-base);border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
       </div>
     </div>
     <div class="bloom-debt-estimate" style="display:none;margin-bottom:14px;padding:10px 12px;background:var(--mist);border-radius:var(--r-sm)">
-      <div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);margin-bottom:8px">Groundwork's estimate</div>
-      <div class="bloom-est-rows" style="display:flex;flex-direction:column;gap:5px;font-size:12px"></div>
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);margin-bottom:8px">Groundwork's estimate</div>
+      <div class="bloom-est-rows" style="display:flex;flex-direction:column;gap:5px;font-size:var(--fs-sm)"></div>
     </div>
     ${linkSection}
     <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -10307,16 +10307,16 @@ function _paidOffCardHTML(card, freedMin, paidMonth, nextTargetName, nextCard) {
 
       <div style="text-align:center;margin-bottom:10px">
         <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;
-                    font-size:18px;font-weight:600;color:var(--pine-text)">
+                    font-size:var(--fs-xl);font-weight:600;color:var(--pine-text)">
           ${esc(card.name||'Paid off')}
         </div>
-        <div style="font-family:var(--font-mono);font-size:11px;color:var(--pine-text);
+        <div style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--pine-text);
                     opacity:.75;margin-top:3px">
           Paid off · ${esc(paidMonth)}
         </div>
       </div>
 
-      <div style="font-size:13px;color:var(--ink);line-height:1.6;text-align:center;
+      <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.6;text-align:center;
                   margin-bottom:14px">
         ${freedSentence}
       </div>
@@ -10325,7 +10325,7 @@ function _paidOffCardHTML(card, freedMin, paidMonth, nextTargetName, nextCard) {
         <button onclick="confirmAction('Archive ${esc(card.name||'this card')}?',
           'It will be removed from your active list.',
           () => { removeCard(${card.id}); }, 'Archive', false)"
-          style="font-size:11px;color:var(--slate);background:none;border:none;
+          style="font-size:var(--fs-xs);color:var(--slate);background:none;border:none;
                  cursor:pointer;text-decoration:underline;text-underline-offset:2px">
           Archive
         </button>
@@ -10371,21 +10371,21 @@ function _showCardPaidOffCelebration(cardName) {
       padding:40px 48px;text-align:center;max-width:380px;width:90%;
       animation:popIn .4s cubic-bezier(.34,1.56,.64,1);position:relative;z-index:2;
     ">
-      <div style="font-size:48px;margin-bottom:16px">🎉</div>
+      <div style="font-size:3rem;margin-bottom:16px">🎉</div>
       <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;
-                  font-size:22px;font-weight:600;margin-bottom:8px;color:var(--ink)">
+                  font-size:var(--fs-3xl);font-weight:600;margin-bottom:8px;color:var(--ink)">
         ${esc(cardName)} — paid off.
       </div>
-      <div style="font-size:14px;color:var(--slate);line-height:1.7;margin-bottom:20px">
+      <div style="font-size:var(--fs-md);color:var(--slate);line-height:1.7;margin-bottom:20px">
         That balance no longer exists. Every minimum payment you were making is now yours to redirect.
       </div>
-      <div style="font-size:13px;color:var(--pine-text);font-weight:500;margin-bottom:24px">
+      <div style="font-size:var(--fs-base);color:var(--pine-text);font-weight:500;margin-bottom:24px">
         ✓ First Card Down — earned
       </div>
       <button onclick="g('paidOffCelebration').remove()" style="
         background:var(--ink);color:var(--paper);
         border:none;border-radius:var(--r-md);padding:10px 28px;
-        font-size:14px;font-weight:500;cursor:pointer;
+        font-size:var(--fs-md);font-weight:500;cursor:pointer;
       ">Keep going</button>
     </div>`;
 
@@ -11201,13 +11201,13 @@ function tripCardDetailHTML(p, surplus, own, pick, incomeMonthly) {
     save = `Your record doesn't show 6 full months of income, so Groundwork can't tell what you usually keep. Pick a rate to plan with: `
       + [5, 10, 15, 20].map(r => `<button class="btn btn-secondary btn-sm" style="margin:2px" onclick="tripPickSaveRate(${r})">${r}%</button>`).join('');
   }
-  return `<div style="font-size:12px;color:var(--ink);line-height:1.7">
+  return `<div style="font-size:var(--fs-sm);color:var(--ink);line-height:1.7">
     <div>${fit}</div>
     <div style="margin-top:8px">If you pay it off in full by the statement due date: ${money(p.amount)} once, and no interest if your card has a grace period — check your card's terms.</div>
-    <table style="width:100%;margin-top:8px;font-size:12px"><tr style="color:var(--slate)"><td>If you pay it off in…</td><td>Each month</td><td>Interest</td><td>Paid off</td><td>Your surplus</td></tr>${rows}</table>
+    <table style="width:100%;margin-top:8px;font-size:var(--fs-sm)"><tr style="color:var(--slate)"><td>If you pay it off in…</td><td>Each month</td><td>Interest</td><td>Paid off</td><td>Your surplus</td></tr>${rows}</table>
     <div style="margin-top:8px">${cur}</div>
     <div style="margin-top:8px">Your surplus after debt payments today: ${money(surplus)}/mo. ${save}</div>
-    <div style="margin-top:8px;font-size:11px;color:var(--slate-2)">${p.assumptions.map(esc).join(' ')}</div>
+    <div style="margin-top:8px;font-size:var(--fs-xs);color:var(--slate-2)">${p.assumptions.map(esc).join(' ')}</div>
   </div>`;
 }
 
@@ -11283,11 +11283,11 @@ async function _learnFromPastTrip() {
   );
 
   if (txns.length < 3) {
-    if (resultEl) resultEl.innerHTML = `<div style="font-size:12px;color:var(--slate)">Only found ${txns.length} transaction${txns.length!==1?'s':''} in that range — not enough to build a real budget from. Try a wider date range.</div>`;
+    if (resultEl) resultEl.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate)">Only found ${txns.length} transaction${txns.length!==1?'s':''} in that range — not enough to build a real budget from. Try a wider date range.</div>`;
     return;
   }
 
-  if (resultEl) resultEl.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--slate)"><div class="spinner"></div>Reading ${txns.length} transactions from ${esc(label)}…</div>`;
+  if (resultEl) resultEl.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:var(--fs-sm);color:var(--slate)"><div class="spinner"></div>Reading ${txns.length} transactions from ${esc(label)}…</div>`;
 
   // Item 12 step 2 K4: ten transactions a call (cap 600), not all at once (up to 4,000 tokens); a batch whose reply
   // doesn't read is retried once, then its transactions are left out and the result says how many.
@@ -11321,7 +11321,7 @@ Respond with ONLY a JSON object: {"classifications": [{"id": "<id>", "bucket": "
         result = { ok: false };
       }
       if (!result.ok || !result.text) {
-        if (resultEl) resultEl.innerHTML = `<div style="font-size:12px;color:var(--ember-text)">Couldn't analyze that trip right now. Check your AI settings and try again.</div>`;
+        if (resultEl) resultEl.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--ember-text)">Couldn't analyze that trip right now. Check your AI settings and try again.</div>`;
         return;
       }
       try { parsed = JSON.parse(result.text.replace(/```json|```/g, '').trim()); } catch (e) { parsed = null; }
@@ -11347,7 +11347,7 @@ Respond with ONLY a JSON object: {"classifications": [{"id": "<id>", "bucket": "
 
   _renderTripLearnResult(label, start, end, travelers, buckets);
   if (unread && resultEl) resultEl.insertAdjacentHTML('beforeend',
-    `<div style="font-size:11px;color:var(--slate-2);margin-top:6px">${unread} transaction${unread !== 1 ? 's' : ''} couldn't be read by the model and ${unread !== 1 ? 'are' : 'is'} left out.</div>`);
+    `<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:6px">${unread} transaction${unread !== 1 ? 's' : ''} couldn't be read by the model and ${unread !== 1 ? 'are' : 'is'} left out.</div>`);
 }
 
 function _renderTripLearnResult(label, start, end, travelers, buckets) {
@@ -11374,14 +11374,14 @@ function _renderTripLearnResult(label, start, end, travelers, buckets) {
   _tripLearnPending = { label, hotelPerNight, diningPerPersonDay, activitiesPerPersonDay };
 
   const row = (icon, name, list, total) => `
-    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--steel-2);font-size:12px">
+    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--steel-2);font-size:var(--fs-sm)">
       <span>${icon} ${name} <span style="color:var(--slate-2)">(${list.length} txn${list.length!==1?'s':''})</span></span>
       <strong>${fmt(total)}</strong>
     </div>`;
 
   const reviewRows = ['hotel','dining','activities','transport'].flatMap(b =>
     buckets[b].map(t => `
-      <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px;color:var(--slate)">
+      <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:var(--fs-xs);color:var(--slate)">
         <span>${esc(t.date)} · ${esc((t.description||'').slice(0,40))} <span style="color:var(--slate-2)">(${b})</span></span>
         <span>${fmt(t.amount)}</span>
       </div>`)
@@ -11389,15 +11389,15 @@ function _renderTripLearnResult(label, start, end, travelers, buckets) {
 
   resultEl.innerHTML = `
     <div style="background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-md);padding:14px">
-      <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:8px">${esc(label)} — ${nights} night${nights!==1?'s':''}, ${travelers} traveler${travelers!==1?'s':''}</div>
+      <div style="font-size:var(--fs-sm);font-weight:600;color:var(--ink);margin-bottom:8px">${esc(label)} — ${nights} night${nights!==1?'s':''}, ${travelers} traveler${travelers!==1?'s':''}</div>
       ${row('🏨','Hotel', buckets.hotel, hotelTotal)}
       ${row('🍽','Dining', buckets.dining, diningTotal)}
       ${row('🎯','Activities', buckets.activities, activitiesTotal)}
       ${row('🚗','Transport (for reference only)', buckets.transport, transportTotal)}
-      ${buckets.exclude.length ? `<div style="font-size:11px;color:var(--slate-2);margin-top:8px">${buckets.exclude.length} transaction${buckets.exclude.length!==1?'s':''} excluded as not trip-related.</div>` : ''}
+      ${buckets.exclude.length ? `<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:8px">${buckets.exclude.length} transaction${buckets.exclude.length!==1?'s':''} excluded as not trip-related.</div>` : ''}
       <details style="margin-top:10px">
-        <summary style="font-size:11px;color:var(--slate-2);cursor:pointer">Review what was included</summary>
-        <div style="margin-top:8px;max-height:180px;overflow-y:auto">${reviewRows || '<div style="font-size:11px;color:var(--slate-2)">Nothing classified into these buckets.</div>'}</div>
+        <summary style="font-size:var(--fs-xs);color:var(--slate-2);cursor:pointer">Review what was included</summary>
+        <div style="margin-top:8px;max-height:180px;overflow-y:auto">${reviewRows || '<div style="font-size:var(--fs-xs);color:var(--slate-2)">Nothing classified into these buckets.</div>'}</div>
       </details>
       <div style="display:flex;gap:8px;margin-top:12px">
         <button class="btn btn-primary btn-sm" onclick="_applyTripLearnedBasis()">Use these numbers</button>
@@ -11411,7 +11411,7 @@ function _applyTripLearnedBasis() {
   _tripLearnedBasis = _tripLearnPending;
   _tripLearnPending = null;
   const resultEl = g('tripLearnResult');
-  if (resultEl) resultEl.innerHTML = `<div style="font-size:12px;color:var(--pine-text)">✓ Using ${esc(_tripLearnedBasis.label)}'s real spending as this trip's budget basis. <button onclick="_clearTripLearnedBasis()" style="background:none;border:none;color:var(--sky);text-decoration:underline;cursor:pointer;font-size:12px;padding:0;margin-left:6px">Clear</button></div>`;
+  if (resultEl) resultEl.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--pine-text)">✓ Using ${esc(_tripLearnedBasis.label)}'s real spending as this trip's budget basis. <button onclick="_clearTripLearnedBasis()" style="background:none;border:none;color:var(--sky);text-decoration:underline;cursor:pointer;font-size:var(--fs-sm);padding:0;margin-left:6px">Clear</button></div>`;
   showToast(`Using real numbers from ${_tripLearnedBasis.label}`, '', 'success');
   tripUpdateBudget();
 
@@ -11471,13 +11471,13 @@ function _tripNumberCandidates(val) {
 async function _readTripQuote() {
   if (!aiEnabled()) {      // AI-off audit F3
     const el = g('tripQuoteResult');
-    if (el) el.innerHTML = `<div style="font-size:12px;color:var(--slate)">Reading a pasted quote needs AI, which is ${_aiCannotRun ? 'unavailable on this computer' : 'off'}. A whole itinerary (Expedia, Booking.com, airline receipts, hotel folios) is read without AI: use Read as a whole itinerary.</div>`;
+    if (el) el.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate)">Reading a pasted quote needs AI, which is ${_aiCannotRun ? 'unavailable on this computer' : 'off'}. A whole itinerary (Expedia, Booking.com, airline receipts, hotel folios) is read without AI: use Read as a whole itinerary.</div>`;
     return;
   }
   const text     = g('tripQuoteText')?.value?.trim();
   const resultEl = g('tripQuoteResult');
   if (!text) { showToast('Paste a quote or describe your trip first', '', 'warning'); return; }
-  if (resultEl) resultEl.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--slate)"><div class="spinner"></div>Reading…</div>`;
+  if (resultEl) resultEl.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:var(--fs-sm);color:var(--slate)"><div class="spinner"></div>Reading…</div>`;
 
   const thisYear = new Date().getFullYear();
   const prompt = `Below is either a travel quote (lodging, flight, hotel — pasted from an email or website) or a plain-English description of a planned trip. Today's year is ${thisYear}; dates without a year mean the next time that date occurs.
@@ -11512,7 +11512,7 @@ Respond with ONLY the JSON object.`;
   } catch (e) { result = { ok: false }; }
 
   if (!result.ok || !result.text) {
-    if (resultEl) resultEl.innerHTML = `<div style="font-size:12px;color:var(--ember-text)">Couldn't read that right now. Check your AI settings and try again.</div>`;
+    if (resultEl) resultEl.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--ember-text)">Couldn't read that right now. Check your AI settings and try again.</div>`;
     return;
   }
 
@@ -11522,7 +11522,7 @@ Respond with ONLY the JSON object.`;
     const start = cleaned.indexOf('{');
     raw = JSON.parse(cleaned.slice(start, cleaned.lastIndexOf('}') + 1));
   } catch (e) {
-    if (resultEl) resultEl.innerHTML = `<div style="font-size:12px;color:var(--ember-text)">The model's response wasn't valid — try again.</div>`;
+    if (resultEl) resultEl.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--ember-text)">The model's response wasn't valid — try again.</div>`;
     return;
   }
 
@@ -11564,7 +11564,7 @@ Respond with ONLY the JSON object.`;
   const hasAnything = clean.destination || clean.departDate || clean.travelers ||
                       clean.lodgingTotal != null || clean.lodgingPerNight != null || clean.flightTotal != null;
   if (!hasAnything) {
-    if (resultEl) resultEl.innerHTML = `<div style="font-size:12px;color:var(--slate)">Couldn't find trip details in that text${warnings.length ? ` (${warnings.length} figure${warnings.length!==1?'s':''} failed verification)` : ''}. Try pasting more of the quote.</div>`;
+    if (resultEl) resultEl.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate)">Couldn't find trip details in that text${warnings.length ? ` (${warnings.length} figure${warnings.length!==1?'s':''} failed verification)` : ''}. Try pasting more of the quote.</div>`;
     return;
   }
 
@@ -11577,12 +11577,12 @@ function _renderTripQuoteResult(clean, warnings) {
   if (!resultEl) return;
   const KIND_LABEL = { lodging: 'Lodging quote', flight: 'Flight quote', trip_description: 'Trip description', other: 'Travel text' };
   const row = (label, val) => val == null ? '' : `
-    <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px">
+    <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:var(--fs-sm)">
       <span style="color:var(--slate)">${label}</span><strong>${esc(String(val))}</strong>
     </div>`;
   resultEl.innerHTML = `
     <div style="background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-md);padding:14px">
-      <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:6px">${KIND_LABEL[clean.kind]} — here's what was found:</div>
+      <div style="font-size:var(--fs-sm);font-weight:600;color:var(--ink);margin-bottom:6px">${KIND_LABEL[clean.kind]} — here's what was found:</div>
       ${row('Destination', clean.destination)}
       ${row('From', clean.origin)}
       ${row('Departure', clean.departDate)}
@@ -11592,7 +11592,7 @@ function _renderTripQuoteResult(clean, warnings) {
       ${row('Lodging total', clean.lodgingTotal != null ? fmt(clean.lodgingTotal) : null)}
       ${row('Lodging per night', clean.lodgingPerNight != null ? fmt(clean.lodgingPerNight) : null)}
       ${row('Flight total', clean.flightTotal != null ? fmt(clean.flightTotal) : null)}
-      ${warnings.length ? `<div style="font-size:11px;color:var(--gold-text);background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:var(--r-sm);padding:6px 10px;margin-top:8px">⚠️ ${warnings.map(esc).join(' · ')}</div>` : ''}
+      ${warnings.length ? `<div style="font-size:var(--fs-xs);color:var(--gold-text);background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:var(--r-sm);padding:6px 10px;margin-top:8px">⚠️ ${warnings.map(esc).join(' · ')}</div>` : ''}
       <div style="display:flex;gap:8px;margin-top:12px">
         <button class="btn btn-primary btn-sm" onclick="_applyTripQuote()">Fill the trip form</button>
         <button class="btn btn-ghost btn-sm" onclick="g('tripQuoteResult').innerHTML=''; _tripQuotePending=null">Discard</button>
@@ -11622,7 +11622,7 @@ function _applyTripQuote() {
   }
 
   const resultEl = g('tripQuoteResult');
-  if (resultEl) resultEl.innerHTML = `<div style="font-size:12px;color:var(--pine-text)">✓ Trip form filled from ${_tripQuoteData ? 'your quote’s real numbers' : 'your description'}. ${_tripQuoteData ? `<button onclick="_clearTripQuote()" style="background:none;border:none;color:var(--sky);text-decoration:underline;cursor:pointer;font-size:12px;padding:0;margin-left:6px">Clear quote prices</button>` : ''}</div>`;
+  if (resultEl) resultEl.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--pine-text)">✓ Trip form filled from ${_tripQuoteData ? 'your quote’s real numbers' : 'your description'}. ${_tripQuoteData ? `<button onclick="_clearTripQuote()" style="background:none;border:none;color:var(--sky);text-decoration:underline;cursor:pointer;font-size:var(--fs-sm);padding:0;margin-left:6px">Clear quote prices</button>` : ''}</div>`;
   showToast('Trip form filled', clean.destination || '', 'success');
 
   // setTripMode re-runs tripUpdateBudget itself; only call directly when
@@ -11658,7 +11658,7 @@ async function _readTripItinerary(file) {
   const text = g('tripQuoteText')?.value?.trim();
   if (!file && !text) { showToast('Paste an itinerary, or choose its PDF or saved email', '', 'warning'); return; }
   const say = (html) => { if (resultEl) resultEl.innerHTML = html; };
-  say(`<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--slate)"><div class="spinner"></div>Reading the itinerary on this computer…</div>`);
+  say(`<div style="display:flex;align-items:center;gap:10px;font-size:var(--fs-sm);color:var(--slate)"><div class="spinner"></div>Reading the itinerary on this computer…</div>`);
   let res;
   try {
     if (file) {
@@ -11672,7 +11672,7 @@ async function _readTripItinerary(file) {
       res = await API.post('/api/trip/itinerary/read', { text });
     }
   } catch (e) {
-    say(`<div style="font-size:12px;color:var(--ember-text)">${esc(e.message || 'Could not read that.')}</div>`);
+    say(`<div style="font-size:var(--fs-sm);color:var(--ember-text)">${esc(e.message || 'Could not read that.')}</div>`);
     return;
   } finally {
     if (g('tripItineraryFile')) g('tripItineraryFile').value = '';
@@ -11680,14 +11680,14 @@ async function _readTripItinerary(file) {
   if (res.needs_model) {
     // I5 / A10: with AI off the known senders still read; this one needs the model, so it says so plainly.
     if (!aiEnabled()) {
-      say(`<div style="font-size:12px;color:var(--slate);line-height:1.6">Groundwork reads Expedia, Booking.com, airline receipts and hotel folios on its own. This itinerary is from someone else, so reading it takes the AI model, which is off. You can enter the trip's figures in the form below.</div>`);
+      say(`<div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6">Groundwork reads Expedia, Booking.com, airline receipts and hotel folios on its own. This itinerary is from someone else, so reading it takes the AI model, which is off. You can enter the trip's figures in the form below.</div>`);
       return;
     }
     res = await _readTripItineraryWithModel(res);
-    if (!res) { say(`<div style="font-size:12px;color:var(--ember-text)">Couldn't read that itinerary right now - nothing was taken from it.</div>`); return; }
+    if (!res) { say(`<div style="font-size:var(--fs-sm);color:var(--ember-text)">Couldn't read that itinerary right now - nothing was taken from it.</div>`); return; }
   }
   if (!res.parts?.length) {
-    say(`<div style="font-size:12px;color:var(--slate)">No priced parts were found in that document.${res.warnings?.length ? ' ' + res.warnings.map(esc).join(' · ') : ''}</div>`);
+    say(`<div style="font-size:var(--fs-sm);color:var(--slate)">No priced parts were found in that document.${res.warnings?.length ? ' ' + res.warnings.map(esc).join(' · ') : ''}</div>`);
     return;
   }
   _tripItineraryPending = res;
@@ -11743,7 +11743,7 @@ function _renderTripItinerary(res) {
     return `
     <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:0.5px solid var(--steel)">
       <input type="checkbox" id="itinUse${p.id}" ${p.amount != null ? 'checked' : ''} style="margin-top:3px" aria-label="Use ${esc(p.vendor)}">
-      <div style="flex:1;font-size:12px;line-height:1.5">
+      <div style="flex:1;font-size:var(--fs-sm);line-height:1.5">
         <div><strong>${_ITIN_KIND[p.kind] || esc(p.kind)}</strong> · ${esc(p.vendor)}</div>
         <div style="color:var(--slate)">${[when, _ITIN_STATUS[p.status] || ''].filter(Boolean).map(esc).join(' · ')}</div>
         <div style="color:var(--slate-2)">${figures || 'no figure kept'}${p.basis === 'sum' ? ' - added up by Groundwork' : ''}</div>
@@ -11760,11 +11760,11 @@ function _renderTripItinerary(res) {
       : `The parts add up to <strong>${fmt(res.sum)}</strong>; the document's own total is <strong>${fmt(res.printed_total)}</strong>. Both are shown - Groundwork doesn't guess which is right. Check the parts against the document.`;
   el.innerHTML = `
     <div style="background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-md);padding:14px">
-      <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:4px">${esc(who.charAt(0).toUpperCase() + who.slice(1))}: ${res.parts.length} part${res.parts.length !== 1 ? 's' : ''} found ${res.source === 'model' ? '(read by the AI model; every figure checked against the document)' : '(read without AI)'}</div>
-      <div style="font-size:11px;color:var(--slate);margin-bottom:6px">Untick a part to leave it out, or correct an amount. Nothing is used until you say so.</div>
+      <div style="font-size:var(--fs-sm);font-weight:600;color:var(--ink);margin-bottom:4px">${esc(who.charAt(0).toUpperCase() + who.slice(1))}: ${res.parts.length} part${res.parts.length !== 1 ? 's' : ''} found ${res.source === 'model' ? '(read by the AI model; every figure checked against the document)' : '(read without AI)'}</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate);margin-bottom:6px">Untick a part to leave it out, or correct an amount. Nothing is used until you say so.</div>
       ${rows}
-      <div style="font-size:12px;margin-top:10px;line-height:1.6">${totals}</div>
-      ${res.warnings?.length ? `<div style="font-size:11px;color:var(--gold-text);background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:var(--r-sm);padding:6px 10px;margin-top:8px">⚠️ ${res.warnings.map(esc).join(' · ')}</div>` : ''}
+      <div style="font-size:var(--fs-sm);margin-top:10px;line-height:1.6">${totals}</div>
+      ${res.warnings?.length ? `<div style="font-size:var(--fs-xs);color:var(--gold-text);background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:var(--r-sm);padding:6px 10px;margin-top:8px">⚠️ ${res.warnings.map(esc).join(' · ')}</div>` : ''}
       <div style="display:flex;gap:8px;margin-top:12px">
         <button class="btn btn-primary btn-sm" onclick="_applyTripItinerary()">Use the ticked parts for this trip</button>
         <button class="btn btn-ghost btn-sm" onclick="g('tripQuoteResult').innerHTML=''; _tripItineraryPending=null">Discard</button>
@@ -11805,7 +11805,7 @@ async function _applyTripItinerary() {
   }
   if (booked) _tripBookingsKey = null;
   const el = g('tripQuoteResult');
-  if (el) el.innerHTML = `<div style="font-size:12px;color:var(--pine-text)">✓ ${parts.length} part${parts.length !== 1 ? 's' : ''} from ${esc(_itinLabel(res.sender))} ${parts.length !== 1 ? 'are' : 'is'} in the trip budget below${booked ? `, and ${booked} flight${booked !== 1 ? 's are' : ' is'} recorded as booked` : ''}.${unbooked ? ' Fill in the destination to record a flight as booked.' : ''} <button onclick="_clearTripItinerary()" style="background:none;border:none;color:var(--sky);text-decoration:underline;cursor:pointer;font-size:12px;padding:0;margin-left:6px">Stop using the itinerary</button></div>`;
+  if (el) el.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--pine-text)">✓ ${parts.length} part${parts.length !== 1 ? 's' : ''} from ${esc(_itinLabel(res.sender))} ${parts.length !== 1 ? 'are' : 'is'} in the trip budget below${booked ? `, and ${booked} flight${booked !== 1 ? 's are' : ' is'} recorded as booked` : ''}.${unbooked ? ' Fill in the destination to record a flight as booked.' : ''} <button onclick="_clearTripItinerary()" style="background:none;border:none;color:var(--sky);text-decoration:underline;cursor:pointer;font-size:var(--fs-sm);padding:0;margin-left:6px">Stop using the itinerary</button></div>`;
   if (parts.some(p => p.kind === 'flight') && _tripMode !== 'fly') setTripMode('fly');
   else tripUpdateBudget();
 }
@@ -11920,11 +11920,11 @@ async function openFlightSearch(mode) {
       origin, dest, depart, return: ret, travelers: parseInt(g('tripTravelers')?.value) || 1, mode: mode || 'window',
     });
     if (r?.result === 'engine_unavailable') {
-      say(`Groundwork's window could not open on this computer. <button onclick="openFlightSearch('browser')" style="background:none;border:none;color:var(--sky);text-decoration:underline;cursor:pointer;font-size:11px;padding:0">Open in my browser</button>`, 'var(--ember-text)');
+      say(`Groundwork's window could not open on this computer. <button onclick="openFlightSearch('browser')" style="background:none;border:none;color:var(--sky);text-decoration:underline;cursor:pointer;font-size:var(--fs-xs);padding:0">Open in my browser</button>`, 'var(--ember-text)');
     } else {
       if (mode !== 'browser' && r?.result === 'opened') _watchGoogleFare({ travelers: parseInt(g('tripTravelers')?.value) || 1, roundTrip: !!ret });
       say(`${mode === 'browser' ? 'Opened in your browser' : 'Opened in a Groundwork window'}: ${esc(origin)} → ${esc(dest)}${ret ? ' and back' : ', one way'}. ` +
-          (mode === 'browser' ? '' : `<button onclick="openFlightSearch('browser')" style="background:none;border:none;color:var(--sky);text-decoration:underline;cursor:pointer;font-size:11px;padding:0">Open in my browser instead</button>`), 'var(--slate)');
+          (mode === 'browser' ? '' : `<button onclick="openFlightSearch('browser')" style="background:none;border:none;color:var(--sky);text-decoration:underline;cursor:pointer;font-size:var(--fs-xs);padding:0">Open in my browser instead</button>`), 'var(--slate)');
     }
   } catch (e) {
     _gwErr('openFlightSearch')(e);
@@ -11982,7 +11982,7 @@ function airfareChangeLine(d) {
 }
 
 function _airfareNoteHtml(travelers) {
-  const box = inner => `<div style="padding:10px 14px;border-radius:var(--r-md);background:var(--paper);border:0.5px solid var(--steel);font-size:12px;color:var(--slate)">${inner}</div>`;
+  const box = inner => `<div style="padding:10px 14px;border-radius:var(--r-md);background:var(--paper);border:0.5px solid var(--steel);font-size:var(--fs-sm);color:var(--slate)">${inner}</div>`;
   const fromTyped = g('tripFromCity')?.value?.trim(), toTyped = g('tripToCity')?.value?.trim();
   if (!_airfareMarkets) return '';
   if ((fromTyped && !_airfareMarketId('tripFromCity')) || (toTyped && !_airfareMarketId('tripToCity'))) {
@@ -12005,8 +12005,8 @@ function _airfareNoteHtml(travelers) {
     ${from} → ${to}${roundTrip ? `, and ${fmt(est.fare)} back, ${to} → ${from}` : ''}.
     ${roundTrip ? `Round trip: (${fmt(est.fare)} + ${fmt(est.fare)})` : `One way: ${fmt(est.fare)}`}
     × ${est.travelers} traveler${est.travelers !== 1 ? 's' : ''} = <strong style="color:var(--ink)">${fmt(est.total)}</strong>.
-    <div style="margin-top:6px;font-size:11px;color:var(--slate-2)">Source: ${esc(d.source)}, ${quarter} — the average one-way fare passengers actually paid${d.basis === 'airport' ? ' between these two airports' : ' between these two cities, all their airports'}, from a 10% sample of real tickets (about ${Math.round(d.passengers_per_day).toLocaleString()} passengers a day). DOT keeps one figure for both directions of a route, so the return leg is the same average. It is not a fare you can book: compare it with the fares Google Flights shows for your dates${typed ? '. The fare you entered is used in your total instead' : ''}.</div>
-    ${airfareChangeLine(d) ? `<div style="margin-top:6px;font-size:11px;color:var(--slate-2)">${airfareChangeLine(d)}</div>` : ''}`);
+    <div style="margin-top:6px;font-size:var(--fs-xs);color:var(--slate-2)">Source: ${esc(d.source)}, ${quarter} — the average one-way fare passengers actually paid${d.basis === 'airport' ? ' between these two airports' : ' between these two cities, all their airports'}, from a 10% sample of real tickets (about ${Math.round(d.passengers_per_day).toLocaleString()} passengers a day). DOT keeps one figure for both directions of a route, so the return leg is the same average. It is not a fare you can book: compare it with the fares Google Flights shows for your dates${typed ? '. The fare you entered is used in your total instead' : ''}.</div>
+    ${airfareChangeLine(d) ? `<div style="margin-top:6px;font-size:var(--fs-xs);color:var(--slate-2)">${airfareChangeLine(d)}</div>` : ''}`);
 }
 
 // Item 48 (TRIP_EXACT_TOTALS.md, Rob 2026-10-08: "it should grab the exact
@@ -12071,10 +12071,10 @@ async function tripOpenBooking() {
       <div class="field"><label>Booked on</label><input type="date" id="tripBkDate" value="${today()}"></div>
       <div class="field"><label>Confirmation (optional)</label><input type="text" id="tripBkConf" maxlength="40" placeholder="You type it"></div>
     </div>
-    <div style="font-size:11px;color:var(--slate-2);margin:6px 0">Saved as a booking, not as spending: the charge counts once, when your bank or card import brings it in and you confirm it's this booking. Groundwork doesn't read the airline's pages.</div>
+    <div style="font-size:var(--fs-xs);color:var(--slate-2);margin:6px 0">Saved as a booking, not as spending: the charge counts once, when your bank or card import brings it in and you confirm it's this booking. Groundwork doesn't read the airline's pages.</div>
     <button class="btn btn-primary btn-sm" onclick="tripSaveBooking()">Save booking</button>
     <button class="btn btn-secondary btn-sm" onclick="g('tripBookingForm').style.display='none'">Cancel</button>
-    <span id="tripBkMsg" style="font-size:11px;margin-left:6px"></span>`;
+    <span id="tripBkMsg" style="font-size:var(--fs-xs);margin-left:6px"></span>`;
 }
 
 async function tripSaveBooking() {
@@ -12118,7 +12118,7 @@ function _tripRenderBookings() {
          <button class="btn btn-secondary btn-sm" onclick="tripCancelBooking(${b.id}, true)">Cancelled — refund expected</button>
          <button class="btn btn-secondary btn-sm" onclick="tripCancelBooking(${b.id}, false)">Cancelled — no refund</button>`
       : (b.status === 'cancelled' && b.refund_expected ? `<button class="btn btn-secondary btn-sm" onclick="tripFindCharge(${b.id})">Find the refund</button>` : '');
-    return `<div style="font-size:12px;color:var(--ink);padding:6px 0;border-top:1px solid var(--steel)">${tripBookingLine(b, _tripPayName(b))}
+    return `<div style="font-size:var(--fs-sm);color:var(--ink);padding:6px 0;border-top:1px solid var(--steel)">${tripBookingLine(b, _tripPayName(b))}
       ${b.confirmation ? `<span style="color:var(--slate-2)"> · confirmation ${esc(b.confirmation)}</span>` : ''}
       <div style="margin-top:4px">${btns}</div><div id="tripBkFind${b.id}" style="margin-top:4px"></div></div>`;
   }).join('');
@@ -12376,7 +12376,7 @@ function tripUpdateBudget() {
   if (gasNote) {
     if (_tripMode === 'drive' && gasPriceLive) {
       gasNote.style.display = '';
-      gasNote.innerHTML = `<div style="padding:10px 14px;border-radius:var(--r-md);background:var(--mist);border:0.5px solid var(--steel);font-size:12px;color:var(--slate)">
+      gasNote.innerHTML = `<div style="padding:10px 14px;border-radius:var(--r-md);background:var(--mist);border:0.5px solid var(--steel);font-size:var(--fs-sm);color:var(--slate)">
         ⛽ U.S. national average gas price${gasPricePeriod ? ` (week of ${esc(gasPricePeriod)})` : ''}:
         <strong style="color:var(--ink)">$${gasRate.toFixed(2)}/gal</strong> — source: EIA.
         Your trip's fuel line above uses this; actual prices along your route may differ.
@@ -12422,7 +12422,7 @@ async function _showTripForecastHint(dest, baseTotal) {
     if (res.confidence === 'none') { hint.style.display = 'none'; return; }
     const dir = res.adjustment_pct > 0 ? 'higher' : 'lower';
     hint.style.display = '';
-    hint.innerHTML = `<div style="padding:10px 14px;border-radius:var(--r-md);background:var(--mist);border:0.5px solid var(--steel);font-size:12px;color:var(--slate)">
+    hint.innerHTML = `<div style="padding:10px 14px;border-radius:var(--r-md);background:var(--mist);border:0.5px solid var(--steel);font-size:var(--fs-sm);color:var(--slate)">
       📍 Your past trips to this region ran ${Math.abs(res.adjustment_pct)}% ${dir} than estimated (${res.trip_count} trip${res.trip_count!==1?'s':''} tracked · ${res.confidence} confidence).
       Adjusted estimate: <strong style="color:var(--ink)">${fmt(res.estimate)}</strong>.
     </div>`;
@@ -12448,11 +12448,11 @@ function _tripRenderAdvisorEntry(forecast) {
   card.innerHTML = `
     <div id="tripAdvisorAIEntry" style="display:flex;align-items:center;justify-content:space-between;gap:16px">
       <div>
-        <div style="font-size:13px;font-weight:500;color:var(--ink)">Groundwork's trip-planning analysis</div>
-        <div style="font-size:12px;color:var(--slate);margin-top:2px">AI-powered read of this trip against your real regional cost history</div>
+        <div style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">Groundwork's trip-planning analysis</div>
+        <div style="font-size:var(--fs-sm);color:var(--slate);margin-top:2px">AI-powered read of this trip against your real regional cost history</div>
       </div>
       <button onclick="_tripLaunchAdvisorAI()"
-        style="font-size:12px;padding:7px 16px;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
+        style="font-size:var(--fs-sm);padding:7px 16px;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
         ✦ Generate
       </button>
     </div>`;
@@ -12599,9 +12599,9 @@ function _tripBudgetFallbackHTML(d) {
     ${d.other ? line('🧾 Other', d.other, d.otherSource, 'trip.other') : ''}
     ${line('🛡 Cushion', d.buffer, "10% of the lines above (Groundwork's rule of thumb)", 'trip.cushion')}
     <div class="trip-budget-row"><span class="trip-budget-cat">Total</span><span class="trip-budget-amt">${gwFig('trip.total', fmt(d.total))}</span></div>
-    <div style="margin-top:12px;font-size:12px;color:var(--slate);line-height:1.6">The total counts only lines with a source. Your monthly surplus after debt is ${fmt(d.surplus)}.</div>
+    <div style="margin-top:12px;font-size:var(--fs-sm);color:var(--slate);line-height:1.6">The total counts only lines with a source. Your monthly surplus after debt is ${fmt(d.surplus)}.</div>
     <div style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="tripImGoing()">I'm going on this trip</button>
-      <span style="font-size:11px;color:var(--slate);margin-left:6px">Then say where the money comes from and see the way back. Nothing is booked or paid.</span></div>`;
+      <span style="font-size:var(--fs-xs);color:var(--slate);margin-left:6px">Then say where the money comes from and see the way back. Nothing is booked or paid.</span></div>`;
 }
 
 
@@ -12615,7 +12615,7 @@ function tripImGoing() {
   const d = _tripBudgetData;
   if (!d || !(d.total > 0)) { showToast('Work out the trip budget first', '', 'warning'); return; }
   confirmAction(`Going to ${d.dest}?`,
-    `<div style="font-size:13px;color:var(--slate);line-height:1.6">Groundwork saves this trip, ${fmt(d.total)}, as one you're going on.
+    `<div style="font-size:var(--fs-base);color:var(--slate);line-height:1.6">Groundwork saves this trip, ${fmt(d.total)}, as one you're going on.
       Then you can say where the money comes from and see the way back. Nothing is booked, paid or moved.</div>`,
     async () => {
       try { await API.post('/api/trips', d); }
@@ -12653,13 +12653,13 @@ function _tripSourceName(s) {
 function _tripCardHTML(t) {
   const going = t.status === 'going', done = t.status === 'done';
   const head = `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">
-      <div><div style="font-size:14px;font-weight:600;color:var(--ink)">${esc(t.label)}</div>
-        <div style="font-size:11px;color:var(--slate)">${_tripDates(t)} · ${done ? 'done' : going ? "you're going" : 'planning'}</div></div>
-      <div style="font-family:var(--font-mono);font-size:14px;color:var(--ink)">${fmt(t.total)}${done && t.actual_spent != null ? ` <span style="font-size:11px;color:var(--slate)">planned · spent ${fmt(t.actual_spent)}</span>` : ''}</div>
+      <div><div style="font-size:var(--fs-md);font-weight:600;color:var(--ink)">${esc(t.label)}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate)">${_tripDates(t)} · ${done ? 'done' : going ? "you're going" : 'planning'}</div></div>
+      <div style="font-family:var(--font-mono);font-size:var(--fs-md);color:var(--ink)">${fmt(t.total)}${done && t.actual_spent != null ? ` <span style="font-size:var(--fs-xs);color:var(--slate)">planned · spent ${fmt(t.actual_spent)}</span>` : ''}</div>
     </div>`;
   if (!going) {
     const act = t.status === 'planning'
-      ? `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="tripSetStatus(${t.id},'going')">I'm going on this trip</button>` : '';
+      ? `<button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="tripSetStatus(${t.id},'going')">I'm going on this trip</button>` : '';
     return `<div style="border:1px solid var(--steel);border-radius:var(--r-md);padding:12px;margin-bottom:8px">${head}${act ? `<div style="margin-top:8px">${act}</div>` : ''}</div>`;
   }
   const p = t.plan || {};
@@ -12671,7 +12671,7 @@ function _tripCardHTML(t) {
       : left.floor == null ? `${fmt(left.balance_after)} left after; no "always leave" amount is set for it` : `${fmt(left.above_floor_after)} above your "always leave" amount after`;
     else if (s.kind === 'fund') after = left.fund_after == null ? '' : `${fmt(left.fund_after)} left in it after`;
     else after = 'set aside before the trip, filling itself each month';
-    return `<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:4px 0;border-bottom:0.5px solid var(--steel-2)">
+    return `<div style="display:flex;justify-content:space-between;gap:8px;font-size:var(--fs-sm);padding:4px 0;border-bottom:0.5px solid var(--steel-2)">
         <span><b>${esc(_TRIP_KIND_WORDS[s.kind])}</b>: ${esc(_tripSourceName(s))} <span style="color:var(--slate)">· ${esc(after)}</span></span>
         <span style="white-space:nowrap"><span style="font-family:var(--font-mono)">${fmt(s.amount)}</span>
         <button class="row-del" onclick="tripRemoveSource(${t.id},${i})" title="Remove">×</button></span></div>`;
@@ -12679,44 +12679,44 @@ function _tripCardHTML(t) {
   const leftNote = t.left_to_assign > 0.004 ? `<span style="color:var(--gold-text)">${fmt(t.left_to_assign)} left to assign</span>`
     : `<span style="color:var(--pine-text)">All ${fmt(t.total)} assigned</span>`;
   const addRow = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px">
-      <select id="tripSrcKind-${t.id}" class="field-input" style="width:auto;font-size:12px;padding:4px 8px" onchange="tripSrcKindChange(${t.id})">
+      <select id="tripSrcKind-${t.id}" class="field-input" style="width:auto;font-size:var(--fs-sm);padding:4px 8px" onchange="tripSrcKindChange(${t.id})">
         ${Object.entries(_TRIP_KIND_WORDS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
-      <select id="tripSrcRef-${t.id}" class="field-input" style="width:auto;font-size:12px;padding:4px 8px">${_tripRefOptions('checking')}</select>
-      <input id="tripSrcAmt-${t.id}" class="field-input" type="number" min="0" step="0.01" placeholder="Amount" value="${t.left_to_assign > 0 ? t.left_to_assign : ''}" style="width:100px;font-size:12px;padding:4px 8px">
-      <button class="btn btn-secondary btn-sm" style="font-size:11px" onclick="tripAddSource(${t.id})">+ Add</button>
+      <select id="tripSrcRef-${t.id}" class="field-input" style="width:auto;font-size:var(--fs-sm);padding:4px 8px">${_tripRefOptions('checking')}</select>
+      <input id="tripSrcAmt-${t.id}" class="field-input" type="number" min="0" step="0.01" placeholder="Amount" value="${t.left_to_assign > 0 ? t.left_to_assign : ''}" style="width:100px;font-size:var(--fs-sm);padding:4px 8px">
+      <button class="btn btn-secondary btn-sm" style="font-size:var(--fs-xs)" onclick="tripAddSource(${t.id})">+ Add</button>
     </div>`;
   const orders = p.orders || {};
   const ordRow = (k, label) => orders[k] ? `<tr><td>${label}</td><td>${esc(orders[k].debt_label || '-')}</td><td>${esc(orders[k].rebuild_label || (p.cash_total > 0 ? '-' : 'nothing to rebuild'))}</td></tr>` : '';
-  const ordersTable = Object.keys(orders).length ? `<table style="width:100%;font-size:12px;margin-top:6px">
+  const ordersTable = Object.keys(orders).length ? `<table style="width:100%;font-size:var(--fs-sm);margin-top:6px">
       <tr style="color:var(--slate)"><td>Order</td><td>Debt-free</td><td>Checking and savings back</td></tr>
       ${ordRow('debt_first', 'Debt first, then rebuild')}${ordRow('rebuild_first', 'Rebuild first, then debt')}${ordRow('split', `Split, ${t.split_pct}% to debt`)}</table>`
-    : `<div style="font-size:12px;color:var(--slate)">${p.surplus == null ? "Your record doesn't show enough income to know what's left each month, so the orders can't be priced yet." : 'Nothing is left after your budget and debt payments each month, so the trip comes back only through the debt plan\'s own payments.'}</div>`;
-  const pick = (k, label) => `<button class="btn ${t.pay_order === k ? 'btn-primary' : 'btn-ghost'} btn-sm" style="font-size:11px" onclick="tripSetOrder(${t.id},'${k}')">${label}</button>`;
-  const rebuild = Object.entries(p.rebuild || {}).map(([k, r]) => `<div style="font-size:12px">${k === 'fund' ? 'The fund' : k[0].toUpperCase() + k.slice(1)}: ${fmt(r.amount)} back in ${r.months} months is ${fmt(r.monthly)} a month.</div>`).join('');
-  const cards = (p.left || []).filter(x => x.kind === 'card' && x.payoff).map(x => `<div style="font-size:12px;margin-top:4px"><b>${esc(x.name)}</b>, ${fmt(x.amount)}: `
+    : `<div style="font-size:var(--fs-sm);color:var(--slate)">${p.surplus == null ? "Your record doesn't show enough income to know what's left each month, so the orders can't be priced yet." : 'Nothing is left after your budget and debt payments each month, so the trip comes back only through the debt plan\'s own payments.'}</div>`;
+  const pick = (k, label) => `<button class="btn ${t.pay_order === k ? 'btn-primary' : 'btn-ghost'} btn-sm" style="font-size:var(--fs-xs)" onclick="tripSetOrder(${t.id},'${k}')">${label}</button>`;
+  const rebuild = Object.entries(p.rebuild || {}).map(([k, r]) => `<div style="font-size:var(--fs-sm)">${k === 'fund' ? 'The fund' : k[0].toUpperCase() + k.slice(1)}: ${fmt(r.amount)} back in ${r.months} months is ${fmt(r.monthly)} a month.</div>`).join('');
+  const cards = (p.left || []).filter(x => x.kind === 'card' && x.payoff).map(x => `<div style="font-size:var(--fs-sm);margin-top:4px"><b>${esc(x.name)}</b>, ${fmt(x.amount)}: `
       + x.payoff.map(r => `${r.months} months at ${fmt(r.payment)}/mo (${fmt(r.interest)} interest)`).join(' · ') + '</div>').join('');
-  const coach = p.coach ? `<div style="font-size:13px;color:var(--ink);margin-top:10px">${esc(p.coach)}</div>`
-    : (p.coach_both || []).filter(Boolean).length ? `<div style="font-size:12px;color:var(--ink);margin-top:10px">Debt first: ${esc(p.coach_both[0] || '')}<br>Rebuild first: ${esc(p.coach_both[1] || '')}</div>` : '';
+  const coach = p.coach ? `<div style="font-size:var(--fs-base);color:var(--ink);margin-top:10px">${esc(p.coach)}</div>`
+    : (p.coach_both || []).filter(Boolean).length ? `<div style="font-size:var(--fs-sm);color:var(--ink);margin-top:10px">Debt first: ${esc(p.coach_both[0] || '')}<br>Rebuild first: ${esc(p.coach_both[1] || '')}</div>` : '';
   const after = t.ret && new Date(t.ret + 'T23:59:59') < new Date()
-    ? `<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" style="font-size:11px" onclick="tripAfter(${t.id})">The trip's over: what did it cost?</button></div>` : '';
+    ? `<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" style="font-size:var(--fs-xs)" onclick="tripAfter(${t.id})">The trip's over: what did it cost?</button></div>` : '';
   return `<div style="border:1px solid var(--steel);border-radius:var(--r-md);padding:12px;margin-bottom:8px">${head}
-    <div style="font-size:12px;font-weight:600;margin-top:12px">Where the money comes from</div>
-    ${srcRows || '<div style="font-size:12px;color:var(--slate)">Not said yet. Add checking, savings, a fund, one or more cards, or saving ahead.</div>'}
-    <div style="font-size:11px;margin-top:4px">${leftNote}</div>${addRow}
+    <div style="font-size:var(--fs-sm);font-weight:600;margin-top:12px">Where the money comes from</div>
+    ${srcRows || '<div style="font-size:var(--fs-sm);color:var(--slate)">Not said yet. Add checking, savings, a fund, one or more cards, or saving ahead.</div>'}
+    <div style="font-size:var(--fs-xs);margin-top:4px">${leftNote}</div>${addRow}
     ${p.card_total > 0 || p.cash_total > 0 ? `
-    <div style="font-size:12px;font-weight:600;margin-top:14px">The way back</div>
-    ${p.card_total > 0 ? `<div style="font-size:12px">On your cards: ${fmt(p.card_total)}, added to your one debt plan until the real charge arrives. Your debt-free date as things are: ${esc(p.base_debt_label || '-')}; with the trip at your current payments: ${esc(p.with_trip_debt_label || '-')}.</div>${cards}` : ''}
-    ${p.cash_total > 0 ? `<div style="font-size:12px;margin-top:6px">Rebuild over
-      ${[3, 6, 12].map(m => `<button class="btn ${t.rebuild_months === m ? 'btn-primary' : 'btn-ghost'} btn-sm" style="font-size:11px" onclick="tripSetRebuild(${t.id},${m})">${m} months</button>`).join(' ')}</div>${rebuild}` : ''}
-    <div style="font-size:12px;font-weight:600;margin-top:12px">What's left each month goes…</div>
+    <div style="font-size:var(--fs-sm);font-weight:600;margin-top:14px">The way back</div>
+    ${p.card_total > 0 ? `<div style="font-size:var(--fs-sm)">On your cards: ${fmt(p.card_total)}, added to your one debt plan until the real charge arrives. Your debt-free date as things are: ${esc(p.base_debt_label || '-')}; with the trip at your current payments: ${esc(p.with_trip_debt_label || '-')}.</div>${cards}` : ''}
+    ${p.cash_total > 0 ? `<div style="font-size:var(--fs-sm);margin-top:6px">Rebuild over
+      ${[3, 6, 12].map(m => `<button class="btn ${t.rebuild_months === m ? 'btn-primary' : 'btn-ghost'} btn-sm" style="font-size:var(--fs-xs)" onclick="tripSetRebuild(${t.id},${m})">${m} months</button>`).join(' ')}</div>${rebuild}` : ''}
+    <div style="font-size:var(--fs-sm);font-weight:600;margin-top:12px">What's left each month goes…</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0">${pick('debt_first', 'Debt first')}${pick('rebuild_first', 'Rebuild first')}
-      ${pick('split', 'A split')}<input id="tripSplit-${t.id}" type="number" min="1" max="99" step="1" placeholder="% to debt" value="${t.split_pct ?? ''}" style="width:80px;font-size:12px;padding:3px 6px;border:1px solid var(--steel);border-radius:var(--r-sm)"></div>
-    ${!t.pay_order ? '<div style="font-size:11px;color:var(--slate)">Not chosen, so both are shown.</div>' : ''}
+      ${pick('split', 'A split')}<input id="tripSplit-${t.id}" type="number" min="1" max="99" step="1" placeholder="% to debt" value="${t.split_pct ?? ''}" style="width:80px;font-size:var(--fs-sm);padding:3px 6px;border:1px solid var(--steel);border-radius:var(--r-sm)"></div>
+    ${!t.pay_order ? '<div style="font-size:var(--fs-xs);color:var(--slate)">Not chosen, so both are shown.</div>' : ''}
     ${ordersTable}${coach}
-    <details style="margin-top:8px"><summary style="font-size:11px;color:var(--slate);cursor:pointer">What these figures assume</summary>
-      <ul style="font-size:11px;color:var(--ink);margin:6px 0 0 16px;line-height:1.6">${(p.assumptions || []).map(a => `<li>${esc(a)}</li>`).join('')}</ul></details>` : ''}
+    <details style="margin-top:8px"><summary style="font-size:var(--fs-xs);color:var(--slate);cursor:pointer">What these figures assume</summary>
+      <ul style="font-size:var(--fs-xs);color:var(--ink);margin:6px 0 0 16px;line-height:1.6">${(p.assumptions || []).map(a => `<li>${esc(a)}</li>`).join('')}</ul></details>` : ''}
     ${after}
-    <div style="margin-top:10px"><button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="tripSetStatus(${t.id},'cancelled')">Not going after all</button></div>
+    <div style="margin-top:10px"><button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="tripSetStatus(${t.id},'cancelled')">Not going after all</button></div>
   </div>`;
 }
 
@@ -12755,7 +12755,7 @@ function tripSetOrder(id, k) {
 }
 function tripSetStatus(id, status) {
   if (status === 'cancelled') {
-    confirmAction('Not going after all?', '<div style="font-size:13px;color:var(--slate)">The trip leaves your plan. Its fund, if it has one, keeps what it holds.</div>',
+    confirmAction('Not going after all?', '<div style="font-size:var(--fs-base);color:var(--slate)">The trip leaves your plan. Its fund, if it has one, keeps what it holds.</div>',
       () => _tripPatch(id, { status }), 'Not going', false);
   } else _tripPatch(id, { status });
 }
@@ -12765,9 +12765,9 @@ async function tripAfter(id) {
   let d;
   try { d = await API.get(`/api/trips/${id}/charges`); } catch (e) { _gwErr('tripAfter')(e); return; }
   if (!(d.charges || []).length) { showToast('No trip charges found', 'Nothing filed under Travel in the trip\'s dates, and no linked booking.', 'info'); return; }
-  const rows = d.charges.map(c => `<label style="display:flex;gap:8px;font-size:12px;padding:3px 0"><input type="checkbox" class="trip-charge" value="${esc(c.id)}" checked>
+  const rows = d.charges.map(c => `<label style="display:flex;gap:8px;font-size:var(--fs-sm);padding:3px 0"><input type="checkbox" class="trip-charge" value="${esc(c.id)}" checked>
       <span style="flex:1">${esc(c.description)} <span style="color:var(--slate)">· ${esc(c.date)}</span></span><span style="font-family:var(--font-mono)">${fmt(c.amount)}</span></label>`).join('');
-  confirmAction('What the trip cost', `<div style="font-size:13px;margin-bottom:6px">These came to ${fmt(d.total)}. Untick any that weren't part of the trip.</div>${rows}`, async () => {
+  confirmAction('What the trip cost', `<div style="font-size:var(--fs-base);margin-bottom:6px">These came to ${fmt(d.total)}. Untick any that weren't part of the trip.</div>${rows}`, async () => {
     const ids = [...document.querySelectorAll('.trip-charge:checked')].map(x => x.value);
     if (!ids.length) return;
     try { await API.post(`/api/trips/${id}/charges`, { ids }); } catch (e) { _gwErr('tripAfter:use')(e); showToast('Not saved', e?.message || '', 'warning'); return; }
@@ -12783,9 +12783,9 @@ async function renderBudgetTrips() {
   try { d = await API.get('/api/trips/in-month'); } catch (e) { _gwErr('renderBudgetTrips')(e); box.innerHTML = ''; return; }
   if (!(d.trips || []).length) { box.innerHTML = ''; return; }
   box.innerHTML = `<div class="card mb-5"><div class="card-label">Trips this month</div>` + d.trips.map(t => `
-      <div style="font-size:13px;color:var(--ink);padding:4px 0">Trip to <b>${esc(t.label)}</b>, ${_tripDates(t)}: ${fmt(t.total)} planned
-        <span style="font-size:11px;color:var(--slate)">${(t.lines || []).map(l => `${esc(l.label)} ${fmt(l.amount)}`).join(' · ')}</span></div>`).join('')
-    + `<div style="font-size:11px;color:var(--slate);margin-top:4px">Shown from your trip plan; it isn't a budget line, so it never repeats in other months.</div></div>`;
+      <div style="font-size:var(--fs-base);color:var(--ink);padding:4px 0">Trip to <b>${esc(t.label)}</b>, ${_tripDates(t)}: ${fmt(t.total)} planned
+        <span style="font-size:var(--fs-xs);color:var(--slate)">${(t.lines || []).map(l => `${esc(l.label)} ${fmt(l.amount)}`).join(' · ')}</span></div>`).join('')
+    + `<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:4px">Shown from your trip plan; it isn't a budget line, so it never repeats in other months.</div></div>`;
 }
 
 
@@ -12940,21 +12940,21 @@ async function renderSundayCard() {
   const facts = _checkinLines(f);
   const written = f.written && f.written.text;
   if (badge) badge.textContent = written ? '✦ written overnight on this computer' : '';
-  const whose = (f.ask_whose || []).slice(0, 1).map(p => `<div style="font-size:12px;color:var(--slate);margin-top:8px">Whose pay is ${esc(p.replace(/\b\w/g, c => c.toUpperCase()))}?
+  const whose = (f.ask_whose || []).slice(0, 1).map(p => `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:8px">Whose pay is ${esc(p.replace(/\b\w/g, c => c.toUpperCase()))}?
       ${(f.people || []).map(n => `<button class="btn btn-ghost btn-sm" onclick="checkinWhose('${esc(p)}', '${esc(n)}')">${esc(n)}</button>`).join('')}
       <button class="btn btn-ghost btn-sm" onclick="checkinWhose('${esc(p)}', 'Someone else')">Someone else</button></div>`).join('');
   const imp = _checkinImportLine(f);
-  const notice = `<div style="font-size:12px;margin-bottom:8px;${imp.stale
+  const notice = `<div style="font-size:var(--fs-sm);margin-bottom:8px;${imp.stale
       ? 'color:var(--gold-text);background:var(--gold-bg);border:0.5px solid var(--gold-border);border-radius:6px;padding:6px 10px'
       : 'color:var(--slate)'}">${esc(imp.text)}</div>`;
   if (imp.too_old) { if (badge) badge.textContent = ''; content.innerHTML = notice; return; }   // too little data: only the notice
   content.innerHTML = notice
     + (written ? `<div style="margin-bottom:10px">${esc(written)}</div>` : '')
-    + `<div style="${written ? 'font-size:12px;color:var(--slate);border-top:0.5px solid var(--steel);padding-top:8px' : ''}">${facts.map(l => `<div>${esc(l)}</div>`).join('')}</div>`
+    + `<div style="${written ? 'font-size:var(--fs-sm);color:var(--slate);border-top:0.5px solid var(--steel);padding-top:8px' : ''}">${facts.map(l => `<div>${esc(l)}</div>`).join('')}</div>`
     + whose
     + `<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" onclick="printSession()">Print this</button></div>`   // item 112 P7 (b)
     + (!written && aiEnabled() ? `<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" onclick="writeSundayCheckin(true)">Write it now</button>
-        <span style="font-size:11px;color:var(--slate-2)">Normally written overnight after a new import.</span></div>` : '');
+        <span style="font-size:var(--fs-xs);color:var(--slate-2)">Normally written overnight after a new import.</span></div>` : '');
 }
 
 // S1/S11: the written part - it teaches with the figures above, it doesn't recite them; checked like every narration.
@@ -13368,10 +13368,10 @@ function _renderHelpFaq(filter) {
   let html = `
     <input id="helpFaqSearch" type="text" placeholder="Search help…" value="${esc(filter || '')}"
       oninput="_renderHelpFaq(this.value)"
-      style="width:100%;font-family:inherit;font-size:13px;border:1px solid var(--steel);
+      style="width:100%;font-family:inherit;font-size:var(--fs-base);border:1px solid var(--steel);
              border-radius:var(--r-sm);padding:8px 12px;margin-bottom:18px;
              background:var(--paper);color:var(--ink)">
-    <div style="font-size:12px;color:var(--slate);margin:-8px 0 18px">Something not right?
+    <div style="font-size:var(--fs-sm);color:var(--slate);margin:-8px 0 18px">Something not right?
       <button class="btn btn-ghost btn-sm" onclick="g('helpOverlay').classList.add('hidden'); openFeedbackModal()">⚑ Report a problem</button>
       <button class="btn btn-ghost btn-sm" onclick="showOutsideHelp()">Outside help</button>
       <button class="btn btn-ghost btn-sm" onclick="g('helpOverlay').classList.add('hidden'); printSession()">Print a summary</button></div>`;
@@ -13383,7 +13383,7 @@ function _renderHelpFaq(filter) {
     if (item.h) { pendingHeader = item.h; continue; }
     if (f && !(item.q.toLowerCase().includes(f) || item.a.toLowerCase().includes(f))) continue;
     if (pendingHeader) {
-      html += `<div style="font-size:10px;font-weight:600;letter-spacing:.08em;
+      html += `<div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;
         text-transform:uppercase;color:var(--slate-2);margin:${shown ? '22px' : '2px'} 0 10px">
         ${esc(pendingHeader)}</div>`;
       pendingHeader = null;
@@ -13392,18 +13392,18 @@ function _renderHelpFaq(filter) {
     // like a table of contents.
     html += `
       <div style="margin-bottom:12px">
-        <div style="font-size:13px;font-weight:600;color:var(--ink);cursor:pointer"
+        <div style="font-size:var(--fs-base);font-weight:600;color:var(--ink);cursor:pointer"
              onclick="const a=this.nextElementSibling;a.style.display=a.style.display==='none'?'block':'none'">
           ${esc(item.q)}
         </div>
-        <div style="font-size:12px;color:var(--slate);line-height:1.65;margin-top:5px;
+        <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.65;margin-top:5px;
                     display:${f ? 'block' : 'none'}">
           ${esc(item.a)}
         </div>
       </div>`;
     shown++;
   }
-  if (!shown && !care) html += `<div style="font-size:12px;color:var(--slate-2)">No matches — try a different word.</div>`;
+  if (!shown && !care) html += `<div style="font-size:var(--fs-sm);color:var(--slate-2)">No matches — try a different word.</div>`;
   content.innerHTML = html;
   // Restore focus + cursor after re-render while typing
   const box = g('helpFaqSearch');
@@ -13445,7 +13445,7 @@ async function _cloudAiRemovedNotice(raw) {
   // button all just dismiss it, and none of them can bring it back.
   API.patch('/api/settings', { cloud_ai_removed_notice: 'shown' }).catch(_gwErr('_cloudAiRemovedNotice'));
   confirmAction('Cloud AI has been removed',
-    `<div style="line-height:1.7;font-size:13px;color:var(--slate)">${lines.map(l => `<p style="margin-bottom:8px">${esc(l)}</p>`).join('')}</div>`,
+    `<div style="line-height:1.7;font-size:var(--fs-base);color:var(--slate)">${lines.map(l => `<p style="margin-bottom:8px">${esc(l)}</p>`).join('')}</div>`,
     null, 'OK', false);
 }
 
@@ -13466,7 +13466,7 @@ async function _ollamaNotice() {
   lines.push('Other programs may use Ollama, so Groundwork leaves it alone. Removing it is your choice: Windows\' Installed apps page can uninstall it.');
   API.post('/api/ai/ollama-notice', {}).catch(_gwErr('_ollamaNotice'));   // shown once, whatever is clicked
   confirmAction('Groundwork no longer uses Ollama',
-    `<div style="line-height:1.7;font-size:13px;color:var(--slate)">${lines.map(l => `<p style="margin-bottom:8px">${esc(l)}</p>`).join('')}</div>`,
+    `<div style="line-height:1.7;font-size:var(--fs-base);color:var(--slate)">${lines.map(l => `<p style="margin-bottom:8px">${esc(l)}</p>`).join('')}</div>`,
     () => API.post('/api/ai/ollama-notice/uninstall', {}).catch(_gwErr('_ollamaNotice')),
     "Open Windows' Installed apps", false);
 }
@@ -13547,13 +13547,13 @@ function showTermsModal(mode) {
   overlay.innerHTML = `
     <div style="background:var(--paper);border-radius:var(--r-xl);max-width:560px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 32px 64px rgba(0,0,0,.45)">
       <div style="padding:26px 32px 12px">
-        <div style="font-family:var(--font-display);font-style:italic;font-size:24px;color:var(--ink)">${gate ? 'Before you begin' : 'Terms of Use & Disclaimer'}</div>
-        <div style="font-size:12px;color:var(--slate);margin-top:4px">End User License Agreement · Version ${GW_TERMS_VERSION}</div>
+        <div style="font-family:var(--font-display);font-style:italic;font-size:var(--fs-3xl);color:var(--ink)">${gate ? 'Before you begin' : 'Terms of Use & Disclaimer'}</div>
+        <div style="font-size:var(--fs-sm);color:var(--slate);margin-top:4px">End User License Agreement · Version ${GW_TERMS_VERSION}</div>
       </div>
-      <div style="padding:0 32px 4px;overflow-y:auto;font-size:13px;color:var(--slate);line-height:1.7">${_TERMS_HTML}</div>
+      <div style="padding:0 32px 4px;overflow-y:auto;font-size:var(--fs-base);color:var(--slate);line-height:1.7">${_TERMS_HTML}</div>
       <div style="padding:16px 32px 24px;border-top:0.5px solid var(--steel-2)">
         ${gate ? `
-          <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--ink);cursor:pointer;margin-bottom:14px">
+          <label style="display:flex;align-items:flex-start;gap:10px;font-size:var(--fs-base);color:var(--ink);cursor:pointer;margin-bottom:14px">
             <input type="checkbox" id="termsAcceptCheck" onchange="_termsGateToggle()" style="margin-top:3px;flex-shrink:0">
             <span>I have read and agree to the Terms, and I understand I am responsible for verifying all figures against my bank.</span>
           </label>
@@ -13619,7 +13619,7 @@ async function sampleNotice() {
     el.id = 'gwSampleNotice';
     el.setAttribute('role', 'status');
     el.style.cssText = 'position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:850;background:var(--ink);color:var(--paper);'
-      + 'border-radius:999px;padding:7px 8px 7px 16px;font-size:12px;display:flex;align-items:center;gap:10px;box-shadow:0 6px 18px rgba(0,0,0,.25);max-width:calc(100% - 32px)';
+      + 'border-radius:999px;padding:7px 8px 7px 16px;font-size:var(--fs-sm);display:flex;align-items:center;gap:10px;box-shadow:0 6px 18px rgba(0,0,0,.25);max-width:calc(100% - 32px)';
     document.body.appendChild(el);
   }
   el.innerHTML = `<span style="white-space:nowrap">Sample household (made up)</span>
@@ -13627,7 +13627,7 @@ async function sampleNotice() {
 }
 function sampleClear() {
   confirmAction('Start with your own?',
-    `<div style="font-size:13px;color:var(--slate);line-height:1.6">This clears the sample household - and anything you added while looking around - and takes you to the welcome screen to set up your own. The terms you accepted and your AI setting stay.</div>`,
+    `<div style="font-size:var(--fs-base);color:var(--slate);line-height:1.6">This clears the sample household - and anything you added while looking around - and takes you to the welcome screen to set up your own. The terms you accepted and your AI setting stay.</div>`,
     async () => {
       try { await API.post('/api/sample/clear', {}); }
       catch (e) { showToast("The sample couldn't be cleared", String(e.message || e), 'warning'); return; }
@@ -13698,7 +13698,7 @@ function _obRenderCapabilityContinue(fits) {
   actionsEl.style.display = '';
   actionsEl.innerHTML = fits
     ? `<button class="btn btn-primary btn-full" onclick="_obApplyAIChoice(true)">Turn on local AI</button>
-       <button class="btn btn-ghost btn-full mt-2" style="font-size:12px" onclick="_obApplyAIChoice(false)">Continue with AI off</button>`
+       <button class="btn btn-ghost btn-full mt-2" style="font-size:var(--fs-sm)" onclick="_obApplyAIChoice(false)">Continue with AI off</button>`
     : `<button class="btn btn-primary btn-full" onclick="_obApplyAIChoice(false)">Continue</button>`;
 }
 
@@ -13800,7 +13800,7 @@ function _obPriorityLine() {
   } else {
     line += ` From what you entered, about ${fmt(room)} a month is left after bills and minimum payments.`;
   }
-  return `<div style="margin-top:14px;padding:12px 14px;background:var(--mist);border-radius:var(--r-md);font-size:13px;color:var(--slate);line-height:1.6" data-gw-priority>${esc(line)}</div>`;
+  return `<div style="margin-top:14px;padding:12px 14px;background:var(--mist);border-radius:var(--r-md);font-size:var(--fs-base);color:var(--slate);line-height:1.6" data-gw-priority>${esc(line)}</div>`;
 }
 
 // O7: each answer next to what it turned on, and what was skipped - with where to answer it later.
@@ -13823,7 +13823,7 @@ function _obAnswerLines() {
   const said = asked.filter(k => _obAnswers[k]).map(k => _obFactEffect(k, _obAnswers[k])).filter(Boolean);
   const skipped = asked.filter(k => !_obAnswers[k]).map(k => _OB_FACT_LABELS[k]);
   if (!said.length && !skipped.length) return '';
-  return `<div style="margin-top:14px;font-size:12px;color:var(--slate);line-height:1.7" data-gw-answers>`
+  return `<div style="margin-top:14px;font-size:var(--fs-sm);color:var(--slate);line-height:1.7" data-gw-answers>`
     + said.map(l => `<div>${esc(l)}</div>`).join('')
     + (skipped.length ? `<div style="color:var(--slate-2);margin-top:6px">Not answered: ${esc(skipped.join(', '))}. Nothing is assumed in their place; you can answer any time in Settings.</div>` : '')
     + `</div>`;
@@ -13959,7 +13959,7 @@ function _obRenderExpenseAnalysis() {
   const entries = Object.entries(catTotals).sort((a,b) => b[1]-a[1]);
 
   if (!entries.length) {
-    cont.innerHTML = '<div style="font-size:12px;color:var(--slate-2)">We didn\'t find enough recent activity to estimate this — you can add expenses anytime in Budget.</div>';
+    cont.innerHTML = '<div style="font-size:var(--fs-sm);color:var(--slate-2)">We didn\'t find enough recent activity to estimate this — you can add expenses anytime in Budget.</div>';
     return;
   }
 
@@ -13971,7 +13971,7 @@ function _obRenderExpenseAnalysis() {
     div.dataset.cat = cat;
     div.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px';
     div.innerHTML = `
-      <span style="font-size:13px;color:var(--ink)">${esc(cat)}</span>
+      <span style="font-size:var(--fs-base);color:var(--ink)">${esc(cat)}</span>
       <input type="number" value="${avg}" min="0" step="0.01" style="width:100px;text-align:right;font-family:var(--font-mono);padding:6px 10px">`;
     cont.appendChild(div);
   });
@@ -14470,15 +14470,15 @@ function _obRenderPlanSummary() {
   const hasBuffer = calcHasEmergencyBuffer();
 
   const bufferLine = hasBuffer ? '' :
-    `<div style="margin-top:14px;padding:12px 14px;background:var(--mist);border-radius:var(--r-md);font-size:12px;color:var(--slate);line-height:1.6">A good next step: tuck away a <strong>$500 cushion</strong> so one surprise bill can't undo your progress.</div>`;
+    `<div style="margin-top:14px;padding:12px 14px;background:var(--mist);border-radius:var(--r-md);font-size:var(--fs-sm);color:var(--slate);line-height:1.6">A good next step: tuck away a <strong>$500 cushion</strong> so one surprise bill can't undo your progress.</div>`;
 
   if (totalDebt < 500) {
     const surplus = Math.max(0, income - S.expenses.reduce((s,e) => s+e.amount, 0));
     el.innerHTML = `
       <div style="padding:20px;background:var(--pine-bg);border:1px solid var(--pine-border);border-radius:var(--r-md);line-height:1.7">
-        <div style="font-size:14px;color:var(--ink)">You're starting debt-free — a strong position.</div>
-        ${surplus>0 ? `<div style="font-size:13px;color:var(--slate);margin-top:6px">With about <strong style="color:var(--pine-text)">${fmt(surplus)}/month</strong> of room, saving consistently builds <strong>${fmt(surplus*12)}</strong> a year.</div>` : ''}
-        <div style="font-size:12px;color:var(--slate-2);margin-top:10px">Nothing here is locked in — it can change as your life does.</div>
+        <div style="font-size:var(--fs-md);color:var(--ink)">You're starting debt-free — a strong position.</div>
+        ${surplus>0 ? `<div style="font-size:var(--fs-base);color:var(--slate);margin-top:6px">With about <strong style="color:var(--pine-text)">${fmt(surplus)}/month</strong> of room, saving consistently builds <strong>${fmt(surplus*12)}</strong> a year.</div>` : ''}
+        <div style="font-size:var(--fs-sm);color:var(--slate-2);margin-top:10px">Nothing here is locked in — it can change as your life does.</div>
       </div>${bufferLine}`;
     el.innerHTML += _obPriorityLine() + _obAnswerLines();
     return;
@@ -14496,9 +14496,9 @@ function _obRenderPlanSummary() {
   // are verified — the honest-tradeoff-in-shape rule.
   el.innerHTML = `
     <div style="padding:20px;background:var(--pine-bg);border:1px solid var(--pine-border);border-radius:var(--r-md);line-height:1.7">
-      <div style="font-size:14px;color:var(--ink)">Here's where you're starting from${surplus>0 ? `: about <strong style="color:var(--pine-text)">${fmt(surplus)}/month</strong> of room after your regular expenses` : ''}.</div>
-      <div style="font-size:13px;color:var(--slate);margin-top:8px">You have <strong>${fmt(totalDebt)}</strong> in debt tracked. When you're ready, you can put some of that monthly room toward paying it down faster, building savings, or a goal — your call, and you can change it anytime. Groundwork will show what each choice does; it won't pick for you.</div>
-      <div style="font-size:12px;color:var(--slate-2);margin-top:10px">Verify your balances against your statements and Groundwork can project actual payoff dates for each path.</div>
+      <div style="font-size:var(--fs-md);color:var(--ink)">Here's where you're starting from${surplus>0 ? `: about <strong style="color:var(--pine-text)">${fmt(surplus)}/month</strong> of room after your regular expenses` : ''}.</div>
+      <div style="font-size:var(--fs-base);color:var(--slate);margin-top:8px">You have <strong>${fmt(totalDebt)}</strong> in debt tracked. When you're ready, you can put some of that monthly room toward paying it down faster, building savings, or a goal — your call, and you can change it anytime. Groundwork will show what each choice does; it won't pick for you.</div>
+      <div style="font-size:var(--fs-sm);color:var(--slate-2);margin-top:10px">Verify your balances against your statements and Groundwork can project actual payoff dates for each path.</div>
     </div>${bufferLine}`;
   el.innerHTML += _obPriorityLine() + _obAnswerLines();
 }
@@ -14509,10 +14509,10 @@ function _obPrepareBufferStep() {
   if (!el) return;
   const savings = parseFloat(S.netWorth?.savings) || 0;
   if (savings >= 500) {
-    el.innerHTML = `<div style="padding:16px;background:var(--pine-bg);border:1px solid var(--pine-border);border-radius:var(--r-md);font-size:13px;color:var(--slate);line-height:1.6">You've already got a cushion in place — <strong style="color:var(--pine-text)">${fmt(savings)}</strong> set aside. That's real protection against a bad week.</div>`;
+    el.innerHTML = `<div style="padding:16px;background:var(--pine-bg);border:1px solid var(--pine-border);border-radius:var(--r-md);font-size:var(--fs-base);color:var(--slate);line-height:1.6">You've already got a cushion in place — <strong style="color:var(--pine-text)">${fmt(savings)}</strong> set aside. That's real protection against a bad week.</div>`;
   } else {
     const part = savings > 0 ? ` You're already <strong style="color:var(--pine-text)">${fmt(savings)}</strong> of the way there.` : '';
-    el.innerHTML = `<div style="padding:16px;background:var(--mist);border-radius:var(--r-md);font-size:13px;color:var(--slate);line-height:1.6">A $500 cushion is closer than it can feel.${part} Building toward it — first or alongside your debt — means one surprise bill can't undo your progress. Either way works; there's no wrong choice.</div>`;
+    el.innerHTML = `<div style="padding:16px;background:var(--mist);border-radius:var(--r-md);font-size:var(--fs-base);color:var(--slate);line-height:1.6">A $500 cushion is closer than it can feel.${part} Building toward it — first or alongside your debt — means one surprise bill can't undo your progress. Either way works; there's no wrong choice.</div>`;
   }
 }
 
@@ -14615,7 +14615,7 @@ function renderRecurringList() {
   if (!el) return;
 
   if (!_recurringItems.length) {
-    el.innerHTML = `<div style="font-size:12px;color:var(--slate);padding:8px 0">
+    el.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate);padding:8px 0">
       No recurring bills yet. Add rent, utilities, subscriptions — anything that happens every month.
     </div>`;
     return;
@@ -14627,21 +14627,21 @@ function renderRecurringList() {
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;
                          border-bottom:0.5px solid var(--steel-2)">
       <div style="flex:1;cursor:pointer" onclick="editRecurringItem(${idx})">
-        <div style="font-size:13px;font-weight:500">${esc(item.name)}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:1px">
+        <div style="font-size:var(--fs-base);font-weight:500">${esc(item.name)}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:1px">
           ${esc(item.category)} · day ${item.dayOfMonth} each month
           ${item.lastPosted ? ` · last posted ${item.lastPosted}` : ''}
         </div>
       </div>
-      <span class="text-mono" style="font-size:13px;color:${color};font-weight:500">
+      <span class="text-mono" style="font-size:var(--fs-base);color:${color};font-weight:500">
         ${sign}${fmt(item.amount)}
       </span>
       <button onclick="editRecurringItem(${idx})"
-        style="font-size:11px;padding:2px 8px;border-radius:20px;background:none;
+        style="font-size:var(--fs-xs);padding:2px 8px;border-radius:20px;background:none;
                border:0.5px solid var(--steel);cursor:pointer;
                color:var(--slate)">Edit</button>
       <button onclick="deleteRecurringItem(${idx})"
-        style="font-size:11px;padding:2px 8px;border-radius:20px;background:none;
+        style="font-size:var(--fs-xs);padding:2px 8px;border-radius:20px;background:none;
                border:0.5px solid var(--steel);cursor:pointer;
                color:var(--slate)">Remove</button>
     </div>`;
@@ -14721,7 +14721,7 @@ function showAddRecurring() {
 
   confirmAction(
     'Add recurring transaction',
-    `<div style="font-size:12px;color:var(--slate);margin-bottom:12px;line-height:1.6">
+    `<div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:12px;line-height:1.6">
        This will automatically add a transaction on the day you choose each month.
      </div>
      <div class="field mb-3">
@@ -14956,21 +14956,21 @@ function renderGettingStarted() {
                    onclick="${done ? '' : `(${step.action.toString()})()`}">
         <div style="width:22px;height:22px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;
                     background:${done ? 'var(--pine)' : 'var(--steel)'};
-                    color:${done ? '#fff' : 'var(--slate)'};font-size:12px">
+                    color:${done ? '#fff' : 'var(--slate)'};font-size:var(--fs-sm)">
           ${done ? '✓' : ''}
         </div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:${done ? '400' : '500'};
+          <div style="font-size:var(--fs-base);font-weight:${done ? '400' : '500'};
                       color:${done ? 'var(--slate)' : 'var(--ink)'};
                       text-decoration:${done ? 'line-through' : 'none'}">
             ${esc(step.label)}
           </div>
-          ${!done ? `<div style="font-size:11px;color:var(--slate);margin-top:1px">${esc(step.sub)}</div>` : ''}
+          ${!done ? `<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:1px">${esc(step.sub)}</div>` : ''}
         </div>
-        ${!done ? `<span style="font-size:11px;color:var(--sky)">→</span>` : ''}
+        ${!done ? `<span style="font-size:var(--fs-xs);color:var(--sky)">→</span>` : ''}
       </div>`;
     }).join('')}
-    <div style="font-size:11px;color:var(--slate);margin-top:10px;text-align:center">
+    <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:10px;text-align:center">
       ${completedCount} of ${GETTING_STARTED_STEPS.length} complete
     </div>`;
 }
@@ -15202,23 +15202,23 @@ function _paymentPlanHTML() {
   const rowsHTML = plan.rows.map(r => `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--steel-2)">
       <div>
-        <div style="font-size:13px;font-weight:500">${esc(r.name)}</div>
+        <div style="font-size:var(--fs-base);font-weight:500">${esc(r.name)}</div>
         ${r.extra > 0.01
-          ? `<div style="font-size:11px;color:var(--pine-text)">Minimum ${fmt(r.minimum)} + extra ${fmt(r.extra)}</div>`
-          : `<div style="font-size:11px;color:var(--slate)">${r.pslf ? 'Minimum (income-driven plan)' : 'Minimum payment'}</div>`}
+          ? `<div style="font-size:var(--fs-xs);color:var(--pine-text)">Minimum ${fmt(r.minimum)} + extra ${fmt(r.extra)}</div>`
+          : `<div style="font-size:var(--fs-xs);color:var(--slate)">${r.pslf ? 'Minimum (income-driven plan)' : 'Minimum payment'}</div>`}
       </div>
-      <div style="font-family:var(--font-mono);font-size:15px;font-weight:600;${r.extra > 0.01 ? 'color:var(--pine-text)' : ''}">${fmt(r.total)}</div>
+      <div style="font-family:var(--font-mono);font-size:var(--fs-lg);font-weight:600;${r.extra > 0.01 ? 'color:var(--pine-text)' : ''}">${fmt(r.total)}</div>
     </div>`).join('');
 
   const warning = plan.underMinimum ? `
     <div style="padding:8px 10px;background:var(--gold-bg);border-radius:var(--r-md);
-                border:0.5px solid var(--gold);margin-bottom:10px;font-size:12px;line-height:1.5">
+                border:0.5px solid var(--gold);margin-bottom:10px;font-size:var(--fs-sm);line-height:1.5">
       ⚠ Your monthly budget (${fmt(plan.budget)}) is below the combined minimums (${fmt(plan.totalMin)}).
       The amounts below are minimums only — increase your budget to add extra toward payoff.
     </div>` : '';
 
   const note = plan.nextMonthNote ? `
-    <div style="margin-top:10px;font-size:11px;color:var(--slate)">${esc(plan.nextMonthNote)}</div>` : '';
+    <div style="margin-top:10px;font-size:var(--fs-xs);color:var(--slate)">${esc(plan.nextMonthNote)}</div>` : '';
 
   return `
     <div class="card mb-4">
@@ -15333,13 +15333,13 @@ function _renderCardList() {
   // V4: the rows' payoff dates belong to a plan; say which, once.
   const _plan = _simulatePayoff(0);
   const _planNote = _plan
-    ? `<div class="debt-plan-note" style="font-size:12px;color:var(--slate);padding:4px 16px 8px;line-height:1.5">Payoff dates are from ${_planScenario()}. Change the plan and they change.</div>`
+    ? `<div class="debt-plan-note" style="font-size:var(--fs-sm);color:var(--slate);padding:4px 16px 8px;line-height:1.5">Payoff dates are from ${_planScenario()}. Change the plan and they change.</div>`
     : '';
   // U2: debts still owed first; those paid in full at the end, under their own line
   const shown = S.debtCards.filter(c => !_pslfIsFlagged(c._dbId || c.id));
   const owed = shown.filter(c => !c.paidInFull), paid = shown.filter(c => c.paidInFull);
   cont.innerHTML = _planNote + owed.map(c => _debtCardRowHTML(c)).join('')
-    + (paid.length ? `<div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);padding:14px 16px 4px">Paid off (${paid.length})</div>`
+    + (paid.length ? `<div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);padding:14px 16px 4px">Paid off (${paid.length})</div>`
         + paid.map(c => _debtCardRowHTML(c)).join('') : '');
 
   // Event delegation for debt type buttons — more reliable than inline onclick
@@ -15387,7 +15387,7 @@ function _debtBloomFields(c, debtType, _dds) {
         <label>Monthly payment</label>
         <input type="number" value="${c.minimum ?? ''}" min="0" step="0.01"
           oninput="setCardField(${c.id},'minimum',this.value)">
-        <div style="font-size:10px;color:var(--slate-2);margin-top:3px;min-height:12px">${_figureSourceLabel(c.minSource, c.statementAsOf)}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:3px;min-height:12px">${_figureSourceLabel(c.minSource, c.statementAsOf)}</div>
       </div>
       <div class="field" style="margin:0">
         <label>Due day${dueLabelExtra}</label>
@@ -15423,13 +15423,13 @@ function _debtBloomFields(c, debtType, _dds) {
         <label>APR %${helpIcon('apr')}</label>
         <input type="number" id="dcRate-${c.id}" value="${c.rate ?? ''}" min="0" step="0.1"
           oninput="setCardField(${c.id},'rate',this.value)">
-        <div style="font-size:10px;color:var(--slate-2);margin-top:3px;min-height:12px">${_figureSourceLabel(c.rateSource, c.statementAsOf)}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:3px;min-height:12px">${_figureSourceLabel(c.rateSource, c.statementAsOf)}</div>
       </div>
       <div class="field" style="margin:0">
         <label>Payment</label>
         <input type="number" value="${c.minimum ?? ''}" min="0" step="0.01"
           oninput="setCardField(${c.id},'minimum',this.value)">
-        <div style="font-size:10px;color:var(--slate-2);margin-top:3px;min-height:12px">${_figureSourceLabel(c.minSource, c.statementAsOf)}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:3px;min-height:12px">${_figureSourceLabel(c.minSource, c.statementAsOf)}</div>
       </div>
       <div class="field" style="margin:0">
         <label>Due day${dueLabelExtra}</label>
@@ -15463,13 +15463,13 @@ function _debtBloomFields(c, debtType, _dds) {
         <label>APR %${helpIcon('apr')}</label>
         <input type="number" id="dcRate-${c.id}" value="${c.rate ?? ''}" min="0" step="0.1"
           oninput="setCardField(${c.id},'rate',this.value)">
-        <div style="font-size:10px;color:var(--slate-2);margin-top:3px;min-height:12px">${_figureSourceLabel(c.rateSource, c.statementAsOf)}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:3px;min-height:12px">${_figureSourceLabel(c.rateSource, c.statementAsOf)}</div>
       </div>
       <div class="field" style="margin:0">
         <label>Min</label>
         <input type="number" value="${c.minimum ?? ''}" min="0" step="0.01"
           oninput="setCardField(${c.id},'minimum',this.value)">
-        <div style="font-size:10px;color:var(--slate-2);margin-top:3px;min-height:12px">${_figureSourceLabel(c.minSource, c.statementAsOf)}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:3px;min-height:12px">${_figureSourceLabel(c.minSource, c.statementAsOf)}</div>
       </div>
       <div class="field" style="margin:0">
         <label>Due day${dueLabelExtra}</label>
@@ -15484,7 +15484,7 @@ function _debtBloomFields(c, debtType, _dds) {
 function _paidOffAskHTML(c) {
   if (!c.reachedZero || c.paidInFull) return '';
   const since = c.zeroSince ? new Date(c.zeroSince + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-  return `<div data-gw-paidoff-ask style="flex-basis:100%;order:99;margin:6px 0 2px;padding:8px 10px;border:0.5px solid var(--pine-border);border-radius:8px;background:var(--pine-bg);font-size:12px;color:var(--ink)">`
+  return `<div data-gw-paidoff-ask style="flex-basis:100%;order:99;margin:6px 0 2px;padding:8px 10px;border:0.5px solid var(--pine-border);border-radius:8px;background:var(--pine-bg);font-size:var(--fs-sm);color:var(--ink)">`
     + `${esc(c.name || 'This debt')} is at $0.00${since ? ` since ${since}` : ''}. Is it paid off? `
     + `<button class="btn btn-secondary btn-sm" onclick="_answerPaidOff(${c.id}, true)">Yes, it's paid off</button> `
     + `<button class="btn btn-ghost btn-sm" onclick="_answerPaidOff(${c.id}, false)">Not yet</button></div>`;
@@ -15514,31 +15514,31 @@ function _debtCardRowHTML(c, opts={}) {
     <div class="debt-card-row" id="dc-${c.id}" style="display:flex;align-items:center;gap:10px;padding:10px 16px;${c.paidInFull ? 'opacity:.6' : ''}${_paidOffAskHTML(c) ? 'flex-wrap:wrap;' : ''}">
       <input type="checkbox" ${c.paidInFull ? 'checked' : ''} title="Paid in full"
         onchange="setCardPaidInFull(${c.id}, this.checked)">${_paidOffAskHTML(c)}
-      <div style="flex:1;font-size:13px;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name||'Card')}</div>
+      <div style="flex:1;font-size:var(--fs-base);font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name||'Card')}</div>
       ${c.paidInFull
         // Option 2 (d21): display-only paid treatment. The stored currentBal is
         // NEVER mutated — strike it through so the history is visible but clearly
         // no longer owed. Unchecking the box restores the normal row untouched.
-        ? `<div class="text-mono" style="font-size:13px;flex-shrink:0">
+        ? `<div class="text-mono" style="font-size:var(--fs-base);flex-shrink:0">
              <s style="color:var(--slate-2);opacity:.65">${fmt(_cardBal(c))}</s>
-             <span style="font-size:10px;font-weight:600;color:var(--pine-text);margin-left:6px">Paid in full</span>
+             <span style="font-size:var(--fs-xs);font-weight:600;color:var(--pine-text);margin-left:6px">Paid in full</span>
            </div>`
-        : `<div class="text-mono" style="font-size:13px;color:var(--slate);flex-shrink:0">${gwFig('debt.card_balance', fmt(_cardBal(c)), c.name || 'Card')}</div>`}
-      ${c.paidInFull ? '' : `<span style="font-size:10px;font-family:var(--font-mono);color:var(--slate-2);flex-shrink:0;white-space:nowrap">${c.rate !== '' && c.rate != null ? gwFig('debt.card_apr', `${c.rate}% APR`, c.name || 'Card') : 'APR ?'} · ${c.minimum !== '' && c.minimum != null ? gwFig('debt.card_min', `${fmt(parseFloat(c.minimum) || 0)} min`, c.name || 'Card') : 'min ?'}</span>`}
-      ${(!c.paidInFull && _dds) ? `<span style="font-size:10px;font-family:var(--font-mono);color:${_dds.color};flex-shrink:0">${_dds.label}</span>` : ''}
+        : `<div class="text-mono" style="font-size:var(--fs-base);color:var(--slate);flex-shrink:0">${gwFig('debt.card_balance', fmt(_cardBal(c)), c.name || 'Card')}</div>`}
+      ${c.paidInFull ? '' : `<span style="font-size:var(--fs-xs);font-family:var(--font-mono);color:var(--slate-2);flex-shrink:0;white-space:nowrap">${c.rate !== '' && c.rate != null ? gwFig('debt.card_apr', `${c.rate}% APR`, c.name || 'Card') : 'APR ?'} · ${c.minimum !== '' && c.minimum != null ? gwFig('debt.card_min', `${fmt(parseFloat(c.minimum) || 0)} min`, c.name || 'Card') : 'min ?'}</span>`}
+      ${(!c.paidInFull && _dds) ? `<span style="font-size:var(--fs-xs);font-family:var(--font-mono);color:${_dds.color};flex-shrink:0">${_dds.label}</span>` : ''}
       ${(() => {
         // Lease / loan end date countdown
         if (c.paidInFull) return '';   // paid card: no countdown chip
         if (!c.endDate) return '';
         const today = _localISODate();
         if (c.endDate < today) {
-          return `<span style="font-size:10px;font-family:var(--font-mono);color:var(--slate-2);flex-shrink:0" title="Ended — excluded from DTI">ended ${c.endDate}</span>`;
+          return `<span style="font-size:var(--fs-xs);font-family:var(--font-mono);color:var(--slate-2);flex-shrink:0" title="Ended — excluded from DTI">ended ${c.endDate}</span>`;
         }
         const moLeft = Math.round((_localDay(c.endDate) - new Date()) / (1000*60*60*24*30.4));
         const endLbl = _localDay(c.endDate).toLocaleDateString('en-US',{month:'short',year:'numeric'});
         const color  = moLeft <= 3 ? 'var(--gold-text)' : 'var(--slate-2)';
         const label  = _debtType(c._dbId||c.id) === 'lease' ? `lease ends ${endLbl}` : `matures ${endLbl}`;
-        return `<span style="font-size:10px;font-family:var(--font-mono);color:${color};flex-shrink:0" title="${moLeft} months remaining">${label}</span>`;
+        return `<span style="font-size:var(--fs-xs);font-family:var(--font-mono);color:${color};flex-shrink:0" title="${moLeft} months remaining">${label}</span>`;
       })()}
       ${(() => {
         // Per-card payoff date — use the avalanche simulation if this is the active page
@@ -15559,7 +15559,7 @@ function _debtCardRowHTML(c, opts={}) {
           [0]?.id === c.id;
         // A fact about this debt's own payment, whatever the plan does with it.
         const lowChip = (_payoffPayment(c) || 0) <= bal * (parseFloat(c.rate) || 0) / 1200
-          ? `<span style="font-size:10px;font-family:var(--font-mono);color:var(--ember-text);flex-shrink:0" title="Minimum payment does not cover interest">min too low</span>`
+          ? `<span style="font-size:var(--fs-xs);font-family:var(--font-mono);color:var(--ember-text);flex-shrink:0" title="Minimum payment does not cover interest">min too low</span>`
           : '';
         const payoffMo = _planClearedMonth(c, plan);
         if (payoffMo == null) return lowChip;
@@ -15570,13 +15570,13 @@ function _debtCardRowHTML(c, opts={}) {
         const _u = _debtUnknowns(c);
         const assumed = _u.includes('APR') ? ' · 0% APR assumed' : _u.includes('minimum payment') ? ' · minimum estimated'
                       : _u.includes('maturity date') ? ' · whole payment assumed' : '';
-        return lowChip + `<span style="font-size:10px;font-family:var(--font-mono);color:${color};flex-shrink:0" title="Under ${_planScenario()}${assumed}">${gwFig('debt.card_paid_off', `~${label}`, c.name || 'Card')}${assumed}</span>`;
+        return lowChip + `<span style="font-size:var(--fs-xs);font-family:var(--font-mono);color:${color};flex-shrink:0" title="Under ${_planScenario()}${assumed}">${gwFig('debt.card_paid_off', `~${label}`, c.name || 'Card')}${assumed}</span>`;
       })()}
       ${(() => {
         const _u = _debtUnknowns(c);
-        return _u.length ? `<span style="font-size:10px;color:var(--gold-text);flex-shrink:0;white-space:nowrap">${_u.join(', ')} not entered</span>` : '';
+        return _u.length ? `<span style="font-size:var(--fs-xs);color:var(--gold-text);flex-shrink:0;white-space:nowrap">${_u.join(', ')} not entered</span>` : '';
       })()}
-      ${flagged ? `<span style="font-size:10px;padding:1px 7px;border-radius:20px;background:var(--pine-bg);color:var(--pine-text);border:0.5px solid #C0DD97;flex-shrink:0;white-space:nowrap">🎓 ${esc(programLabel.split(' ')[0])}</span>` : ''}
+      ${flagged ? `<span style="font-size:var(--fs-xs);padding:1px 7px;border-radius:20px;background:var(--pine-bg);color:var(--pine-text);border:0.5px solid #C0DD97;flex-shrink:0;white-space:nowrap">🎓 ${esc(programLabel.split(' ')[0])}</span>` : ''}
       ${_debtCardSparkline(c, 60, 20)}
       <button class="row-del" onclick="toggleCardCollapse(${c.id})" title="Show details">▾ Show</button>
       <button class="row-del" onclick="confirmRemoveCard(${c.id})" title="Remove">×</button>
@@ -15592,17 +15592,17 @@ function _debtCardRowHTML(c, opts={}) {
           onchange="setCardPaidInFull(${c.id}, this.checked)">
         <input type="text" value="${esc(c.name||'')}" placeholder="Card or loan name"
           oninput="setCardField(${c.id},'name',this.value)"
-          style="flex:1;border:none;background:transparent;font-weight:600;font-size:14px;outline:none;font-family:inherit;color:var(--ink)">
+          style="flex:1;border:none;background:transparent;font-weight:600;font-size:var(--fs-md);outline:none;font-family:inherit;color:var(--ink)">
         <button class="row-del" onclick="toggleCardCollapse(${c.id})" title="Hide details">▴ Hide</button>
         <button class="row-del" onclick="confirmRemoveCard(${c.id})" title="Remove">×</button>
       </div>
       <div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:10px">
         <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
           <div class="method-toggle">
-            <button type="button" class="method-btn ${debtType==='credit'?'active':''}" style="padding:4px 12px;font-size:11px" data-settype="${c.id}" data-type="credit">Credit Card</button>
-            <button type="button" class="method-btn ${debtType==='loan'?'active':''}" style="padding:4px 12px;font-size:11px" data-settype="${c.id}" data-type="loan">Loan</button>
-            <button type="button" class="method-btn ${debtType==='mortgage'?'active':''}" style="padding:4px 12px;font-size:11px" data-settype="${c.id}" data-type="mortgage">Mortgage</button>
-            <button type="button" class="method-btn ${debtType==='lease'?'active':''}" style="padding:4px 12px;font-size:11px" data-settype="${c.id}" data-type="lease">Lease</button>
+            <button type="button" class="method-btn ${debtType==='credit'?'active':''}" style="padding:4px 12px;font-size:var(--fs-xs)" data-settype="${c.id}" data-type="credit">Credit Card</button>
+            <button type="button" class="method-btn ${debtType==='loan'?'active':''}" style="padding:4px 12px;font-size:var(--fs-xs)" data-settype="${c.id}" data-type="loan">Loan</button>
+            <button type="button" class="method-btn ${debtType==='mortgage'?'active':''}" style="padding:4px 12px;font-size:var(--fs-xs)" data-settype="${c.id}" data-type="mortgage">Mortgage</button>
+            <button type="button" class="method-btn ${debtType==='lease'?'active':''}" style="padding:4px 12px;font-size:var(--fs-xs)" data-settype="${c.id}" data-type="lease">Lease</button>
           </div>${helpIcon('debt_type')}
         </div>
         <div class="debt-card-meta" style="flex:1;min-width:280px;margin:0">
@@ -15612,9 +15612,9 @@ function _debtCardRowHTML(c, opts={}) {
       </div>
       <input type="text" value="${esc(c.context||'')}" placeholder="Notes (optional) — e.g. where this debt came from"
         oninput="setCardField(${c.id},'context',this.value)"
-        style="width:100%;font-size:12px;padding:7px 10px;border:1px solid var(--steel-2);border-radius:var(--r-md);background:var(--paper);color:var(--ink)">
+        style="width:100%;font-size:var(--fs-sm);padding:7px 10px;border:1px solid var(--steel-2);border-radius:var(--r-md);background:var(--paper);color:var(--ink)">
       ${debtType === 'loan' ? `
-      <div style="margin-top:8px;display:flex;align-items:center;font-size:12px;color:var(--slate)">
+      <div style="margin-top:8px;display:flex;align-items:center;font-size:var(--fs-sm);color:var(--slate)">
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
           <input type="checkbox" ${flagged?'checked':''} onchange="togglePSLF(${JSON.stringify(pslfKey)}, this.checked)">
           Flag for income-driven forgiveness (PSLF/IBR/SAVE)
@@ -15644,29 +15644,29 @@ function _debtCardRowHTML(c, opts={}) {
 
         return `
           <div style="margin-top:12px;padding:12px 14px;background:var(--mist);border-radius:var(--r-md);border:1px solid var(--steel)">
-            <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:10px">Balance history · ${stats.months} month${stats.months!==1?'s':''}</div>
+            <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:10px">Balance history · ${stats.months} month${stats.months!==1?'s':''}</div>
             <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
               <div style="flex-shrink:0">
                 ${sparkline}
-                <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:9px;color:var(--slate-2);margin-top:2px;width:140px">
+                <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--slate-2);margin-top:2px;width:140px">
                   <span>${fmtMo(firstMonth)}</span><span>${fmtMo(lastMonth)}</span>
                 </div>
               </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:12px;flex:1;min-width:160px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:var(--fs-sm);flex:1;min-width:160px">
                 <div>
-                  <div style="color:var(--slate-2);font-size:10px;margin-bottom:1px">Trend</div>
+                  <div style="color:var(--slate-2);font-size:var(--fs-xs);margin-bottom:1px">Trend</div>
                   <div style="font-family:var(--font-mono);color:${trendColor};font-weight:600">${trendIcon} ${trendLabel}</div>
                 </div>
                 <div>
-                  <div style="color:var(--slate-2);font-size:10px;margin-bottom:1px">Net reduction</div>
+                  <div style="color:var(--slate-2);font-size:var(--fs-xs);margin-bottom:1px">Net reduction</div>
                   <div style="font-family:var(--font-mono);color:${stats.netReduction>0?'var(--pine-text)':'var(--ember-text)'};font-weight:600">${stats.netReduction>0?'−':'+'} ${fmt(Math.abs(stats.netReduction))}</div>
                 </div>
                 ${stats.avgPayment > 0 ? `<div>
-                  <div style="color:var(--slate-2);font-size:10px;margin-bottom:1px">Avg payment</div>
+                  <div style="color:var(--slate-2);font-size:var(--fs-xs);margin-bottom:1px">Avg payment</div>
                   <div style="font-family:var(--font-mono);color:var(--ink)">${fmt(stats.avgPayment)}/mo</div>
                 </div>` : ''}
                 ${stats.totalInterest > 0 ? `<div>
-                  <div style="color:var(--slate-2);font-size:10px;margin-bottom:1px">Interest paid${stats.hasRealInterest?'':' (est)'}</div>
+                  <div style="color:var(--slate-2);font-size:var(--fs-xs);margin-bottom:1px">Interest paid${stats.hasRealInterest?'':' (est)'}</div>
                   <div style="font-family:var(--font-mono);color:var(--ember-text)">${fmt(stats.totalInterest)}</div>
                 </div>` : ''}
               </div>
@@ -15693,7 +15693,7 @@ function _debtLedgerSectionHTML(c) {
   const key = String(c._dbId);
   if (_debtLedgerCache[key] === undefined) {
     loadDebtLedger(c._dbId);
-    return `<div id="ledgerSection-${c.id}" style="margin-top:12px;padding:12px 14px;background:var(--mist);border-radius:var(--r-md);border:1px solid var(--steel);font-size:11px;color:var(--slate-2)">Loading ledger…</div>`;
+    return `<div id="ledgerSection-${c.id}" style="margin-top:12px;padding:12px 14px;background:var(--mist);border-radius:var(--r-md);border:1px solid var(--steel);font-size:var(--fs-xs);color:var(--slate-2)">Loading ledger…</div>`;
   }
   return `<div id="ledgerSection-${c.id}">${_debtLedgerBodyHTML(c)}</div>`;
 }
@@ -15721,22 +15721,22 @@ function _debtLedgerBodyHTML(c) {
     const verb = skipped ? 'Skipped' : (VERB[e.entry_type] || e.entry_type);
     const linkIcon = e.linked_checking_transaction_id
       ? ` <span title="Linked to a checking transaction — click to view" style="cursor:pointer" onclick="jumpToLinkedCheckingTxn(${e.linked_checking_transaction_id})">💳</span>
-          <span title="Unlink (keeps both entries)" style="cursor:pointer;font-size:10px" onclick="unlinkDebtLedgerEntry(${c.id},${e.id})">⛓️‍💥</span>`
+          <span title="Unlink (keeps both entries)" style="cursor:pointer;font-size:var(--fs-xs)" onclick="unlinkDebtLedgerEntry(${c.id},${e.id})">⛓️‍💥</span>`
       : '';
     return `
-    <div id="dle-${e.id}" style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--steel);font-size:12px;${skipped?'opacity:.55':''}">
+    <div id="dle-${e.id}" style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--steel);font-size:var(--fs-sm);${skipped?'opacity:.55':''}">
       <div style="width:72px;flex-shrink:0;color:var(--slate-2);font-family:var(--font-mono)">${e.entry_date}</div>
       <div style="flex:1;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${skipped?'text-decoration:line-through':''}">${esc(verb)}${e.merchant ? ' · ' + esc(e.merchant) : ''}${e.description ? ' · ' + esc(e.description) : ''}${linkIcon}</div>
       <div style="font-family:var(--font-mono);flex-shrink:0;color:${skipped ? 'var(--slate-2)' : e.entry_type==='payment' ? 'var(--pine-text)' : 'var(--ink)'}">${skipped?'':(e.entry_type==='payment'?'−':'+')}${fmt(e.amount)}</div>
       <div style="font-family:var(--font-mono);flex-shrink:0;width:70px;text-align:right;color:var(--slate-2)" title="Running total of manual entries">${skipped ? '' : fmt(runningById[e.id])}</div>
       <button class="row-del" onclick="deleteDebtLedgerEntry(${c.id},${e.id})" title="Remove">×</button>
     </div>`;
-  }).join('') : `<div style="font-size:11px;color:var(--slate-2);padding:6px 0">No manual entries yet.</div>`;
+  }).join('') : `<div style="font-size:var(--fs-xs);color:var(--slate-2);padding:6px 0">No manual entries yet.</div>`;
 
   return `
     <div style="margin-top:12px;padding:12px 14px;background:var(--mist);border-radius:var(--r-md);border:1px solid var(--steel)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2)">Ledger — manual entries</div>
+        <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2)">Ledger — manual entries</div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-ghost btn-sm" onclick="toggleDebtLedgerAdd(${c.id},'charge')">+ Charge</button>
           <button class="btn btn-ghost btn-sm" onclick="toggleDebtLedgerAdd(${c.id},'payment')">+ Payment</button>
@@ -15766,11 +15766,11 @@ function _recurringListHTML(c) {
     // no persisted payoff-plan entity to compare against (see server.py ::
     // get_payment_compliance). Only worth a line once there's real history.
     const complianceLine = (comp && comp.total > 0) ? `
-      <div style="font-size:11px;color:var(--slate-2);margin-top:2px">
+      <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:2px">
         ${comp.on_time}/${comp.total} on-time (±5%)${comp.under_plan ? ` · ${comp.under_plan} under-plan` : ''}${comp.over_plan ? ` · ${comp.over_plan} over-plan` : ''} · avg variance ${comp.avg_variance_pct > 0 ? '+' : ''}${comp.avg_variance_pct}%
       </div>` : '';
     return `
-      <div style="padding:5px 0;font-size:12px;${r.is_active?'':'opacity:.55'}">
+      <div style="padding:5px 0;font-size:var(--fs-sm);${r.is_active?'':'opacity:.55'}">
         <div style="display:flex;align-items:center;gap:10px">
           <div style="flex:1">${fmt(r.amount)}${FREQ_LABEL[r.frequency]||''} · ${dayLabel}${r.is_active?'':' · paused'}</div>
           <button class="btn btn-ghost btn-sm" onclick="toggleRecurringActive(${c.id},${r.id},${!r.is_active})">${r.is_active?'Pause':'Resume'}</button>
@@ -15782,7 +15782,7 @@ function _recurringListHTML(c) {
 
   return `
     <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--steel)">
-      <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px">Recurring payments</div>
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px">Recurring payments</div>
       ${rows}
     </div>`;
 }
@@ -15851,11 +15851,11 @@ function _renderPendingDrafts() {
 
 function _pendingDraftRowHTML(d) {
   return `
-    <div style="padding:8px 0;border-bottom:1px solid var(--steel);font-size:13px" id="draftRow-${d.id}">
+    <div style="padding:8px 0;border-bottom:1px solid var(--steel);font-size:var(--fs-base)" id="draftRow-${d.id}">
       <div style="display:flex;align-items:center;gap:10px">
         <div style="flex:1">
           <div style="color:var(--ink);font-weight:600">${esc(d.debt_account_name)}</div>
-          <div style="font-size:11px;color:var(--slate-2)">Due ${d.entry_date} · your usual ${fmt(d.amount)}</div>
+          <div style="font-size:var(--fs-xs);color:var(--slate-2)">Due ${d.entry_date} · your usual ${fmt(d.amount)}</div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0">
           <button class="btn btn-secondary btn-sm" onclick="confirmDraftAsIs(${d.id})">Confirm</button>
@@ -15882,7 +15882,7 @@ function toggleDraftEditForm(entryId) {
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn btn-secondary btn-sm" onclick="confirmDraftWithEdits(${d.id})">Save &amp; confirm</button>
         <button class="btn btn-ghost btn-sm" onclick="toggleDraftEditForm(${d.id})">Cancel</button>
-        <span id="draftError-${d.id}" style="font-size:11px;color:var(--ember-text)"></span>
+        <span id="draftError-${d.id}" style="font-size:var(--fs-xs);color:var(--ember-text)"></span>
       </div>
     </div>`;
 }
@@ -15987,7 +15987,7 @@ function openLinkToDebtPicker(txnId) {
   const options = debts.map(c => `<option value="${c._dbId}">${esc(c.name || 'Card')}</option>`).join('');
   const html = `
     <div style="margin-top:10px;text-align:left">
-      <label style="font-size:12px;color:var(--slate);display:block;margin-bottom:6px">Link this transaction to:</label>
+      <label style="font-size:var(--fs-sm);color:var(--slate);display:block;margin-bottom:6px">Link this transaction to:</label>
       <select id="linkDebtPicker" style="width:100%">${options}</select>
     </div>`;
   confirmAction('Link to a debt account', html, () => {
@@ -16059,7 +16059,7 @@ function _debtLedgerAddFormHTML(c, type) {
       </div>` : ''}
       ${isPayment ? `
       <div style="margin:0 0 8px 0">
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--slate)">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:var(--fs-sm);color:var(--slate)">
           <input type="checkbox" id="ledgerSaveRecurring-${c.id}" onchange="_toggleRecurringFields(${c.id})">
           Save this as a recurring payment
         </label>
@@ -16077,7 +16077,7 @@ function _debtLedgerAddFormHTML(c, type) {
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn btn-secondary btn-sm" onclick="submitDebtLedgerEntry(${c.id},'${type}')">Add ${isPayment?'payment':'charge'}</button>
         <button class="btn btn-ghost btn-sm" onclick="toggleDebtLedgerAdd(${c.id},'${type}')">Cancel</button>
-        <span id="ledgerError-${c.id}" style="font-size:11px;color:var(--ember-text)"></span>
+        <span id="ledgerError-${c.id}" style="font-size:var(--fs-xs);color:var(--ember-text)"></span>
       </div>
     </div>`;
 }
@@ -16138,9 +16138,9 @@ async function loadRecurringDetection() {
     banner.style.display = '';
     banner.innerHTML = `
       <div style="padding:10px 14px;border-radius:var(--r-md);background:var(--mist);border:0.5px solid var(--steel)">
-        <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px">Recurring patterns spotted</div>
+        <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px">Recurring patterns spotted</div>
         ${patterns.map(p => `
-          <div style="display:flex;align-items:center;gap:10px;padding:4px 0;font-size:12px">
+          <div style="display:flex;align-items:center;gap:10px;padding:4px 0;font-size:var(--fs-sm)">
             <div style="flex:1;color:var(--ink)">${esc(p.label || p.merchant)} ${fmt(p.avg_amount)} — seen ${p.frequency} times, consistently</div>
             <button class="btn btn-secondary btn-sm" onclick="acceptRecurringDetection('${esc(p.merchant).replace(/'/g,"\\'")}', ${p.avg_amount})">Add to budget</button>
             <button class="btn btn-ghost btn-sm" onclick="dismissRecurringDetection('${esc(p.merchant).replace(/'/g,"\\'")}', ${p.avg_amount})">Dismiss</button>
@@ -16338,9 +16338,9 @@ function _debtCardLinkHTML(c) {
     <div class="field" style="margin:0;min-width:160px">
       <label style="display:flex;align-items:center;gap:4px">
         Link to account
-        <span style="font-size:10px;color:var(--slate-2)" title="Link this debt card to an imported account so Groundwork can calculate your balance from real transactions">ⓘ</span>
+        <span style="font-size:var(--fs-xs);color:var(--slate-2)" title="Link this debt card to an imported account so Groundwork can calculate your balance from real transactions">ⓘ</span>
       </label>
-      <select style="font-size:12px;padding:5px 8px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper);color:var(--ink);width:100%"
+      <select style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper);color:var(--ink);width:100%"
         onchange="setCardField(${c.id},'linkedAccountId',this.value?parseInt(this.value):null)">
         <option value="">Not linked</option>
         ${opts}
@@ -16369,7 +16369,7 @@ function _debtCardLinkHTML(c) {
     if (isPartialHistory) {
       // Don't show a mismatch — explain what the number actually is
       crossCheck = `
-        <div style="margin-top:8px;padding:8px 12px;background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-md);font-size:12px;color:var(--slate);line-height:1.6">
+        <div style="margin-top:8px;padding:8px 12px;background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-md);font-size:var(--fs-sm);color:var(--slate);line-height:1.6">
           <b>Partial import history.</b> Groundwork sees ${fmt(Math.abs(calcBal))} in net transactions from your import
           (${txnCount !== null ? txnCount + ' transactions' : 'partial history'}).
           Your full balance of <b>${fmt(manBal)}</b> is correct — the imported file doesn't go back far enough
@@ -16377,31 +16377,31 @@ function _debtCardLinkHTML(c) {
         </div>`;
     } else if (match) {
       crossCheck = `
-        <div style="margin-top:8px;padding:8px 12px;background:var(--pine-bg);border:1px solid var(--pine-border);border-radius:var(--r-md);font-size:12px;color:var(--pine-text)">
+        <div style="margin-top:8px;padding:8px 12px;background:var(--pine-bg);border:1px solid var(--pine-border);border-radius:var(--r-md);font-size:var(--fs-sm);color:var(--pine-text)">
           <b>✓ Balances match.</b> Groundwork's calculated balance from imports (${fmt(calcBal)}) matches what you entered.
         </div>`;
     } else if (_crossCheckDismissed.has(c.id)) {
       // User already chose to keep their manual balance this session — show a quiet acknowledgment
       crossCheck = `
-        <div style="margin-top:8px;padding:6px 12px;background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-md);font-size:11px;color:var(--slate)">
+        <div style="margin-top:8px;padding:6px 12px;background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-md);font-size:var(--fs-xs);color:var(--slate)">
           Keeping your balance of <b>${fmt(manBal)}</b>. Groundwork calculates ${fmt(calcBal)} from imports.
           <span onclick="setCardField(${c.id},'currentBal',${calcBal});_crossCheckDismissed.delete(${c.id});_renderCardList()"
             style="cursor:pointer;color:var(--pine-text);margin-left:6px;text-decoration:underline">Switch to Groundwork's value</span>
         </div>`;
     } else {
       crossCheck = `
-        <div style="margin-top:8px;padding:8px 12px;background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:var(--r-md);font-size:12px;color:var(--gold-text)">
+        <div style="margin-top:8px;padding:8px 12px;background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:var(--r-md);font-size:var(--fs-sm);color:var(--gold-text)">
           <b>Balance difference of ${fmt(diff)}.</b>
           Groundwork calculates <b>${fmt(calcBal)}</b> from your imported transactions.
           You entered <b>${fmt(manBal)}</b> manually.
           This could be an unimported transaction, an interest charge, or a fee.
           <div style="margin-top:6px;display:flex;gap:8px">
             <button onclick="setCardField(${c.id},'currentBal',${calcBal});_crossCheckDismissed.delete(${c.id});_renderCardList()"
-              style="font-size:11px;padding:3px 10px;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer">
+              style="font-size:var(--fs-xs);padding:3px 10px;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer">
               Use Groundwork's ${fmt(calcBal)}
             </button>
             <button onclick="closeDebtCrossCheck(${c.id})"
-              style="font-size:11px;padding:3px 10px;background:none;border:1px solid var(--gold-border);border-radius:var(--r-sm);cursor:pointer;color:var(--gold-text)">
+              style="font-size:var(--fs-xs);padding:3px 10px;background:none;border:1px solid var(--gold-border);border-radius:var(--r-sm);cursor:pointer;color:var(--gold-text)">
               Keep my ${fmt(manBal)}
             </button>
           </div>
@@ -16409,7 +16409,7 @@ function _debtCardLinkHTML(c) {
     }
   } else if (linked && calcBal === null) {
     crossCheck = `
-      <div style="margin-top:8px;padding:8px 12px;background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-md);font-size:12px;color:var(--slate)">
+      <div style="margin-top:8px;padding:8px 12px;background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-md);font-size:var(--fs-sm);color:var(--slate)">
         No transactions imported for this account yet. Import a statement to see the calculated balance.
       </div>`;
   }
@@ -16445,24 +16445,24 @@ function _pslfDetailsHTML(key) {
     <div style="background:var(--mist);border-radius:var(--r-md);padding:10px;margin-top:8px">
       <div class="field-row" style="margin-bottom:10px">
         <div class="field" style="margin:0">
-          <label style="font-size:11px">Program</label>
-          <select style="font-size:13px" onchange="updatePSLFProgram(${JSON.stringify(key)}, this.value)">
+          <label style="font-size:var(--fs-xs)">Program</label>
+          <select style="font-size:var(--fs-base)" onchange="updatePSLFProgram(${JSON.stringify(key)}, this.value)">
             ${Object.entries(PSLF_PROGRAMS).map(([k,p]) =>
               `<option value="${k}" ${(data?.program||'pslf')===k?'selected':''}>${esc(p.label)}</option>`
             ).join('')}
           </select>
         </div>
         <div class="field" style="margin:0">
-          <label style="font-size:11px">Qualifying payments started</label>
-          <input type="date" value="${data?.startDate||''}" style="font-size:13px"
+          <label style="font-size:var(--fs-xs)">Qualifying payments started</label>
+          <input type="date" value="${data?.startDate||''}" style="font-size:var(--fs-base)"
             onchange="updatePSLFStartDate(${JSON.stringify(key)}, this.value)">
         </div>
       </div>
 
       <!-- Progress bar -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-        <div style="font-size:11px;font-weight:500;color:var(--ink)">Qualifying payments</div>
-        <div style="font-size:13px;font-weight:500;font-family:var(--font-mono)">
+        <div style="font-size:var(--fs-xs);font-weight:500;color:var(--ink)">Qualifying payments</div>
+        <div style="font-size:var(--fs-base);font-weight:500;font-family:var(--font-mono)">
           <span style="color:var(--pine-text)">${made}</span>
           <span style="color:var(--slate)"> / ${total}</span>
         </div>
@@ -16474,32 +16474,32 @@ function _pslfDetailsHTML(key) {
       <!-- Countdown and forgiveness date -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
         <div style="text-align:center;padding:8px;background:var(--paper);border-radius:var(--r-md)">
-          <div style="font-size:20px;font-weight:500;color:${remain===0?'var(--pine-text)':'var(--ink)'}">${remain}</div>
-          <div style="font-size:10px;color:var(--slate);margin-top:1px">payments to go</div>
+          <div style="font-size:var(--fs-2xl);font-weight:500;color:${remain===0?'var(--pine-text)':'var(--ink)'}">${remain}</div>
+          <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:1px">payments to go</div>
         </div>
         <div style="text-align:center;padding:8px;background:var(--paper);border-radius:var(--r-md)">
-          <div style="font-size:13px;font-weight:500;color:var(--pine-text)">${forgiveDate}</div>
-          <div style="font-size:10px;color:var(--slate);margin-top:1px">estimated forgiveness</div>
+          <div style="font-size:var(--fs-base);font-weight:500;color:var(--pine-text)">${forgiveDate}</div>
+          <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:1px">estimated forgiveness</div>
         </div>
       </div>
 
       <!-- Inputs: payments made (override) + recertification date -->
       <div class="field-row">
         <div class="field" style="margin:0">
-          <label style="font-size:11px">Qualifying payments made</label>
-          <input type="number" value="${made}" min="0" max="${total}" style="font-size:13px"
+          <label style="font-size:var(--fs-xs)">Qualifying payments made</label>
+          <input type="number" value="${made}" min="0" max="${total}" style="font-size:var(--fs-base)"
             onchange="updatePSLFPayments(${JSON.stringify(key)}, this.value)">
         </div>
         <div class="field" style="margin:0">
-          <label style="font-size:11px">IBR/SAVE recertification due</label>
-          <input type="date" value="${data?.certifiedUntil||''}" style="font-size:13px"
+          <label style="font-size:var(--fs-xs)">IBR/SAVE recertification due</label>
+          <input type="date" value="${data?.certifiedUntil||''}" style="font-size:var(--fs-base)"
             onchange="updatePSLFCertification(${JSON.stringify(key)}, this.value)">
         </div>
       </div>
 
       ${remain === 0 ? `
       <div style="margin-top:10px;padding:8px;background:var(--pine-bg);border-radius:var(--r-md);
-                  font-size:12px;color:var(--pine-text);text-align:center;font-weight:500">
+                  font-size:var(--fs-sm);color:var(--pine-text);text-align:center;font-weight:500">
         🎉 ${total} qualifying payments complete — you may be eligible for forgiveness. Contact your loan servicer.
       </div>` : ''}
     </div>`;
@@ -16790,7 +16790,7 @@ function _debtRenderTrackerTab() {
 
   if (!plan || !plan.rows || !plan.rows.length) {
     body.innerHTML = `
-      <div style="font-family:var(--font-serif);font-style:italic;font-size:22px;color:var(--ink);margin-bottom:16px">${moLabel}</div>
+      <div style="font-family:var(--font-serif);font-style:italic;font-size:var(--fs-3xl);color:var(--ink);margin-bottom:16px">${moLabel}</div>
       <div class="empty-state" style="padding:32px">
         <div class="empty-state-icon">📅</div>
         <div class="empty-state-title">Add cards and set a budget</div>
@@ -16834,17 +16834,17 @@ function _debtRenderTrackerTab() {
       paidBadge = ''; // no data — show nothing
     } else if (paidStatus.paid) {
       paidBadge = `<span title="Payment of ${fmt(paidStatus.amount)} found on ${paidStatus.date}"
-        style="font-size:11px;color:var(--pine-text);font-weight:600;flex-shrink:0">✓ paid</span>`;
+        style="font-size:var(--fs-xs);color:var(--pine-text);font-weight:600;flex-shrink:0">✓ paid</span>`;
     } else {
       paidBadge = `<span title="No matching payment found in imported transactions this month"
-        style="font-size:11px;color:var(--slate-2);flex-shrink:0">○ not yet</span>`;
+        style="font-size:var(--fs-xs);color:var(--slate-2);flex-shrink:0">○ not yet</span>`;
     }
 
     return `
       <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;${rowBg};border-radius:var(--r-sm);margin-bottom:4px">
-        <div style="flex:1;font-size:13px;color:var(--ink)">${esc(p.name)}</div>
-        <div style="font-size:12px;color:var(--slate);font-family:var(--font-mono)">${fmt(p.minimum)} min${extraPart}${pslfNote}</div>
-        <div style="font-family:var(--font-mono);font-size:14px;font-weight:500;color:${isTarget?'var(--gold-text)':'var(--ink)'};min-width:56px;text-align:right">${fmt(p.total)}</div>
+        <div style="flex:1;font-size:var(--fs-base);color:var(--ink)">${esc(p.name)}</div>
+        <div style="font-size:var(--fs-sm);color:var(--slate);font-family:var(--font-mono)">${fmt(p.minimum)} min${extraPart}${pslfNote}</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-md);font-weight:500;color:${isTarget?'var(--gold-text)':'var(--ink)'};min-width:56px;text-align:right">${fmt(p.total)}</div>
         ${paidBadge ? `<div style="min-width:56px;text-align:right">${paidBadge}</div>` : ''}
       </div>`;
   }).join('');
@@ -16856,34 +16856,34 @@ function _debtRenderTrackerTab() {
   const allPaid    = paidCount !== null && paidCount === plan.rows.length;
 
   const nextNote = plan.nextMonthNote
-    ? `<div style="margin-top:12px;font-size:12px;color:var(--pine-text);line-height:1.6;padding:8px 12px;background:var(--pine-bg);border-radius:var(--r-sm);border:1px solid var(--pine-border)">${esc(plan.nextMonthNote)}</div>`
+    ? `<div style="margin-top:12px;font-size:var(--fs-sm);color:var(--pine-text);line-height:1.6;padding:8px 12px;background:var(--pine-bg);border-radius:var(--r-sm);border:1px solid var(--pine-border)">${esc(plan.nextMonthNote)}</div>`
     : '';
 
   // Payment summary note
   const paidNote = paidCount === null ? '' :
     allPaid
-      ? `<div style="margin-top:10px;padding:8px 12px;background:var(--pine-bg);border:1px solid var(--pine-border);border-radius:var(--r-sm);font-size:12px;color:var(--pine-text);font-weight:500">
+      ? `<div style="margin-top:10px;padding:8px 12px;background:var(--pine-bg);border:1px solid var(--pine-border);border-radius:var(--r-sm);font-size:var(--fs-sm);color:var(--pine-text);font-weight:500">
            ✓ All ${plan.rows.length} payment${plan.rows.length!==1?'s':''} confirmed this month
          </div>`
       : paidCount > 0
-        ? `<div style="margin-top:10px;padding:8px 12px;background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-sm);font-size:12px;color:var(--slate)">
+        ? `<div style="margin-top:10px;padding:8px 12px;background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-sm);font-size:var(--fs-sm);color:var(--slate)">
              ${paidCount} of ${plan.rows.length} payments confirmed · ${plan.rows.length - paidCount} pending
            </div>`
         : '';
 
   body.innerHTML = `
-    <div style="font-family:var(--font-serif);font-style:italic;font-size:22px;color:var(--ink);margin-bottom:16px">${moLabel}</div>
+    <div style="font-family:var(--font-serif);font-style:italic;font-size:var(--fs-3xl);color:var(--ink);margin-bottom:16px">${moLabel}</div>
     <div style="border:1px solid var(--steel);border-radius:var(--r-md);padding:8px;margin-bottom:4px">
       ${rows}
       <div style="display:flex;justify-content:flex-end;padding:8px 12px;border-top:1px solid var(--steel);margin-top:4px">
-        <div style="font-size:12px;color:var(--slate);margin-right:8px">Total this month</div>
-        <div style="font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--ink)">${fmt(grandTotal)}</div>
+        <div style="font-size:var(--fs-sm);color:var(--slate);margin-right:8px">Total this month</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-md);font-weight:600;color:var(--ink)">${fmt(grandTotal)}</div>
       </div>
     </div>
     ${paidNote}
     ${nextNote}
     ${!hasImportedTxns ? `
-    <div style="margin-top:10px;font-size:11px;color:var(--slate-2);line-height:1.6">
+    <div style="margin-top:10px;font-size:var(--fs-xs);color:var(--slate-2);line-height:1.6">
       Import your checking account transactions to see payment confirmation status.
     </div>` : ''}
     ${totalBegin > 0 && pct > 0 ? `
@@ -16891,11 +16891,11 @@ function _debtRenderTrackerTab() {
       <div style="background:var(--steel);border-radius:9999px;height:6px;overflow:hidden;margin-bottom:6px">
         <div style="height:100%;background:var(--pine);border-radius:9999px;width:${pct}%;transition:width .5s ease"></div>
       </div>
-      <div style="font-family:var(--font-mono);font-size:11px;color:var(--pine-text)">${pct}% eliminated · ${fmt(totalElim)} paid</div>
+      <div style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--pine-text)">${pct}% eliminated · ${fmt(totalElim)} paid</div>
     </div>` : ''}
     <div style="margin-top:16px">
       <span onclick="showView('reports');setTimeout(()=>{ if(typeof _rcOpenReport==='function') _rcOpenReport('debt_payoff'); },80)"
-        style="font-size:12px;color:var(--pine-text);cursor:pointer;text-decoration:underline">See full payoff plan →</span>
+        style="font-size:var(--fs-sm);color:var(--pine-text);cursor:pointer;text-decoration:underline">See full payoff plan →</span>
     </div>`;
 }
 // CP-D1: Advisor tab render
@@ -16919,11 +16919,11 @@ function _debtRenderAdvisorTab() {
     aiEntry.style.cssText = 'margin-top:20px;padding:14px 18px;border:1px solid var(--steel);border-radius:var(--r-md);display:flex;align-items:center;justify-content:space-between;gap:16px';
     aiEntry.innerHTML = `
       <div>
-        <div style="font-size:13px;font-weight:500;color:var(--ink)">Groundwork's acceleration analysis</div>
-        <div style="font-size:12px;color:var(--slate);margin-top:2px">AI-powered analysis of your full debt picture with specific recommendations</div>
+        <div style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">Groundwork's acceleration analysis</div>
+        <div style="font-size:var(--fs-sm);color:var(--slate);margin-top:2px">AI-powered analysis of your full debt picture with specific recommendations</div>
       </div>
       <button onclick="_debtLaunchAdvisorAI()"
-        style="font-size:12px;padding:7px 16px;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
+        style="font-size:var(--fs-sm);padding:7px 16px;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
         ✦ Generate
       </button>`;
     advisorPanel.appendChild(aiEntry);
@@ -17054,7 +17054,7 @@ function calculate() {
       : 'At ' + fmt(budget) + ' a month the debt does not clear within 30 years, so there is no payoff date. Any amount above the '
         + fmt(totalMin) + ' in minimums brings one closer.';
     if (results) results.innerHTML = `
-      <div style="color:var(--ember-text);font-size:13px;padding:12px;margin-bottom:12px;line-height:1.6">${why}</div>
+      <div style="color:var(--ember-text);font-size:var(--fs-base);padding:12px;margin-bottom:12px;line-height:1.6">${why}</div>
       ${_paymentPlanHTML()}`;
     return;
   }
@@ -17096,7 +17096,7 @@ function calculate() {
       <div class="stat-card"><div class="stat-label">Daily interest${helpIcon('daily_interest')}</div>
         <div class="stat-value negative">${fmt(daily,2)}/day</div></div>
     </div>
-    <div style="font-size:12px;color:var(--slate-2);margin-bottom:16px">
+    <div style="font-size:var(--fs-sm);color:var(--slate-2);margin-bottom:16px">
       ${result.months} months · ${S.debtMethod==='avalanche'?'Avalanche (highest rate first)':'Snowball (smallest balance first)'}
     </div>
     ${_paymentPlanHTML()}`;
@@ -17194,10 +17194,10 @@ function _debtRenderStrategyComparison(baseResult, totalDebt) {
     // Confirm they're on the right method
     html = `
       <div style="display:flex;align-items:flex-start;gap:10px">
-        <span style="color:var(--pine-text);font-size:16px;flex-shrink:0">✓</span>
+        <span style="color:var(--pine-text);font-size:var(--fs-lg);flex-shrink:0">✓</span>
         <div>
-          <div style="font-size:13px;font-weight:500;color:var(--ink);margin-bottom:2px">${betterName} saves ${fmt(intDiff)} over ${worseName}</div>
-          <div style="font-size:12px;color:var(--slate);line-height:1.6">
+          <div style="font-size:var(--fs-base);font-weight:500;color:var(--ink);margin-bottom:2px">${betterName} saves ${fmt(intDiff)} over ${worseName}</div>
+          <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6">
             You're on the right method.
             ${moDiff > 0 ? `It also gets you debt-free ${moDiff} month${moDiff!==1?'s':''} sooner — ${betterMethod.freeDate} vs ${worseMethod.freeDate}.` : ''}
             ${avWins && av.firstClearedName ? `First card cleared: ${esc(av.firstClearedName)} in month ${av.firstClearedMonth}.` : ''}
@@ -17213,17 +17213,17 @@ function _debtRenderStrategyComparison(baseResult, totalDebt) {
       : `Avalanche targets your highest-rate card first. The math saves ${fmt(intDiff)} in interest${moDiff > 0 ? ` and ${moDiff} month${moDiff!==1?'s':''}` : ''} — but early progress can feel slower.`;
     html = `
       <div style="display:flex;align-items:flex-start;gap:10px">
-        <span style="color:var(--gold-text);font-size:14px;flex-shrink:0">↕</span>
+        <span style="color:var(--gold-text);font-size:var(--fs-md);flex-shrink:0">↕</span>
         <div>
-          <div style="font-size:13px;font-weight:500;color:var(--ink);margin-bottom:2px">Switching to ${switched} would save ${fmt(intDiff)}</div>
-          <div style="font-size:12px;color:var(--slate);line-height:1.6">${tradeoff}</div>
+          <div style="font-size:var(--fs-base);font-weight:500;color:var(--ink);margin-bottom:2px">Switching to ${switched} would save ${fmt(intDiff)}</div>
+          <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6">${tradeoff}</div>
           <div style="margin-top:8px;display:flex;gap:8px">
             <button onclick="setMethod('${switched.toLowerCase()}');g('debtStrategyComparison').remove()"
-              style="font-size:11px;padding:4px 12px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper);color:var(--ink);cursor:pointer">
+              style="font-size:var(--fs-xs);padding:4px 12px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper);color:var(--ink);cursor:pointer">
               Switch to ${switched}
             </button>
             <button onclick="g('debtStrategyComparison').remove()"
-              style="font-size:11px;padding:4px 12px;border:none;background:none;color:var(--slate);cursor:pointer">
+              style="font-size:var(--fs-xs);padding:4px 12px;border:none;background:none;color:var(--slate);cursor:pointer">
               Keep ${S.debtMethod === 'avalanche' ? 'Avalanche' : 'Snowball'}
             </button>
           </div>
@@ -17235,17 +17235,17 @@ function _debtRenderStrategyComparison(baseResult, totalDebt) {
   div.id = 'debtStrategyComparison';
   div.style.cssText = 'margin-top:16px;padding:14px 16px;border:1px solid var(--steel);border-radius:var(--r-md);background:var(--mist)';
   div.innerHTML = `
-    <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:10px">Strategy comparison</div>
+    <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:10px">Strategy comparison</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
       <div style="padding:10px;border-radius:var(--r-sm);background:${onAvalanche?'var(--pine-bg)':'var(--paper)'};border:1px solid ${onAvalanche?'var(--pine-border)':'var(--steel)'}">
-        <div style="font-size:11px;font-weight:600;color:${onAvalanche?'var(--pine-text)':'var(--slate)'};margin-bottom:4px">Avalanche${onAvalanche?' ✓':''}</div>
-        <div style="font-family:var(--font-mono);font-size:13px;color:var(--ink)">${fmt(av.totalInterest)} interest</div>
-        <div style="font-size:11px;color:var(--slate)">${av.freeDate} · ${av.months}mo</div>
+        <div style="font-size:var(--fs-xs);font-weight:600;color:${onAvalanche?'var(--pine-text)':'var(--slate)'};margin-bottom:4px">Avalanche${onAvalanche?' ✓':''}</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-base);color:var(--ink)">${fmt(av.totalInterest)} interest</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate)">${av.freeDate} · ${av.months}mo</div>
       </div>
       <div style="padding:10px;border-radius:var(--r-sm);background:${!onAvalanche?'var(--pine-bg)':'var(--paper)'};border:1px solid ${!onAvalanche?'var(--pine-border)':'var(--steel)'}">
-        <div style="font-size:11px;font-weight:600;color:${!onAvalanche?'var(--pine-text)':'var(--slate)'};margin-bottom:4px">Snowball${!onAvalanche?' ✓':''}</div>
-        <div style="font-family:var(--font-mono);font-size:13px;color:var(--ink)">${fmt(sn.totalInterest)} interest</div>
-        <div style="font-size:11px;color:var(--slate)">${sn.freeDate} · ${sn.months}mo</div>
+        <div style="font-size:var(--fs-xs);font-weight:600;color:${!onAvalanche?'var(--pine-text)':'var(--slate)'};margin-bottom:4px">Snowball${!onAvalanche?' ✓':''}</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-base);color:var(--ink)">${fmt(sn.totalInterest)} interest</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate)">${sn.freeDate} · ${sn.months}mo</div>
       </div>
     </div>
     ${html}`;
@@ -17310,7 +17310,7 @@ function confirmRemoveCard(id) {
   // that really existed, and it does not guess (V8).
   confirmAction('Remove this card?',
     'It will leave your Debt page, and Groundwork has no way to bring it back. Its past balances are kept and still count in your debt history.'
-    + '<label style="display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-size:13px;line-height:1.5;cursor:pointer">'
+    + '<label style="display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-size:var(--fs-base);line-height:1.5;cursor:pointer">'
     + '<input type="checkbox" id="removeCardMistake" style="margin-top:3px">'
     + '<span>It was added by mistake. Delete it and its history instead, so it stops counting. A backup of your data is saved first.</span></label>',
     () => (g('removeCardMistake')?.checked ? deleteCardAddedByMistake(id) : removeCard(id)));
@@ -17435,12 +17435,12 @@ function _aprEstimatorHTML(id, card) {
   if (debtType === 'credit') {
     const method = _aprEstMethod[id] || 'interest';
     const body = method === 'interest' ? `
-        <div style="font-size:11px;color:var(--slate);margin-bottom:10px;line-height:1.5">Look for <strong>"Interest Charged"</strong> on your statement — a specific line item, separate from "Minimum Payment Due." This gives an exact APR regardless of how your minimum is calculated.</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-bottom:10px;line-height:1.5">Look for <strong>"Interest Charged"</strong> on your statement — a specific line item, separate from "Minimum Payment Due." This gives an exact APR regardless of how your minimum is calculated.</div>
         <div class="field-row" style="margin-bottom:10px">
           <div class="field" style="margin:0"><label>Balance ($)</label><input type="number" step="0.01" id="aprBal-${id}" value="${balanceVal}" min="0"></div>
           <div class="field" style="margin:0"><label>Interest charged this period ($)</label><input type="number" id="aprInterest-${id}" placeholder="e.g. 38.50" min="0" step="0.01"></div>
         </div>` : `
-        <div style="font-size:11px;color:var(--slate);margin-bottom:10px;line-height:1.5">Approximate — assumes your minimum payment = a fixed % of balance, plus interest. Common, but not universal. If the result looks way off from what your statement shows, your card likely uses a flat-percentage minimum instead, and this won't apply — use "Interest charged" if you can find it.</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-bottom:10px;line-height:1.5">Approximate — assumes your minimum payment = a fixed % of balance, plus interest. Common, but not universal. If the result looks way off from what your statement shows, your card likely uses a flat-percentage minimum instead, and this won't apply — use "Interest charged" if you can find it.</div>
         <div class="field-row-3" style="margin-bottom:10px">
           <div class="field" style="margin:0"><label>Balance ($)</label><input type="number" step="0.01" id="aprBal-${id}" value="${balanceVal}" min="0"></div>
           <div class="field" style="margin:0"><label>Minimum payment ($)</label><input type="number" step="0.01" id="aprMin-${id}" value="${card.minimum||''}" min="0"></div>
@@ -17450,17 +17450,17 @@ function _aprEstimatorHTML(id, card) {
     return `
       <div style="margin-top:10px;padding:12px;background:var(--mist);border-radius:var(--r-md)">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate)">APR estimator — revolving credit</div>
+          <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate)">APR estimator — revolving credit</div>
           ${helpIcon('apr_estimator')}
         </div>
         <div class="method-toggle" style="margin-bottom:10px">
-          <button type="button" class="method-btn ${method==='interest'?'active':''}" style="padding:4px 12px;font-size:11px" onclick="switchAprMethod(${id},'interest')">From interest charged</button>
-          <button type="button" class="method-btn ${method==='minpay'?'active':''}" style="padding:4px 12px;font-size:11px" onclick="switchAprMethod(${id},'minpay')">From minimum payment</button>
+          <button type="button" class="method-btn ${method==='interest'?'active':''}" style="padding:4px 12px;font-size:var(--fs-xs)" onclick="switchAprMethod(${id},'interest')">From interest charged</button>
+          <button type="button" class="method-btn ${method==='minpay'?'active':''}" style="padding:4px 12px;font-size:var(--fs-xs)" onclick="switchAprMethod(${id},'minpay')">From minimum payment</button>
         </div>
         ${body}
         <div style="display:flex;align-items:center;gap:12px">
           <button class="btn btn-secondary btn-sm" onclick="applyAprEstimate(${id})">Calculate APR →</button>
-          <span id="aprResult-${id}" style="font-size:13px;font-family:var(--font-mono)"></span>
+          <span id="aprResult-${id}" style="font-size:var(--fs-base);font-family:var(--font-mono)"></span>
         </div>
       </div>`;
   }
@@ -17469,10 +17469,10 @@ function _aprEstimatorHTML(id, card) {
   return `
     <div style="margin-top:10px;padding:12px;background:var(--mist);border-radius:var(--r-md)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate)">APR estimator — installment loan</div>
+        <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate)">APR estimator — installment loan</div>
         ${helpIcon('apr_estimator')}
       </div>
-      <div style="font-size:11px;color:var(--slate);margin-bottom:10px;line-height:1.5">Enter your loan balance, the fixed monthly payment, and how many months remain on the term.</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate);margin-bottom:10px;line-height:1.5">Enter your loan balance, the fixed monthly payment, and how many months remain on the term.</div>
       <div class="field-row-3" style="margin-bottom:10px">
         <div class="field" style="margin:0"><label>Balance ($)</label><input type="number" step="0.01" id="aprBal-${id}" value="${balanceVal}" min="0"></div>
         <div class="field" style="margin:0"><label>Monthly payment ($)</label><input type="number" step="0.01" id="aprMin-${id}" value="${card.minimum||''}" min="0"></div>
@@ -17480,7 +17480,7 @@ function _aprEstimatorHTML(id, card) {
       </div>
       <div style="display:flex;align-items:center;gap:12px">
         <button class="btn btn-secondary btn-sm" onclick="applyAprEstimate(${id})">Calculate APR →</button>
-        <span id="aprResult-${id}" style="font-size:13px;font-family:var(--font-mono)"></span>
+        <span id="aprResult-${id}" style="font-size:var(--fs-base);font-family:var(--font-mono)"></span>
       </div>
     </div>`;
 }
@@ -17729,27 +17729,27 @@ function _renderInvPositions() {
     // Fee flag — only shown when ER is notable (>0.5%); a ratio saved before its unit was stated asks to be confirmed
     const feeFlag = p.expense_ratio_unconfirmed != null
       ? `<span onclick="promptExpenseRatio('${esc(p.ticker)}')"
-               style="font-size:10px;padding:2px 6px;border-radius:20px;cursor:pointer;
+               style="font-size:var(--fs-xs);padding:2px 6px;border-radius:20px;cursor:pointer;
                       background:var(--gold-bg);border:1px solid #FAC775;color:var(--gold-text)"
                title="Expense ratio saved without a unit — click to confirm">Confirm ER</span>`
       : er > 0.01
       ? `<span onclick="promptExpenseRatio('${esc(p.ticker)}')"
-               style="font-size:10px;padding:2px 6px;border-radius:20px;cursor:pointer;
+               style="font-size:var(--fs-xs);padding:2px 6px;border-radius:20px;cursor:pointer;
                       background:#FCEBEB;border:1px solid #F7C1C1;color:var(--ember-text)"
                title="High expense ratio — click to review">${(er*100).toFixed(2)}%</span>`
       : er > 0.005
       ? `<span onclick="promptExpenseRatio('${esc(p.ticker)}')"
-               style="font-size:10px;padding:2px 6px;border-radius:20px;cursor:pointer;
+               style="font-size:var(--fs-xs);padding:2px 6px;border-radius:20px;cursor:pointer;
                       background:var(--gold-bg);border:1px solid #FAC775;color:var(--gold-text)"
                title="Moderate expense ratio — click to review">${(er*100).toFixed(2)}%</span>`
       : '';
 
     const acCell = ac
       ? `<span onclick="promptAssetClass('${esc(p.ticker)}')"
-               style="font-size:10px;padding:2px 7px;border-radius:20px;cursor:pointer;
+               style="font-size:var(--fs-xs);padding:2px 7px;border-radius:20px;cursor:pointer;
                       background:${acColor}22;border:1px solid ${acColor}55;color:${acColor}">${acLabel}</span>`
       : `<select onchange="saveAssetClass('${esc(p.ticker)}', this.value)"
-                 style="font-size:10px;padding:2px 4px;border-radius:4px;cursor:pointer;
+                 style="font-size:var(--fs-xs);padding:2px 4px;border-radius:4px;cursor:pointer;
                         border:1px dashed var(--steel);
                         background:transparent;color:var(--slate)">
            <option value="">Tag class\u2026</option>
@@ -17759,13 +17759,13 @@ function _renderInvPositions() {
     return `<tr>
       <td style="padding:12px 16px">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span class="text-mono" style="font-weight:600;font-size:14px">${esc(p.ticker||'')}</span>
+          <span class="text-mono" style="font-weight:600;font-size:var(--fs-md)">${esc(p.ticker||'')}</span>
           ${acCell}
           ${feeFlag}
         </div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">${esc(p.company_name||'')}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${esc(p.company_name||'')}</div>
         <div onclick="promptManualPrice('${esc(p.ticker)}', ${p.current_price||0})"
-             style="font-size:11px;color:${p.price_stale?'var(--gold-text)':'var(--slate-2)'};margin-top:3px;cursor:pointer;
+             style="font-size:var(--fs-xs);color:${p.price_stale?'var(--gold-text)':'var(--slate-2)'};margin-top:3px;cursor:pointer;
                     display:inline-flex;align-items:center;gap:3px"
              title="Click to set price manually">
           ${priceLine} <span style="opacity:.6">✎</span>
@@ -17773,11 +17773,11 @@ function _renderInvPositions() {
       </td>
       <td style="text-align:right;padding:12px 16px">
         <div class="text-mono" style="font-weight:500">${valued ? gwFig('inv.pos_value', fmt(p.market_value), p.ticker) : 'Not valued'}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:1px">${valued ? gwFig('inv.pos_alloc', allocPct.toFixed(1) + '%', p.ticker) : 'no price on record'}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:1px">${valued ? gwFig('inv.pos_alloc', allocPct.toFixed(1) + '%', p.ticker) : 'no price on record'}</div>
       </td>
       <td style="text-align:right;padding:12px 16px">
         <div class="text-mono" style="color:${gainColor}">${gained ? gwFig('inv.pos_gain', (gain >= 0 ? '+' : '') + fmt(gain), p.ticker) : 'Not shown'}</div>
-        <div style="font-size:11px;color:${gainColor};opacity:.8;margin-top:1px">${gained
+        <div style="font-size:var(--fs-xs);color:${gainColor};opacity:.8;margin-top:1px">${gained
           ? gwFig('inv.pos_gain_pct', (gainPct >= 0 ? '+' : '') + gainPct.toFixed(1) + '%', p.ticker) + (p.no_basis_shares ? ' \u00b7 leaves out ' + _invShares(p.no_basis_shares) + ' with no cost basis' : '')
           : valued ? 'no cost basis on record' : 'no price on record'}</div>
       </td>
@@ -17868,21 +17868,21 @@ function _renderInvAnalytics() {
     const gain = p.unrealized_gain || 0;
     return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:0.5px solid var(--steel-2)">
       <div>
-        <span class="text-mono" style="font-size:12px;font-weight:500">${esc(p.ticker)}</span>
-        <span style="font-size:11px;color:var(--slate);margin-left:6px">${esc((p.company_name||'').split(' ').slice(0,2).join(' '))}</span>
+        <span class="text-mono" style="font-size:var(--fs-sm);font-weight:500">${esc(p.ticker)}</span>
+        <span style="font-size:var(--fs-xs);color:var(--slate);margin-left:6px">${esc((p.company_name||'').split(' ').slice(0,2).join(' '))}</span>
       </div>
       <div style="text-align:right">
-        <span style="font-family:var(--font-mono);font-size:12px;color:${col}">${pct>=0?'+':''}${pct.toFixed(1)}%</span>
-        <span style="font-family:var(--font-mono);font-size:11px;color:${col};margin-left:6px;opacity:.7">${gain>=0?'+':''}${fmt(gain)}</span>
+        <span style="font-family:var(--font-mono);font-size:var(--fs-sm);color:${col}">${pct>=0?'+':''}${pct.toFixed(1)}%</span>
+        <span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:${col};margin-left:6px;opacity:.7">${gain>=0?'+':''}${fmt(gain)}</span>
       </div>
     </div>`;
   };
 
   const showN = Math.min(3, sorted.length);
   if (topEl) topEl.innerHTML = sorted.slice(0, showN).map(p => perfRow(p, false)).join('') ||
-    '<div style="font-size:11px;color:var(--slate)">No positions yet</div>';
+    '<div style="font-size:var(--fs-xs);color:var(--slate)">No positions yet</div>';
   if (botEl) botEl.innerHTML = sorted.slice(-showN).reverse().map(p => perfRow(p, true)).join('') ||
-    '<div style="font-size:11px;color:var(--slate)">—</div>';
+    '<div style="font-size:var(--fs-xs);color:var(--slate)">—</div>';
 
   // Returns overview — only what we know, plus enhanced concentration check
   const overview = g('invOverviewContent');
@@ -17902,34 +17902,34 @@ function _renderInvAnalytics() {
     let concentrationNote = '';
     const unpricedC = _invExclusions(s).unpriced;
     if (unpricedC)   // item 35 V6: a share of an incomplete total is not the holding's share of the portfolio
-      concentrationNote = `<div style="padding:7px 0;font-size:11px;color:var(--slate)">
+      concentrationNote = `<div style="padding:7px 0;font-size:var(--fs-xs);color:var(--slate)">
         Concentration needs every holding priced. ${esc(unpricedC)}.
       </div>`;
     else if (concentrated30)   // item 110 V6: the fact, no advice
-      concentrationNote = `<div style="padding:7px 0;font-size:11px;color:var(--gold-text)">
+      concentrationNote = `<div style="padding:7px 0;font-size:var(--fs-xs);color:var(--gold-text)">
         ⚠ ${esc(largest.ticker)} is ${largestPct.toFixed(0)}% of your portfolio.
       </div>`;
     else if (concentrated50)
-      concentrationNote = `<div style="padding:7px 0;font-size:11px;color:var(--gold-text)">
+      concentrationNote = `<div style="padding:7px 0;font-size:var(--fs-xs);color:var(--gold-text)">
         ⚠ Top 3 holdings make up ${top3Pct.toFixed(0)}% of your portfolio.
       </div>`;
     else if (largestPct > 0)
-      concentrationNote = `<div style="padding:7px 0;font-size:11px;color:var(--slate)">
+      concentrationNote = `<div style="padding:7px 0;font-size:var(--fs-xs);color:var(--slate)">
         Largest position: <strong style="color:var(--ink)">${esc(largest.ticker)}</strong> at ${largestPct.toFixed(1)}%
       </div>`;
 
     overview.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:0.5px solid var(--steel-2)">
-        <span style="font-size:12px;color:var(--slate)">Total invested</span>
-        <span class="text-mono" style="font-size:13px">${fmt(s.total_cost||0)}</span>
+        <span style="font-size:var(--fs-sm);color:var(--slate)">Total invested</span>
+        <span class="text-mono" style="font-size:var(--fs-base)">${fmt(s.total_cost||0)}</span>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:0.5px solid var(--steel-2)">
-        <span style="font-size:12px;color:var(--slate)">Market value</span>
-        <span class="text-mono" style="font-size:13px;font-weight:500">${fmt(s.total_market_value||0)}</span>
+        <span style="font-size:var(--fs-sm);color:var(--slate)">Market value</span>
+        <span class="text-mono" style="font-size:var(--fs-base);font-weight:500">${fmt(s.total_market_value||0)}</span>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:0.5px solid var(--steel-2)">
-        <span style="font-size:12px;color:var(--slate)">Overall return</span>
-        <span class="text-mono" style="font-size:13px;color:${gainColor}">
+        <span style="font-size:var(--fs-sm);color:var(--slate)">Overall return</span>
+        <span class="text-mono" style="font-size:var(--fs-base);color:${gainColor}">
           ${s.total_gain === null || s.total_gain === undefined ? 'Not computed'
             : `${s.total_gain>=0?'+':''}${fmt(s.total_gain)} · ${(s.total_gain_pct||0)>=0?'+':''}${(s.total_gain_pct||0).toFixed(1)}%`}
         </span>
@@ -17966,24 +17966,24 @@ function _renderFeeAnalysis() {
 
   return `
     <div style="padding-top:10px;margin-top:4px;border-top:0.5px solid var(--steel-2)">
-      <div style="font-size:10px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;
+      <div style="font-size:var(--fs-xs);font-weight:500;letter-spacing:.07em;text-transform:uppercase;
                   color:var(--slate);margin-bottom:8px">Fee drag</div>
       <div style="display:flex;justify-content:space-between;align-items:baseline;padding:4px 0">
-        <span style="font-size:12px;color:var(--slate)">Annual fees</span>
-        <span class="text-mono" style="font-size:13px;color:var(--color-text-danger)">${fmt(totalAnnualFee)}/yr</span>
+        <span style="font-size:var(--fs-sm);color:var(--slate)">Annual fees</span>
+        <span class="text-mono" style="font-size:var(--fs-base);color:var(--color-text-danger)">${fmt(totalAnnualFee)}/yr</span>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;margin-bottom:8px">
-        <span style="font-size:12px;color:var(--slate)">30-yr cost at 7%</span>
-        <span class="text-mono" style="font-size:12px;color:var(--slate)">~${fmt(fv30)} foregone</span>
+        <span style="font-size:var(--fs-sm);color:var(--slate)">30-yr cost at 7%</span>
+        <span class="text-mono" style="font-size:var(--fs-sm);color:var(--slate)">~${fmt(fv30)} foregone</span>
       </div>
       ${top3.map(r => `
-        <div style="display:flex;justify-content:space-between;padding:2px 0;font-size:11px">
+        <div style="display:flex;justify-content:space-between;padding:2px 0;font-size:var(--fs-xs)">
           <span style="color:var(--slate)">${esc(r.ticker)}
             <span style="opacity:.6">${(r.er*100).toFixed(2)}% ER</span>
           </span>
           <span class="text-mono" style="color:var(--color-text-danger)">${fmt(r.annualFee)}/yr</span>
         </div>`).join('')}
-      ${unconfirmedER.length ? `<div style="font-size:11px;color:var(--slate-2);margin-top:4px">Not counted: ${esc(unconfirmedER.join(', '))} \u2014 expense ratio needs confirming.</div>` : ''}
+      ${unconfirmedER.length ? `<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px">Not counted: ${esc(unconfirmedER.join(', '))} \u2014 expense ratio needs confirming.</div>` : ''}
     </div>`;
 }
 
@@ -18003,14 +18003,14 @@ function promptExpenseRatio(ticker) {
   const pos     = _invPositions.find(p => p.ticker === ticker);
   const current = pos?.expense_ratio != null ? +(pos.expense_ratio * 100).toFixed(4) : '';
   const unconfirmed = pos?.expense_ratio_unconfirmed != null
-    ? `<div style="margin-bottom:8px;font-size:12px;color:var(--slate)">
+    ? `<div style="margin-bottom:8px;font-size:var(--fs-sm);color:var(--slate)">
          A figure of ${esc(String(pos.expense_ratio_unconfirmed))} was saved for ${esc(ticker)} before Groundwork said which unit it meant,
          so it could be ${esc(String(pos.expense_ratio_unconfirmed))}% or ${esc(String(+(pos.expense_ratio_unconfirmed * 100).toFixed(4)))}%.
          It is not used until you confirm it.
        </div>` : '';
   confirmAction(
     `Expense ratio for ${ticker}`,
-    `${unconfirmed}<div style="margin-bottom:8px;font-size:13px;color:var(--slate)">
+    `${unconfirmed}<div style="margin-bottom:8px;font-size:var(--fs-base);color:var(--slate)">
        Enter the annual expense ratio as a percentage (e.g. 0.03 for Vanguard index funds, 0.20 for QQQ).
      </div>
      <div style="display:flex;align-items:center;gap:8px">
@@ -18018,7 +18018,7 @@ function promptExpenseRatio(ticker) {
               placeholder="0.03"
               style="flex:1;padding:8px;border-radius:var(--r-md);
                      border:1px solid var(--steel);font-family:var(--font-mono)">
-       <span style="font-size:13px;color:var(--slate)">%</span>
+       <span style="font-size:var(--fs-base);color:var(--slate)">%</span>
      </div>`,
     () => { const v = g('erInput')?.value; if (v !== '') saveExpenseRatio(ticker, v); }
   );
@@ -18031,12 +18031,12 @@ function promptExpenseRatio(ticker) {
 function promptManualPrice(ticker, currentPrice) {
   confirmAction(
     `Set price for ${ticker}`,
-    `<div style="margin-bottom:8px;font-size:13px;color:var(--slate)">
+    `<div style="margin-bottom:8px;font-size:var(--fs-base);color:var(--slate)">
        Enter the current price per share. Groundwork doesn't have a live price feed yet, so this
        is what your holdings will value against until you update it again.
      </div>
      <div style="display:flex;align-items:center;gap:8px">
-       <span style="font-size:13px;color:var(--slate)">$</span>
+       <span style="font-size:var(--fs-base);color:var(--slate)">$</span>
        <input type="number" id="manualPriceInput" value="${currentPrice > 0 ? currentPrice.toFixed(2) : ''}"
               min="0" step="0.01" placeholder="0.00"
               style="flex:1;padding:8px;border-radius:var(--r-md);
@@ -18076,7 +18076,7 @@ function _drawAllocDonut(segments, colors) {
   });
   svg.innerHTML = arcs.join('') +
     `<text x="${cx}" y="${cy+4}" text-anchor="middle" font-size="11" font-family="var(--font-mono)" fill="var(--ink)">${segments.length}</text>` +
-    `<text x="${cx}" y="${cy+15}" text-anchor="middle" font-size="9" fill="var(--slate-2)">types</text>`;
+    `<text x="${cx}" y="${cy+15}" text-anchor="middle" font-size="11" fill="var(--slate-2)">types</text>`;
 }
 
 // Item 35 V2: net worth carries the priced value and names what has no price beside it - never the cost of an
@@ -18148,7 +18148,7 @@ async function _renderTargetAllocation() {
   card.style.display = '';
   const unpricedX = _invExclusions(_invSummary).unpriced;
   if (unpricedX) {   // item 35 V6: an allocation without a holding in it is not the allocation
-    driftEl.innerHTML = `<div style="font-size:12px;color:var(--slate);line-height:1.6">Allocation against your targets needs every holding priced. ${esc(unpricedX)}.</div>`;
+    driftEl.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6">Allocation against your targets needs every holding priced. ${esc(unpricedX)}.</div>`;
     if (rebalEl) rebalEl.innerHTML = '';
     return;
   }
@@ -18182,12 +18182,12 @@ async function _renderTargetAllocation() {
     const conf     = confResults[idx];
     const confPct  = conf && conf.confidence_pct;
     const confBadge = (confPct != null)
-      ? `<span style="font-size:11px;font-family:var(--font-mono);color:${confPct>=70?'var(--pine-text)':confPct>=40?'var(--gold-text)':'var(--ember-text)'}" title="${esc(conf.reasoning||'')}">${confPct}% on target</span>`
+      ? `<span style="font-size:var(--fs-xs);font-family:var(--font-mono);color:${confPct>=70?'var(--pine-text)':confPct>=40?'var(--gold-text)':'var(--ember-text)'}" title="${esc(conf.reasoning||'')}">${confPct}% on target</span>`
       : '';
 
     rows.push(`
       <div style="margin-bottom:10px">
-        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+        <div style="display:flex;justify-content:space-between;font-size:var(--fs-sm);margin-bottom:3px">
           <span style="display:flex;align-items:center;gap:6px">
             <span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0"></span>
             ${esc(label)}
@@ -18222,10 +18222,10 @@ async function _renderTargetAllocation() {
 
   driftEl.innerHTML = rows.join('');
   rebalEl.innerHTML = rebalSuggestions.length
-    ? `<div style="font-size:11px;font-weight:500;color:var(--slate);
+    ? `<div style="font-size:var(--fs-xs);font-weight:500;color:var(--slate);
                    text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">To rebalance</div>
        ${rebalSuggestions.map(s => `<div style="padding:3px 0">${s}</div>`).join('')}`
-    : `<div style="font-size:12px;color:var(--pine-text)">✓ Portfolio is within tolerance on all classes.</div>`;
+    : `<div style="font-size:var(--fs-sm);color:var(--pine-text)">✓ Portfolio is within tolerance on all classes.</div>`;
 }
 
 function _calcActualAlloc() {
@@ -18261,11 +18261,11 @@ function _invRenderAdvisorEntry() {
   card.innerHTML = `
     <div id="invAdvisorAIEntry" style="display:flex;align-items:center;justify-content:space-between;gap:16px">
       <div>
-        <div style="font-size:13px;font-weight:500;color:var(--ink)">Groundwork's portfolio analysis</div>
-        <div style="font-size:12px;color:var(--slate);margin-top:2px">AI-powered read of your positions, gains, and allocation drift</div>
+        <div style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">Groundwork's portfolio analysis</div>
+        <div style="font-size:var(--fs-sm);color:var(--slate);margin-top:2px">AI-powered read of your positions, gains, and allocation drift</div>
       </div>
       <button onclick="_invLaunchAdvisorAI()"
-        style="font-size:12px;padding:7px 16px;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
+        style="font-size:var(--fs-sm);padding:7px 16px;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
         ✦ Generate
       </button>
     </div>`;
@@ -18338,15 +18338,15 @@ function showSetTargetsPanel() {
     const col     = ASSET_CLASS_COLORS[cls];
     return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
       <span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0"></span>
-      <span style="font-size:13px;flex:1">${esc(label)}</span>
+      <span style="font-size:var(--fs-base);flex:1">${esc(label)}</span>
       <input type="number" min="0" max="100" step="1" value="${current}"
              id="target_${cls}"
              oninput="updateTargetSum()"
              style="width:70px;text-align:right;padding:4px 8px;
                     border-radius:var(--r-md);
                     border:0.5px solid var(--steel);
-                    font-family:var(--font-mono);font-size:13px">
-      <span style="font-size:13px;color:var(--slate)">%</span>
+                    font-family:var(--font-mono);font-size:var(--fs-base)">
+      <span style="font-size:var(--fs-base);color:var(--slate)">%</span>
     </div>`;
   }).join('');
   updateTargetSum();
@@ -18564,7 +18564,7 @@ function updateNetWorth() {
   if (!nwGapEl && nwEl && nwEl.parentNode) {
     nwGapEl = document.createElement('div');
     nwGapEl.id = 'nwInvGap';
-    nwGapEl.style.cssText = 'font-size:11px;color:var(--gold-text);margin-top:4px';
+    nwGapEl.style.cssText = 'font-size:var(--fs-xs);color:var(--gold-text);margin-top:4px';
     nwEl.parentNode.insertBefore(nwGapEl, nwEl.nextSibling);
   }
   if (nwGapEl) { nwGapEl.textContent = nwGap ? nwGap + ' Set a price on the Investments page.' : ''; nwGapEl.style.display = nwGap ? '' : 'none'; }
@@ -18585,15 +18585,15 @@ function updateNetWorth() {
       ['HSA / FSA (from your accounts)', hsaFsa],
     ].filter(([,v]) => v > 0);
     assetEl.innerHTML = rows.map(([label,val]) => `
-      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--steel);font-size:13px">
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--steel);font-size:var(--fs-base)">
         <span>${label}</span><span style="font-family:var(--font-mono);color:var(--pine-text)">${fmt(val)}</span>
       </div>`).join('')
       // Item 86: counted from the HSA / FSA accounts, so a figure typed into Savings above must not include it too.
       + (hsaFsa > 0 ? `
-      <div style="font-size:11px;color:var(--slate);padding:4px 0">HSA / FSA: the balances shown on the Health page and in Settings, Accounts. If your Savings figure above already includes them, take them out there so they are counted once.</div>` : '')
+      <div style="font-size:var(--fs-xs);color:var(--slate);padding:4px 0">HSA / FSA: the balances shown on the Health page and in Settings, Accounts. If your Savings figure above already includes them, take them out there so they are counted once.</div>` : '')
       // V9: equity is information, not a second asset - the value and the mortgage are already counted.
       + (homeValue > 0 ? `
-      <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:12px;color:var(--slate)">
+      <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:var(--fs-sm);color:var(--slate)">
         <span>Home equity (home value minus mortgage)</span><span style="font-family:var(--font-mono)">${fmt(homeEquity)}</span>
       </div>` : '');
   }
@@ -18606,7 +18606,7 @@ function updateNetWorth() {
       [_m.fromDebtPage ? 'Mortgage (from your Debt page)' : 'Mortgage', _m.amount],
     ].filter(([,v]) => v > 0);
     liabEl.innerHTML = rows.map(([label,val]) => `
-      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--steel);font-size:13px">
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--steel);font-size:var(--fs-base)">
         <span>${label}</span><span style="font-family:var(--font-mono);color:var(--ember-text)">${fmt(val)}</span>
       </div>`).join('');
   }
@@ -18648,7 +18648,7 @@ function _nwMortgageFieldState(m) {
   if (!note) {
     note = document.createElement('div');
     note.id = 'nwMortgageNote';
-    note.style.cssText = 'font-size:11px;color:var(--slate);margin-top:4px;line-height:1.5';
+    note.style.cssText = 'font-size:var(--fs-xs);color:var(--slate);margin-top:4px;line-height:1.5';
     el.insertAdjacentElement('afterend', note);
   }
   if (m.fromDebtPage) {
@@ -18791,11 +18791,11 @@ function _renderNWChart() {
     ${projSVG}
     ${_nwHistory.map((d,i)=>`<circle cx="${toX(i)}" cy="${toY(d.net_worth)}" r="${d.notes ? 4.5 : 3}" fill="${color}">${d.notes ? `<title>${esc(d.month_label + ': ' + d.notes)}</title>` : ''}</circle>`).join('')}
     ${proj.length ? `<text x="${w-8}" y="${toY(proj[Math.min(11,proj.length-1)].projected)+4}"
-       text-anchor="end" font-size="9" fill="${color}" opacity=".5">12mo</text>` : ''}
-  </svg><div style="font-size:11px;color:var(--slate);margin-top:6px">${esc(nwSummary)}</div>` + (_nwNoFigures || []).map(d =>
-    `<div style="font-size:10px;color:var(--slate-2);margin-top:4px">${esc(d.month_label)}: recorded without figures \u2014 not a net worth.</div>`).join('')
+       text-anchor="end" font-size="11" fill="${color}" opacity=".5">12mo</text>` : ''}
+  </svg><div style="font-size:var(--fs-xs);color:var(--slate);margin-top:6px">${esc(nwSummary)}</div>` + (_nwNoFigures || []).map(d =>
+    `<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px">${esc(d.month_label)}: recorded without figures \u2014 not a net worth.</div>`).join('')
     + _nwHistory.filter(d => d.notes).slice(-3).map(d =>
-    `<div style="font-size:10px;color:var(--slate-2);margin-top:4px">${esc(d.month_label + ': ' + d.notes)}</div>`).join('');
+    `<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px">${esc(d.month_label + ': ' + d.notes)}</div>`).join('');
 }
 
 function _updateNWDelta() {
@@ -18950,7 +18950,7 @@ function renderLoanFlags() {
 
   const warningBanner = warnings.length ? `
     <div style="padding:10px 12px;background:var(--gold-bg);border-radius:var(--r-md);
-                border:0.5px solid var(--gold);margin-bottom:12px;font-size:12px;line-height:1.6">
+                border:0.5px solid var(--gold);margin-bottom:12px;font-size:var(--fs-sm);line-height:1.6">
       ⚠ <strong>Recertification due:</strong>
       ${warnings.map(w => w.expired
         ? `<strong style="color:var(--ember-text)">${esc(w.name)} — OVERDUE</strong>`
@@ -19044,7 +19044,7 @@ function renderPensionList() {
   if (!list) return;
   const pensions = S.lifeStage.pensions || [];
   if (!pensions.length) {
-    list.innerHTML = `<div style="font-size:12px;color:var(--slate)">
+    list.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate)">
       No pension entered yet.</div>`;
     return;
   }
@@ -19053,18 +19053,18 @@ function renderPensionList() {
     return `<div style="padding:8px 0;border-bottom:0.5px solid var(--steel-2)">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
-          <span style="font-size:13px;font-weight:500">${esc(p.name)}</span>
-          <span style="font-size:11px;color:var(--slate);margin-left:8px">
+          <span style="font-size:var(--fs-base);font-weight:500">${esc(p.name)}</span>
+          <span style="font-size:var(--fs-xs);color:var(--slate);margin-left:8px">
             ${fmt(p.monthlyBenefit)}/mo at age ${p.retirementAge}
           </span>
         </div>
         <div style="display:flex;align-items:center;gap:10px">
-          <span class="text-mono" style="font-size:13px;color:var(--pine-text)">~${fmt(pv)}</span>
+          <span class="text-mono" style="font-size:var(--fs-base);color:var(--pine-text)">~${fmt(pv)}</span>
           <button onclick="removePension(${idx})"
-            style="font-size:11px;background:none;border:none;color:var(--slate);cursor:pointer">×</button>
+            style="font-size:var(--fs-xs);background:none;border:none;color:var(--slate);cursor:pointer">×</button>
         </div>
       </div>
-      <div style="font-size:11px;color:var(--slate);margin-top:2px">
+      <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">
         Estimated present value · SSA life tables (${p.gender||'neutral'}) · 3% discount rate
       </div>
     </div>`;
@@ -19101,7 +19101,7 @@ function _estimatePensionPV(pension) {
 function showAddPension() {
   confirmAction(
     'Add defined benefit pension',
-    `<div style="font-size:12px;color:var(--slate);margin-bottom:12px;line-height:1.6">
+    `<div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:12px;line-height:1.6">
        A defined benefit pension is a guaranteed monthly payment at retirement.
        The estimated present value uses SSA life expectancy tables and a 3% discount rate.
      </div>
@@ -19177,16 +19177,16 @@ async function renderSubscriptionAudit() {
     return `<div style="display:flex;justify-content:space-between;align-items:center;
                          padding:7px 0;border-bottom:0.5px solid var(--steel-2)">
       <div>
-        <span style="font-size:13px;text-transform:capitalize">${esc(name)}</span>
-        <span style="font-size:11px;color:var(--slate);margin-left:8px">
+        <span style="font-size:var(--fs-base);text-transform:capitalize">${esc(name)}</span>
+        <span style="font-size:var(--fs-xs);color:var(--slate);margin-left:8px">
           ${s.monthsActive} month${s.monthsActive!==1?'s':''} active
         </span>
       </div>
-      <span class="text-mono" style="font-size:13px;color:var(--ember-text)">${fmt(s.amount)}/mo</span>
+      <span class="text-mono" style="font-size:var(--fs-base);color:var(--ember-text)">${fmt(s.amount)}/mo</span>
     </div>`;
   }).join('');
 
-  list.innerHTML += `<div style="padding:8px 0;font-size:12px;color:var(--slate);
+  list.innerHTML += `<div style="padding:8px 0;font-size:var(--fs-sm);color:var(--slate);
                                   border-top:0.5px solid var(--steel-2);margin-top:4px">
     ${fmt(monthlyTotal)}/month \xb7 ${fmt(monthlyTotal*12)}/year in recurring charges.
     <a href="#" onclick="showView('calendar');return false" style="color:var(--sky)">See when each comes on the Calendar →</a>
@@ -19225,7 +19225,7 @@ function _renderSinkingFunds() {
   if (card) card.style.display = '';
 
   if (!_sinkingFunds.length) {
-    el.innerHTML = `<div style="font-size:12px;color:var(--slate);padding:4px 0">
+    el.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate);padding:4px 0">
       No funds yet. Add one above — car repairs, home maintenance, annual subscriptions, holiday gifts.
     </div>`;
     return;
@@ -19241,17 +19241,17 @@ function _renderSinkingFunds() {
     return `<div style="padding:12px 0;border-bottom:0.5px solid var(--steel-2)" data-sf-idx="${idx}">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
         <div>
-          <span style="font-size:13px;font-weight:500">${esc(fund.name)}</span>
-          <span style="font-size:11px;color:var(--slate);margin-left:8px">${fmt(fund.monthly_contribution || fund.monthlyContrib)}/mo</span>
+          <span style="font-size:var(--fs-base);font-weight:500">${esc(fund.name)}</span>
+          <span style="font-size:var(--fs-xs);color:var(--slate);margin-left:8px">${fmt(fund.monthly_contribution || fund.monthlyContrib)}/mo</span>
         </div>
         <div style="display:flex;align-items:center;gap:10px">
-          <span class="text-mono" style="font-size:14px;font-weight:500;color:${col}">${fmt(fund.current_amount || fund.balance || 0)}</span>
-          ${fund.target_amount || fund.target ? `<span style="font-size:11px;color:var(--slate)">of ${fmt(fund.target_amount || fund.target)}</span>` : ''}
-          <button onclick="sfWithdraw(${idx})" style="font-size:11px;padding:2px 8px;border-radius:20px;
+          <span class="text-mono" style="font-size:var(--fs-md);font-weight:500;color:${col}">${fmt(fund.current_amount || fund.balance || 0)}</span>
+          ${fund.target_amount || fund.target ? `<span style="font-size:var(--fs-xs);color:var(--slate)">of ${fmt(fund.target_amount || fund.target)}</span>` : ''}
+          <button onclick="sfWithdraw(${idx})" style="font-size:var(--fs-xs);padding:2px 8px;border-radius:20px;
                   background:var(--mist);border:0.5px solid var(--steel);cursor:pointer">
             Use funds
           </button>
-          <button onclick="sfRemove(${idx})" style="font-size:11px;padding:2px 6px;border-radius:20px;
+          <button onclick="sfRemove(${idx})" style="font-size:var(--fs-xs);padding:2px 6px;border-radius:20px;
                   background:none;border:none;color:var(--slate);cursor:pointer">×</button>
         </div>
       </div>
@@ -19259,7 +19259,7 @@ function _renderSinkingFunds() {
         <div style="height:4px;background:var(--mist);border-radius:99px;overflow:hidden;margin-bottom:4px">
           <div style="height:100%;width:${pct}%;background:${col};border-radius:99px;transition:width .3s"></div>
         </div>
-        <div style="font-size:11px;color:var(--slate)">
+        <div style="font-size:var(--fs-xs);color:var(--slate)">
           ${filled ? '✓ Fully funded' : `${pct.toFixed(0)}% funded${monthsToFull ? ` · full in ${monthsToFull}mo` : ''}`}
         </div>` : ''}
     </div>`;
@@ -19307,7 +19307,7 @@ function sfWithdraw(idx) {
   if (!fund) return;
   confirmAction(
     `Use from ${fund.name}`,
-    `<div style="margin-bottom:8px;font-size:13px;color:var(--slate)">
+    `<div style="margin-bottom:8px;font-size:var(--fs-base);color:var(--slate)">
        Current balance: <strong>${fmt(fund.current_amount || fund.balance || 0)}</strong>
      </div>
      <input type="number" id="sfWithdrawAmt" placeholder="Amount to withdraw" min="1"
@@ -19415,13 +19415,13 @@ function _renderGiftFilterBar() {
   return `<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px">
     <div class="gift-tabs">${relTabs}</div>
     <div style="display:flex;align-items:center;gap:8px">
-      <select id="giftTypeFilter" onchange="_giftSetTypeFilter(this.value)" style="font-size:12px;padding:5px 10px;border:1px solid var(--steel);border-radius:20px;background:var(--paper);color:var(--slate);cursor:pointer">
+      <select id="giftTypeFilter" onchange="_giftSetTypeFilter(this.value)" style="font-size:var(--fs-sm);padding:5px 10px;border:1px solid var(--steel);border-radius:20px;background:var(--paper);color:var(--slate);cursor:pointer">
         <option value="all" ${_giftFilterType==='all'?'selected':''}>All occasions</option>${typeOpts}
       </select>
       <button class="btn btn-secondary btn-sm" data-action="add-person">+ Person</button>
     </div>
   </div>
-  <style>.gift-tabs{display:flex;gap:4px;flex-wrap:wrap}.gift-tab{padding:5px 12px;border-radius:20px;border:1px solid var(--steel);background:var(--paper);font-size:12px;color:var(--slate);cursor:pointer}.gift-tab.active,.gift-tab:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}</style>`;
+  <style>.gift-tabs{display:flex;gap:4px;flex-wrap:wrap}.gift-tab{padding:5px 12px;border-radius:20px;border:1px solid var(--steel);background:var(--paper);font-size:var(--fs-sm);color:var(--slate);cursor:pointer}.gift-tab.active,.gift-tab:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}</style>`;
 }
 
 function _filteredPeople() {
@@ -19444,7 +19444,7 @@ function _renderGiftPlan() {
   const occs = plan.occasions || [];
   if (!occs.length) {
     return `<div class="card mb-5"><div class="card-label">The year's gifts</div>
-      <div style="font-size:12px;color:var(--slate);line-height:1.7">Give an occasion a budget and it is counted here: the next 12 months of gifts, and what that takes a month.</div></div>`;
+      <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.7">Give an occasion a budget and it is counted here: the next 12 months of gifts, and what that takes a month.</div></div>`;
   }
   const line = plan.line;
   const amounts = [plan.steady, plan.to_cover].filter(a => a > 0);
@@ -19454,19 +19454,19 @@ function _renderGiftPlan() {
         : `Your budget's <b>Gifts (set aside)</b> line is ${fmt(line.amount)} a month; the occasions now come to the amounts below.`)
     : `Nothing is set aside for gifts in your budget yet.`;
   const btn = (amt, what) => `<button class="btn btn-secondary btn-sm" data-action="set-aside" data-amt="${amt}">Set aside for gifts: ${fmt(amt)}/mo</button>
-    <span style="font-size:11px;color:var(--slate)">${what}</span>`;
+    <span style="font-size:var(--fs-xs);color:var(--slate)">${what}</span>`;
   const buttons = [btn(plan.steady, 'the year spread evenly')];
   if (plan.to_cover) buttons.push(btn(plan.to_cover, 'each one covered by its date'));
-  const rows = occs.map(o => `<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;color:var(--ink)">
+  const rows = occs.map(o => `<div style="display:flex;justify-content:space-between;font-size:var(--fs-sm);padding:3px 0;color:var(--ink)">
       <span>${esc(o.label)} <span style="color:var(--slate)">· ${_giftDateLabel(o.date)}</span></span><span style="font-family:var(--font-mono)">${fmt(o.budget)}</span></div>`).join('');
   return `<div class="card mb-5">
     <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
       <div class="card-label" style="margin:0">The year's gifts</div>
-      <div style="font-family:var(--font-mono);font-size:15px;font-weight:600;color:var(--ink)">${fmt(plan.total)} <span style="font-size:11px;font-weight:400;color:var(--slate)">next 12 months</span></div>
+      <div style="font-family:var(--font-mono);font-size:var(--fs-lg);font-weight:600;color:var(--ink)">${fmt(plan.total)} <span style="font-size:var(--fs-xs);font-weight:400;color:var(--slate)">next 12 months</span></div>
     </div>
-    <div style="font-size:12px;color:var(--slate);line-height:1.7;margin:8px 0">${(plan.working||[]).map(esc).join('<br>')}</div>
-    <details style="margin-bottom:10px"><summary style="font-size:12px;color:var(--slate);cursor:pointer">The occasions behind it (${occs.length})</summary><div style="margin-top:6px">${rows}</div></details>
-    <div style="font-size:12px;color:var(--ink);margin-bottom:8px">${lineNote}</div>
+    <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.7;margin:8px 0">${(plan.working||[]).map(esc).join('<br>')}</div>
+    <details style="margin-bottom:10px"><summary style="font-size:var(--fs-sm);color:var(--slate);cursor:pointer">The occasions behind it (${occs.length})</summary><div style="margin-top:6px">${rows}</div></details>
+    <div style="font-size:var(--fs-sm);color:var(--ink);margin-bottom:8px">${lineNote}</div>
     <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start">${buttons.map(b=>`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${b}</div>`).join('')}</div>
   </div>`;
 }
@@ -19490,12 +19490,12 @@ function _renderGiftComingUp() {
     const color = diff<=7?'var(--ember-text)':diff<=30?'var(--gold-text)':'var(--slate)';
     const when  = diff===0?'Today':diff===1?'Tomorrow':`${diff} days`;
     return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--steel-2)">
-      <div style="font-size:20px;width:28px;text-align:center">${oct.icon}</div>
-      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:var(--ink)">${esc(occ.label)}</div>
-      <div style="font-size:11px;color:var(--slate)">${_giftDateLabel(occ.next)}</div></div>
-      ${occ.budget>0?`<div style="font-family:var(--font-mono);font-size:13px;color:var(--ink)">${fmt(occ.budget)}</div>`:(person?`<button class="btn btn-ghost btn-sm" style="font-size:11px" data-action="set-budget" data-pid="${person.id}" data-oid="${occ.id}">Set budget</button>`:'')}
-      <div style="font-size:11px;font-weight:600;color:${color};min-width:60px;text-align:right">${when}</div>
-      ${occ.offer_date?`<button class="btn btn-ghost btn-sm" style="font-size:11px;white-space:nowrap" data-action="charges-occ" data-oid="${occ.id}">Gift charges?</button>`:''}
+      <div style="font-size:var(--fs-2xl);width:28px;text-align:center">${oct.icon}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">${esc(occ.label)}</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate)">${_giftDateLabel(occ.next)}</div></div>
+      ${occ.budget>0?`<div style="font-family:var(--font-mono);font-size:var(--fs-base);color:var(--ink)">${fmt(occ.budget)}</div>`:(person?`<button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" data-action="set-budget" data-pid="${person.id}" data-oid="${occ.id}">Set budget</button>`:'')}
+      <div style="font-size:var(--fs-xs);font-weight:600;color:${color};min-width:60px;text-align:right">${when}</div>
+      ${occ.offer_date?`<button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs);white-space:nowrap" data-action="charges-occ" data-oid="${occ.id}">Gift charges?</button>`:''}
     </div>`;
   }).join('');
   return `<div class="card mb-5"><div class="card-label">Coming up <span style="font-weight:400;color:var(--slate-2)">(next 90 days)</span></div>${rows}</div>`;
@@ -19512,9 +19512,9 @@ function _renderGiftPeopleSection() {
     <div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" data-action="save-person">Add person</button><button class="btn btn-ghost btn-sm" data-action="cancel-person">Cancel</button></div>
   </div>`;
   const filterNote = (_giftFilterRel!=='all'||_giftFilterType!=='all')&&people.length<total
-    ? `<div style="font-size:11px;color:var(--slate-2);margin-bottom:8px">Showing ${people.length} of ${total} people</div>` : '';
+    ? `<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-bottom:8px">Showing ${people.length} of ${total} people</div>` : '';
   const list = people.length ? people.map(p=>_giftPersonCard(p)).join('')
-    : `<div style="font-size:12px;color:var(--slate);padding:8px 0;line-height:1.7">${_giftFilterRel!=='all'||_giftFilterType!=='all'?'No people match this filter.':'No people yet. Tap "+ Person" to add someone.'}</div>`;
+    : `<div style="font-size:var(--fs-sm);color:var(--slate);padding:8px 0;line-height:1.7">${_giftFilterRel!=='all'||_giftFilterType!=='all'?'No people match this filter.':'No people yet. Tap "+ Person" to add someone.'}</div>`;
   return `<div class="card mb-5"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><div class="card-label" style="margin:0">People${total?` (${total})`:''}</div></div>${addForm}${filterNote}${list}</div>`;
 }
 
@@ -19522,14 +19522,14 @@ function _giftOccasionRow(o, pid) {
   const oct  = GIFT_OCCASION_TYPES[o.type]||GIFT_OCCASION_TYPES.other;
   const ds   = o.next ? _giftDateLabel(o.next) : (o.date||'—');
   const spentNote = o.actual_spent != null
-    ? `<span style="font-size:10px;color:var(--slate-2)" title="Logged ${o.spent_at||''}">spent ${fmt(o.actual_spent)}</span>` : '';
+    ? `<span style="font-size:var(--fs-xs);color:var(--slate-2)" title="Logged ${o.spent_at||''}">spent ${fmt(o.actual_spent)}</span>` : '';
   return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--steel-2)">
-    <span style="font-size:16px;width:22px;text-align:center">${oct.icon}</span>
-    <div style="flex:1;font-size:12px;color:var(--ink)">${o.type==='other'&&o.name?esc(o.name):oct.label}</div>
+    <span style="font-size:var(--fs-lg);width:22px;text-align:center">${oct.icon}</span>
+    <div style="flex:1;font-size:var(--fs-sm);color:var(--ink)">${o.type==='other'&&o.name?esc(o.name):oct.label}</div>
     ${spentNote}
-    <div style="font-size:11px;color:var(--slate);min-width:60px;text-align:right">${ds}</div>
+    <div style="font-size:var(--fs-xs);color:var(--slate);min-width:60px;text-align:right">${ds}</div>
     <input type="number" value="${o.budget||''}" min="0" step="0.01" placeholder="$0" data-budget-oid="${o.id}"
-      style="width:72px;font-family:var(--font-mono);font-size:12px;padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);text-align:right"
+      style="width:72px;font-family:var(--font-mono);font-size:var(--fs-sm);padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);text-align:right"
       onchange="_giftSetOccasionBudget('${o.id}',this.value)">
     ${o.offer_date?`<button class="row-del" data-action="charges-occ" data-oid="${o.id}" title="Gift charges from the ledger">🧾</button>`:''}
     <button class="row-del" data-action="spend-occ" data-oid="${o.id}" title="Log actual spend">$</button>
@@ -19543,28 +19543,28 @@ function _giftPersonCard(p) {
   const total  = p.occasions.reduce((s,o)=>s+(o.budget||0),0);
   const occs   = _giftFilterType!=='all' ? p.occasions.filter(o=>o.type===_giftFilterType) : p.occasions;
   const addOccForm = isOpen ? `<div style="display:flex;gap:8px;margin-top:10px;align-items:flex-end;flex-wrap:wrap">
-    <select id="newOccType-${p.id}" class="field-input" style="font-size:12px;padding:5px 8px;flex:1;min-width:140px">${Object.entries(GIFT_OCCASION_TYPES).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}</select>
-    <input type="date" id="newOccDate-${p.id}" class="field-input" style="font-size:12px;padding:5px 8px;flex:1;min-width:130px">
+    <select id="newOccType-${p.id}" class="field-input" style="font-size:var(--fs-sm);padding:5px 8px;flex:1;min-width:140px">${Object.entries(GIFT_OCCASION_TYPES).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}</select>
+    <input type="date" id="newOccDate-${p.id}" class="field-input" style="font-size:var(--fs-sm);padding:5px 8px;flex:1;min-width:130px">
     <button class="btn btn-secondary btn-sm" data-action="add-occ" data-pid="${p.id}">+ Occasion</button>
   </div>` : '';
   return `<div style="border:1px solid var(--steel);border-radius:var(--r-md);margin-bottom:8px;overflow:hidden">
     <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;background:var(--paper)" data-action="toggle-person" data-pid="${p.id}">
-      <span style="font-size:16px">${rel.icon}</span>
-      <div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--ink)">${esc(p.name)}</div>
-      <div style="font-size:11px;color:var(--slate-2)">${rel.label} · ${p.occasions.length} occasion${p.occasions.length!==1?'s':''}</div></div>
-      ${total>0?`<div style="font-family:var(--font-mono);font-size:13px;color:var(--slate)">${fmt(total)}/yr</div>`:''}
-      <span style="color:var(--slate-2);font-size:12px">${isOpen?'▴':'▾'}</span>
+      <span style="font-size:var(--fs-lg)">${rel.icon}</span>
+      <div style="flex:1"><div style="font-size:var(--fs-base);font-weight:600;color:var(--ink)">${esc(p.name)}</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate-2)">${rel.label} · ${p.occasions.length} occasion${p.occasions.length!==1?'s':''}</div></div>
+      ${total>0?`<div style="font-family:var(--font-mono);font-size:var(--fs-base);color:var(--slate)">${fmt(total)}/yr</div>`:''}
+      <span style="color:var(--slate-2);font-size:var(--fs-sm)">${isOpen?'▴':'▾'}</span>
       <button class="row-del" data-action="del-person" data-pid="${p.id}" title="Remove" onclick="event.stopPropagation()">×</button>
     </div>
     ${isOpen?`<div style="padding:10px 12px;background:var(--mist);border-top:1px solid var(--steel)">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <span style="font-size:11px;color:var(--slate-2)">Relationship</span>
-        <select class="field-input" style="font-size:12px;padding:4px 8px;width:auto"
+        <span style="font-size:var(--fs-xs);color:var(--slate-2)">Relationship</span>
+        <select class="field-input" style="font-size:var(--fs-sm);padding:4px 8px;width:auto"
           onchange="_giftSetRelationship('${p.id}',this.value)">
           ${Object.entries(GIFT_RELATIONSHIPS).map(([k,v])=>`<option value="${k}" ${p.relationship===k?'selected':''}>${v.icon} ${v.label}</option>`).join('')}
         </select>
       </div>
-      ${occs.length?occs.map(o=>_giftOccasionRow(o, p.id)).join(''):'<div style="font-size:12px;color:var(--slate);padding:4px 0">No occasions yet — add one below.</div>'}
+      ${occs.length?occs.map(o=>_giftOccasionRow(o, p.id)).join(''):'<div style="font-size:var(--fs-sm);color:var(--slate);padding:4px 0">No occasions yet — add one below.</div>'}
       ${addOccForm}
     </div>`:''}
   </div>`;
@@ -19593,20 +19593,20 @@ function _renderGiftSharedSection() {
       : left<-0.004 ? `<span style="color:var(--ember-text)">The fixed amounts are ${fmt(-left)} over the total</span>`
       : (o.shares||[]).length ? `<span style="color:var(--pine-text)">All ${fmt(o.budget)} assigned</span>` : '';
     const shareRows = (o.shares||[]).map(s => `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:0.5px solid var(--steel-2)">
-        <div style="flex:1;font-size:12px;color:var(--ink)">${esc(s.name)}</div>
+        <div style="flex:1;font-size:var(--fs-sm);color:var(--ink)">${esc(s.name)}</div>
         <input type="number" min="0" step="0.01" placeholder="even part" value="${s.fixed_amount??''}"
-          style="width:90px;font-family:var(--font-mono);font-size:12px;padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);text-align:right"
+          style="width:90px;font-family:var(--font-mono);font-size:var(--fs-sm);padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);text-align:right"
           onchange="_giftSetShareFixed('${s.id}',this.value)" title="A fixed amount, or blank for an even part of the rest">
-        <div style="font-family:var(--font-mono);font-size:12px;color:var(--slate);min-width:70px;text-align:right">${fmt(s.amount)}</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-sm);color:var(--slate);min-width:70px;text-align:right">${fmt(s.amount)}</div>
         <button class="row-del" data-action="del-share" data-shid="${s.id}" title="Take out">×</button>
       </div>`).join('');
     return `<div style="border:1px solid var(--steel);border-radius:var(--r-md);padding:12px;margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-        <span style="font-size:16px">${(GIFT_OCCASION_TYPES[o.type]||GIFT_OCCASION_TYPES.other).icon}</span>
-        <div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--ink)">${esc(o.label)}</div>
-          <div style="font-size:11px;color:var(--slate-2)">${o.next?_giftDateLabel(o.next):(o.date||'No date')} · ${(o.shares||[]).length} ${(o.shares||[]).length===1?'person':'people'}${o.actual_spent!=null?` · spent ${fmt(o.actual_spent)}`:''}</div></div>
+        <span style="font-size:var(--fs-lg)">${(GIFT_OCCASION_TYPES[o.type]||GIFT_OCCASION_TYPES.other).icon}</span>
+        <div style="flex:1"><div style="font-size:var(--fs-base);font-weight:600;color:var(--ink)">${esc(o.label)}</div>
+          <div style="font-size:var(--fs-xs);color:var(--slate-2)">${o.next?_giftDateLabel(o.next):(o.date||'No date')} · ${(o.shares||[]).length} ${(o.shares||[]).length===1?'person':'people'}${o.actual_spent!=null?` · spent ${fmt(o.actual_spent)}`:''}</div></div>
         <input type="number" value="${o.budget||''}" min="0" step="0.01" placeholder="Total" data-budget-oid="${o.id}"
-          style="width:84px;font-family:var(--font-mono);font-size:12px;padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);text-align:right"
+          style="width:84px;font-family:var(--font-mono);font-size:var(--fs-sm);padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);text-align:right"
           onchange="_giftSetOccasionBudget('${o.id}',this.value)" title="The total for everyone">
         ${o.offer_date?`<button class="row-del" data-action="charges-occ" data-oid="${o.id}" title="Gift charges from the ledger">🧾</button>`:''}
         <button class="row-del" data-action="spend-occ" data-oid="${o.id}" title="Log actual spend">$</button>
@@ -19614,18 +19614,18 @@ function _renderGiftSharedSection() {
       </div>
       ${shareRows}
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;flex-wrap:wrap">
-        <span style="font-size:11px">${leftNote}</span>
+        <span style="font-size:var(--fs-xs)">${leftNote}</span>
         ${others.length?`<div style="display:flex;gap:6px;align-items:center">
-          <select id="shareAdd-${o.id}" class="field-input" style="font-size:12px;padding:4px 8px;width:auto">${others.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
-          <button class="btn btn-ghost btn-sm" style="font-size:11px" data-action="add-share" data-oid="${o.id}">+ Add to it</button></div>`
-          : ((_gift.people||[]).length ? '' : `<span style="font-size:11px;color:var(--slate)">Add people above, then add them here.</span>`)}
+          <select id="shareAdd-${o.id}" class="field-input" style="font-size:var(--fs-sm);padding:4px 8px;width:auto">${others.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
+          <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" data-action="add-share" data-oid="${o.id}">+ Add to it</button></div>`
+          : ((_gift.people||[]).length ? '' : `<span style="font-size:var(--fs-xs);color:var(--slate)">Add people above, then add them here.</span>`)}
       </div>
     </div>`;
   }).join('');
   return `<div class="card mb-5">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <div><div class="card-label" style="margin-bottom:2px">Shared occasions</div>
-      <div style="font-size:12px;color:var(--slate)">One total for many people, such as Christmas or a family exchange.</div></div>
+      <div style="font-size:var(--fs-sm);color:var(--slate)">One total for many people, such as Christmas or a family exchange.</div></div>
       <button class="btn btn-secondary btn-sm" data-action="add-shared">+ Shared occasion</button>
     </div>${addForm}${cards || ''}</div>`;
 }
@@ -19635,8 +19635,8 @@ function _renderGiftSharedSection() {
 function _renderGiftFundsSection() {
   const toMove = _gift.seasons_to_move||[];
   const moveBox = toMove.length ? `<div style="background:var(--mist);border-radius:var(--r-md);padding:12px;margin-bottom:12px">
-      <div style="font-size:12px;color:var(--ink);margin-bottom:6px">${toMove.length===1?'This seasonal fund':'These seasonal funds'} from before can become gift funds, keeping what each holds. A gift fund adds its monthly amount itself, and shows on the Budget page with your other funds.</div>
-      ${toMove.map(s=>`<div style="font-size:12px;color:var(--slate)">${esc(s.name||'')}: ${fmt(parseFloat(s.saved)||0)} of ${fmt(parseFloat(s.target)||0)}${s.deadline?` by ${esc(s.deadline)}`:''}</div>`).join('')}
+      <div style="font-size:var(--fs-sm);color:var(--ink);margin-bottom:6px">${toMove.length===1?'This seasonal fund':'These seasonal funds'} from before can become gift funds, keeping what each holds. A gift fund adds its monthly amount itself, and shows on the Budget page with your other funds.</div>
+      ${toMove.map(s=>`<div style="font-size:var(--fs-sm);color:var(--slate)">${esc(s.name||'')}: ${fmt(parseFloat(s.saved)||0)} of ${fmt(parseFloat(s.target)||0)}${s.deadline?` by ${esc(s.deadline)}`:''}</div>`).join('')}
       <button class="btn btn-secondary btn-sm" style="margin-top:8px" data-action="move-seasons">Move ${toMove.length===1?'it':'them'} to gift funds</button>
     </div>` : '';
   const addForm = `<div id="giftSeasonForm" style="display:none;background:var(--mist);border-radius:var(--r-md);padding:14px;margin-bottom:12px">
@@ -19650,7 +19650,7 @@ function _renderGiftFundsSection() {
   return `<div class="card mb-5">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <div><div class="card-label" style="margin-bottom:2px">Gift funds</div>
-      <div style="font-size:12px;color:var(--slate)">Save toward a date. Each month the fund adds what it takes to reach its target by then.</div></div>
+      <div style="font-size:var(--fs-sm);color:var(--slate)">Save toward a date. Each month the fund adds what it takes to reach its target by then.</div></div>
       <button class="btn btn-secondary btn-sm" data-action="add-season">+ Fund</button>
     </div>${moveBox}${addForm}<div id="giftSeasonsListWrap">${_giftBuildFundsListHTML()}</div></div>`;
 }
@@ -19658,7 +19658,7 @@ function _renderGiftFundsSection() {
 function _giftBuildFundsListHTML(confMap) {
   const funds = _gift.funds||[];
   return funds.length ? funds.map(f=>_giftFundCard(f, confMap?.[f.id])).join('')
-    : `<div style="font-size:12px;color:var(--slate);padding:8px 0;line-height:1.7">No gift funds yet. Add one for Christmas or any date you save toward.</div>`;
+    : `<div style="font-size:var(--fs-sm);color:var(--slate);padding:8px 0;line-height:1.7">No gift funds yet. Add one for Christmas or any date you save toward.</div>`;
 }
 
 async function _giftLoadFundConfidence() {
@@ -19689,25 +19689,25 @@ function _giftFundCard(f, conf) {
   const barColor = filled?'var(--pine-text)':pct>=80?'var(--pine-text)':pct>=40?'var(--gold-text)':'var(--ember-text)';
   const confPct  = conf && conf.confidence_pct;
   const confBadge = (confPct != null)
-    ? `<span style="font-size:10px;font-family:var(--font-mono);color:${confPct>=70?'var(--pine-text)':confPct>=40?'var(--gold-text)':'var(--ember-text)'}" title="${esc(conf.reasoning||'')}">${confPct}% on pace</span>` : '';
+    ? `<span style="font-size:var(--fs-xs);font-family:var(--font-mono);color:${confPct>=70?'var(--pine-text)':confPct>=40?'var(--gold-text)':'var(--ember-text)'}" title="${esc(conf.reasoning||'')}">${confPct}% on pace</span>` : '';
   return `<div style="border:1px solid var(--steel);border-radius:var(--r-md);padding:14px;margin-bottom:8px">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px">
-      <div><div style="font-size:14px;font-weight:600;color:var(--ink);margin-bottom:2px">${esc(f.name)}</div>${confBadge}
-        ${f.last_spend?`<div style="font-size:11px;color:var(--slate);margin-top:2px">${esc(f.last_spend.text)}</div>`:''}</div>
+      <div><div style="font-size:var(--fs-md);font-weight:600;color:var(--ink);margin-bottom:2px">${esc(f.name)}</div>${confBadge}
+        ${f.last_spend?`<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${esc(f.last_spend.text)}</div>`:''}</div>
       <div style="display:flex;align-items:center;gap:8px">
-        <div style="text-align:right"><div style="font-family:var(--font-mono);font-size:15px;font-weight:600;color:${barColor}">${fmt(saved)}</div>
-        <div style="font-size:10px;color:var(--slate-2)">of ${fmt(target)}</div></div>
+        <div style="text-align:right"><div style="font-family:var(--font-mono);font-size:var(--fs-lg);font-weight:600;color:${barColor}">${fmt(saved)}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate-2)">of ${fmt(target)}</div></div>
         <button class="row-del" data-action="del-season" data-sid="${f.id}" title="Remove">×</button>
       </div>
     </div>
     <div style="height:6px;background:var(--steel);border-radius:99px;overflow:hidden;margin-bottom:6px">
       <div style="height:100%;width:${pct}%;background:${barColor};border-radius:99px;transition:width .3s"></div>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:var(--fs-xs)">
       <span style="color:var(--slate)">${statusNote}</span>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" style="font-size:11px" data-action="deposit-season" data-sid="${f.id}">+ Add</button>
-        <button class="btn btn-ghost btn-sm" style="font-size:11px" data-action="spend-season" data-sid="${f.id}">Mark spent</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" data-action="deposit-season" data-sid="${f.id}">+ Add</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" data-action="spend-season" data-sid="${f.id}">Mark spent</button>
       </div>
     </div>
   </div>`;
@@ -19766,7 +19766,7 @@ function _giftSetRelationship(pid, rel) {
 function _giftTogglePerson(pid) { const id=parseInt(pid); _giftExpandedPerson=_giftExpandedPerson===id?null:id; _renderGiftPage(); }
 function _giftDeletePerson(pid) {
   const p=(_gift.people||[]).find(x=>x.id===parseInt(pid)); if(!p) return;
-  confirmAction(`Remove ${p.name}?`,`<div style="font-size:13px;color:var(--slate)">Removes ${esc(p.name)} and all their gift occasions.</div>`,()=>{
+  confirmAction(`Remove ${p.name}?`,`<div style="font-size:var(--fs-base);color:var(--slate)">Removes ${esc(p.name)} and all their gift occasions.</div>`,()=>{
     API.delete(`/api/gifts/people/${p.id}`).then(_giftReload).catch(_giftFail('_giftDeletePerson','Could not remove'));
   },'Remove',true);
 }
@@ -19800,7 +19800,7 @@ function _giftSetAside(monthly) {
 function _giftLogOccasionSpend(oid) {
   const o=_giftAllOccasions().map(x=>x.occ).find(x=>x.id===parseInt(oid)); if(!o) return;
   confirmAction(`Log actual spend — ${o.label}`,
-    `<div style="margin-bottom:8px;font-size:13px;color:var(--slate)">Budgeted: ${fmt(o.budget||0)}</div>
+    `<div style="margin-bottom:8px;font-size:var(--fs-base);color:var(--slate)">Budgeted: ${fmt(o.budget||0)}</div>
      <input type="number" id="giftActualSpend" placeholder="What it actually cost ($)" min="0" step="0.01"
        value="${o.actual_spent ?? o.budget ?? ''}"
        style="width:100%;padding:8px;border-radius:var(--r-md);border:1px solid var(--steel);font-family:var(--font-mono)">`,
@@ -19830,13 +19830,13 @@ async function _giftOfferCharges(oid) {
     showToast('No gift charges found', `Nothing filed under Gifts in the six weeks before ${d.label}.`, 'info');
     return;
   }
-  const rows = charges.map(c => `<label style="display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0">
+  const rows = charges.map(c => `<label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);padding:4px 0">
       <input type="checkbox" class="gift-charge" value="${c.id}" checked>
       <span style="flex:1">${esc(c.description||'')} <span style="color:var(--slate)">· ${_giftDateLabel(c.date)}</span></span>
       <span style="font-family:var(--font-mono)">${fmt(c.amount)}</span></label>`).join('');
   confirmAction(`Gift charges before ${d.label}`,
-    `<div style="font-size:13px;color:var(--ink);margin-bottom:8px">These ${charges.length} charge${charges.length!==1?'s':''} before ${esc(d.label)} came to ${fmt(d.total)}. Use them as what it cost?</div>
-     <div style="font-size:11px;color:var(--slate);margin-bottom:8px">They were filed under Gifts. Groundwork can't tell who a purchase was for, so untick any that weren't for this.</div>${rows}`,
+    `<div style="font-size:var(--fs-base);color:var(--ink);margin-bottom:8px">These ${charges.length} charge${charges.length!==1?'s':''} before ${esc(d.label)} came to ${fmt(d.total)}. Use them as what it cost?</div>
+     <div style="font-size:var(--fs-xs);color:var(--slate);margin-bottom:8px">They were filed under Gifts. Groundwork can't tell who a purchase was for, so untick any that weren't for this.</div>${rows}`,
     async ()=>{
       const ids=[...document.querySelectorAll('.gift-charge:checked')].map(x=>parseInt(x.value));
       if (!ids.length) return;
@@ -19882,11 +19882,11 @@ function _giftRenderAdvisorEntry() {
   card.innerHTML = `
     <div id="giftAdvisorAIEntry" style="display:flex;align-items:center;justify-content:space-between;gap:16px">
       <div>
-        <div style="font-size:13px;font-weight:500;color:var(--ink)">Groundwork's gift-budget analysis</div>
-        <div style="font-size:12px;color:var(--slate);margin-top:2px">AI-powered read of what's coming up and how your gift funds are pacing</div>
+        <div style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">Groundwork's gift-budget analysis</div>
+        <div style="font-size:var(--fs-sm);color:var(--slate);margin-top:2px">AI-powered read of what's coming up and how your gift funds are pacing</div>
       </div>
       <button onclick="_giftLaunchAdvisorAI()"
-        style="font-size:12px;padding:7px 16px;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
+        style="font-size:var(--fs-sm);padding:7px 16px;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
         ✦ Generate
       </button>
     </div>`;
@@ -19943,14 +19943,14 @@ function _giftSaveSeason() {
 }
 function _giftDeleteSeason(sid) {
   const f=(_gift.funds||[]).find(x=>x.id===parseInt(sid)); if(!f) return;
-  confirmAction(`Remove ${f.name}?`,`<div style="font-size:13px;color:var(--slate)">${fmt(f.current_amount||0)} saved will no longer be tracked.</div>`,()=>{
+  confirmAction(`Remove ${f.name}?`,`<div style="font-size:var(--fs-base);color:var(--slate)">${fmt(f.current_amount||0)} saved will no longer be tracked.</div>`,()=>{
     API.delete(`/api/sinking-funds/${f.id}`).then(()=>{ _giftReload(); loadSinkingFunds(); }).catch(_giftFail('_giftDeleteSeason','Could not remove'));
   },'Remove',true);
 }
 function _giftDepositSeason(sid) {
   const f=(_gift.funds||[]).find(x=>x.id===parseInt(sid)); if(!f) return;
   const remaining=Math.max(0,(f.target_amount||0)-(f.current_amount||0));
-  confirmAction(`Add to ${f.name}`,`<div style="margin-bottom:8px;font-size:13px;color:var(--slate)">Target: ${fmt(f.target_amount)} · Saved: ${fmt(f.current_amount||0)} · Remaining: ${fmt(remaining)}</div>
+  confirmAction(`Add to ${f.name}`,`<div style="margin-bottom:8px;font-size:var(--fs-base);color:var(--slate)">Target: ${fmt(f.target_amount)} · Saved: ${fmt(f.current_amount||0)} · Remaining: ${fmt(remaining)}</div>
     <input type="number" id="gsDepositAmt" placeholder="Amount to add" min="1" step="0.01" style="width:100%;padding:8px;border-radius:var(--r-md);border:1px solid var(--steel);font-family:var(--font-mono)">`,
   async ()=>{ const amt=parseFloat(g('gsDepositAmt')?.value)||0; if(amt<=0) return;
     try {
@@ -19962,7 +19962,7 @@ function _giftDepositSeason(sid) {
 // G3: "Mark spent" asks what was spent, keeps it beside the target, and sets the fund back to $0 for next time.
 function _giftSpendSeason(sid) {
   const f=(_gift.funds||[]).find(x=>x.id===parseInt(sid)); if(!f) return;
-  confirmAction(`Mark ${f.name} as spent?`,`<div style="font-size:13px;color:var(--slate);margin-bottom:8px">What was spent is kept beside its target of ${fmt(f.target_amount||0)}, so next time you can see both. The fund then starts again from $0.</div>
+  confirmAction(`Mark ${f.name} as spent?`,`<div style="font-size:var(--fs-base);color:var(--slate);margin-bottom:8px">What was spent is kept beside its target of ${fmt(f.target_amount||0)}, so next time you can see both. The fund then starts again from $0.</div>
     <input type="number" id="gsSpentAmt" placeholder="What was spent ($)" min="0" step="0.01" value="${f.current_amount||''}" style="width:100%;padding:8px;border-radius:var(--r-md);border:1px solid var(--steel);font-family:var(--font-mono)">`,
   async ()=>{ const amt=parseFloat(g('gsSpentAmt')?.value); if(!(amt>=0)) return;
     try {
@@ -20048,26 +20048,26 @@ async function renderRetirementReadiness() {
   content.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
       <div style="text-align:center;padding:10px;background:var(--mist);border-radius:var(--r-md)">
-        <div style="font-size:22px;font-weight:500;color:${runwayColor}">${yearsRunway >= 99 ? '30+' : yearsRunway}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">years of runway</div>
+        <div style="font-size:var(--fs-3xl);font-weight:500;color:${runwayColor}">${yearsRunway >= 99 ? '30+' : yearsRunway}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">years of runway</div>
       </div>
       <div style="text-align:center;padding:10px;background:var(--mist);border-radius:var(--r-md)">
-        <div style="font-size:22px;font-weight:500">${fmt(portfolioCanSupport)}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">portfolio covers/mo</div>
+        <div style="font-size:var(--fs-3xl);font-weight:500">${fmt(portfolioCanSupport)}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">portfolio covers/mo</div>
       </div>
       <div style="text-align:center;padding:10px;background:var(--mist);border-radius:var(--r-md)">
-        <div style="font-size:22px;font-weight:500;color:${totalGuaranteedIncome>0?'var(--pine-text)':'var(--slate)'}">${fmt(totalGuaranteedIncome)}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">guaranteed/mo</div>
+        <div style="font-size:var(--fs-3xl);font-weight:500;color:${totalGuaranteedIncome>0?'var(--pine-text)':'var(--slate)'}">${fmt(totalGuaranteedIncome)}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">guaranteed/mo</div>
       </div>
     </div>
 
     ${totalGuaranteedIncome > 0 ? `
-    <div style="font-size:12px;color:var(--slate);margin-bottom:10px;padding:8px;background:var(--mist);border-radius:var(--r-md)">
+    <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:10px;padding:8px;background:var(--mist);border-radius:var(--r-md)">
       SS/pension covers ${fmt(totalGuaranteedIncome)}/mo of your ${fmt(monthlySpend)}/mo spending.
       Your portfolio only needs to cover the remaining <strong style="color:var(--ink)">${fmt(coverageNeeded)}/mo</strong>.
     </div>` : ''}
 
-    <div style="font-size:13px;line-height:1.7;color:var(--ink)">
+    <div style="font-size:var(--fs-base);line-height:1.7;color:var(--ink)">
       ${isReadyByPortfolio
         ? `<span style="color:var(--pine-text)">✓</span> At the 4% safe withdrawal rate, your current portfolio can cover your monthly expenses.`
         : `Your portfolio currently covers ${fmt(portfolioCanSupport)}/mo. You need <strong>${fmt(coverageNeeded)}/mo</strong> from investments.
@@ -20075,7 +20075,7 @@ async function renderRetirementReadiness() {
     </div>
 
     ${!isReadyByPortfolio && targetPortfolio > portfolio ? `
-    <div style="margin-top:10px;font-size:12px;color:var(--slate)">
+    <div style="margin-top:10px;font-size:var(--fs-sm);color:var(--slate)">
       Target portfolio at 4% withdrawal rate: <strong style="color:var(--ink)">${fmt(targetPortfolio)}</strong>
       · Gap: <strong style="color:var(--ember-text)">${fmt(gap)}</strong>
     </div>` : ''}`;
@@ -20102,21 +20102,21 @@ function _renderDebtVsInvest(card) {
   content.innerHTML = `
     <div style="display:flex;gap:12px;margin-bottom:12px">
       <div style="flex:1;padding:10px;background:var(--mist);border-radius:var(--r-md);text-align:center">
-        <div style="font-size:18px;font-weight:500;color:var(--ember-text)">${highestRate.toFixed(1)}%</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">highest debt rate</div>
+        <div style="font-size:var(--fs-xl);font-weight:500;color:var(--ember-text)">${highestRate.toFixed(1)}%</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">highest debt rate</div>
       </div>
-      <div style="display:flex;align-items:center;font-size:18px;color:var(--slate)">vs</div>
+      <div style="display:flex;align-items:center;font-size:var(--fs-xl);color:var(--slate)">vs</div>
       <div style="flex:1;padding:10px;background:var(--mist);border-radius:var(--r-md);text-align:center">
-        <div style="font-size:18px;font-weight:500;color:var(--pine-text)">${expectedReturn}%</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">expected index return</div>
+        <div style="font-size:var(--fs-xl);font-weight:500;color:var(--pine-text)">${expectedReturn}%</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">expected index return</div>
       </div>
     </div>
-    <div style="font-size:13px;line-height:1.7">
+    <div style="font-size:var(--fs-base);line-height:1.7">
       ${debtWins
         ? `<strong>Math favors debt payoff.</strong> Your highest interest rate (${highestRate.toFixed(1)}%) exceeds expected long-term investment returns (~7%). Every dollar toward debt is a guaranteed ${highestRate.toFixed(1)}% return.`
         : `<strong>Math is close.</strong> Your highest rate (${highestRate.toFixed(1)}%) is near or below expected investment returns (~7%). Pay debt minimums, capture any employer 401k match first, then invest the remainder.`}
     </div>
-    <div style="font-size:11px;color:var(--slate);margin-top:8px">
+    <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:8px">
       Exception: always capture employer 401k match — that's an immediate 50–100% return that beats any debt rate.
     </div>`;
 }
@@ -20186,7 +20186,7 @@ async function renderRMDTracker() {
   const balance = rmdBalance || taxDeferredTotal;
 
   if (!currentAge || !balance) {
-    content.innerHTML = `<div style="font-size:13px;color:var(--slate)">
+    content.innerHTML = `<div style="font-size:var(--fs-base);color:var(--slate)">
       Enter your age and tax-deferred balance above to calculate your RMD.
       <button class="btn btn-secondary btn-sm" style="margin-left:10px" onclick="showRMDInputs()">Enter details →</button>
     </div>`;
@@ -20221,22 +20221,22 @@ async function renderRMDTracker() {
   content.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
       <div style="text-align:center;padding:12px;background:var(--mist);border-radius:var(--r-md)">
-        <div style="font-size:22px;font-weight:500;color:${isRequired?'var(--pine-text)':'var(--slate)'}">${fmt(rmdAmount)}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">
+        <div style="font-size:var(--fs-3xl);font-weight:500;color:${isRequired?'var(--pine-text)':'var(--slate)'}">${fmt(rmdAmount)}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">
           ${isRequired ? 'Required this year' : 'Projected for age 73'}
         </div>
       </div>
       <div style="text-align:center;padding:12px;background:var(--mist);border-radius:var(--r-md)">
-        <div style="font-size:22px;font-weight:500">${fmt(rmdMonthly)}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">per month</div>
+        <div style="font-size:var(--fs-3xl);font-weight:500">${fmt(rmdMonthly)}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">per month</div>
       </div>
       <div style="text-align:center;padding:12px;background:var(--mist);border-radius:var(--r-md)">
-        <div style="font-size:22px;font-weight:500">${divisor.toFixed(1)}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">IRS divisor ${isRequired ? `(age ${currentAge})` : '(at age 73)'}</div>
+        <div style="font-size:var(--fs-3xl);font-weight:500">${divisor.toFixed(1)}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">IRS divisor ${isRequired ? `(age ${currentAge})` : '(at age 73)'}</div>
       </div>
     </div>
 
-    <div style="font-size:13px;line-height:1.75;color:var(--ink)">
+    <div style="font-size:var(--fs-base);line-height:1.75;color:var(--ink)">
       ${isRequired
         ? `At age ${currentAge}, the IRS requires you to withdraw at least <strong>${fmt(rmdAmount)}</strong>
            from tax-deferred accounts this year. Failure to take the full RMD triggers a
@@ -20247,13 +20247,13 @@ async function renderRMDTracker() {
 
     ${rmdExceedsSWR && isRequired ? `
     <div style="margin-top:12px;padding:10px;background:var(--gold-bg);border-radius:var(--r-md);
-                border:0.5px solid var(--gold);font-size:12px;color:var(--gold-text);line-height:1.6">
+                border:0.5px solid var(--gold);font-size:var(--fs-sm);color:var(--gold-text);line-height:1.6">
       ⚠ Your RMD (${fmt(rmdAmount)}) exceeds the traditional 4% safe withdrawal amount (${fmt(swrAmount)})
       by <strong>${fmt(rmdVsSWR)}</strong>. This is normal as balances grow relative to age.
       The extra withdrawal is taxable income.
     </div>` : ''}
 
-    <div style="margin-top:12px;font-size:11px;color:var(--slate)">
+    <div style="margin-top:12px;font-size:var(--fs-xs);color:var(--slate)">
       Based on IRS Uniform Lifetime Table · Account balance: ${fmt(balance)} · SECURE 2.0 Act (2023+)
     </div>`;
 }
@@ -20356,30 +20356,30 @@ async function renderWithdrawalSustainability() {
   content.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
       <div style="text-align:center;padding:12px;background:var(--mist);border-radius:var(--r-md)">
-        <div style="font-size:22px;font-weight:500;color:${statusColor}">${statusIcon} ${yearsToDepletion >= 99 ? '30+' : yearsToDepletion}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">years at this rate</div>
+        <div style="font-size:var(--fs-3xl);font-weight:500;color:${statusColor}">${statusIcon} ${yearsToDepletion >= 99 ? '30+' : yearsToDepletion}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">years at this rate</div>
       </div>
       <div style="text-align:center;padding:12px;background:var(--mist);border-radius:var(--r-md)">
-        <div style="font-size:22px;font-weight:500;color:${actualRate > 5 ? 'var(--ember-text)' : actualRate > 4 ? 'var(--gold-text)' : 'var(--pine-text)'}">
+        <div style="font-size:var(--fs-3xl);font-weight:500;color:${actualRate > 5 ? 'var(--ember-text)' : actualRate > 4 ? 'var(--gold-text)' : 'var(--pine-text)'}">
           ${actualRate.toFixed(1)}%
         </div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">your actual rate</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">your actual rate</div>
       </div>
       <div style="text-align:center;padding:12px;background:var(--mist);border-radius:var(--r-md)">
-        <div style="font-size:22px;font-weight:500;color:${statusColor}">${statusLabel}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">sustainability</div>
+        <div style="font-size:var(--fs-3xl);font-weight:500;color:${statusColor}">${statusLabel}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">sustainability</div>
       </div>
     </div>
 
     ${guaranteedIncome > 0 ? `
-    <div style="font-size:12px;color:var(--slate);margin-bottom:12px;padding:8px;
+    <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:12px;padding:8px;
                 background:var(--mist);border-radius:var(--r-md)">
       SS/pension covers ${fmt(guaranteedIncome)}/mo. Portfolio covers remaining
       <strong style="color:var(--ink)">${fmt(portfolioNeededMonthly)}/mo</strong>
       (${fmt(portfolioNeededAnnual)}/year).
     </div>` : ''}
 
-    <div style="font-size:13px;line-height:1.75;color:var(--ink)">
+    <div style="font-size:var(--fs-base);line-height:1.75;color:var(--ink)">
       ${isHealthy
         ? `At a ${actualRate.toFixed(1)}% withdrawal rate with assumed 6% portfolio growth,
            your portfolio is projected to last <strong>30+ years</strong>. You are drawing
@@ -20391,18 +20391,18 @@ async function renderWithdrawalSustainability() {
            <strong>${yearsToDepletion} years</strong>.`}
     </div>
 
-    <div style="margin-top:12px;font-size:11px;color:var(--slate);line-height:1.6">
+    <div style="margin-top:12px;font-size:var(--fs-xs);color:var(--slate);line-height:1.6">
       Assumes 6% nominal portfolio return · Based on today's dollars (inflation will reduce purchasing power over time) · Guaranteed income: ${fmt(guaranteedIncome)}/mo ·
-      <button onclick="showWithdrawalInputs()" style="font-size:11px;background:none;border:none;
+      <button onclick="showWithdrawalInputs()" style="font-size:var(--fs-xs);background:none;border:none;
               color:var(--sky);cursor:pointer;text-decoration:underline">adjust withdrawal rate</button>
     </div>
 
     <!-- Bear market stress test -->
     <div style="margin-top:14px;padding-top:14px;border-top:0.5px solid var(--steel-2)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div style="font-size:12px;font-weight:500">Stress test: 30% market drop in year 1</div>
+        <div style="font-size:var(--fs-sm);font-weight:500">Stress test: 30% market drop in year 1</div>
         <button onclick="toggleBearMarketTest()" id="bearTestBtn"
-          style="font-size:11px;padding:3px 10px;border-radius:20px;
+          style="font-size:var(--fs-xs);padding:3px 10px;border-radius:20px;
                  border:0.5px solid var(--steel);background:none;
                  cursor:pointer;color:var(--slate)">Show</button>
       </div>
@@ -20421,15 +20421,15 @@ async function renderWithdrawalSustainability() {
           return `
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
             <div style="padding:8px;background:var(--mist);border-radius:var(--r-md);text-align:center">
-              <div style="font-size:16px;font-weight:500;color:${statusColor}">${yearsToDepletion >= 99 ? '30+' : yearsToDepletion} yrs</div>
-              <div style="font-size:10px;color:var(--slate);margin-top:1px">Base case (6% avg)</div>
+              <div style="font-size:var(--fs-lg);font-weight:500;color:${statusColor}">${yearsToDepletion >= 99 ? '30+' : yearsToDepletion} yrs</div>
+              <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:1px">Base case (6% avg)</div>
             </div>
             <div style="padding:8px;background:var(--mist);border-radius:var(--r-md);text-align:center">
-              <div style="font-size:16px;font-weight:500;color:${bearColor}">${bearYears >= 99 ? '30+' : bearYears} yrs</div>
-              <div style="font-size:10px;color:var(--slate);margin-top:1px">Bear market in year 1</div>
+              <div style="font-size:var(--fs-lg);font-weight:500;color:${bearColor}">${bearYears >= 99 ? '30+' : bearYears} yrs</div>
+              <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:1px">Bear market in year 1</div>
             </div>
           </div>
-          <div style="font-size:12px;color:var(--slate);line-height:1.6">
+          <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6">
             ${diff <= 3
               ? 'Your portfolio is resilient to sequence-of-returns risk. A bad first year makes little difference to long-term sustainability.'
               : diff <= 8
@@ -20514,7 +20514,7 @@ async function _renderCollegeFundsList() {
   if (!el) return;
 
   if (!_collegeFunds.length) {
-    el.innerHTML = `<div style="font-size:12px;color:var(--slate)">
+    el.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate)">
       No college funds tracked yet. Add a fund for each child to track progress toward their education costs.
     </div>`;
     return;
@@ -20532,7 +20532,7 @@ async function _renderCollegeFundsList() {
     const conf     = confResults[idx];
     const confPct  = conf && conf.confidence_pct;
     const confBadge = (confPct != null)
-      ? `<span style="font-size:10px;font-family:var(--font-mono);color:${confPct>=70?'var(--pine-text)':confPct>=40?'var(--gold-text)':'var(--ember-text)'}" title="${esc(conf.reasoning||'')}">${confPct}% on pace</span>`
+      ? `<span style="font-size:var(--fs-xs);font-family:var(--font-mono);color:${confPct>=70?'var(--pine-text)':confPct>=40?'var(--gold-text)':'var(--ember-text)'}" title="${esc(conf.reasoning||'')}">${confPct}% on pace</span>`
       : '';
     const annualReturn  = fund.annualReturn ?? 0.06;
     const pct           = fund.target_amount || fund.target > 0 ? Math.min(100, (fund.current_amount || fund.balance || 0) / fund.target_amount || fund.target * 100) : null;
@@ -20546,22 +20546,22 @@ async function _renderCollegeFundsList() {
     return `<div style="padding:12px 0;border-bottom:0.5px solid var(--steel-2)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
         <div>
-          <span style="font-size:13px;font-weight:500">${esc(fund.childName)}</span>
+          <span style="font-size:var(--fs-base);font-weight:500">${esc(fund.childName)}</span>
           ${fund.collegeYear
-            ? `<span style="font-size:11px;color:var(--slate);margin-left:8px">College ${fund.collegeYear}${yearsLeft !== null ? ` · ${yearsLeft}yr${yearsLeft!==1?'s':''} away` : ''}</span>`
+            ? `<span style="font-size:var(--fs-xs);color:var(--slate);margin-left:8px">College ${fund.collegeYear}${yearsLeft !== null ? ` · ${yearsLeft}yr${yearsLeft!==1?'s':''} away` : ''}</span>`
             : ''}
         </div>
         <div style="display:flex;align-items:center;gap:10px">
           ${confBadge}
-          <span class="text-mono" style="font-size:14px;font-weight:500">${fmt(fund.current_amount || fund.balance || 0)}</span>
-          ${fund.target_amount || fund.target ? `<span style="font-size:11px;color:var(--slate)">of ${fmt(fund.target_amount || fund.target)}</span>` : ''}
+          <span class="text-mono" style="font-size:var(--fs-md);font-weight:500">${fmt(fund.current_amount || fund.balance || 0)}</span>
+          ${fund.target_amount || fund.target ? `<span style="font-size:var(--fs-xs);color:var(--slate)">of ${fmt(fund.target_amount || fund.target)}</span>` : ''}
           <button onclick="addCollegeContribution(${idx})"
-            style="font-size:11px;padding:2px 8px;border-radius:20px;
+            style="font-size:var(--fs-xs);padding:2px 8px;border-radius:20px;
                    background:var(--mist);border:0.5px solid var(--steel);cursor:pointer">
             + Add
           </button>
           <button onclick="removeCollegeFund(${idx})"
-            style="font-size:11px;padding:2px 6px;border-radius:20px;background:none;border:none;
+            style="font-size:var(--fs-xs);padding:2px 6px;border-radius:20px;background:none;border:none;
                    color:var(--slate);cursor:pointer">×</button>
         </div>
       </div>
@@ -20569,7 +20569,7 @@ async function _renderCollegeFundsList() {
         <div style="height:4px;background:var(--mist);border-radius:99px;overflow:hidden;margin-bottom:5px">
           <div style="height:100%;width:${pct}%;background:${pct>=100?'var(--pine)':'var(--sky)'};border-radius:99px;transition:width .3s"></div>
         </div>` : ''}
-      <div style="font-size:11px;color:var(--slate);display:flex;justify-content:space-between">
+      <div style="font-size:var(--fs-xs);color:var(--slate);display:flex;justify-content:space-between">
         <span>${pct !== null ? `${pct.toFixed(0)}% funded · ${(annualReturn*100).toFixed(0)}% assumed return` : `${fmt(fund.monthly_contribution || fund.monthlyContrib||0)}/mo`}</span>
         ${neededPerMonth !== null
           ? `<span style="color:${onTrack?'var(--pine-text)':'var(--gold-text)'}">
@@ -20746,10 +20746,10 @@ function renderSSTimingAnalysis() {
   const yearsUntil70  = Math.max(0, 70 - ageInput);
 
   const birthYearNote = birthYear
-    ? `<div style="font-size:11px;color:var(--slate);margin-bottom:12px">
+    ? `<div style="font-size:var(--fs-xs);color:var(--slate);margin-bottom:12px">
         Born ${birthYear} · Full retirement age: ${fraAge} · Using SSA benefit schedule
        </div>`
-    : `<div style="font-size:11px;color:var(--color-text-warning);margin-bottom:12px">
+    : `<div style="font-size:var(--fs-xs);color:var(--color-text-warning);margin-bottom:12px">
         Enter birth year below for your exact benefit reduction amount
        </div>`;
 
@@ -20757,25 +20757,25 @@ function renderSSTimingAnalysis() {
     ${birthYearNote}
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
       <div style="padding:10px;background:var(--mist);border-radius:var(--r-md);text-align:center;border:0.5px solid var(--steel-2)">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);margin-bottom:4px">Claim at 62</div>
-        <div class="text-mono" style="font-size:18px;font-weight:500;color:var(--ember-text)">${fmt(benefit62)}/mo</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">-${Math.round(fraInfo.reductionAt62*100)}% permanently</div>
-        ${yearsUntil62 > 0 ? `<div style="font-size:10px;color:var(--slate);margin-top:3px">${yearsUntil62}yr${yearsUntil62!==1?'s':''} from now</div>` : ''}
+        <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.06em;color:var(--slate);margin-bottom:4px">Claim at 62</div>
+        <div class="text-mono" style="font-size:var(--fs-xl);font-weight:500;color:var(--ember-text)">${fmt(benefit62)}/mo</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">-${Math.round(fraInfo.reductionAt62*100)}% permanently</div>
+        ${yearsUntil62 > 0 ? `<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:3px">${yearsUntil62}yr${yearsUntil62!==1?'s':''} from now</div>` : ''}
       </div>
       <div style="padding:10px;background:var(--mist);border-radius:var(--r-md);text-align:center;border:2px solid var(--sky)">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);margin-bottom:4px">Full retirement age (${fraAge})</div>
-        <div class="text-mono" style="font-size:18px;font-weight:500">${fmt(benefitFRA)}/mo</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">100% benefit</div>
-        ${yearsUntilFRA > 0 ? `<div style="font-size:10px;color:var(--slate);margin-top:3px">${Math.round(yearsUntilFRA*10)/10}yr${yearsUntilFRA!==1?'s':''} from now</div>` : ''}
+        <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.06em;color:var(--slate);margin-bottom:4px">Full retirement age (${fraAge})</div>
+        <div class="text-mono" style="font-size:var(--fs-xl);font-weight:500">${fmt(benefitFRA)}/mo</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">100% benefit</div>
+        ${yearsUntilFRA > 0 ? `<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:3px">${Math.round(yearsUntilFRA*10)/10}yr${yearsUntilFRA!==1?'s':''} from now</div>` : ''}
       </div>
       <div style="padding:10px;background:var(--mist);border-radius:var(--r-md);text-align:center;border:0.5px solid var(--steel-2)">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);margin-bottom:4px">Delay to 70</div>
-        <div class="text-mono" style="font-size:18px;font-weight:500;color:var(--pine-text)">${fmt(benefit70)}/mo</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">+${Math.round(fraInfo.creditsAt70*100)}% permanently</div>
-        ${yearsUntil70 > 0 ? `<div style="font-size:10px;color:var(--slate);margin-top:3px">${yearsUntil70}yr${yearsUntil70!==1?'s':''} from now</div>` : ''}
+        <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.06em;color:var(--slate);margin-bottom:4px">Delay to 70</div>
+        <div class="text-mono" style="font-size:var(--fs-xl);font-weight:500;color:var(--pine-text)">${fmt(benefit70)}/mo</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">+${Math.round(fraInfo.creditsAt70*100)}% permanently</div>
+        ${yearsUntil70 > 0 ? `<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:3px">${yearsUntil70}yr${yearsUntil70!==1?'s':''} from now</div>` : ''}
       </div>
     </div>
-    <div style="font-size:12px;line-height:1.7;color:var(--slate)">
+    <div style="font-size:var(--fs-sm);line-height:1.7;color:var(--slate)">
       <strong style="color:var(--ink)">Breakeven analysis:</strong>
       Waiting until ${fraAge} vs claiming at 62 breaks even around age <strong style="color:var(--ink)">${breakeven62}</strong>.
       Waiting until 70 vs claiming at ${fraAge} breaks even around age <strong style="color:var(--ink)">${breakeven70}</strong>.
@@ -20846,11 +20846,11 @@ async function updateRothTraditionalSplit() {
       <div style="flex:${tradPct};background:#854F0B;border-radius:99px 0 0 99px"></div>
       <div style="flex:${rothPct};background:#3B6D11;border-radius:0 99px 99px 0"></div>
     </div>
-    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;font-size:var(--fs-sm);margin-bottom:10px">
       <span style="color:var(--gold-text)">Pre-tax: ${fmt(totalTrad)} (${tradPct}%)</span>
       <span style="color:var(--pine-text)">Post-tax: ${fmt(totalRoth)} (${rothPct}%)</span>
     </div>
-    <div style="font-size:12px;line-height:1.65;color:var(--slate)">
+    <div style="font-size:var(--fs-sm);line-height:1.65;color:var(--slate)">
       ${isWellDiversified
         ? '<span style="color:var(--pine-text)">✓ Good tax diversification.</span> You have a mix of pre-tax and post-tax retirement savings, giving flexibility in retirement to manage taxable income.'
         : isHeavyTrad
@@ -21060,7 +21060,7 @@ async function renderMortgagePayoffTool() {
   if (!content) return;
 
   if (!_mortgageAPRCache || !_mortgageMonthsCache) {
-    content.innerHTML = `<div style="font-size:13px;color:var(--slate)">
+    content.innerHTML = `<div style="font-size:var(--fs-base);color:var(--slate)">
       Enter your mortgage rate and months remaining to see the comparison.
       <button class="btn btn-secondary btn-sm" style="margin-left:8px" onclick="showMortgageToolInputs()">Enter details →</button>
     </div>`;
@@ -21124,7 +21124,7 @@ function _renderMortgageComparison() {
 
   const breakdown = _mortgagePaymentBreakdown(balance, apr, months, _mortgageFullPayment);
   const breakdownHtml = breakdown.other !== null ? `
-    <div style="font-size:12px;color:var(--slate);margin-bottom:14px;padding:10px 12px;background:var(--mist);border-radius:var(--r-md)">
+    <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:14px;padding:10px 12px;background:var(--mist);border-radius:var(--r-md)">
       Of your ${fmt(breakdown.fullPayment)}/mo payment, about <strong style="color:var(--ink)">${fmt(breakdown.calculatedPI)}</strong>
       is principal &amp; interest — the payoff math below is based on that number. The remaining
       <strong style="color:var(--ink)">${fmt(Math.max(0, breakdown.other))}</strong> likely covers escrow
@@ -21134,11 +21134,11 @@ function _renderMortgageComparison() {
   content.innerHTML = `
     ${breakdownHtml}
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
-      <a href="#" style="font-size:11px;color:var(--sky);white-space:nowrap" onclick="openWhatIf({ add_debt: _mortgageWhatIfExtra });return false">Move more than one figure →</a>
-      <label style="font-size:12px;color:var(--slate);white-space:nowrap">Extra toward principal</label>
+      <a href="#" style="font-size:var(--fs-xs);color:var(--sky);white-space:nowrap" onclick="openWhatIf({ add_debt: _mortgageWhatIfExtra });return false">Move more than one figure →</a>
+      <label style="font-size:var(--fs-sm);color:var(--slate);white-space:nowrap">Extra toward principal</label>
       <input type="range" id="mortgageExtraSlider" min="0" max="${sliderMax}" step="25" value="${_mortgageWhatIfExtra}"
         oninput="_mortgageOnSliderChange(this.value)" style="flex:1">
-      <span class="text-mono" style="font-size:15px;font-weight:500;min-width:70px;text-align:right" id="mortgageExtraVal">${fmt(_mortgageWhatIfExtra)}</span>
+      <span class="text-mono" style="font-size:var(--fs-lg);font-weight:500;min-width:70px;text-align:right" id="mortgageExtraVal">${fmt(_mortgageWhatIfExtra)}</span>
     </div>
     <div id="mortgageComparisonResult"></div>
   `;
@@ -21157,7 +21157,7 @@ function _mortgageOnSliderChange(val) {
   if (!result || !balance || !apr || !months) return;
 
   if (_mortgageWhatIfExtra <= 0) {
-    result.innerHTML = `<div style="font-size:12px;color:var(--slate-2)">Move the slider to compare paying extra vs. investing that amount instead.</div>`;
+    result.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate-2)">Move the slider to compare paying extra vs. investing that amount instead.</div>`;
     return;
   }
 
@@ -21172,19 +21172,19 @@ function _mortgageOnSliderChange(val) {
   result.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px">
       <div style="padding:14px;background:var(--mist);border-radius:var(--r-md);border:1px solid var(--steel)">
-        <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-bottom:8px">Pay it toward the mortgage</div>
-        <div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--pine-text)">${fmt(cmp.interestSaved)}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">interest saved</div>
-        <div style="font-size:12px;color:var(--slate);margin-top:10px">Paid off ${payoffDateLabel(cmp.extraMonths)} — ${cmp.monthsSooner} month${cmp.monthsSooner!==1?'s':''} sooner</div>
+        <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-bottom:8px">Pay it toward the mortgage</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:var(--pine-text)">${fmt(cmp.interestSaved)}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">interest saved</div>
+        <div style="font-size:var(--fs-sm);color:var(--slate);margin-top:10px">Paid off ${payoffDateLabel(cmp.extraMonths)} — ${cmp.monthsSooner} month${cmp.monthsSooner!==1?'s':''} sooner</div>
       </div>
       <div style="padding:14px;background:var(--mist);border-radius:var(--r-md);border:1px solid var(--steel)">
-        <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-bottom:8px">Invest it instead</div>
-        <div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--sky)">${fmt(cmp.investFV_investPath)}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">projected value at ${_mortgageAssumedReturn}%/yr nominal, before tax</div>
-        <div style="font-size:12px;color:var(--slate);margin-top:10px">Over the full ${months} months remaining on the loan</div>
+        <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-bottom:8px">Invest it instead</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:var(--sky)">${fmt(cmp.investFV_investPath)}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">projected value at ${_mortgageAssumedReturn}%/yr nominal, before tax</div>
+        <div style="font-size:var(--fs-sm);color:var(--slate);margin-top:10px">Over the full ${months} months remaining on the loan</div>
       </div>
     </div>
-    <div style="padding:12px 14px;background:var(--paper);border:1px solid var(--steel);border-radius:var(--r-md);font-size:12px;color:var(--slate);line-height:1.7">
+    <div style="padding:12px 14px;background:var(--paper);border:1px solid var(--steel);border-radius:var(--r-md);font-size:var(--fs-sm);color:var(--slate);line-height:1.7">
       Paying extra guarantees a return equal to your mortgage rate (<strong style="color:var(--ink)">${apr.toFixed(2)}%</strong>) —
       the interest saved above is money that simply never gets charged. Investing instead assumes markets
       return about ${_mortgageAssumedReturn}% a year on average <em>before inflation</em> (a moderate, editable
@@ -21202,7 +21202,7 @@ function _mortgageOnSliderChange(val) {
       same ${months}-month period with about <strong style="color:var(--ink)">${fmt(cmp.investFV_extraPath)}</strong>
       invested and a paid-off house.
     </div>
-    <div style="font-size:11px;color:var(--slate-2);margin-top:10px">
+    <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:10px">
       Neither path is right or wrong — this shows the real numbers so you can choose what fits how you think about risk, debt, and your own tax situation.
     </div>
   `;
@@ -21260,11 +21260,11 @@ async function _retirementRenderAdvisorEntry() {
   card.innerHTML = `
     <div id="retirementAdvisorAIEntry" style="display:flex;align-items:center;justify-content:space-between;gap:16px">
       <div>
-        <div style="font-size:13px;font-weight:500;color:var(--ink)">Groundwork's retirement-planning analysis</div>
-        <div style="font-size:12px;color:var(--slate);margin-top:2px">AI-powered read across whichever tools above you've filled in</div>
+        <div style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">Groundwork's retirement-planning analysis</div>
+        <div style="font-size:var(--fs-sm);color:var(--slate);margin-top:2px">AI-powered read across whichever tools above you've filled in</div>
       </div>
       <button onclick="_retirementLaunchAdvisorAI()"
-        style="font-size:12px;padding:7px 16px;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
+        style="font-size:var(--fs-sm);padding:7px 16px;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
         ✦ Generate
       </button>
     </div>`;
@@ -21361,7 +21361,7 @@ async function _renderNWMilestones(goals) {
   const el = g('nwMilestonesDisplay');
   if (!el) return;
   if (!goals.length) {
-    el.innerHTML = `<div style="font-size:12px;color:var(--slate-2)">No milestones set yet. Add up to 3 below.</div>`;
+    el.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate-2)">No milestones set yet. Add up to 3 below.</div>`;
     return;
   }
   const current = _nwCurrentTotal();
@@ -21386,29 +21386,29 @@ async function _renderNWMilestones(goals) {
     const conf      = confResults[idx];
     const confPct   = conf && conf.confidence_pct;
     const confBadge = (confPct != null)
-      ? `<span style="font-size:11px;font-family:var(--font-mono);color:${confPct>=70?'var(--pine-text)':confPct>=40?'var(--gold-text)':'var(--ember-text)'}" title="${esc(conf.reasoning||'')}">${confPct}% on pace</span>`
+      ? `<span style="font-size:var(--fs-xs);font-family:var(--font-mono);color:${confPct>=70?'var(--pine-text)':confPct>=40?'var(--gold-text)':'var(--ember-text)'}" title="${esc(conf.reasoning||'')}">${confPct}% on pace</span>`
       : '';
     // Item 38 P5: a $0 reading logged the day a snapshot was recorded without figures is left out - and said here.
     const leftOut   = conf && conf.left_out
-      ? `<span style="font-size:10px;color:var(--slate-2)">${conf.left_out} reading${conf.left_out!==1?'s':''} of $0 left out \u2014 logged the day a snapshot was recorded without figures</span>`
+      ? `<span style="font-size:var(--fs-xs);color:var(--slate-2)">${conf.left_out} reading${conf.left_out!==1?'s':''} of $0 left out \u2014 logged the day a snapshot was recorded without figures</span>`
       : '';
     return `
       <div style="padding:14px;border:0.5px solid var(--steel-2);border-radius:var(--r-md);margin-bottom:10px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
           <div>
-            <span style="font-size:13px;font-weight:500">${esc(goal.name)}</span>
-            <span style="font-family:var(--font-mono);font-size:13px;color:var(--pine-text);margin-left:12px">${fmt(goal.amount)}</span>
-            ${goal.date ? `<span style="font-size:11px;color:var(--slate-2);margin-left:8px">${new Date(yr,mo-1).toLocaleDateString('en-US',{month:'short',year:'numeric'})}</span>` : ''}
+            <span style="font-size:var(--fs-base);font-weight:500">${esc(goal.name)}</span>
+            <span style="font-family:var(--font-mono);font-size:var(--fs-base);color:var(--pine-text);margin-left:12px">${fmt(goal.amount)}</span>
+            ${goal.date ? `<span style="font-size:var(--fs-xs);color:var(--slate-2);margin-left:8px">${new Date(yr,mo-1).toLocaleDateString('en-US',{month:'short',year:'numeric'})}</span>` : ''}
           </div>
           <div style="display:flex;align-items:center;gap:8px">
-            ${reached ? '<span style="font-size:11px;color:var(--pine-text)">✓ Reached</span>' : confBadge + leftOut}
-            <button onclick="removeNWMilestone(${idx})" style="font-size:11px;background:none;border:none;color:var(--slate-2);cursor:pointer;padding:2px 6px">×</button>
+            ${reached ? '<span style="font-size:var(--fs-xs);color:var(--pine-text)">✓ Reached</span>' : confBadge + leftOut}
+            <button onclick="removeNWMilestone(${idx})" style="font-size:var(--fs-xs);background:none;border:none;color:var(--slate-2);cursor:pointer;padding:2px 6px">×</button>
           </div>
         </div>
         <div style="height:4px;background:var(--steel);border-radius:99px;overflow:hidden;margin-bottom:6px">
           <div style="height:100%;width:${pct}%;background:${reached?'var(--pine)':'var(--sky)'};border-radius:99px;transition:width .3s"></div>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--slate-2)">
+        <div style="display:flex;justify-content:space-between;font-size:var(--fs-xs);color:var(--slate-2)">
           <span>${fmt(current)} of ${fmt(goal.amount)} · ${pct.toFixed(0)}%</span>
           ${needed !== null && !reached ? `<span>Need ${fmt(needed)}/mo</span>` : ''}
         </div>
@@ -21511,17 +21511,17 @@ function _trophyRenderAdvisorEntry(earnedN) {
     const a = latest && ACH_MAP[latest];
     const when = a && S.achievementDates?.[latest] ? new Date(S.achievementDates[latest]).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
     card.innerHTML = `<div class="card-label" style="margin-bottom:6px">Your money story so far</div>
-      <div style="font-size:12px;color:var(--slate);margin-top:2px">${earnedN} of ${ACHIEVEMENTS.length} achievements earned${a ? `. The most recent: ${esc(a.name)}${when ? `, ${when}` : ''}` : ''}.</div>`;
+      <div style="font-size:var(--fs-sm);color:var(--slate);margin-top:2px">${earnedN} of ${ACHIEVEMENTS.length} achievements earned${a ? `. The most recent: ${esc(a.name)}${when ? `, ${when}` : ''}` : ''}.</div>`;
     return;
   }
   card.innerHTML = `
     <div id="trophyAdvisorAIEntry" style="display:flex;align-items:center;justify-content:space-between;gap:16px">
       <div>
-        <div style="font-size:13px;font-weight:500;color:var(--ink)">Groundwork's money story so far</div>
-        <div style="font-size:12px;color:var(--slate);margin-top:2px">AI-written recap of what your earned achievements actually represent</div>
+        <div style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">Groundwork's money story so far</div>
+        <div style="font-size:var(--fs-sm);color:var(--slate);margin-top:2px">AI-written recap of what your earned achievements actually represent</div>
       </div>
       <button onclick="_trophyLaunchAdvisorAI()"
-        style="font-size:12px;padding:7px 16px;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
+        style="font-size:var(--fs-sm);padding:7px 16px;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
         ✦ Generate
       </button>
     </div>`;
@@ -21667,7 +21667,7 @@ function _renderTrophyContent(cont, earnedN, total, pct) {
   cont.innerHTML = `
     <div style="margin-bottom:24px">
       <div class="prog-track" style="height:6px;margin-bottom:8px"><div class="prog-fill" style="width:${pct}%"></div></div>
-      <div style="font-size:12px;color:var(--slate-2)">${gwFig('trophy.pct', `${pct}% complete`)}${latestDate?' · Last earned '+gwFig('trophy.last_date', latestDate):''}</div>
+      <div style="font-size:var(--fs-sm);color:var(--slate-2)">${gwFig('trophy.pct', `${pct}% complete`)}${latestDate?' · Last earned '+gwFig('trophy.last_date', latestDate):''}</div>
     </div>
     ${sections.map(sec => {
       const achs = ACHIEVEMENTS.filter(a => a.section === sec.id);
@@ -21682,9 +21682,9 @@ function _renderTrophyContent(cont, earnedN, total, pct) {
 
       return `<div style="margin-bottom:36px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
-          <span style="font-size:16px">${sec.icon}</span>
-          <div style="font-size:13px;font-weight:600">${sec.label}</div>
-          <div style="font-size:11px;color:var(--slate-2);margin-left:4px">${gwFig('trophy.section', `${secEarned} of ${achs.length} earned`, sec.label)}</div>
+          <span style="font-size:var(--fs-lg)">${sec.icon}</span>
+          <div style="font-size:var(--fs-base);font-weight:600">${sec.label}</div>
+          <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-left:4px">${gwFig('trophy.section', `${secEarned} of ${achs.length} earned`, sec.label)}</div>
         </div>
         ${typeGroups.map(tg => {
           const group = achs.filter(a => a.type === tg.type);
@@ -21698,7 +21698,7 @@ function _renderTrophyContent(cont, earnedN, total, pct) {
           });
           const groupEarned = group.filter(a => S.achievements.has(a.id)).length;
           return `<div style="margin-bottom:16px">
-            <div style="font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;
+            <div style="font-size:var(--fs-xs);font-weight:500;letter-spacing:.08em;text-transform:uppercase;
                         color:var(--slate-2);margin-bottom:10px;display:flex;align-items:center;gap:8px">
               ${tg.label}
               <span style="opacity:.5">${groupEarned}/${group.length}</span>
@@ -21723,25 +21723,25 @@ function _renderAchCard(a) {
   // Earned → show the narrative desc + date
   // Locked → show the unlockHint (what to do) — always, even if there's a progress bar
   const bodyText = earned
-    ? `<div style="font-size:11px;color:var(--slate);margin-top:2px">${esc(a.desc)}</div>`
-    : `<div style="font-size:11px;color:var(--slate);margin-top:2px">${esc(a.unlockHint || a.desc)}</div>`;
+    ? `<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${esc(a.desc)}</div>`
+    : `<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${esc(a.unlockHint || a.desc)}</div>`;
 
   return `<div data-ach-id="${a.id}" class="ach-card ${earned?'ach-card-earned':''} ach-type-${a.type||'discipline'}">
     <div style="display:flex;gap:12px;align-items:flex-start">
-      <span style="font-size:22px;flex-shrink:0;${earned?'':'opacity:.45'}">${a.icon}</span>
+      <span style="font-size:var(--fs-3xl);flex-shrink:0;${earned?'':'opacity:.45'}">${a.icon}</span>
       <div style="flex:1">
-        <div style="font-size:13px;font-weight:600;color:${earned?'var(--ink)':'var(--slate)'}">${a.name}</div>
+        <div style="font-size:var(--fs-base);font-weight:600;color:${earned?'var(--ink)':'var(--slate)'}">${a.name}</div>
         ${bodyText}
         ${dateStr ? `
-          <div style="font-size:10px;color:var(--pine-text);margin-top:4px">✓ Earned ${gwFig('trophy.earned_on', esc(dateStr), a.name)}</div>
-          ${a.behavior ? `<div style="font-size:11px;color:var(--slate);margin-top:5px;font-style:italic;line-height:1.5">${esc(a.behavior)}</div>` : ''}
+          <div style="font-size:var(--fs-xs);color:var(--pine-text);margin-top:4px">✓ Earned ${gwFig('trophy.earned_on', esc(dateStr), a.name)}</div>
+          ${a.behavior ? `<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:5px;font-style:italic;line-height:1.5">${esc(a.behavior)}</div>` : ''}
         ` : ''}
         ${!earned && prog !== null ? `
           <div style="margin-top:8px">
             <div style="height:3px;background:var(--steel);border-radius:99px;overflow:hidden">
               <div style="height:100%;width:${Math.min(99,Math.round(prog))}%;background:var(--sky);border-radius:99px"></div>
             </div>
-            <div style="font-size:10px;font-family:var(--font-mono);color:var(--slate-2);margin-top:3px">${gwFig('trophy.progress', esc(progLbl), a.name)}</div>
+            <div style="font-size:var(--fs-xs);font-family:var(--font-mono);color:var(--slate-2);margin-top:3px">${gwFig('trophy.progress', esc(progLbl), a.name)}</div>
           </div>` : ''}
       </div>
     </div>
@@ -22185,11 +22185,11 @@ function _bybRenderSandboxRows() {
   _byb.sandboxIncomes.forEach((inc, i) => {
     rows.push(`
       <div class="byb-sandbox-row">
-        <div style="flex:1;font-size:13px;color:var(--ink)">${esc(inc.name)}</div>
+        <div style="flex:1;font-size:var(--fs-base);color:var(--ink)">${esc(inc.name)}</div>
         <input type="number" value="${inc._sandboxAmt}" min="0" step="0.01"
           oninput="_bybSandboxChange('income',${i},this.value)"
           title="Adjust income">
-        <span style="font-size:11px;color:var(--slate-2)">/mo</span>
+        <span style="font-size:var(--fs-xs);color:var(--slate-2)">/mo</span>
       </div>`);
   });
 
@@ -22200,7 +22200,7 @@ function _bybRenderSandboxRows() {
     const isMIW     = _bybMIWChanged.has(i);
     // Fix 3: show "was $X" on any manually or MIW-changed row
     const wasLabel  = isReduced
-      ? `<span style="font-size:10px;color:var(--slate-2);font-family:var(--font-mono);text-decoration:line-through">${fmt(exp.amount)}</span>`
+      ? `<span style="font-size:var(--fs-xs);color:var(--slate-2);font-family:var(--font-mono);text-decoration:line-through">${fmt(exp.amount)}</span>`
       : '';
     // Fix 4: amber background + label on Make It Work rows
     const rowBg = isMIW
@@ -22208,14 +22208,14 @@ function _bybRenderSandboxRows() {
       : '';
     rows.push(`
       <div class="byb-sandbox-row" style="${rowBg}">
-        <div style="flex:1;font-size:13px;color:${isReduced?'var(--pine-text)':isMIW?'var(--gold-text)':'var(--ink)'}">
-          ${esc(exp.name)}${isMIW ? ' <span style="font-size:9px;color:var(--gold-text)">✦</span>' : ''}
+        <div style="flex:1;font-size:var(--fs-base);color:${isReduced?'var(--pine-text)':isMIW?'var(--gold-text)':'var(--ink)'}">
+          ${esc(exp.name)}${isMIW ? ' <span style="font-size:var(--fs-xs);color:var(--gold-text)">✦</span>' : ''}
         </div>
         ${wasLabel}
         <input type="number" value="${exp._sandboxAmt}" min="0" step="0.01"
           oninput="_bybSandboxChange('expense',${i},this.value)"
           title="Original: ${fmt(exp.amount)}/mo">
-        <span style="font-size:11px;color:var(--slate-2)">/mo</span>
+        <span style="font-size:var(--fs-xs);color:var(--slate-2)">/mo</span>
       </div>`);
   });
 
@@ -22228,13 +22228,13 @@ function _bybRenderSandboxRows() {
       const isReplacing = c.id === replId;
       rows.push(`
         <div class="byb-sandbox-row">
-          <div style="flex:1;font-size:13px;color:${isReplacing?'var(--slate-2)':'var(--ink)'}">
-            ${esc(c.name)}${isReplacing?' <span style="font-size:10px;color:var(--slate-2)">(replacing)</span>':''}
+          <div style="flex:1;font-size:var(--fs-base);color:${isReplacing?'var(--slate-2)':'var(--ink)'}">
+            ${esc(c.name)}${isReplacing?' <span style="font-size:var(--fs-xs);color:var(--slate-2)">(replacing)</span>':''}
           </div>
-          <span style="font-family:var(--font-mono);font-size:13px;color:${isReplacing?'var(--slate-2)':'var(--ink)'}">
+          <span style="font-family:var(--font-mono);font-size:var(--fs-base);color:${isReplacing?'var(--slate-2)':'var(--ink)'}">
             ${isReplacing?`<s>${fmt(parseFloat(c.minimum)||0)}</s>`:fmt(parseFloat(c.minimum)||0)}
           </span>
-          <span style="font-size:11px;color:var(--slate-2)">/mo</span>
+          <span style="font-size:var(--fs-xs);color:var(--slate-2)">/mo</span>
         </div>`);
     });
   }
@@ -22449,8 +22449,8 @@ function _bybBuildComparison() {
 
   const waitBox = (headline, verdict) => `
         <div style="background:var(--pine-bg);border:1px solid var(--pine-border);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:12px">
-          <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--pine-text);margin-bottom:6px">What if you waited?</div>
-          <div style="font-size:12px;color:var(--slate);line-height:1.7">${headline} ${verdict}</div>
+          <div style="font-size:var(--fs-xs);font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--pine-text);margin-bottom:6px">What if you waited?</div>
+          <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.7">${headline} ${verdict}</div>
         </div>`;
 
   if (soonest) {
@@ -22482,7 +22482,7 @@ function _bybBuildComparison() {
     .map(e => ({ name: e.name, from: e.amount, to: e._sandboxAmt }));
 
   cont.innerHTML = `
-    <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:16px;color:var(--ink);margin-bottom:14px">
+    <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-lg);color:var(--ink);margin-bottom:14px">
       ${esc(_byb.name)} — here's the full picture
     </div>
 
@@ -22494,7 +22494,7 @@ function _bybBuildComparison() {
     </div>
 
     <!-- Change from original -->
-    <div id="bybChangeFromOriginal" style="font-size:12px;color:var(--slate);margin-bottom:12px;line-height:1.8">
+    <div id="bybChangeFromOriginal" style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:12px;line-height:1.8">
       ${_byb.monthly > 0 ? `<div>Monthly cost: <span style="font-family:var(--font-mono);color:var(--ember-text)">+${fmt(_byb.monthly)}/mo</span>${replCard ? ` (replacing ${fmt(replMin)}/mo → net <span style="font-family:var(--font-mono)">${fmt(_byb.monthly - replMin)}/mo more</span>)` : ''}</div>` : ''}
       ${budgetInsufficient ? `<div style="color:var(--ember-text);font-weight:500">This payment would leave you unable to cover your current minimum debt payments. The numbers above reflect that — this isn't a "sooner" outcome, it's not affordable at these amounts.</div>` : ''}
       ${!budgetInsufficient && _byb.origInsufficient ? `<div style="color:var(--gold-text);font-weight:500">Your current budget doesn't cover your minimum debt payments, so there's no valid before-and-after comparison to show. The date above is what this plan produces on its own.</div>` : ''}
@@ -22511,9 +22511,9 @@ function _bybBuildComparison() {
     <!-- Budget adjustments made in sandbox -->
     ${expChanges.length > 0 ? `
     <div style="background:var(--mist);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:12px">
-      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:6px">Budget adjustments</div>
+      <div style="font-size:var(--fs-xs);font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:6px">Budget adjustments</div>
       ${expChanges.map(c => `
-        <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0">
+        <div style="display:flex;justify-content:space-between;font-size:var(--fs-sm);padding:3px 0">
           <span style="color:var(--slate)">${esc(c.name)}</span>
           <span style="font-family:var(--font-mono);color:${c.to<c.from?'var(--pine-text)':'var(--ember-text)'}">
             ${fmt(c.from)} → ${fmt(c.to)}
@@ -22521,17 +22521,17 @@ function _bybBuildComparison() {
         </div>`).join('')}
     </div>` : ''}
 
-    ${dti > 20 ? `<div style="padding:10px 12px;background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:var(--r-sm);font-size:12px;color:var(--slate);margin-bottom:12px">
+    ${dti > 20 ? `<div style="padding:10px 12px;background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:var(--r-sm);font-size:var(--fs-sm);color:var(--slate);margin-bottom:12px">
       ⚠ DTI at ${dti.toFixed(1)}% is above the recommended 20%. Lenders typically flag anything over 36%.
     </div>` : ''}
-    ${whatsLeft < 0 ? `<div style="padding:10px 12px;background:var(--ember-bg);border:1px solid var(--ember-border);border-radius:var(--r-sm);font-size:12px;color:var(--slate);margin-bottom:12px">
+    ${whatsLeft < 0 ? `<div style="padding:10px 12px;background:var(--ember-bg);border:1px solid var(--ember-border);border-radius:var(--r-sm);font-size:var(--fs-sm);color:var(--slate);margin-bottom:12px">
       ⚠ Budget runs ${fmt(Math.abs(whatsLeft))} short each month at these numbers. Go back and adjust.
     </div>` : ''}`;
 }
 function _bybCompCell(label, value, color, prefix = '') {
   return `<div style="background:var(--paper);padding:12px 10px;text-align:center">
-    <div style="font-size:10px;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${label}</div>
-    <div style="font-family:var(--font-mono);font-size:15px;font-weight:600;color:${color}">${prefix}${value}</div>
+    <div style="font-size:var(--fs-xs);color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${label}</div>
+    <div style="font-family:var(--font-mono);font-size:var(--fs-lg);font-weight:600;color:${color}">${prefix}${value}</div>
   </div>`;
 }
 
@@ -22698,7 +22698,7 @@ function _bybResolveTracked(dbId, name, estimatedMonthly) {
   confirmAction(
     `Decide on ${name}`,
     `<div style="display:grid;gap:10px">
-       <div style="font-size:12px;color:var(--slate)">Estimated at ${fmt(estimatedMonthly)}/mo when you first considered it.</div>
+       <div style="font-size:var(--fs-sm);color:var(--slate)">Estimated at ${fmt(estimatedMonthly)}/mo when you first considered it.</div>
        <div class="method-toggle">
          <button type="button" class="method-btn active" data-bybres="bought" onclick="document.querySelectorAll('[data-bybres]').forEach(b=>b.classList.remove('active'));this.classList.add('active');g('bybResActualRow').style.display=''">Bought it</button>
          <button type="button" class="method-btn" data-bybres="walkaway" onclick="document.querySelectorAll('[data-bybres]').forEach(b=>b.classList.remove('active'));this.classList.add('active');g('bybResActualRow').style.display='none'">Walked away</button>
@@ -22867,7 +22867,7 @@ function renderAccountManager() {
     if (!ok) throw new Error('load failed');
     _drawAccountManager();
   }).catch(() => {
-    cont.innerHTML = '<div style="font-size:12px;color:var(--slate)">Could not load accounts.</div>';
+    cont.innerHTML = '<div style="font-size:var(--fs-sm);color:var(--slate)">Could not load accounts.</div>';
   });
 }
 
@@ -22875,7 +22875,7 @@ function _drawAccountManager() {
   const cont = g('settingsAccountManager');
   if (!cont) return;
   const rows = _accountsCache.map(a => _accountRowHTML(a)).join('');
-  const empty = `<div style="font-size:12px;color:var(--slate);padding:8px 0 16px">
+  const empty = `<div style="font-size:var(--fs-sm);color:var(--slate);padding:8px 0 16px">
     No accounts yet. Add one below — or accounts are created automatically the first time you import a bank file.
   </div>`;
   cont.innerHTML = `
@@ -22883,7 +22883,7 @@ function _drawAccountManager() {
     <div id="accountFormSlot"></div>
     <button class="btn-add" onclick="showAddAccountForm()">+ Add account</button>
     <div id="bankStatementsCard" style="margin-top:12px"></div>
-    <div style="padding:12px 0;border-top:0.5px solid var(--steel-2);margin-top:8px;font-size:12px;color:var(--slate)">
+    <div style="padding:12px 0;border-top:0.5px solid var(--steel-2);margin-top:8px;font-size:var(--fs-sm);color:var(--slate)">
       People, your health plan, the reserve and medical bills are on the <a href="#" onclick="showView('health');return false" style="color:var(--sky)">Health page →</a>
       <label style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" id="setShowHealth" onchange="_setHealthNav(this.checked)" ${_healthNavShown ? 'checked' : ''}> Show Health in the sidebar</label>
     </div>`;
@@ -22901,14 +22901,14 @@ function _accountRowHTML(a) {
   return `
     <div class="account-row" data-id="${a.id}" style="display:flex;align-items:center;gap:10px;padding:10px 0;${hf ? '' : 'border-bottom:0.5px solid var(--steel-2)'}">
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:500;color:var(--ink)">${esc(a.name)}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">${esc(meta)}</div>
+        <div style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">${esc(a.name)}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${esc(meta)}</div>
       </div>
-      <div style="font-family:var(--font-mono);font-size:13px;color:${bal == null ? 'var(--slate)' : bal>=0?'var(--pine-text)':'var(--ember-text)'};text-align:right;flex-shrink:0">
+      <div style="font-family:var(--font-mono);font-size:var(--fs-base);color:${bal == null ? 'var(--slate)' : bal>=0?'var(--pine-text)':'var(--ember-text)'};text-align:right;flex-shrink:0">
         ${bal == null ? 'no balance yet' : fmt(bal)}
       </div>
       ${a.has_portal ? _portalButtonsHTML('account', a.id) : ''}
-      <button class="row-del" onclick="editAccount(${a.id})" title="Edit" style="font-size:13px">✎</button>
+      <button class="row-del" onclick="editAccount(${a.id})" title="Edit" style="font-size:var(--fs-base)">✎</button>
       <button class="row-del" onclick="archiveAccount(${a.id})" title="Archive">×</button>
     </div>${hf ? _hsaFsaPanelHTML(hf) : ''}`;
 }
@@ -22934,10 +22934,10 @@ function _hsaFsaPanelHTML(s) {
     body += line('IRS figures:', s.limit.working);
   }
   return `
-    <div class="hsa-fsa-panel" data-hsa-fsa="${s.account_id}" style="padding:4px 0 12px;border-bottom:0.5px solid var(--steel-2);font-size:12px;color:var(--slate);line-height:1.6">
-      ${s.sentence ? `<div style="font-size:13px;color:var(--ink);${warn}">${esc(s.sentence)}</div>` : ''}
+    <div class="hsa-fsa-panel" data-hsa-fsa="${s.account_id}" style="padding:4px 0 12px;border-bottom:0.5px solid var(--steel-2);font-size:var(--fs-sm);color:var(--slate);line-height:1.6">
+      ${s.sentence ? `<div style="font-size:var(--fs-base);color:var(--ink);${warn}">${esc(s.sentence)}</div>` : ''}
       ${body}
-      <details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px">How ${s.kind === 'hsa' ? 'an HSA' : 'an FSA'} works</summary>
+      <details style="margin-top:6px"><summary style="cursor:pointer;font-size:var(--fs-xs)">How ${s.kind === 'hsa' ? 'an HSA' : 'an FSA'} works</summary>
         <div style="margin-top:4px">${esc(_HSA_FSA_HELP[s.kind])}</div></details>
       <div id="hsaFsaForm-${s.account_id}"></div>
       <button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="showHsaFsaTerms(${s.account_id})">${s.kind === 'hsa' ? 'Coverage and balance' : 'Plan terms and balance'}</button>
@@ -22950,9 +22950,9 @@ function showHsaFsaTerms(id) {
   if (!s || !slot) return;
   const t = s.terms || {};
   const v = x => (x == null ? '' : esc(String(x)));
-  const sel = (key, opts) => `<select id="hf-${key}-${id}" style="font-size:12px;padding:3px 6px">`
+  const sel = (key, opts) => `<select id="hf-${key}-${id}" style="font-size:var(--fs-sm);padding:3px 6px">`
     + opts.map(([val, lab]) => `<option value="${val}" ${(t[key] || '') === val ? 'selected' : ''}>${lab}</option>`).join('') + '</select>';
-  const inp = (key, type, ph) => `<input id="hf-${key}-${id}" type="${type}" value="${v(t[key])}" placeholder="${ph}" step="0.01" min="0" style="font-size:12px;padding:3px 6px;width:130px">`;
+  const inp = (key, type, ph) => `<input id="hf-${key}-${id}" type="${type}" value="${v(t[key])}" placeholder="${ph}" step="0.01" min="0" style="font-size:var(--fs-sm);padding:3px 6px;width:130px">`;
   const row = (label, field) => `<label style="display:flex;align-items:center;gap:8px;margin-top:6px"><span style="width:190px">${label}</span>${field}</label>`;
   const year = s.year || new Date().getFullYear();
   const fields = s.kind === 'hsa'
@@ -22966,10 +22966,10 @@ function showHsaFsaTerms(id) {
       + row('Last day to submit claims', inp('claims_by', 'date', ''))
       + row('This year\'s election', inp('election', 'number', ''));
   slot.innerHTML = `<div style="margin-top:8px;padding:8px;background:var(--mist);border-radius:var(--r-sm)">
-      ${s.kind === 'fsa' ? row('Plan year (the year it ends in)', `<input id="hf-plan_year-${id}" type="number" value="${year}" style="font-size:12px;padding:3px 6px;width:90px">`) : ''}
+      ${s.kind === 'fsa' ? row('Plan year (the year it ends in)', `<input id="hf-plan_year-${id}" type="number" value="${year}" style="font-size:var(--fs-sm);padding:3px 6px;width:90px">`) : ''}
       ${fields}
       ${row('Balance (if you type it)', inp('typed_balance', 'number', 'from a statement'))}
-      <div style="font-size:11px;margin-top:6px">Leave anything you don't know blank. Saving keeps the earlier terms as history.</div>
+      <div style="font-size:var(--fs-xs);margin-top:6px">Leave anything you don't know blank. Saving keeps the earlier terms as history.</div>
       <button class="btn btn-sm btn-primary" style="margin-top:6px" onclick="saveHsaFsaTerms(${id})">Save</button>
       <button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="g('hsaFsaForm-${id}').innerHTML=''">Cancel</button>
     </div>`;
@@ -23002,18 +23002,18 @@ async function renderHealthPlanCard() {
   if (!host) return;
   try { _hpPeople = (((await API.get('/api/accounts/people')) || {}).people || []).filter(x => x.active); } catch (e) { _hpPeople = []; }
   try { _hpState = await API.get('/api/accounts/health-plans'); }
-  catch (e) { host.innerHTML = '<div style="font-size:12px;color:var(--slate)">Could not load the health plan.</div>'; return; }
+  catch (e) { host.innerHTML = '<div style="font-size:var(--fs-sm);color:var(--slate)">Could not load the health plan.</div>'; return; }
   const cur = _hpState.current;
   const others = (_hpState.plans || []).filter(p => !cur || p.id !== cur.id);
-  const help = `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px">What these terms mean</summary>
+  const help = `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:var(--fs-xs)">What these terms mean</summary>
       <div style="margin-top:4px">${esc(_hpState.help)}</div></details>`;
   const planHTML = p => `
-      <div style="font-size:13px;font-weight:500;color:var(--ink)">${esc(p.name)}</div>
-      <div style="font-size:11px;color:var(--slate)">${esc(p.from)} to ${p.to ? esc(p.to) : 'no end date entered'}${p.tier ? ' · ' + (p.tier === 'self' ? 'self-only' : 'family') : ''}</div>
-      ${p.lines.map(l => `<div style="font-size:13px;color:var(--ink);margin-top:4px">${esc(l)}</div>`).join('')}
-      ${p.notes.map(n => `<div style="font-size:12px;color:var(--slate);margin-top:4px">${esc(n)}</div>`).join('')}
-      ${p.readings.length > 1 ? `<details style="margin-top:4px"><summary style="cursor:pointer;font-size:11px">Earlier readings</summary>${
-        p.readings.slice(1).map(r => `<div style="font-size:11px">${esc(r.as_of)}: deductible ${r.deductible_met == null ? 'not entered' : fmt(r.deductible_met)}, out-of-pocket ${r.oop_met == null ? 'not entered' : fmt(r.oop_met)}</div>`).join('')}</details>` : ''}`;
+      <div style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">${esc(p.name)}</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate)">${esc(p.from)} to ${p.to ? esc(p.to) : 'no end date entered'}${p.tier ? ' · ' + (p.tier === 'self' ? 'self-only' : 'family') : ''}</div>
+      ${p.lines.map(l => `<div style="font-size:var(--fs-base);color:var(--ink);margin-top:4px">${esc(l)}</div>`).join('')}
+      ${p.notes.map(n => `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:4px">${esc(n)}</div>`).join('')}
+      ${p.readings.length > 1 ? `<details style="margin-top:4px"><summary style="cursor:pointer;font-size:var(--fs-xs)">Earlier readings</summary>${
+        p.readings.slice(1).map(r => `<div style="font-size:var(--fs-xs)">${esc(r.as_of)}: deductible ${r.deductible_met == null ? 'not entered' : fmt(r.deductible_met)}, out-of-pocket ${r.oop_met == null ? 'not entered' : fmt(r.oop_met)}</div>`).join('')}</details>` : ''}`;
   host.innerHTML = `
     <div style="padding:12px 0;border-bottom:0.5px solid var(--steel-2)">
       <div class="card-label" style="margin-bottom:6px">Health plan</div>
@@ -23023,11 +23023,11 @@ async function renderHealthPlanCard() {
           <button class="btn btn-sm btn-secondary" onclick="showHealthPlanForm('terms', ${cur.id})">Change the deductible or maximum</button>
           <button class="btn btn-sm btn-secondary" onclick="showHealthPlanForm('plan')">Add the next plan</button>
         </div>`
-      : `<div style="font-size:12px;color:var(--slate)">No health plan entered for today.${others.length ? ' Other plans are listed below.' : ''}</div>
+      : `<div style="font-size:var(--fs-sm);color:var(--slate)">No health plan entered for today.${others.length ? ' Other plans are listed below.' : ''}</div>
          <button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="showHealthPlanForm('plan')">Add your health plan</button>`}
       <div id="healthPlanForm"></div>
       ${help}
-      ${others.length ? `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px">Other plans (${others.length})</summary>${
+      ${others.length ? `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:var(--fs-xs)">Other plans (${others.length})</summary>${
         others.map(p => `<div style="margin-top:6px">${planHTML(p)}</div>`).join('')}</details>` : ''}
     </div>`;
 }
@@ -23037,18 +23037,18 @@ function showHealthPlanForm(kind, id) {
   if (!slot) return;
   const p = (_hpState?.plans || []).find(x => x.id === id) || {};
   const row = (label, field) => `<label style="display:flex;align-items:center;gap:8px;margin-top:6px"><span style="width:210px">${label}</span>${field}</label>`;
-  const num = (k, v) => `<input id="hp-${k}" type="number" step="0.01" min="0" value="${v == null ? '' : esc(String(v))}" style="font-size:12px;padding:3px 6px;width:130px">`;
-  const dt = (k, v) => `<input id="hp-${k}" type="date" value="${v ? esc(v) : ''}" style="font-size:12px;padding:3px 6px">`;
-  const tier = v => `<select id="hp-tier" style="font-size:12px;padding:3px 6px">${[['', 'I don\'t know'], ['self', 'Self-only'], ['family', 'Family']]
+  const num = (k, v) => `<input id="hp-${k}" type="number" step="0.01" min="0" value="${v == null ? '' : esc(String(v))}" style="font-size:var(--fs-sm);padding:3px 6px;width:130px">`;
+  const dt = (k, v) => `<input id="hp-${k}" type="date" value="${v ? esc(v) : ''}" style="font-size:var(--fs-sm);padding:3px 6px">`;
+  const tier = v => `<select id="hp-tier" style="font-size:var(--fs-sm);padding:3px 6px">${[['', 'I don\'t know'], ['self', 'Self-only'], ['family', 'Family']]
     .map(([a, b]) => `<option value="${a}" ${(v || '') === a ? 'selected' : ''}>${b}</option>`).join('')}</select>`;
   let fields = '', note = '';
   if (kind === 'plan') {
-    fields = row('Name (your own words)', `<input id="hp-name" type="text" style="font-size:12px;padding:3px 6px;width:200px">`)
+    fields = row('Name (your own words)', `<input id="hp-name" type="text" style="font-size:var(--fs-sm);padding:3px 6px;width:200px">`)
       + row('Starts', dt('effective_from')) + row('Ends (plan year end)', dt('effective_to')) + row('Coverage', tier(''))
       + row('Deductible', num('deductible')) + row('Out-of-pocket maximum', num('oop_max'));
     note = 'Leave anything you don\'t know blank. A plan can\'t share dates with another one.';
   } else if (kind === 'reading') {
-    fields = (p.tier === 'family' ? row('Whose figures', `<select id="hp-person_id" style="font-size:12px;padding:3px 6px"><option value="">The plan's own</option>${(_hpPeople || []).map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>`) : '')
+    fields = (p.tier === 'family' ? row('Whose figures', `<select id="hp-person_id" style="font-size:var(--fs-sm);padding:3px 6px"><option value="">The plan's own</option>${(_hpPeople || []).map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>`) : '')
       + row('Deductible met so far', num('deductible_met')) + row('Out-of-pocket so far', num('oop_met'))
       + row('As of', dt('as_of', _localISODate()));
     note = 'From your insurer\'s website or your latest statement. Earlier readings are kept.';
@@ -23060,8 +23060,8 @@ function showHealthPlanForm(kind, id) {
       + row('Coverage', tier(p.tier)) + row('Deductible', num('deductible', p.deductible)) + row('Out-of-pocket maximum', num('oop_max', p.oop_max));
     note = 'A correction keeps the old figure and names it. A change ends this plan the day before and starts the rest of the year with the new figures; earlier months stay as they were.';
   }
-  slot.innerHTML = `<div style="margin-top:8px;padding:8px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--slate)">
-      ${fields}<div style="font-size:11px;margin-top:6px">${note}</div>
+  slot.innerHTML = `<div style="margin-top:8px;padding:8px;background:var(--mist);border-radius:var(--r-sm);font-size:var(--fs-sm);color:var(--slate)">
+      ${fields}<div style="font-size:var(--fs-xs);margin-top:6px">${note}</div>
       <button class="btn btn-sm btn-primary" style="margin-top:6px" onclick="saveHealthPlanForm('${kind}', ${id || 'null'})">Save</button>
       <button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="g('healthPlanForm').innerHTML=''">Cancel</button></div>`;
 }
@@ -23140,9 +23140,9 @@ async function _healthFacts() {
   const ded = cur ? (cur.lines || []).find(l => /deductible/i.test(l)) : null;
   const hsa = (S.hsaFsa || []).filter(a => a.balance && a.balance.amount != null);
   const tile = (label, big, small) => `<div class="card byb-in" style="padding:12px 14px;margin:0">
-      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2)">${label}</div>
-      <div style="font-family:var(--font-mono);font-size:17px;font-weight:600;color:var(--ink);margin-top:4px">${big}</div>
-      <div style="font-size:11px;color:var(--slate);margin-top:2px;line-height:1.5">${small}</div></div>`;
+      <div style="font-size:var(--fs-xs);font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2)">${label}</div>
+      <div style="font-family:var(--font-mono);font-size:var(--fs-lg);font-weight:600;color:var(--ink);margin-top:4px">${big}</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px;line-height:1.5">${small}</div></div>`;
   host.innerHTML = [
     tile('Owed on bills', owing.length ? fmt(owed) : '—',
          owing.length ? `${owing.length} bill${owing.length === 1 ? '' : 's'} you said ${owing.length === 1 ? 'is' : 'are'} yours` : 'No bill you said is yours'),
@@ -23160,12 +23160,12 @@ function _renderHealthHsaFsa() {
   if (!host) return;
   const list = S.hsaFsa || [];
   host.innerHTML = `<div class="card-label" style="margin-bottom:6px">HSA and FSA</div>` + (list.length
-    ? list.map(s => `<div style="padding:6px 0;border-top:0.5px solid var(--steel-2);font-size:12px;color:var(--slate)">
-        <div style="font-size:13px;color:var(--ink);font-weight:500">${esc(s.account || s.name || (s.kind || '').toUpperCase())}</div>
-        ${s.sentence ? `<div style="font-size:13px;color:var(--ink)">${esc(s.sentence)}</div>` : ''}
+    ? list.map(s => `<div style="padding:6px 0;border-top:0.5px solid var(--steel-2);font-size:var(--fs-sm);color:var(--slate)">
+        <div style="font-size:var(--fs-base);color:var(--ink);font-weight:500">${esc(s.account || s.name || (s.kind || '').toUpperCase())}</div>
+        ${s.sentence ? `<div style="font-size:var(--fs-base);color:var(--ink)">${esc(s.sentence)}</div>` : ''}
         <div>Balance: ${esc((s.balance || {}).working || '')}</div></div>`).join('')
-      + `<a href="#" onclick="showView('settings');_settingsShowTab('accounts');return false" style="font-size:12px;color:var(--sky)">Manage in Accounts →</a>`
-    : `<div style="font-size:12px;color:var(--slate)">No HSA or FSA account. Add one in <a href="#" onclick="showView('settings');_settingsShowTab('accounts');return false" style="color:var(--sky)">Accounts</a> with its type set to HSA or FSA.</div>`);
+      + `<a href="#" onclick="showView('settings');_settingsShowTab('accounts');return false" style="font-size:var(--fs-sm);color:var(--sky)">Manage in Accounts →</a>`
+    : `<div style="font-size:var(--fs-sm);color:var(--slate)">No HSA or FSA account. Add one in <a href="#" onclick="showView('settings');_settingsShowTab('accounts');return false" style="color:var(--sky)">Accounts</a> with its type set to HSA or FSA.</div>`);
 }
 
 // HP5: spending as recorded - by month, by person, the year so far - and the records
@@ -23176,17 +23176,17 @@ async function _renderHealthSpending() {
   try { d = await API.get('/api/accounts/health-summary'); } catch (e) { _gwErr('health summary')(e); host.innerHTML = ''; return; }
   const top = Math.max(1, ...d.months.map(m => m.amount));
   host.innerHTML = `<div class="card-label" style="margin-bottom:4px">Health spending, as recorded</div>
-    <div style="font-size:12px;color:var(--slate);margin-bottom:10px">${esc(d.what)}</div>
-    <div style="font-size:13px;color:var(--ink);margin-bottom:10px">${esc(d.year_line)}</div>
-    <div style="display:grid;gap:4px">${d.months.map(m => `<div style="display:grid;grid-template-columns:80px 1fr 90px;gap:8px;align-items:center;font-size:12px">
+    <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:10px">${esc(d.what)}</div>
+    <div style="font-size:var(--fs-base);color:var(--ink);margin-bottom:10px">${esc(d.year_line)}</div>
+    <div style="display:grid;gap:4px">${d.months.map(m => `<div style="display:grid;grid-template-columns:80px 1fr 90px;gap:8px;align-items:center;font-size:var(--fs-sm)">
         <span style="color:var(--slate)">${esc(m.label)}${m.so_far ? ' *' : ''}</span>
         <span style="background:var(--mist);border-radius:3px;height:10px;overflow:hidden"><span class="byb-in" style="display:block;height:100%;width:${(m.amount / top * 100).toFixed(1)}%;background:var(--sky)"></span></span>
         <span style="font-family:var(--font-mono);text-align:right;color:var(--ink)">${fmt(m.amount)}</span></div>`).join('')}</div>
-    <div style="font-size:11px;color:var(--slate-2);margin-top:4px">* this month so far.</div>
+    <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px">* this month so far.</div>
     <div class="card-label" style="margin:16px 0 6px">Whom it was for, ${esc(d.year)}</div>
-    ${d.by_person.length ? d.by_person.map(r => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>${esc(r.who)}</span><span style="font-family:var(--font-mono)">${fmt(r.amount)}</span></div>`).join('')
-      : '<div style="font-size:12px;color:var(--slate)">Nothing recorded this year.</div>'}
-    <div style="font-size:11px;color:var(--slate-2);margin-top:4px">As you said it, payment by payment - never guessed. Say whom a payment was for from the Ledger's edit panel.</div>
+    ${d.by_person.length ? d.by_person.map(r => `<div style="display:flex;justify-content:space-between;font-size:var(--fs-base);padding:3px 0"><span>${esc(r.who)}</span><span style="font-family:var(--font-mono)">${fmt(r.amount)}</span></div>`).join('')
+      : '<div style="font-size:var(--fs-sm);color:var(--slate)">Nothing recorded this year.</div>'}
+    <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px">As you said it, payment by payment - never guessed. Say whom a payment was for from the Ledger's edit panel.</div>
     <div class="card-label" style="margin:16px 0 6px">Records</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-sm btn-secondary" onclick="showView('reports');setTimeout(() => _rcOpenReport('visit_report'), 80)">Visit report</button>
@@ -23214,79 +23214,79 @@ async function renderMedicalBillsCard() {
   if (!host) return;
   try { _mbState = await API.get('/api/medical-bills'); } catch (e) { _gwErr('medical bills')(e); host.innerHTML = ''; return; }
   const st = _mbState, d = st.dates || {};
-  const row = (t, cls = 'var(--ink)') => `<div style="font-size:13px;color:${cls};margin-top:3px">${esc(t)}</div>`;
-  const note = t => `<div style="font-size:12px;color:var(--slate);margin-top:3px;padding-left:8px;border-left:2px solid var(--gold-border)">${esc(t)}</div>`;
+  const row = (t, cls = 'var(--ink)') => `<div style="font-size:var(--fs-base);color:${cls};margin-top:3px">${esc(t)}</div>`;
+  const note = t => `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:3px;padding-left:8px;border-left:2px solid var(--gold-border)">${esc(t)}</div>`;
   const bill = b => {
     const yn = b.nonprofit_hospital, col = b.collection;
     if (b.sent_to) return `<div style="padding:10px 0;border-top:0.5px solid var(--steel-2);opacity:.8" data-mb="${b.id}">
-      <div style="font-size:13px;font-weight:600;color:var(--ink)">${esc(b.provider)}${b.account_number ? ` <span style="font-weight:400;color:var(--slate-2);font-family:var(--font-mono);font-size:11px">account ${esc(b.account_number)}</span>` : ''}</div>
-      ${b.statements.map(x => `<div style="font-size:12px;color:var(--slate);margin-top:2px">${esc(x.line)}</div>`).join('')}
+      <div style="font-size:var(--fs-base);font-weight:600;color:var(--ink)">${esc(b.provider)}${b.account_number ? ` <span style="font-weight:400;color:var(--slate-2);font-family:var(--font-mono);font-size:var(--fs-xs)">account ${esc(b.account_number)}</span>` : ''}</div>
+      ${b.statements.map(x => `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:2px">${esc(x.line)}</div>`).join('')}
       ${b.notes.map(note).join('')}</div>`;
     return `<div style="padding:10px 0;border-top:0.5px solid var(--steel-2)" data-mb="${b.id}">
-      <div style="font-size:13px;font-weight:600;color:var(--ink)">${col ? 'Collection · ' : ''}${esc(b.provider)}${b.account_number ? ` <span style="font-weight:400;color:var(--slate-2);font-family:var(--font-mono);font-size:11px">account ${esc(b.account_number)}</span>` : ''}</div>
-      ${col ? `<div style="font-size:12px;color:var(--slate)">The ${esc(col.of_provider)} bill, sent to collections on ${esc(_billDate(col.sent_on))}. A debt kept here, not in Debt Payoff.</div>
-        <div style="margin:8px 0;font-size:12px">${col.running.map(r => `<div style="display:grid;grid-template-columns:90px 1fr 100px;gap:8px;padding:2px 0;border-bottom:0.5px solid var(--steel-2)">
+      <div style="font-size:var(--fs-base);font-weight:600;color:var(--ink)">${col ? 'Collection · ' : ''}${esc(b.provider)}${b.account_number ? ` <span style="font-weight:400;color:var(--slate-2);font-family:var(--font-mono);font-size:var(--fs-xs)">account ${esc(b.account_number)}</span>` : ''}</div>
+      ${col ? `<div style="font-size:var(--fs-sm);color:var(--slate)">The ${esc(col.of_provider)} bill, sent to collections on ${esc(_billDate(col.sent_on))}. A debt kept here, not in Debt Payoff.</div>
+        <div style="margin:8px 0;font-size:var(--fs-sm)">${col.running.map(r => `<div style="display:grid;grid-template-columns:90px 1fr 100px;gap:8px;padding:2px 0;border-bottom:0.5px solid var(--steel-2)">
           <span style="color:var(--slate)">${esc(_billDate(r.date))}</span><span style="color:var(--ink)">${esc(r.what)}</span>
           <span style="font-family:var(--font-mono);text-align:right;color:var(--ink)">${r.balance == null ? '' : fmt(r.balance)}</span></div>`).join('')}</div>
-        <div style="font-size:12px;color:var(--ink);padding:8px 10px;border-left:3px solid var(--gold-text);background:var(--gold-bg);border-radius:var(--r-sm)">${esc(col.legal_note)}</div>`
-        : b.statements.map(x => `<div style="font-size:12px;color:var(--slate);margin-top:2px">${esc(x.line)}</div>`).join('')}
+        <div style="font-size:var(--fs-sm);color:var(--ink);padding:8px 10px;border-left:3px solid var(--gold-text);background:var(--gold-bg);border-radius:var(--r-sm)">${esc(col.legal_note)}</div>`
+        : b.statements.map(x => `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:2px">${esc(x.line)}</div>`).join('')}
       ${b.lines.map(l => row(l)).join('')}
       ${b.notes.map(note).join('')}
       ${!b.mine ? `<button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="_mbSay(${b.id}, 'mine')">This bill is mine to pay</button>` : ''}
       ${b.mine && (b.owed || 0) > 0 ? `
-        ${b.candidates.map(c => `<div style="font-size:12px;color:var(--ink);margin-top:6px">${esc(c.sentence)}
+        ${b.candidates.map(c => `<div style="font-size:var(--fs-sm);color:var(--ink);margin-top:6px">${esc(c.sentence)}
             <button class="btn btn-sm btn-ghost" onclick="_mbSay(${b.id}, 'payment', {transaction_id: ${c.transaction_id}})">That's this bill</button></div>`).join('')}
-        <details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px">A payment toward it, or the provider's terms</summary>
-          <div style="margin-top:6px;font-size:12px;color:var(--slate)">
-            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><select id="mbLine-${b.id}" style="font-size:12px;padding:3px 6px;max-width:320px" onfocus="_mbLines(${b.id})"><option value="">Choose the payment…</option></select>
+        <details style="margin-top:6px"><summary style="cursor:pointer;font-size:var(--fs-xs)">A payment toward it, or the provider's terms</summary>
+          <div style="margin-top:6px;font-size:var(--fs-sm);color:var(--slate)">
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><select id="mbLine-${b.id}" style="font-size:var(--fs-sm);padding:3px 6px;max-width:320px" onfocus="_mbLines(${b.id})"><option value="">Choose the payment…</option></select>
               <button class="btn btn-sm btn-secondary" onclick="_mbLinkChosen(${b.id})">It was toward this bill</button></div>
             ${col ? '' : `<label style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" ${b.claim_pending ? 'checked' : ''} onchange="_mbSay(${b.id}, 'claim', {pending: this.checked})"> The insurer's claim is still pending</label>`}
             <div style="margin-top:8px">Payment arrangement, as the provider agreed it:</div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
-              <input id="mbArrM-${b.id}" type="number" step="0.01" min="0" placeholder="a month" value="${b.arrangement ? b.arrangement.monthly : ''}" style="width:90px;font-size:12px;padding:3px 6px">
-              <input id="mbArrF-${b.id}" type="date" value="${b.arrangement ? b.arrangement.first_date : ''}" style="font-size:12px;padding:3px 6px" title="First payment">
-              <input id="mbArrN-${b.id}" type="number" step="1" min="1" placeholder="payments" value="${b.arrangement ? b.arrangement.payments : ''}" style="width:80px;font-size:12px;padding:3px 6px">
+              <input id="mbArrM-${b.id}" type="number" step="0.01" min="0" placeholder="a month" value="${b.arrangement ? b.arrangement.monthly : ''}" style="width:90px;font-size:var(--fs-sm);padding:3px 6px">
+              <input id="mbArrF-${b.id}" type="date" value="${b.arrangement ? b.arrangement.first_date : ''}" style="font-size:var(--fs-sm);padding:3px 6px" title="First payment">
+              <input id="mbArrN-${b.id}" type="number" step="1" min="1" placeholder="payments" value="${b.arrangement ? b.arrangement.payments : ''}" style="width:80px;font-size:var(--fs-sm);padding:3px 6px">
               <button class="btn btn-sm btn-secondary" onclick="_mbArrangement(${b.id})">Record it</button>
               ${b.arrangement ? `<button class="btn btn-sm btn-ghost" onclick="_mbSay(${b.id}, 'arrangement', {none: true})">No arrangement now</button>
                 <button class="btn btn-sm btn-ghost" onclick="_mbBudget(${b.id})">Add it to my budget</button>` : ''}</div>
           </div></details>
-        ${col ? '' : `<div style="font-size:12px;color:var(--slate);margin-top:8px">Is ${esc(b.provider)} a non-profit hospital?
+        ${col ? '' : `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:8px">Is ${esc(b.provider)} a non-profit hospital?
           ${[['Yes', true], ['No', false], ['Not sure', null]].map(([l, v]) => `<button class="btn btn-sm ${yn === v ? 'btn-secondary' : 'btn-ghost'}" onclick="_mbNonprofit(${b.provider_id}, ${v})">${l}</button>`).join('')}</div>`}
-        ${b.facts.length ? `<div style="margin-top:6px;padding:8px 10px;background:var(--mist);border-radius:var(--r-sm)">${b.facts.map(f => `<div style="font-size:12px;color:var(--ink);margin-top:2px">${esc(f)}</div>`).join('')}</div>` : ''}
-        ${b.capacity ? `<div style="margin-top:8px"><div style="font-size:12px;color:var(--ink)">${esc(b.capacity.sentence)}</div>
-          ${(b.capacity.rows || []).map(r => `<div style="font-size:12px;color:${r.sustained ? 'var(--pine-text)' : 'var(--slate)'};margin-top:2px">${esc(r.line)}</div>`).join('')}</div>` : ''}
+        ${b.facts.length ? `<div style="margin-top:6px;padding:8px 10px;background:var(--mist);border-radius:var(--r-sm)">${b.facts.map(f => `<div style="font-size:var(--fs-sm);color:var(--ink);margin-top:2px">${esc(f)}</div>`).join('')}</div>` : ''}
+        ${b.capacity ? `<div style="margin-top:8px"><div style="font-size:var(--fs-sm);color:var(--ink)">${esc(b.capacity.sentence)}</div>
+          ${(b.capacity.rows || []).map(r => `<div style="font-size:var(--fs-sm);color:${r.sustained ? 'var(--pine-text)' : 'var(--slate)'};margin-top:2px">${esc(r.line)}</div>`).join('')}</div>` : ''}
       ` : ''}
-      ${col ? '' : `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px">This bill went to collections</summary>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;font-size:12px">
-          <input id="mbColName-${b.id}" type="text" placeholder="the collector's name" style="font-size:12px;padding:3px 6px">
-          <input id="mbColAcct-${b.id}" type="text" placeholder="its account number" style="width:130px;font-size:12px;padding:3px 6px">
-          <input id="mbColDate-${b.id}" type="date" title="When it went to collections" style="font-size:12px;padding:3px 6px">
-          <input id="mbColAmt-${b.id}" type="number" step="0.01" min="0" placeholder="balance they state" style="width:130px;font-size:12px;padding:3px 6px">
+      ${col ? '' : `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:var(--fs-xs)">This bill went to collections</summary>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;font-size:var(--fs-sm)">
+          <input id="mbColName-${b.id}" type="text" placeholder="the collector's name" style="font-size:var(--fs-sm);padding:3px 6px">
+          <input id="mbColAcct-${b.id}" type="text" placeholder="its account number" style="width:130px;font-size:var(--fs-sm);padding:3px 6px">
+          <input id="mbColDate-${b.id}" type="date" title="When it went to collections" style="font-size:var(--fs-sm);padding:3px 6px">
+          <input id="mbColAmt-${b.id}" type="number" step="0.01" min="0" placeholder="balance they state" style="width:130px;font-size:var(--fs-sm);padding:3px 6px">
           <button class="btn btn-sm btn-secondary" onclick="_mbCollections(${b.id})">Record it</button></div>
-        <div style="font-size:11px;color:var(--slate-2);margin-top:4px">It's then kept as a collection on this page, with a running balance - never in Debt Payoff.</div></details>`}
+        <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px">It's then kept as a collection on this page, with a running balance - never in Debt Payoff.</div></details>`}
     </div>`;
   };
   const isCol = b => !!b.collection;
   host.innerHTML = `
     <div style="padding:12px 0;border-bottom:0.5px solid var(--steel-2)">
       <div class="card-label" style="margin-bottom:4px">Medical bills</div>
-      <div style="font-size:12px;color:var(--slate);margin-bottom:6px">A bill is the provider's statement. It becomes something you owe only when you say so. ${esc(st.never_directs || '')}</div>
+      <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:6px">A bill is the provider's statement. It becomes something you owe only when you say so. ${esc(st.never_directs || '')}</div>
       ${(st.bills || []).some(b => b.mine && (b.owed || 0) > 0) ? `<div style="margin:6px 0 4px">${row(d.card_free || '')}${row(d.sentence || '', d.all ? 'var(--ink)' : 'var(--slate)')}</div>` : ''}
       ${(st.bills || []).filter(b => !isCol(b)).map(bill).join('')}
       ${(st.bills || []).some(isCol) ? `<div class="card-label" style="margin:14px 0 4px">Collections</div>${(st.bills || []).filter(isCol).map(bill).join('')}` : ''}
-      <details style="margin-top:8px"${(st.bills || []).length ? '' : ' open'}><summary style="cursor:pointer;font-size:12px">Bring in a bill</summary>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;margin-top:6px;font-size:12px;color:var(--slate)">
-          <label>From<select id="mbSource" style="width:100%;font-size:12px;padding:3px 6px"><option value="provider">The provider's bill</option><option value="insurer">The insurer's explanation of benefits</option><option value="collector">A collector's statement</option></select></label>
-          <label>Provider<input id="mbProvider" type="text" style="width:100%;font-size:12px;padding:3px 6px" placeholder="as the bill names it"></label>
-          <label>Account number<input id="mbAcct" type="text" style="width:100%;font-size:12px;padding:3px 6px" placeholder="on the bill"></label>
-          <label>Statement date<input id="mbDate" type="date" style="width:100%;font-size:12px;padding:3px 6px"></label>
-          <label>Amount due (or yours, on an EOB)<input id="mbAmount" type="number" step="0.01" min="0" style="width:100%;font-size:12px;padding:3px 6px"></label>
-          <label>Due date<input id="mbDue" type="date" style="width:100%;font-size:12px;padding:3px 6px"></label>
-          <label>Service from<input id="mbSvcFrom" type="date" style="width:100%;font-size:12px;padding:3px 6px"></label>
-          <label>Service to<input id="mbSvcTo" type="date" style="width:100%;font-size:12px;padding:3px 6px"></label>
+      <details style="margin-top:8px"${(st.bills || []).length ? '' : ' open'}><summary style="cursor:pointer;font-size:var(--fs-sm)">Bring in a bill</summary>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;margin-top:6px;font-size:var(--fs-sm);color:var(--slate)">
+          <label>From<select id="mbSource" style="width:100%;font-size:var(--fs-sm);padding:3px 6px"><option value="provider">The provider's bill</option><option value="insurer">The insurer's explanation of benefits</option><option value="collector">A collector's statement</option></select></label>
+          <label>Provider<input id="mbProvider" type="text" style="width:100%;font-size:var(--fs-sm);padding:3px 6px" placeholder="as the bill names it"></label>
+          <label>Account number<input id="mbAcct" type="text" style="width:100%;font-size:var(--fs-sm);padding:3px 6px" placeholder="on the bill"></label>
+          <label>Statement date<input id="mbDate" type="date" style="width:100%;font-size:var(--fs-sm);padding:3px 6px"></label>
+          <label>Amount due (or yours, on an EOB)<input id="mbAmount" type="number" step="0.01" min="0" style="width:100%;font-size:var(--fs-sm);padding:3px 6px"></label>
+          <label>Due date<input id="mbDue" type="date" style="width:100%;font-size:var(--fs-sm);padding:3px 6px"></label>
+          <label>Service from<input id="mbSvcFrom" type="date" style="width:100%;font-size:var(--fs-sm);padding:3px 6px"></label>
+          <label>Service to<input id="mbSvcTo" type="date" style="width:100%;font-size:var(--fs-sm);padding:3px 6px"></label>
         </div>
         <button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="_mbAdd()">Add the statement</button>
-        <div style="font-size:11px;color:var(--slate-2);margin-top:4px">Kept on this computer as health information: never sent to the AI, never in an export unless you tick health.</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px">Kept on this computer as health information: never sent to the AI, never in an export unless you tick health.</div>
       </details>
     </div>`;
 }
@@ -23354,25 +23354,25 @@ async function renderHealthReserveCard() {
   host.innerHTML = `
     <div style="padding:12px 0;border-bottom:0.5px solid var(--steel-2)">
       <div class="card-label" style="margin-bottom:4px">Health reserve</div>
-      <div style="font-size:12px;color:var(--slate);margin-bottom:6px">${esc(st.purpose)}</div>
-      ${st.lines.map(l => `<div style="font-size:13px;color:var(--ink);margin-top:3px">${esc(l)}</div>`).join('')}
-      ${st.notes.map(n => `<div style="font-size:12px;color:var(--slate);margin-top:3px">${esc(n)}</div>`).join('')}
-      ${st.offer ? `<div style="font-size:12px;margin-top:6px;padding:6px 8px;background:var(--mist);border-radius:var(--r-sm)">${esc(st.offer.sentence)}
+      <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:6px">${esc(st.purpose)}</div>
+      ${st.lines.map(l => `<div style="font-size:var(--fs-base);color:var(--ink);margin-top:3px">${esc(l)}</div>`).join('')}
+      ${st.notes.map(n => `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:3px">${esc(n)}</div>`).join('')}
+      ${st.offer ? `<div style="font-size:var(--fs-sm);margin-top:6px;padding:6px 8px;background:var(--mist);border-radius:var(--r-sm)">${esc(st.offer.sentence)}
           <button class="btn btn-sm btn-secondary" style="margin-left:6px" onclick="_reserveLower(${st.offer.amount})">Yes, lower it</button></div>` : ''}
-      <details style="margin-top:8px"><summary style="cursor:pointer;font-size:11px">Change the target or the reserve</summary>
-        <div style="margin-top:6px;font-size:12px;color:var(--slate)">
+      <details style="margin-top:8px"><summary style="cursor:pointer;font-size:var(--fs-xs)">Change the target or the reserve</summary>
+        <div style="margin-top:6px;font-size:var(--fs-sm);color:var(--slate)">
           <label style="display:flex;gap:8px;align-items:center;margin-top:4px"><span style="width:150px">Target</span>
-            <select id="resBasis" style="font-size:12px;padding:3px 6px">
+            <select id="resBasis" style="font-size:var(--fs-sm);padding:3px 6px">
               <option value="oop_max" ${st.basis === 'oop_max' ? 'selected' : ''}>My plan's out-of-pocket maximum</option>
               <option value="custom" ${st.basis === 'custom' ? 'selected' : ''}>A figure of my own</option>
               <option value="" ${st.basis === 'none' ? 'selected' : ''}>No target</option></select>
-            <input id="resTarget" type="number" step="0.01" min="0" placeholder="amount" value="${st.basis === 'custom' && st.target != null ? st.target : ''}" style="font-size:12px;padding:3px 6px;width:110px"></label>
+            <input id="resTarget" type="number" step="0.01" min="0" placeholder="amount" value="${st.basis === 'custom' && st.target != null ? st.target : ''}" style="font-size:var(--fs-sm);padding:3px 6px;width:110px"></label>
           <button class="btn btn-sm btn-secondary" style="margin-top:4px" onclick="_reserveSave('target')">Save target</button>
           <label style="display:flex;gap:8px;align-items:center;margin-top:10px"><span style="width:150px">Held in</span>
-            <select id="resAccount" style="font-size:12px;padding:3px 6px">${accts.map(a => `<option value="${a.id}" ${a.id === st.account_id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label>
+            <select id="resAccount" style="font-size:var(--fs-sm);padding:3px 6px">${accts.map(a => `<option value="${a.id}" ${a.id === st.account_id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label>
           <label style="display:flex;gap:8px;align-items:center;margin-top:4px"><span style="width:150px">Reserved (the whole amount)</span>
-            <input id="resAmount" type="number" step="0.01" min="0" value="${st.reserved || ''}" style="font-size:12px;padding:3px 6px;width:110px"></label>
-          <div style="font-size:11px;margin-top:4px">This is how much of that account's balance is the reserve. The balance itself doesn't change, and $700 after $500 means $700.</div>
+            <input id="resAmount" type="number" step="0.01" min="0" value="${st.reserved || ''}" style="font-size:var(--fs-sm);padding:3px 6px;width:110px"></label>
+          <div style="font-size:var(--fs-xs);margin-top:4px">This is how much of that account's balance is the reserve. The balance itself doesn't change, and $700 after $500 means $700.</div>
           <button class="btn btn-sm btn-secondary" style="margin-top:4px" onclick="_reserveSave('reserved')">Save reserve</button>
         </div></details>
     </div>`;
@@ -23410,17 +23410,17 @@ async function renderReserveChoice() {
   const label = { after: 'After the last debt', before: 'Before the last debt', alongside: 'Alongside the debt' };
   const mine = (st.choice || {}).choice;
   const rows = o.available ? o.options.map(r => `
-      <div style="padding:8px 0;border-top:1px solid var(--steel);font-size:12px;color:var(--slate)">
-        <div style="font-size:13px;color:var(--ink)">${label[r.key]}${mine === r.key ? ' <span style="font-size:11px;color:var(--pine-text)">· your choice since ' + esc(st.choice.said) + '</span>' : ''}</div>
+      <div style="padding:8px 0;border-top:1px solid var(--steel);font-size:var(--fs-sm);color:var(--slate)">
+        <div style="font-size:var(--fs-base);color:var(--ink)">${label[r.key]}${mine === r.key ? ' <span style="font-size:var(--fs-xs);color:var(--pine-text)">· your choice since ' + esc(st.choice.said) + '</span>' : ''}</div>
         ${r.unavailable ? `<div>${esc(r.unavailable)}</div>` : `
         <div>Debt-free ${esc(r.debt_free)} · interest ${fmt(r.interest)} · reserve full ${esc(r.reserve_full)}</div>
-        <div style="font-size:11px">${esc(r.note)}</div>`}
-        ${r.key === 'alongside' ? `<input id="resMonthly" type="number" step="1" min="0" placeholder="$ a month" value="${(st.choice || {}).monthly || ''}" style="font-size:12px;padding:3px 6px;width:100px;margin-top:4px">` : ''}
+        <div style="font-size:var(--fs-xs)">${esc(r.note)}</div>`}
+        ${r.key === 'alongside' ? `<input id="resMonthly" type="number" step="1" min="0" placeholder="$ a month" value="${(st.choice || {}).monthly || ''}" style="font-size:var(--fs-sm);padding:3px 6px;width:100px;margin-top:4px">` : ''}
         ${mine === r.key ? '' : `<button class="btn btn-sm btn-secondary" style="margin-top:4px" onclick="_reserveChoose('${r.key}')">Choose this</button>`}
-      </div>`).join('') : `<div style="font-size:12px;color:var(--slate)">${esc(o.why || '')}</div>`;
+      </div>`).join('') : `<div style="font-size:var(--fs-sm);color:var(--slate)">${esc(o.why || '')}</div>`;
   host.innerHTML = `<div class="card mb-4">
       <div class="card-label" style="margin-bottom:4px">The health reserve and your debt</div>
-      <div style="font-size:12px;color:var(--slate)">When the reserve fills is your choice. Each option comes from the same payoff engine and your own numbers; minimum payments never change.
+      <div style="font-size:var(--fs-sm);color:var(--slate)">When the reserve fills is your choice. Each option comes from the same payoff engine and your own numbers; minimum payments never change.
         ${mine && mine !== 'after' ? ' The payoff dates elsewhere in Groundwork follow your choice.' : ' Until you choose before or alongside, the payoff plan stays as it is.'}</div>
       ${rows}</div>`;
 }
@@ -23433,7 +23433,7 @@ function _reserveHeroLine(st) {
   if (!el) {
     el = document.createElement('div');
     el.id = 'debtReserveLine';
-    el.style.cssText = 'font-size:12px;color:var(--slate);margin-top:4px';
+    el.style.cssText = 'font-size:var(--fs-sm);color:var(--slate);margin-top:4px';
     (date.parentNode || date).insertAdjacentElement('afterend', el);
   }
   const a = st && st.applied;
@@ -23463,47 +23463,47 @@ function _accountFormHTML(a) {
   return `
     <div class="account-row" style="display:flex;flex-direction:column;gap:8px;padding:10px 0;border-bottom:0.5px solid var(--steel-2)">
       <div style="display:flex;align-items:center;gap:8px">
-        <input class="name-input" type="text" id="acctFormName" placeholder="e.g. Chase Checking" value="${esc(a?.name||'')}" style="flex:2;background:transparent;border:none;outline:none;font-size:13px;color:var(--ink);padding:2px 4px;min-width:0;font-family:var(--font-body)">
-        <select id="acctFormType" style="font-size:11px;padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);color:var(--slate);background:var(--paper)">
+        <input class="name-input" type="text" id="acctFormName" placeholder="e.g. Chase Checking" value="${esc(a?.name||'')}" style="flex:2;background:transparent;border:none;outline:none;font-size:var(--fs-base);color:var(--ink);padding:2px 4px;min-width:0;font-family:var(--font-body)">
+        <select id="acctFormType" style="font-size:var(--fs-xs);padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);color:var(--slate);background:var(--paper)">
           ${Object.entries(ACCOUNT_TYPES).map(([v,l]) => `<option value="${v}" ${a?.type===v?'selected':''}>${l}</option>`).join('')}
         </select>
-        <input type="text" id="acctFormInstitution" placeholder="Bank (optional)" value="${esc(a?.institution||'')}" style="flex:1;background:transparent;border:none;outline:none;font-size:12px;color:var(--slate);padding:2px 4px;min-width:0;font-family:var(--font-body)">
+        <input type="text" id="acctFormInstitution" placeholder="Bank (optional)" value="${esc(a?.institution||'')}" style="flex:1;background:transparent;border:none;outline:none;font-size:var(--fs-sm);color:var(--slate);padding:2px 4px;min-width:0;font-family:var(--font-body)">
         <button class="btn btn-primary btn-sm" onclick="saveAccountForm(${isEdit?id:'null'})">Save</button>
         <button class="row-del" onclick="_drawAccountManager()" title="Cancel">×</button>
       </div>
       <div style="display:flex;align-items:center;gap:10px;padding:6px 4px;background:var(--mist);border-radius:var(--r-sm)">
-        <span style="font-size:11px;color:var(--slate);flex-shrink:0">Required minimum balance</span>
+        <span style="font-size:var(--fs-xs);color:var(--slate);flex-shrink:0">Required minimum balance</span>
         <input type="number" id="acctFormMinBalance" placeholder="0.00" step="0.01" min="0"
           value="${minBal > 0 ? minBal : ''}"
-          style="width:110px;font-family:var(--font-mono);font-size:12px;padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper)">
-        <span style="font-size:11px;color:var(--slate-2)">Amount your bank requires you to keep. Subtracted from spendable balance in the Budget.</span>
+          style="width:110px;font-family:var(--font-mono);font-size:var(--fs-sm);padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper)">
+        <span style="font-size:var(--fs-xs);color:var(--slate-2)">Amount your bank requires you to keep. Subtracted from spendable balance in the Budget.</span>
       </div>
       ${_portalFieldHTML(`<input id="acctFormPortal" value="" data-original="" ${_PORTAL_INPUT_ATTRS}>`)}
       ${isEdit ? `
       <div style="padding:10px 4px 4px;border-top:1px solid var(--mist-2)">
-        <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--slate);margin-bottom:8px">Reconcile running balance</div>
+        <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--slate);margin-bottom:8px">Reconcile running balance</div>
         <div style="display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap">
           <select id="reconDirection" onchange="_updateReconHint()"
-            style="font-size:12px;padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper);color:var(--ink)">
+            style="font-size:var(--fs-sm);padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper);color:var(--ink)">
             <option value="backward">From today's balance ← backward</option>
             <option value="forward">From a starting balance → forward</option>
           </select>
           <div style="display:flex;align-items:center;gap:6px">
-            <span id="reconBalanceLabel" style="font-size:12px;color:var(--slate);white-space:nowrap">Today's balance</span>
+            <span id="reconBalanceLabel" style="font-size:var(--fs-sm);color:var(--slate);white-space:nowrap">Today's balance</span>
             <input type="number" id="reconBalance" placeholder="0.00" step="0.01"
-              style="width:110px;font-family:var(--font-mono);font-size:12px;padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper)">
+              style="width:110px;font-family:var(--font-mono);font-size:var(--fs-sm);padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper)">
           </div>
           <div id="reconDateWrap" style="display:none;align-items:center;gap:6px">
-            <span style="font-size:12px;color:var(--slate);white-space:nowrap">as of</span>
+            <span style="font-size:var(--fs-sm);color:var(--slate);white-space:nowrap">as of</span>
             <input type="date" id="reconDate"
-              style="font-size:12px;padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper);font-family:var(--font-mono)">
+              style="font-size:var(--fs-sm);padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper);font-family:var(--font-mono)">
           </div>
           <button onclick="recalculateAccountBalances(${id})"
-            style="font-size:12px;font-family:inherit;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-md);padding:5px 12px;cursor:pointer;white-space:nowrap">
+            style="font-size:var(--fs-sm);font-family:inherit;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-md);padding:5px 12px;cursor:pointer;white-space:nowrap">
             Reconcile
           </button>
         </div>
-        <div id="reconHint" style="font-size:11px;color:var(--slate-2);margin-top:6px;line-height:1.5">
+        <div id="reconHint" style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:6px;line-height:1.5">
           Enter your current bank balance. Groundwork calculates what each prior row's balance was.
         </div>
       </div>` : ''}
@@ -23643,7 +23643,7 @@ function archiveAccount(id) {
     : 'It has no transactions yet.';
   confirmAction(
     'Archive this account?',
-    `<div style="line-height:1.7;font-size:13px">
+    `<div style="line-height:1.7;font-size:var(--fs-base)">
        <div style="font-weight:500;margin-bottom:8px;color:var(--ink)">${esc(acct.name)}</div>
        <div style="color:var(--slate)">${esc(txnNote)} You can re-add an account with the same name later to bring it back.</div>
      </div>`,
@@ -23710,34 +23710,34 @@ async function renderRecordTidy() {
   const t = _tidy, n = t.counts;
   const total = n.hide + n.twins + n.splits + n.unmatched + n.show_again;
   if (!total && !t.undo) { box.innerHTML = ''; return; }
-  const sec = (title, inner) => `<div style="margin-top:12px"><div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:4px">${title}</div>${inner}</div>`;
+  const sec = (title, inner) => `<div style="margin-top:12px"><div style="font-size:var(--fs-sm);font-weight:600;color:var(--ink);margin-bottom:4px">${title}</div>${inner}</div>`;
   const cats = c => c.categories.map(x => `${esc(x.name)} (${x.count})`).join(', ');
   let html = `<div class="card mb-4"><div class="card-label">Tidy your categories</div>
-    <div style="font-size:12px;color:var(--slate);line-height:1.6">Groundwork looked over your categories and found these. Nothing changes until you choose, and each change can be undone.</div>`;
+    <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6">Groundwork looked over your categories and found these. Nothing changes until you choose, and each change can be undone.</div>`;
   if (t.undo) html += `<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" onclick="tidyUndo()">Undo the last change</button></div>`;
   if (t.unmatched.length) html += sec(`Imported categories that matched none of yours (${n.unmatched})`, t.unmatched.map((u, i) =>
-    `<div style="font-size:12px;padding:4px 0">"${esc(u.name)}": ${u.ids.length} transaction${u.ids.length === 1 ? '' : 's'}, now in Other. Which of yours is it?
-      <select id="tidyU${i}" class="field-input" style="width:auto;font-size:12px;padding:3px 6px">${(S.categories || []).filter(c => c.is_enabled !== false).map(c => `<option>${esc(c.name)}</option>`).join('')}</select>
+    `<div style="font-size:var(--fs-sm);padding:4px 0">"${esc(u.name)}": ${u.ids.length} transaction${u.ids.length === 1 ? '' : 's'}, now in Other. Which of yours is it?
+      <select id="tidyU${i}" class="field-input" style="width:auto;font-size:var(--fs-sm);padding:3px 6px">${(S.categories || []).filter(c => c.is_enabled !== false).map(c => `<option>${esc(c.name)}</option>`).join('')}</select>
       <button class="btn btn-secondary btn-sm" onclick="tidyUnmatched(${i}, 'move')">Use it</button>
       <button class="btn btn-ghost btn-sm" onclick="tidyUnmatched(${i}, 'leave')">Leave in Other</button></div>`).join(''));
   if (t.show_again.length) html += sec('Hidden, but in use again', t.show_again.map(b =>
-    `<div style="font-size:12px;padding:3px 0">${esc(b.name)}: ${b.transactions} transactions. <button class="btn btn-secondary btn-sm" onclick="tidyShow(${b.id})">Show it again</button></div>`).join(''));
+    `<div style="font-size:var(--fs-sm);padding:3px 0">${esc(b.name)}: ${b.transactions} transactions. <button class="btn btn-secondary btn-sm" onclick="tidyShow(${b.id})">Show it again</button></div>`).join(''));
   if (t.twins.length) html += sec('The same category under two names', t.twins.map(w =>
-    `<div style="font-size:12px;padding:4px 0">"${esc(w.source.name)}" is empty; "${esc(w.target.name)}" has ${w.target.transactions} transactions.
+    `<div style="font-size:var(--fs-sm);padding:4px 0">"${esc(w.source.name)}" is empty; "${esc(w.target.name)}" has ${w.target.transactions} transactions.
       ${w.line ? `Its budget line (${fmt(w.line.amount)} a month) ${w.target_line ? `is added into ${esc(w.target_line.name)}: ${fmt(w.target_line.amount)} → ${fmt(w.target_line.amount + w.line.amount)}. Your total budget stays the same.` : `moves to "${esc(w.target.name)}".`}` : ''}
       <button class="btn btn-secondary btn-sm" onclick="tidyTwin(${w.source.id}, 'yes')">Merge into ${esc(w.target.name)}</button>
       <button class="btn btn-ghost btn-sm" onclick="tidyTwin(${w.source.id}, 'no')">They're different</button></div>`).join(''));
   if (t.hide.length) html += sec(`Categories with nothing in them (${n.hide})`,
-    `<div style="font-size:12px;color:var(--slate)">No transactions, no budget line, no import rule. Hiding takes them out of every list; they come back with one tap, and if anything lands in one later it is offered back here.</div>
-     <details style="font-size:12px;margin-top:4px"><summary style="cursor:pointer">See them</summary>${t.hide.map(h => esc(h.name)).join(', ')}</details>
+    `<div style="font-size:var(--fs-sm);color:var(--slate)">No transactions, no budget line, no import rule. Hiding takes them out of every list; they come back with one tap, and if anything lands in one later it is offered back here.</div>
+     <details style="font-size:var(--fs-sm);margin-top:4px"><summary style="cursor:pointer">See them</summary>${t.hide.map(h => esc(h.name)).join(', ')}</details>
      <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="tidyHide()">Hide these ${n.hide}</button>`);
   if (t.splits.length) html += sec(`One store, several categories (${n.splits})`,
-    `<div style="font-size:12px;color:var(--slate);margin-bottom:4px">Often right: one store sells different things, and paying a store card is a transfer beside its purchases. Groundwork asks; it never decides.</div>`
-    + t.splits.slice(0, 8).map((s, i) => `<div style="font-size:12px;padding:4px 0;border-bottom:0.5px solid var(--steel-2)"><b style="color:var(--ink)">${esc(s.merchant)}</b>: ${cats(s)}.
+    `<div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:4px">Often right: one store sells different things, and paying a store card is a transfer beside its purchases. Groundwork asks; it never decides.</div>`
+    + t.splits.slice(0, 8).map((s, i) => `<div style="font-size:var(--fs-sm);padding:4px 0;border-bottom:0.5px solid var(--steel-2)"><b style="color:var(--ink)">${esc(s.merchant)}</b>: ${cats(s)}.
       ${s.transfer ? '<span style="color:var(--slate)">The Transfer ones may be payments on a store card.</span>' : ''}
       <div style="margin-top:3px"><button class="btn btn-ghost btn-sm" onclick="tidySplit(${i}, 'keep')">Keep as they are</button>
       ${s.categories.filter(c => c.name !== 'Transfer').map(c => `<button class="btn btn-ghost btn-sm" onclick="tidySplit(${i}, 'move', '${esc(c.name).replace(/'/g, "\\'")}')">All ${esc(c.name)}</button>`).join('')}</div></div>`).join('')
-    + (t.splits.length > 8 ? `<div style="font-size:11px;color:var(--slate);margin-top:4px">${n.splits - 8} more after these.</div>` : ''));
+    + (t.splits.length > 8 ? `<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:4px">${n.splits - 8} more after these.</div>` : ''));
   box.innerHTML = html + '</div>';
 }
 
@@ -23784,7 +23784,7 @@ function renderCategoryManager() {
     _renderLabelReview();
     _renderCareQuestions();
   }).catch(() => {
-    cont.innerHTML = '<div style="font-size:12px;color:var(--slate)">Could not load categories.</div>';
+    cont.innerHTML = '<div style="font-size:var(--fs-sm);color:var(--slate)">Could not load categories.</div>';
   });
 }
 
@@ -23803,17 +23803,17 @@ async function _renderCareQuestions() {
   let qs = [], done = [];
   try { const r = (await API.get('/api/accounts/care-questions')) || {}; qs = r.questions || []; done = r.answered || []; }
   catch (e) { _gwErr('care questions')(e); host.innerHTML = ''; return; }
-  const answers = done.length ? `<details style="margin:-6px 0 12px;font-size:11px;color:var(--slate)"><summary style="cursor:pointer">Your answers about health care (${done.length})</summary>
+  const answers = done.length ? `<details style="margin:-6px 0 12px;font-size:var(--fs-xs);color:var(--slate)"><summary style="cursor:pointer">Your answers about health care (${done.length})</summary>
     ${done.map(a => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
         <span style="flex:1">${esc(a.name)}: ${a.answer === 'yes' ? 'health care' : 'not health care'}</span>
-        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="_answerCare(${a.category_id}, '${a.answer === 'yes' ? 'no' : 'yes'}')">Change to ${a.answer === 'yes' ? 'not health care' : 'health care'}</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="_answerCare(${a.category_id}, '${a.answer === 'yes' ? 'no' : 'yes'}')">Change to ${a.answer === 'yes' ? 'not health care' : 'health care'}</button>
       </div>`).join('')}</details>` : '';
   if (!qs.length) { host.innerHTML = answers; return; }
-  host.innerHTML = answers + `<div style="padding:10px;margin-bottom:12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--slate)">
-    <div style="font-size:13px;color:var(--ink);margin-bottom:4px">Is this health care?</div>
+  host.innerHTML = answers + `<div style="padding:10px;margin-bottom:12px;background:var(--mist);border-radius:var(--r-sm);font-size:var(--fs-sm);color:var(--slate)">
+    <div style="font-size:var(--fs-base);color:var(--ink);margin-bottom:4px">Is this health care?</div>
     <div style="margin-bottom:6px">Until you answer, Groundwork never offers ${qs.length === 1 ? 'this category' : 'these categories'} as spending to cut. Your answer is kept; you can change it later.</div>
     ${qs.map(q => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--steel)">
-        <div style="flex:1"><strong style="color:var(--ink)">${esc(q.name)}</strong><div style="font-size:11px">Asked because of ${esc(q.why)}.</div></div>
+        <div style="flex:1"><strong style="color:var(--ink)">${esc(q.name)}</strong><div style="font-size:var(--fs-xs)">Asked because of ${esc(q.why)}.</div></div>
         <button class="btn btn-sm btn-secondary" onclick="_answerCare(${q.category_id}, 'yes')">Yes, health care</button>
         <button class="btn btn-sm btn-secondary" onclick="_answerCare(${q.category_id}, 'no')">No</button>
       </div>`).join('')}
@@ -23852,9 +23852,9 @@ function _drawCategoryManager() {
           <span style="width:18px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">
             ${_renderCatIcon(cs.icon || c.icon || 'dot', cs.color || c.color, 13)}
           </span>
-          <div style="flex:1;font-size:12px;color:var(--ink)">${esc(c.name)}</div>
-          <div style="font-size:10px;color:var(--slate-2)">${txnCount > 0 ? txnCount + ' txns' : ''}</div>
-          <button class="row-del" onclick="editCategory(${c.id})" title="Edit" style="font-size:12px">✎</button>
+          <div style="flex:1;font-size:var(--fs-sm);color:var(--ink)">${esc(c.name)}</div>
+          <div style="font-size:var(--fs-xs);color:var(--slate-2)">${txnCount > 0 ? txnCount + ' txns' : ''}</div>
+          <button class="row-del" onclick="editCategory(${c.id})" title="Edit" style="font-size:var(--fs-sm)">✎</button>
           ${!c.is_system ? `<button class="row-del" onclick="deleteCategory(${c.id})" title="Delete">×</button>` : ''}
         </div>`;
     }).join('');
@@ -23868,24 +23868,24 @@ function _drawCategoryManager() {
             ${iconHtml}
           </span>
           <span style="width:12px;height:12px;border-radius:50%;background:${esc(parent.color||'#8a9bac')};flex-shrink:0"></span>
-          <div style="flex:1;font-size:13px;font-weight:600;color:var(--ink)">
+          <div style="flex:1;font-size:var(--fs-base);font-weight:600;color:var(--ink)">
             ${esc(parent.name)}
-            ${isOptional ? `<span style="font-size:10px;font-weight:400;color:var(--slate-2);margin-left:4px">optional</span>` : ''}
+            ${isOptional ? `<span style="font-size:var(--fs-xs);font-weight:400;color:var(--slate-2);margin-left:4px">optional</span>` : ''}
           </div>
-          <div style="font-size:11px;color:var(--slate-2)">${count} sub-categories</div>
+          <div style="font-size:var(--fs-xs);color:var(--slate-2)">${count} sub-categories</div>
           ${isOptional ? `
-            <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--slate);cursor:pointer">
+            <label style="display:flex;align-items:center;gap:4px;font-size:var(--fs-xs);color:var(--slate);cursor:pointer">
               <input type="checkbox" ${isEnabled?'checked':''} 
                 onchange="_catToggleOptional(${parent.id}, this.checked)"
                 style="cursor:pointer">
               Enabled
             </label>` : ''}
-          <button class="row-del" onclick="editCategory(${parent.id})" title="Edit" style="font-size:13px">✎</button>
+          <button class="row-del" onclick="editCategory(${parent.id})" title="Edit" style="font-size:var(--fs-base)">✎</button>
         </div>
         ${childRows}
         ${isEnabled ? `
         <div style="padding:6px 12px;background:var(--mist);border-top:0.5px solid var(--steel-2)">
-          <button class="btn-ghost btn-sm" style="font-size:11px;padding:3px 8px"
+          <button class="btn-ghost btn-sm" style="font-size:var(--fs-xs);padding:3px 8px"
             onclick="_catAddChild(${parent.id}, '${esc(parent.name)}')">
             + Add sub-category
           </button>
@@ -23894,7 +23894,7 @@ function _drawCategoryManager() {
   }).join('');
 
   cont.innerHTML = `
-    <div style="font-size:12px;color:var(--slate);margin-bottom:16px;line-height:1.7">
+    <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:16px;line-height:1.7">
       Categories group your transactions in the budget and ledger.
       Optional categories (Children/Family, Business/Work) are off by default — enable them here.
       Sub-categories are what your transactions get assigned to.
@@ -23920,7 +23920,7 @@ function _renderCategoryCleanup() {
   const candidates = (S.categories || []).filter(c => !c.is_system && c.sort_order === 999);
 
   if (!candidates.length) {
-    content.innerHTML = `<div style="font-size:12px;color:var(--pine-text)">✓ No categories outside the built-in list — nothing to clean up.</div>`;
+    content.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--pine-text)">✓ No categories outside the built-in list — nothing to clean up.</div>`;
     return;
   }
 
@@ -23946,13 +23946,13 @@ function _renderCategoryCleanup() {
       <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--steel-2);flex-wrap:wrap">
         <div style="flex:1;min-width:160px">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span style="font-size:13px;font-weight:500;color:var(--ink)">${esc(c.name)}</span>
-            ${parent ? `<span style="font-size:11px;color:var(--slate-2)">under ${esc(parent)}</span>` : ''}
-            ${isEmpty ? `<span style="font-size:10px;padding:1px 7px;border-radius:20px;background:var(--pine-bg);color:var(--pine-text);border:1px solid var(--pine-border)">unused</span>` : ''}
+            <span style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">${esc(c.name)}</span>
+            ${parent ? `<span style="font-size:var(--fs-xs);color:var(--slate-2)">under ${esc(parent)}</span>` : ''}
+            ${isEmpty ? `<span style="font-size:var(--fs-xs);padding:1px 7px;border-radius:20px;background:var(--pine-bg);color:var(--pine-text);border:1px solid var(--pine-border)">unused</span>` : ''}
           </div>
-          <div style="font-size:11px;color:var(--slate);margin-top:2px">${count} transaction${count!==1?'s':''}</div>
+          <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${count} transaction${count!==1?'s':''}</div>
         </div>
-        <select id="cleanupTarget-${c.id}" style="font-size:12px;padding:5px 8px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper);color:var(--ink);max-width:220px">
+        <select id="cleanupTarget-${c.id}" style="font-size:var(--fs-sm);padding:5px 8px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper);color:var(--ink);max-width:220px">
           <option value="">Merge into…</option>
           ${targetOptions(c.id)}
         </select>
@@ -23973,10 +23973,10 @@ let _labelReview = null;
 function _labelReviewFuelBlock(f, key, intro, why, ask) {
   const n = f.count;
   const q = ask || `look${n === 1 ? 's like a' : ' like'} fill-up${n !== 1 ? 's' : ''} — ${fmt(f.total)} in all. Move ${n === 1 ? 'it' : 'them'} to <strong>Gasoline / Diesel</strong> (Transportation)?`;
-  return `<div id="lrBlock_${key}" style="margin-bottom:14px"><div style="font-size:13px;color:var(--ink);margin-bottom:6px">${n} purchase${n !== 1 ? 's' : ''} in ${intro} ${q}</div>
-      <div style="font-size:11px;color:var(--slate-2);margin-bottom:6px">${why}</div>
+  return `<div id="lrBlock_${key}" style="margin-bottom:14px"><div style="font-size:var(--fs-base);color:var(--ink);margin-bottom:6px">${n} purchase${n !== 1 ? 's' : ''} in ${intro} ${q}</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-bottom:6px">${why}</div>
       <div style="max-height:220px;overflow:auto;margin-bottom:8px">${f.rows.map(x => `
-        <label style="display:flex;gap:8px;align-items:center;font-size:12px;padding:3px 0">
+        <label style="display:flex;gap:8px;align-items:center;font-size:var(--fs-sm);padding:3px 0">
           <input type="checkbox" class="lrFuel_${key}" value="${x.id}" checked>
           <span style="flex:1">${esc(x.description)}</span><span>${fmtDate(x.date)}</span><strong>${fmt(x.amount)}</strong></label>`).join('')}</div>
       <button class="btn btn-primary btn-sm" onclick="labelReviewMove('${key}', true)">Move all</button>
@@ -24002,7 +24002,7 @@ function labelReviewHTML(r) {
     'Older imports didn\'t recognise station names like Costco Gas or Meijer Express. Moving them changes what the gasoline estimate reads.');
   if (r.fitness) {
     const x = r.fitness;
-    h += `<div id="labelReviewFitness"><div style="font-size:13px;color:var(--ink);margin-bottom:6px">A category named <strong>${esc(x.name)}</strong> (${x.count} transaction${x.count !== 1 ? 's' : ''}) was made by an older import. Merge it into <strong>${esc(x.to)}</strong> (Healthcare)?</div>
+    h += `<div id="labelReviewFitness"><div style="font-size:var(--fs-base);color:var(--ink);margin-bottom:6px">A category named <strong>${esc(x.name)}</strong> (${x.count} transaction${x.count !== 1 ? 's' : ''}) was made by an older import. Merge it into <strong>${esc(x.to)}</strong> (Healthcare)?</div>
       <button class="btn btn-secondary btn-sm" onclick="labelReviewMergeFitness()">Merge into ${esc(x.to)}</button>
       <button class="btn btn-ghost btn-sm" onclick="g('labelReviewFitness').remove()">Leave it</button></div>`;
   }
@@ -24037,7 +24037,7 @@ function labelReviewMergeFitness() {
   if (!x) return;
   confirmAction(
     `Merge "${esc(x.name)}" into "${esc(x.to)}"?`,
-    `<div style="font-size:13px;color:var(--slate);line-height:1.6">${x.count} transaction${x.count !== 1 ? 's' : ''} and any budget lines using "${esc(x.name)}" will move to "${esc(x.to)}". "${esc(x.name)}" will then be removed. This can't be undone.</div>`,
+    `<div style="font-size:var(--fs-base);color:var(--slate);line-height:1.6">${x.count} transaction${x.count !== 1 ? 's' : ''} and any budget lines using "${esc(x.name)}" will move to "${esc(x.to)}". "${esc(x.name)}" will then be removed. This can't be undone.</div>`,
     async () => {
       try {
         const res = await API.post(`/api/categories/${x.id}/merge`, { target_id: x.to_id });
@@ -24062,7 +24062,7 @@ async function _mergeGhostCategory(sourceId) {
 
   confirmAction(
     `Merge "${esc(source.name)}" into "${esc(target.name)}"?`,
-    `<div style="font-size:13px;color:var(--slate);line-height:1.6">
+    `<div style="font-size:var(--fs-base);color:var(--slate);line-height:1.6">
        ${source.transaction_count||0} transaction${(source.transaction_count||0)!==1?'s':''} and any budget lines
        using "${esc(source.name)}" will move to "${esc(target.name)}". "${esc(source.name)}" will then be
        removed. This can't be undone.
@@ -24342,7 +24342,7 @@ function _categoryFormHTML(c) {
           title="Click to change icon"
           style="width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--mist);border-radius:50%;border:1px solid var(--steel);cursor:pointer;padding:0;position:relative">
           <span class="icon-preview-inner">${_renderCatIcon(currentIcon, currentColor, 18)}</span>
-          <span style="position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);font-size:8px;color:var(--slate-2);line-height:1;pointer-events:none">▾</span>
+          <span style="position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);font-size:var(--fs-xs);color:var(--slate-2);line-height:1;pointer-events:none">▾</span>
         </button>
         <input type="hidden" id="catFormIcon" value="${esc(currentIcon)}">
         <input type="color" id="catFormColor" value="${esc(currentColor)}"
@@ -24350,7 +24350,7 @@ function _categoryFormHTML(c) {
           style="width:28px;height:28px;border:none;background:none;padding:0;flex-shrink:0;cursor:pointer"
           title="Change color">
         <input type="text" id="catFormName" placeholder="Category name" value="${esc(c?.name||'')}" ${c?.is_system?'disabled':''}
-          style="flex:1;min-width:0;background:transparent;border:none;outline:none;font-size:13px;color:var(--ink);padding:2px 4px;font-family:var(--font-body);${c?.is_system?'opacity:.6':''}">
+          style="flex:1;min-width:0;background:transparent;border:none;outline:none;font-size:var(--fs-base);color:var(--ink);padding:2px 4px;font-family:var(--font-body);${c?.is_system?'opacity:.6':''}">
         <button class="btn btn-primary btn-sm" onclick="saveCategoryForm(${isEdit?id:'null'})">Save</button>
         <button class="row-del" onclick="_drawCategoryManager()" title="Cancel">×</button>
       </div>
@@ -24407,7 +24407,7 @@ function deleteAllTransactions() {
   const count = S.transactions.length;
   confirmAction(
     'Delete ALL transactions?',
-    `<div style="line-height:1.7;font-size:13px">
+    `<div style="line-height:1.7;font-size:var(--fs-base)">
        <div style="color:var(--slate);margin-bottom:10px">
          This permanently deletes <strong>${count}</strong> transaction${count!==1?'s':''} from the Ledger.
          A database backup is created automatically first, but this can't be undone from inside the app.
@@ -24446,7 +24446,7 @@ function deleteCategory(id) {
   const count = cat.transaction_count || 0;
   confirmAction(
     'Delete this category?',
-    `<div style="line-height:1.7;font-size:13px">
+    `<div style="line-height:1.7;font-size:var(--fs-base)">
        <div style="font-weight:500;margin-bottom:8px;color:var(--ink)">${esc(cat.icon||'📦')} ${esc(cat.name)}</div>
        <div style="color:var(--slate)">
          ${count ? `Its ${count} transaction${count!==1?'s':''} will move to "Other".` : 'It has no transactions.'}
@@ -24545,35 +24545,35 @@ async function renderImportCustody() {
   let rev = [], early = [];
   try { rev = ((await API.get('/api/accounts/reversals')) || {}).candidates || []; } catch (e) { _gwErr('reversals')(e); }
   try { early = ((await API.get('/api/accounts/earlier-answers')) || {}).answers || []; } catch (e) { _gwErr('earlier answers')(e); }
-  const line = (x, btns) => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--steel-2);font-size:12px">
+  const line = (x, btns) => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--steel-2);font-size:var(--fs-sm)">
       <span style="flex:1;color:var(--ink)">${esc(x.date || '')} · ${esc(x.description || '')} <span style="font-family:var(--font-mono)">${fmt(x.amount || 0)}</span>
         ${x.account ? `<span style="color:var(--slate)"> · ${esc(x.account)}</span>` : ''}
-        ${x.reason ? `<div style="font-size:11px;color:var(--slate)">${esc(x.reason)}</div>` : ''}
-        ${x.looks_like ? `<div style="font-size:11px;color:var(--slate)">Looks like: ${esc(x.looks_like.date || '')} · ${esc(x.looks_like.description || '')} ${fmt(x.looks_like.amount || 0)}</div>` : ''}</span>${btns}</div>`;
+        ${x.reason ? `<div style="font-size:var(--fs-xs);color:var(--slate)">${esc(x.reason)}</div>` : ''}
+        ${x.looks_like ? `<div style="font-size:var(--fs-xs);color:var(--slate)">Looks like: ${esc(x.looks_like.date || '')} · ${esc(x.looks_like.description || '')} ${fmt(x.looks_like.amount || 0)}</div>` : ''}</span>${btns}</div>`;
   host.innerHTML = `<div class="card mb-4">
       <div class="card-label">Lines kept safe</div>
-      <div style="font-size:12px;color:var(--slate);margin-bottom:8px">Nothing an import brings in is thrown away. A line that only looks like one already here is held for you to decide, and a deleted line is set aside, not destroyed.</div>
-      <div style="font-size:12px;color:var(--ink);margin-top:6px">Held back by an import (${held.length})</div>
+      <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:8px">Nothing an import brings in is thrown away. A line that only looks like one already here is held for you to decide, and a deleted line is set aside, not destroyed.</div>
+      <div style="font-size:var(--fs-sm);color:var(--ink);margin-top:6px">Held back by an import (${held.length})</div>
       ${(() => {             // one decision for a whole import's held lines, e.g. a file imported twice
         const by = {}; held.forEach(h => { if (h.batch) by[h.batch] = (by[h.batch] || 0) + 1; });
-        return Object.entries(by).filter(([, n]) => n > 1).map(([b, n]) => `<div style="font-size:12px;padding:4px 0">All ${n} from one import:
+        return Object.entries(by).filter(([, n]) => n > 1).map(([b, n]) => `<div style="font-size:var(--fs-sm);padding:4px 0">All ${n} from one import:
           <button class="btn btn-sm btn-ghost" onclick="_heldResolveBatch('${esc(b)}', 'same')">They're all the same</button>
           <button class="btn btn-sm btn-ghost" onclick="_heldResolveBatch('${esc(b)}', 'bring_in')">Bring them all in</button></div>`).join('');
       })()}
       ${held.length ? held.map(h => line(h, `<button class="btn btn-sm btn-secondary" onclick="_heldResolve(${h.id}, 'bring_in')">Bring it in</button>
           <button class="btn btn-sm btn-ghost" onclick="_heldResolve(${h.id}, 'same')">It's the same</button>`)).join('')
-        : '<div style="font-size:12px;color:var(--slate)">None.</div>'}
-      <div style="font-size:12px;color:var(--ink);margin-top:12px">Pending lines that may have posted (${pairs.length})</div>
+        : '<div style="font-size:var(--fs-sm);color:var(--slate)">None.</div>'}
+      <div style="font-size:var(--fs-sm);color:var(--ink);margin-top:12px">Pending lines that may have posted (${pairs.length})</div>
       ${_pendingPairsHtml(pairs)}
       ${_statementsDataHtml(rev, early)}
-      <div style="font-size:12px;color:var(--ink);margin-top:12px">Set aside (${(st.set_aside || []).length})</div>
+      <div style="font-size:var(--fs-sm);color:var(--ink);margin-top:12px">Set aside (${(st.set_aside || []).length})</div>
       ${(st.set_aside || []).length ? st.set_aside.map(x => line(x, `<button class="btn btn-sm btn-secondary" onclick="_setAsideRestore(${x.id})">Restore</button>`)).join('')
-        : '<div style="font-size:12px;color:var(--slate)">None.</div>'}
-      <details style="margin-top:12px"><summary style="cursor:pointer;font-size:12px;color:var(--ink)">Recent imports</summary>
-        ${(st.batches || []).length ? st.batches.map(b => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px">
+        : '<div style="font-size:var(--fs-sm);color:var(--slate)">None.</div>'}
+      <details style="margin-top:12px"><summary style="cursor:pointer;font-size:var(--fs-sm);color:var(--ink)">Recent imports</summary>
+        ${(st.batches || []).length ? st.batches.map(b => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:var(--fs-sm)">
             <span style="flex:1">${esc(b.imported_at || '')} · ${esc(b.account)} · ${b.lines} line${b.lines === 1 ? '' : 's'}</span>
             <button class="btn btn-sm btn-ghost" onclick="_batchSetAside('${esc(b.batch)}', ${b.lines})">Set this import aside</button></div>`).join('')
-          : '<div style="font-size:12px;color:var(--slate)">Imports from before this change have no batch.</div>'}
+          : '<div style="font-size:var(--fs-sm);color:var(--slate)">Imports from before this change have no batch.</div>'}
       </details></div>`;
 }
 
@@ -24632,7 +24632,7 @@ async function _versionsSlot(bloom, id) {
       posted ${fmt(p.posted_amount)} on ${esc(fmtDate(p.posted_date))}.${p.changed ? ' The amount changed when it posted.' : ''}
       ${p.how === 'bank_id' ? "The bank's own id says they are the same charge." : 'You said they are the same charge.'}
       The pending line is kept in Settings, Data.</div>` : '';
-  host.innerHTML = `<details style="margin:8px 18px 0;font-size:12px;color:var(--slate)">
+  host.innerHTML = `<details style="margin:8px 18px 0;font-size:var(--fs-sm);color:var(--slate)">
       <summary style="cursor:pointer;color:var(--ink)">Earlier versions${(v.corrections || []).length ? ` (${v.corrections.length} change${v.corrections.length === 1 ? '' : 's'})` : ''}</summary>
       ${(v.corrections || []).length ? `<div style="margin-top:6px">${esc(v.first_label)}: ${esc(firstLine)}</div>
       <div style="margin-top:4px">${changes}</div>
@@ -24647,11 +24647,11 @@ async function _pendingPairAnswer(id, answer) {
 }
 
 function _pendingPairsHtml(pairs) {
-  if (!pairs.length) return '<div style="font-size:12px;color:var(--slate)">None.</div>';
-  return pairs.map(p => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--steel-2);font-size:12px">
+  if (!pairs.length) return '<div style="font-size:var(--fs-sm);color:var(--slate)">None.</div>';
+  return pairs.map(p => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--steel-2);font-size:var(--fs-sm)">
       <span style="flex:1;color:var(--ink)">Posted ${esc(fmtDate(p.posted_date))} · ${esc(p.posted_description || '')} <span style="font-family:var(--font-mono)">${fmt(p.posted_amount)}</span>
         ${p.account ? `<span style="color:var(--slate)"> · ${esc(p.account)}</span>` : ''}
-        <div style="font-size:11px;color:var(--slate)">Pending ${esc(fmtDate(p.pending_date))} · ${esc(p.pending_description || '')} ${fmt(p.pending_amount)}</div></span>
+        <div style="font-size:var(--fs-xs);color:var(--slate)">Pending ${esc(fmtDate(p.pending_date))} · ${esc(p.pending_description || '')} ${fmt(p.pending_amount)}</div></span>
       <button class="btn btn-sm btn-secondary" onclick="_pendingPairAnswer(${p.id}, 'yes')">Same charge</button>
       <button class="btn btn-sm btn-ghost" onclick="_pendingPairAnswer(${p.id}, 'no')">Different charges</button></div>`).join('');
 }
@@ -24691,9 +24691,9 @@ function _bankAskModal(nb) {
     const wrap = document.createElement('div');
     wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9999;display:flex;align-items:center;justify-content:center';
     wrap.innerHTML = `<div style="background:var(--white, #fff);border-radius:var(--r-md);padding:18px 20px;max-width:380px;width:calc(100% - 32px);box-shadow:0 8px 30px rgba(0,0,0,.2)">
-        <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px">Which bank holds ${esc(nb.account)}?</div>
-        <div style="font-size:12px;color:var(--slate);margin-bottom:10px">A line from this account is that bank's statement, so Groundwork records it as theirs. You only answer this once for each account.</div>
-        <input data-name type="text" class="field-input" style="width:100%;font-size:12px;padding:4px 6px" value="${esc(nb.candidate || '')}" placeholder="The bank's name">
+        <div style="font-size:var(--fs-lg);font-weight:600;color:var(--ink);margin-bottom:6px">Which bank holds ${esc(nb.account)}?</div>
+        <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:10px">A line from this account is that bank's statement, so Groundwork records it as theirs. You only answer this once for each account.</div>
+        <input data-name type="text" class="field-input" style="width:100%;font-size:var(--fs-sm);padding:4px 6px" value="${esc(nb.candidate || '')}" placeholder="The bank's name">
         <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">
           <button class="btn btn-ghost btn-sm" data-cancel>Not now</button>
           <button class="btn btn-ghost btn-sm" data-none>Not a bank account</button>
@@ -24722,12 +24722,12 @@ function _speakerAsk() {
     const wrap = document.createElement('div');
     wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9999;display:flex;align-items:center;justify-content:center';
     wrap.innerHTML = `<div style="background:var(--white, #fff);border-radius:var(--r-md);padding:18px 20px;max-width:380px;width:calc(100% - 32px);box-shadow:0 8px 30px rgba(0,0,0,.2)">
-        <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px">Who's answering?</div>
-        <div style="font-size:12px;color:var(--slate);margin-bottom:10px">Groundwork records each statement you make, like "this was my payment", as a person's. It remembers who's answering on this computer until you change it (Settings, Accounts).</div>
+        <div style="font-size:var(--fs-lg);font-weight:600;color:var(--ink);margin-bottom:6px">Who's answering?</div>
+        <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:10px">Groundwork records each statement you make, like "this was my payment", as a person's. It remembers who's answering on this computer until you change it (Settings, Accounts).</div>
         <div data-names style="display:flex;flex-direction:column;gap:6px">${names.map((n, i) =>
           `<button class="btn btn-secondary" data-i="${i}" style="text-align:left">${esc(n.name)}</button>`).join('')}</div>
         <div style="display:flex;gap:6px;margin-top:10px">
-          <input data-new type="text" placeholder="${names.length ? 'Someone else: a name' : 'Your name'}" class="field-input" style="flex:1;font-size:12px;padding:4px 6px">
+          <input data-new type="text" placeholder="${names.length ? 'Someone else: a name' : 'Your name'}" class="field-input" style="flex:1;font-size:var(--fs-sm);padding:4px 6px">
           <button class="btn btn-sm btn-primary" data-add>That's me</button></div>
         <div style="text-align:right;margin-top:10px"><button class="btn btn-ghost btn-sm" data-cancel>Not now</button></div></div>`;
     document.body.appendChild(wrap);
@@ -24760,28 +24760,28 @@ async function renderBankStatementsCard() {
   host.innerHTML = `
     <div style="padding:12px 0;border-bottom:0.5px solid var(--steel-2)">
       <div class="card-label" style="margin-bottom:4px">Your statements</div>
-      <div style="font-size:12px;color:var(--slate);margin-bottom:6px">A bank line is the bank's statement. It becomes your payment only when you say so, and every statement is recorded as the person's who made it.</div>
-      <div style="font-size:12px;color:var(--ink)">Answering on this computer: <b>${sp.name ? esc(sp.name) : 'no one yet'}</b>
-        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="_speakerAsk()">${sp.name ? 'Change' : 'Choose'}</button></div>
+      <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:6px">A bank line is the bank's statement. It becomes your payment only when you say so, and every statement is recorded as the person's who made it.</div>
+      <div style="font-size:var(--fs-sm);color:var(--ink)">Answering on this computer: <b>${sp.name ? esc(sp.name) : 'no one yet'}</b>
+        <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="_speakerAsk()">${sp.name ? 'Change' : 'Choose'}</button></div>
 
-      <div style="font-size:12px;color:var(--ink);margin-top:12px">Which bank holds each account</div>
-      ${(banks.accounts || []).map(a => `<div data-bank-row="${a.account_id}" style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:12px;border-bottom:0.5px solid var(--steel-2)">
+      <div style="font-size:var(--fs-sm);color:var(--ink);margin-top:12px">Which bank holds each account</div>
+      ${(banks.accounts || []).map(a => `<div data-bank-row="${a.account_id}" style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:var(--fs-sm);border-bottom:0.5px solid var(--steel-2)">
           <span style="flex:1">${esc(a.account)}${a.said ? `<span style="color:var(--slate)"> · ${a.said.not_a_bank ? 'not a bank account' : esc(a.said.name)}, said ${esc(fmtDate(a.said.on))}</span>` : ''}</span>
-          ${a.said ? `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="_bankAsk(${a.account_id}, '')">Change</button>`
+          ${a.said ? `<button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="_bankAsk(${a.account_id}, '')">Change</button>`
                    : `<span style="color:var(--slate)">${a.candidate ? `Is it at ${esc(a.candidate)}?` : 'Which bank?'}</span>
-                      <button class="btn btn-sm btn-secondary" style="font-size:11px" onclick="_bankAsk(${a.account_id}, ${esc(JSON.stringify(a.candidate || ''))})">Answer</button>`}
-        </div>`).join('') || '<div style="font-size:12px;color:var(--slate)">No accounts.</div>'}
+                      <button class="btn btn-sm btn-secondary" style="font-size:var(--fs-xs)" onclick="_bankAsk(${a.account_id}, ${esc(JSON.stringify(a.candidate || ''))})">Answer</button>`}
+        </div>`).join('') || '<div style="font-size:var(--fs-sm);color:var(--slate)">No accounts.</div>'}
 
-      <div style="font-size:12px;color:var(--ink);margin-top:12px">Standing statements</div>
-      <div style="font-size:11px;color:var(--slate);margin-bottom:4px">"Treat every debit from this account to this payee as my payment." Said once, listed here, and you can withdraw it. Withdrawing stops new lines; payments already recorded stay.</div>
-      ${(st.standing || []).map(x => `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:12px;border-bottom:0.5px solid var(--steel-2)">
+      <div style="font-size:var(--fs-sm);color:var(--ink);margin-top:12px">Standing statements</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate);margin-bottom:4px">"Treat every debit from this account to this payee as my payment." Said once, listed here, and you can withdraw it. Withdrawing stops new lines; payments already recorded stay.</div>
+      ${(st.standing || []).map(x => `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:var(--fs-sm);border-bottom:0.5px solid var(--steel-2)">
           <span style="flex:1;${x.withdrawn_on ? 'color:var(--slate)' : ''}">${esc(x.account)} → ${esc(x.payee)} · ${x.payments} payment${x.payments === 1 ? '' : 's'}
             <span style="color:var(--slate)"> · said ${esc(fmtDate(x.said_on))}${x.by ? ` by ${esc(x.by)}` : ''}${x.withdrawn_on ? ` · withdrawn ${esc(fmtDate(x.withdrawn_on))}` : ''}</span></span>
-          ${x.withdrawn_on ? '' : `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="_standingWithdraw(${x.id})">Withdraw</button>`}</div>`).join('')
-        || '<div style="font-size:12px;color:var(--slate)">None.</div>'}
+          ${x.withdrawn_on ? '' : `<button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="_standingWithdraw(${x.id})">Withdraw</button>`}</div>`).join('')
+        || '<div style="font-size:var(--fs-sm);color:var(--slate)">None.</div>'}
       <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-        <select id="standingAcct" class="field-input" style="font-size:12px;padding:3px 6px">${acctOpts}</select>
-        <input id="standingPayee" type="text" placeholder="Payee, as it appears in the line" class="field-input" style="width:200px;font-size:12px;padding:3px 6px">
+        <select id="standingAcct" class="field-input" style="font-size:var(--fs-sm);padding:3px 6px">${acctOpts}</select>
+        <input id="standingPayee" type="text" placeholder="Payee, as it appears in the line" class="field-input" style="width:200px;font-size:var(--fs-sm);padding:3px 6px">
         <button class="btn btn-sm btn-secondary" onclick="_standingSay(g('standingAcct').value, g('standingPayee').value)">Say this</button>
       </div>
     </div>`;
@@ -24791,7 +24791,7 @@ function _bankAsk(accountId, candidate) {
   const row = document.querySelector(`[data-bank-row="${accountId}"]`);
   if (!row) return;
   row.innerHTML = `<span style="flex:1">This account is at</span>
-    <input data-bank-name type="text" class="field-input" style="width:200px;font-size:12px;padding:3px 6px" value="${esc(candidate || '')}" placeholder="The bank's name">
+    <input data-bank-name type="text" class="field-input" style="width:200px;font-size:var(--fs-sm);padding:3px 6px" value="${esc(candidate || '')}" placeholder="The bank's name">
     <button class="btn btn-sm btn-secondary" data-bank-yes>Yes</button>
     <button class="btn btn-ghost btn-sm" data-bank-none>Not a bank account</button>
     <button class="btn btn-ghost btn-sm" onclick="renderBankStatementsCard()">Cancel</button>`;
@@ -24834,10 +24834,10 @@ async function _paymentSlot(bloom, id) {
   const p = v.payment;
   if (!p && (!t || t.type !== 'debit')) { host.innerHTML = ''; return; }
   const sug = v.suggest_standing;
-  host.innerHTML = `<div style="margin:8px 18px 0;font-size:12px;color:var(--slate)">
+  host.innerHTML = `<div style="margin:8px 18px 0;font-size:var(--fs-sm);color:var(--slate)">
     ${p ? `Your payment${p.payee ? ` to ${esc(p.payee)}` : ''}, said ${esc(fmtDate(p.said_on))}${p.by ? ` by ${esc(p.by)}` : ''}${p.standing ? ` (under your standing statement for ${esc(p.standing.payee)})` : ''}.${p.counteract ? ' You linked it with a reversal.' : ''}`
         : `<span>Was this your payment? To</span>
-           <input data-payee type="text" class="field-input" style="width:180px;font-size:12px;padding:2px 6px" value="${esc((t && (t.merchant || t.description)) || '')}">
+           <input data-payee type="text" class="field-input" style="width:180px;font-size:var(--fs-sm);padding:2px 6px" value="${esc((t && (t.merchant || t.description)) || '')}">
            <button class="btn btn-sm btn-secondary" data-say>Yes, my payment</button>`}
     ${sug ? `<div style="margin-top:6px;padding:6px 8px;background:var(--mist);border-radius:var(--r-sm);color:var(--ink)">You've said ${sug.answers} lines to ${esc(sug.payee)} were your payments.
         Say it once for every debit to ${esc(sug.payee)} from this account?
@@ -24855,19 +24855,19 @@ async function _paymentSlot(bloom, id) {
 function _statementsDataHtml(rev, early) {
   const line = x => `${esc(fmtDate(x.date))} · ${esc(x.description || '')} <span style="font-family:var(--font-mono)">${fmt(x.amount || 0)}</span>`;
   return `
-    <div style="font-size:12px;color:var(--ink);margin-top:12px">Money back that may undo a charge (${rev.length})</div>
-    ${rev.length ? rev.map(x => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--steel-2);font-size:12px">
-        <span style="flex:1;color:var(--ink)">${line(x.credit)}<div style="font-size:11px;color:var(--slate)">The charge: ${line(x.debit)}</div></span>
+    <div style="font-size:var(--fs-sm);color:var(--ink);margin-top:12px">Money back that may undo a charge (${rev.length})</div>
+    ${rev.length ? rev.map(x => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--steel-2);font-size:var(--fs-sm)">
+        <span style="flex:1;color:var(--ink)">${line(x.credit)}<div style="font-size:var(--fs-xs);color:var(--slate)">The charge: ${line(x.debit)}</div></span>
         <button class="btn btn-sm btn-secondary" onclick="_reversalAnswer(${x.credit.id}, ${x.debit.id}, 'yes')">It undoes that charge</button>
         <button class="btn btn-sm btn-ghost" onclick="_reversalAnswer(${x.credit.id}, ${x.debit.id}, 'no')">No</button></div>`).join('')
-      : '<div style="font-size:12px;color:var(--slate)">None.</div>'}
-    <div style="font-size:11px;color:var(--slate);margin-top:2px">Saying so links the two in your records. Nothing is netted off: both lines stay as the bank said them.</div>
-    <div style="font-size:12px;color:var(--ink);margin-top:12px">Earlier answers to confirm (${early.length})</div>
-    <div style="font-size:11px;color:var(--slate);margin-bottom:4px">These were given before Groundwork recorded who gave them. Each keeps the date it was first given.</div>
-    ${early.length ? early.map(x => `<div style="font-size:12px;padding:3px 0;border-bottom:0.5px solid var(--steel-2)">${line(x.line)} · ${esc(x.says)}
+      : '<div style="font-size:var(--fs-sm);color:var(--slate)">None.</div>'}
+    <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">Saying so links the two in your records. Nothing is netted off: both lines stay as the bank said them.</div>
+    <div style="font-size:var(--fs-sm);color:var(--ink);margin-top:12px">Earlier answers to confirm (${early.length})</div>
+    <div style="font-size:var(--fs-xs);color:var(--slate);margin-bottom:4px">These were given before Groundwork recorded who gave them. Each keeps the date it was first given.</div>
+    ${early.length ? early.map(x => `<div style="font-size:var(--fs-sm);padding:3px 0;border-bottom:0.5px solid var(--steel-2)">${line(x.line)} · ${esc(x.says)}
         <span style="color:var(--slate)"> · first said ${esc(fmtDate(x.first_said))}</span></div>`).join('')
         + `<button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick='_earlierConfirm(${JSON.stringify(early.map(x => ({ source: x.source, source_id: x.source_id })))})'>These were mine</button>`
-      : '<div style="font-size:12px;color:var(--slate)">None.</div>'}`;
+      : '<div style="font-size:var(--fs-sm);color:var(--slate)">None.</div>'}`;
 }
 
 async function _reversalAnswer(creditId, debitId, answer) {
@@ -24963,8 +24963,8 @@ function automationTopHtml(d, f) {
   const last = accts.length ? `Last fetched: ${accts.map(a => `${esc(a.name)} ${_fetchAgo(a.days)}`).join(', ')}.` : 'No account has saved steps yet.';
   return `<div class="card mt-5"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <button class="btn btn-primary btn-sm" ${accts.length ? '' : 'disabled'} onclick="startFetchAll()">⟳ Get my accounts</button>
-      <span style="font-size:12px;color:var(--slate)">${last}</span></div>
-    <label style="display:block;font-size:12px;color:var(--slate);margin-top:8px">Show when each account was last fetched on the dashboard after
+      <span style="font-size:var(--fs-sm);color:var(--slate)">${last}</span></div>
+    <label style="display:block;font-size:var(--fs-sm);color:var(--slate);margin-top:8px">Show when each account was last fetched on the dashboard after
       <input type="number" min="0" max="365" value="${Number((d && d.remind_days) ?? 7)}" style="width:56px" onchange="setFetchRemindDays(this.value)"> days (0 turns it off).</label></div>`;
 }
 
@@ -24981,8 +24981,8 @@ function _autoRow(key, name, status, details) {
   return `<div class="gw-auto-row${open ? ' open' : ''}" data-auto-key="${esc(key)}" tabindex="0"
       onkeydown="if (event.key === 'Enter' && event.target === this) toggleAutoRow('${esc(key)}')">
     <div class="gw-auto-head" onclick="toggleAutoRow('${esc(key)}')">
-      <div style="flex:1;min-width:0"><div style="font-size:13px;color:var(--ink)">${esc(name)}</div>
-        <div style="font-size:11px;color:var(--slate-2)">${esc(status)}</div></div>
+      <div style="flex:1;min-width:0"><div style="font-size:var(--fs-base);color:var(--ink)">${esc(name)}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate-2)">${esc(status)}</div></div>
       <button class="btn btn-ghost btn-sm" style="padding:4px 10px" aria-expanded="${open}" aria-label="Settings for ${esc(name)}" title="Settings"
         onclick="event.stopPropagation();toggleAutoRow('${esc(key)}')"><span class="gw-auto-chev">▸</span></button></div>
     <div class="gw-auto-details${open ? ' open' : ''}" data-auto-details ${open ? '' : 'inert'}><div class="gw-auto-inner">${details}</div></div></div>`;
@@ -25034,62 +25034,62 @@ async function saveAutoSite(kind, id) {
 
 function bankLoginsHtml(d) {
   if (!d || !d.available) {
-    return `<div style="font-size:12px;color:var(--slate)">This computer has no password vault Groundwork can use, so it can't keep a bank login. You can still open your bank and download files yourself.</div>`;
+    return `<div style="font-size:var(--fs-sm);color:var(--slate)">This computer has no password vault Groundwork can use, so it can't keep a bank login. You can still open your bank and download files yourself.</div>`;
   }
-  const terms = BANK_AGENT_TERMS.map(p => `<p style="font-size:12px;color:var(--slate);line-height:1.6;margin:0 0 8px">${esc(p.replace('VAULT', d.vault || 'your system\'s password vault'))}</p>`).join('');
-  if (!d.accounts.length) return terms + `<div style="font-size:12px;color:var(--slate-2)">Add an account in Settings → Accounts first.</div>`;
+  const terms = BANK_AGENT_TERMS.map(p => `<p style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6;margin:0 0 8px">${esc(p.replace('VAULT', d.vault || 'your system\'s password vault'))}</p>`).join('');
+  if (!d.accounts.length) return terms + `<div style="font-size:var(--fs-sm);color:var(--slate-2)">Add an account in Settings → Accounts first.</div>`;
   return terms + d.accounts.map(a => {
     const box = esc(a.key).replace(':', '-');
     const site = a.kind === 'bill' ? '' : `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px">
-        <span style="font-size:12px;color:var(--slate)">Bank website</span>
+        <span style="font-size:var(--fs-sm);color:var(--slate)">Bank website</span>
         <input type="url" id="autoSite-${a.kind}-${a.id}" placeholder="https://www.yourbank.com" aria-label="Bank website for ${esc(a.name)}"
-          style="flex:1;min-width:200px;font-size:12px;padding:5px 7px;border:1px solid var(--steel);border-radius:var(--r-sm);font-family:var(--font-mono)">
+          style="flex:1;min-width:200px;font-size:var(--fs-sm);padding:5px 7px;border:1px solid var(--steel);border-radius:var(--r-sm);font-family:var(--font-mono)">
         <button class="btn btn-secondary btn-sm" onclick="saveAutoSite('${a.kind}', ${a.id})">Save</button></div>
-      <div style="font-size:11px;color:var(--slate-2)">This is the address Groundwork will open. Groundwork doesn't check that it belongs to your bank. Make sure it does. (The same field as in Settings → Accounts.)</div>`;
+      <div style="font-size:var(--fs-xs);color:var(--slate-2)">This is the address Groundwork will open. Groundwork doesn't check that it belongs to your bank. Make sure it does. (The same field as in Settings → Accounts.)</div>`;
     const login = a.has_site !== false ? `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px">${a.has_login
         ? `${a.has_steps ? `<button class="btn btn-primary btn-sm" onclick="startBankFetch('${esc(a.key)}')">Get my latest transactions</button>` : ''}
            <button class="btn btn-secondary btn-sm" onclick="startBankRecording('${esc(a.key)}')">${a.has_steps ? 'Record the steps again' : 'Show me once'}</button>
            ${a.has_steps ? `<button class="btn btn-ghost btn-sm" onclick="deleteBankRecipe('${esc(a.key)}')">Delete steps</button>` : ''}
-           <span style="font-size:11px;color:var(--slate-2)">login saved in the vault</span>
+           <span style="font-size:var(--fs-xs);color:var(--slate-2)">login saved in the vault</span>
            <button class="btn btn-ghost btn-sm" onclick="forgetBankLogin('${esc(a.key)}')">Forget</button>`
         : `<button class="btn btn-secondary btn-sm" onclick="openBankLoginForm('${esc(a.key)}')">Save login</button>`}</div>
-      ${a.has_login ? `<label style="display:block;width:100%;font-size:11px;color:var(--slate-2);margin-top:4px"><input type="checkbox" ${a.remembered ? 'checked' : ''} onchange="setBankDevice('${esc(a.key)}', this.checked)">
+      ${a.has_login ? `<label style="display:block;width:100%;font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px"><input type="checkbox" ${a.remembered ? 'checked' : ''} onchange="setBankDevice('${esc(a.key)}', this.checked)">
         Remember this computer with the bank, so it asks for a code less often (keeps the bank's own cookies for this account; unticking forgets it)</label>` : ''}` : '';
     const details = site + login + `<div id="bankLoginForm-${box}" style="width:100%"></div>`
-      + (a.has_steps ? `<div data-gw-fetch-history="${esc(a.key)}" style="width:100%;font-size:11px;color:var(--slate-2);margin-top:4px"></div>` : '');
+      + (a.has_steps ? `<div data-gw-fetch-history="${esc(a.key)}" style="width:100%;font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px"></div>` : '');
     return _autoRow(a.key, a.name, _autoStatus({ has_site: a.has_site !== false, has_login: a.has_login, has_steps: a.has_steps, remembered: a.remembered }), details);
   }).join('');
 }
 
 // P5: every bill line, by name, no amounts; its website, login, show me once, read, paid from and the way to pay
 function billSitesHtml(bills, d) {
-  if (!bills.length) return `<div style="font-size:12px;color:var(--slate-2)">Add your bills to the budget first.</div>`;
+  if (!bills.length) return `<div style="font-size:var(--fs-sm);color:var(--slate-2)">Add your bills to the budget first.</div>`;
   const accounts = ((d && d.accounts) || []).filter(a => a.kind === 'account');
-  const intro = `<div style="font-size:12px;color:var(--slate);line-height:1.6;margin-bottom:4px">Add the website where you see a bill. Groundwork can then sign in when you ask, read the amount due and the due date, and show them to you to confirm on the Budget page. It never pays anything.</div>`;
+  const intro = `<div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6;margin-bottom:4px">Add the website where you see a bill. Groundwork can then sign in when you ask, read the amount due and the due date, and show them to you to confirm on the Budget page. It never pays anything.</div>`;
   return intro + bills.map(b => {
     const key = `bill:${b.id}`, has_site = !!b.site;
     const from = accounts.find(a => a.id === b.paid_from);
     const details = `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px">
-        <span style="font-size:12px;color:var(--slate)">Website</span>
+        <span style="font-size:var(--fs-sm);color:var(--slate)">Website</span>
         <input type="url" id="billSite-${b.id}" value="${esc(b.site)}" placeholder="https://www.yourcompany.com" aria-label="Website for ${esc(b.name)}"
-          style="flex:1;min-width:200px;font-size:12px;padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);font-family:var(--font-mono)">
+          style="flex:1;min-width:200px;font-size:var(--fs-sm);padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);font-family:var(--font-mono)">
         <button class="btn btn-secondary btn-sm" onclick="saveBillSite(${b.id})">Save</button></div>
-      <div style="font-size:11px;color:var(--slate-2)">Groundwork doesn't check the address belongs to the company; make sure it does.</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate-2)">Groundwork doesn't check the address belongs to the company; make sure it does.</div>
       ${has_site ? `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px">${b.has_login
           ? `${b.has_steps ? `<button class="btn btn-primary btn-sm" onclick="startBankFetch('${key}')">Read my bill</button>` : ''}
              <button class="btn btn-secondary btn-sm" onclick="startBankRecording('${key}')">${b.has_steps ? 'Record the steps again' : 'Show me once'}</button>
              ${b.has_steps ? `<button class="btn btn-ghost btn-sm" onclick="deleteBankRecipe('${key}')">Delete steps</button>` : ''}
-             <span style="font-size:11px;color:var(--slate-2)">login saved in the vault</span>
+             <span style="font-size:var(--fs-xs);color:var(--slate-2)">login saved in the vault</span>
              <button class="btn btn-ghost btn-sm" onclick="forgetBankLogin('${key}')">Forget</button>`
           : `<button class="btn btn-secondary btn-sm" onclick="openBankLoginForm('bill:${b.id}', 'billLoginForm-${b.id}')">Save login</button>`}</div>` : ''}
       <div id="billLoginForm-${b.id}" style="width:100%"></div><div id="bankLoginForm-bill-${b.id}" style="width:100%"></div>
-      <label style="display:block;font-size:12px;color:var(--slate);margin-top:8px">Paid from
-        <select onchange="setBillFrom(${b.id}, this.value)" style="font-size:12px"><option value="">choose an account…</option>
+      <label style="display:block;font-size:var(--fs-sm);color:var(--slate);margin-top:8px">Paid from
+        <select onchange="setBillFrom(${b.id}, this.value)" style="font-size:var(--fs-sm)"><option value="">choose an account…</option>
         ${accounts.map(a => `<option value="${a.id}" ${a.id === b.paid_from ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label>
       ${from && from.has_login ? `<div style="margin-top:6px"><button class="btn btn-ghost btn-sm" onclick="startBankRecording('pay:${b.id}')">${b.pay_steps ? 'Record the way to pay again' : 'Show Groundwork the way to pay this (once)'}</button>
-        <span style="font-size:11px;color:var(--slate-2)">The way to ${esc(from.name)}'s payment screen for this bill. Groundwork stops there; you enter the amount and press Pay.</span>
+        <span style="font-size:var(--fs-xs);color:var(--slate-2)">The way to ${esc(from.name)}'s payment screen for this bill. Groundwork stops there; you enter the amount and press Pay.</span>
         <div id="bankLoginForm-pay-${b.id}"></div></div>`
-        : from ? `<div style="font-size:11px;color:var(--slate-2);margin-top:4px">Save ${esc(from.name)}'s login above to show Groundwork the way to pay this.</div>` : ''}`;
+        : from ? `<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px">Save ${esc(from.name)}'s login above to show Groundwork the way to pay this.</div>` : ''}`;
     const status = [has_site ? 'website' : 'needs a website', has_site ? (b.has_login ? 'login saved' : 'needs a login') : '',
                     b.has_login ? (b.has_steps ? 'where the amount and due date are, saved' : 'not shown how yet') : '',
                     from ? `paid from ${from.name}` : ''].filter(Boolean).join(' · ');
@@ -25129,9 +25129,9 @@ function openBankLoginForm(key, boxId) {
   box.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
       <input type="text" id="bankLoginUser" placeholder="Username" autocomplete="off" style="flex:1;min-width:140px">
       <input type="password" id="bankLoginPass" placeholder="Password" autocomplete="new-password" style="flex:1;min-width:140px"></div>
-    <label style="display:block;font-size:12px;color:var(--slate);margin-top:6px"><input type="checkbox" id="bankLoginAck"> I've read how fetching works, above, and want Groundwork to keep this login.</label>
+    <label style="display:block;font-size:var(--fs-sm);color:var(--slate);margin-top:6px"><input type="checkbox" id="bankLoginAck"> I've read how fetching works, above, and want Groundwork to keep this login.</label>
     <button class="btn btn-primary btn-sm" style="margin-top:6px" onclick="saveBankLogin('${esc(key)}')">Save to the vault</button>
-    <span id="bankLoginMsg" style="font-size:11px;margin-left:6px"></span>`;
+    <span id="bankLoginMsg" style="font-size:var(--fs-xs);margin-left:6px"></span>`;
 }
 
 async function saveBankLogin(key) {
@@ -25157,15 +25157,15 @@ async function startBankRecording(key, fromStep) {
   let r;
   try { r = await API.post('/api/settings/bank-agent/record', fromStep ? { key, from_step: fromStep } : { key }); } catch (e) { _gwErr('startBankRecording')(e); return; }
   if (r.result !== 'opened' && r.result !== 'already_open') {
-    box.innerHTML = `<div style="font-size:12px;color:var(--ember-text);margin-top:6px">The window couldn't open (${esc(r.result)}).</div>`;
+    box.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--ember-text);margin-top:6px">The window couldn't open (${esc(r.result)}).</div>`;
     return;
   }
-  box.innerHTML = `<div style="font-size:12px;color:var(--slate);margin-top:6px">${key.startsWith('pay:')
+  box.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:6px">${key.startsWith('pay:')
       ? "In the window that opened, sign in and go to your bank's payment screen for this bill. Stop before you enter an amount - Groundwork never pays. Then press Done."
       : key.startsWith('bill:')
       ? 'In the window that opened, sign in and go to your bill. Then press <b>This is the amount due</b> and click the amount, and <b>This is the due date</b> and click the date. Groundwork notes where they are - never the figures, and never what you type.'
       : 'In the window that opened, sign in and do your usual download. Groundwork notes each button and choice - never what you type.'}</div>
-    <ol data-gw-rec-steps style="font-size:12px;color:var(--ink);margin:6px 0 6px 18px"></ol>
+    <ol data-gw-rec-steps style="font-size:var(--fs-sm);color:var(--ink);margin:6px 0 6px 18px"></ol>
     <button class="btn btn-primary btn-sm" onclick="finishBankRecording('${esc(key)}')">Done</button>`;
   clearInterval(_bankRecTimer);
   _bankRecTimer = setInterval(async () => {
@@ -25187,10 +25187,10 @@ async function finishBankRecording(key) {
   let r;
   try { r = await API.post('/api/settings/bank-agent/record/finish', { key }); } catch (e) { _gwErr('finishBankRecording')(e); return; }
   if (!box) return;
-  if (!r.steps.length) { box.innerHTML = `<div style="font-size:12px;color:var(--slate);margin-top:6px">No steps were seen. Try again, clicking through your download.</div>`; return; }
+  if (!r.steps.length) { box.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:6px">No steps were seen. Try again, clicking through your download.</div>`; return; }
   window._bankRecSteps = r.steps;
-  box.innerHTML = `<div style="font-size:12px;color:var(--slate);margin-top:6px">These are the steps Groundwork would repeat for you.${r.kept ? ` Steps 1 to ${r.kept} are the ones you had; the rest are new.` : ''} Saving them replaces any steps saved before for this account.</div>
-    <ol style="font-size:12px;color:var(--ink);margin:6px 0 6px 18px">${bankStepsHtml(r.words)}</ol>
+  box.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:6px">These are the steps Groundwork would repeat for you.${r.kept ? ` Steps 1 to ${r.kept} are the ones you had; the rest are new.` : ''} Saving them replaces any steps saved before for this account.</div>
+    <ol style="font-size:var(--fs-sm);color:var(--ink);margin:6px 0 6px 18px">${bankStepsHtml(r.words)}</ol>
     <button class="btn btn-primary btn-sm" onclick="saveBankRecipe('${esc(key)}')">Save these steps</button>
     <button class="btn btn-ghost btn-sm" onclick="renderBankLogins()">Discard</button>`;
 }
@@ -25226,20 +25226,20 @@ async function renderAiLog() {
       : last.voice ? (last.voice.pass ? (n > 1 ? `passed after ${n - 1} rewrite${n > 2 ? 's' : ''}` : 'passed the voice check') : 'held back by the voice check')
       : 'sent';
     return `<div style="border-top:1px solid var(--steel-2);padding:6px 0">
-      <a href="#" onclick="toggleAiLogEntry('${esc(c.key)}');return false" style="font-size:12px;color:var(--ink);text-decoration:none">
+      <a href="#" onclick="toggleAiLogEntry('${esc(c.key)}');return false" style="font-size:var(--fs-sm);color:var(--ink);text-decoration:none">
         ${_aiLogOpen === c.key ? '▾' : '▸'} ${esc(_AI_SURFACE(c.surface))} · ${esc(new Date(c.at).toLocaleString())} · <span style="color:var(--slate-2)">${esc(verdict)}</span></a>
       <div data-ai-log="${esc(c.key)}" style="${_aiLogOpen === c.key ? '' : 'display:none'}"></div></div>`;
   }).join('');
-  box.innerHTML = `<div style="font-size:13px;font-weight:500">AI log</div>
-    <div style="font-size:11px;color:var(--slate-2);margin:2px 0 6px">Every request to the AI, exactly as it was sent and as it came back. All of it ran on this computer. Kept ${d.days} days; nothing else in Groundwork reads it.</div>
-    <label style="font-size:11px;color:var(--slate)"><input type="checkbox" ${d.keep ? 'checked' : ''} onchange="setAiLogKeep(this.checked)"> Keep the log</label>
+  box.innerHTML = `<div style="font-size:var(--fs-base);font-weight:500">AI log</div>
+    <div style="font-size:var(--fs-xs);color:var(--slate-2);margin:2px 0 6px">Every request to the AI, exactly as it was sent and as it came back. All of it ran on this computer. Kept ${d.days} days; nothing else in Groundwork reads it.</div>
+    <label style="font-size:var(--fs-xs);color:var(--slate)"><input type="checkbox" ${d.keep ? 'checked' : ''} onchange="setAiLogKeep(this.checked)"> Keep the log</label>
     <button class="btn btn-ghost btn-sm" onclick="clearAiLog()">Clear the log</button>
-    <div style="max-height:360px;overflow:auto;margin-top:6px">${rows || '<div style="font-size:11px;color:var(--slate-2)">Nothing yet.</div>'}</div>`;
+    <div style="max-height:360px;overflow:auto;margin-top:6px">${rows || '<div style="font-size:var(--fs-xs);color:var(--slate-2)">Nothing yet.</div>'}</div>`;
   if (_aiLogOpen) _fillAiLogEntry(_aiLogOpen);
 }
 
 function aiLogEntryHtml(entries) {
-  return entries.map(e => `<div style="margin:6px 0 10px 14px;padding:10px;background:var(--mist);border-radius:var(--r-md);font-size:11px;color:var(--slate)">
+  return entries.map(e => `<div style="margin:6px 0 10px 14px;padding:10px;background:var(--mist);border-radius:var(--r-md);font-size:var(--fs-xs);color:var(--slate)">
       <div style="margin-bottom:6px">Attempt ${e.attempt} · ${e.stopped ? 'you stopped it' : e.stop_reason === 'max_tokens' ? 'cut at its length limit' : e.stop_reason === 'unavailable' ? 'the AI could not answer' : 'finished'}
         · run on this computer${e.voice ? ` · voice check: ${e.voice.pass ? (e.voice.shortened ? 'passed, shortened to what finished' : 'passed') : 'broke ' + esc(e.voice.rules.join(', '))}` : ''}</div>
       <div style="font-weight:600;margin-top:4px">Instructions</div><pre style="white-space:pre-wrap;font-family:var(--font-mono);margin:0">${esc(e.system)}</pre>
@@ -25268,7 +25268,7 @@ function openAiLog(callId) {
 
 async function setAiLogKeep(keep) { try { await API.post('/api/ai/log/keep', { keep }); } catch (e) { _gwErr('setAiLogKeep')(e); } renderAiLog(); }
 async function clearAiLog() {
-  confirmAction('Clear the AI log?', '<div style="font-size:13px;color:var(--slate)">Every entry is deleted. The reports themselves are not affected.</div>',
+  confirmAction('Clear the AI log?', '<div style="font-size:var(--fs-base);color:var(--slate)">Every entry is deleted. The reports themselves are not affected.</div>',
     async () => { try { await API.post('/api/ai/log/clear', {}); } catch (e) { _gwErr('clearAiLog')(e); } renderAiLog(); }, 'Clear the log', true);
 }
 
@@ -25319,7 +25319,7 @@ function _payFactsHtml(st) {
     if (p.state === 'ask') return `<div style="padding:6px 0">${name(p)}: your checks have ranged from ${fmt(p.low)} to ${fmt(p.high)}. Does this job pay overtime or holiday pay that can change the paycheck amount?
       <button class="btn btn-secondary btn-sm" onclick="incomePayKind('${esc(p.payer)}', 'hourly')">Yes, it can</button>
       <button class="btn btn-ghost btn-sm" onclick="incomePayKind('${esc(p.payer)}', 'salary')">No, it's the same each time</button>
-      <div style="font-size:11px;color:var(--slate-2)">Your answer picks how Groundwork reads this pay. Until then it watches nothing here.</div></div>`;
+      <div style="font-size:var(--fs-xs);color:var(--slate-2)">Your answer picks how Groundwork reads this pay. Until then it watches nothing here.</div></div>`;
     // Item 112 P1: pay with no schedule (gig work), by the week - facts, never an alarm
     if (p.state === 'weekly' && p.weekly) return `<div style="padding:6px 0">${name(p)}: pay with no set schedule, so Groundwork reads it by the week.
       Over the last ${p.weekly.weeks} weeks a typical week brought in ${fmt(p.weekly.typical)}, a low week ${fmt(p.weekly.low)} and the highest ${fmt(p.weekly.high)}.</div>`;
@@ -25328,14 +25328,14 @@ function _payFactsHtml(st) {
       <button class="btn btn-ghost btn-sm" onclick="incomePayKind('${esc(p.payer)}', 'salary')">It doesn't pay overtime</button></div>`;
     return '';
   }).filter(Boolean);
-  return rows.length ? `<div class="card mt-5"><div class="card-label">Your pay</div><div style="font-size:12px;color:var(--ink);line-height:1.6">${rows.join('')}</div></div>` : '';
+  return rows.length ? `<div class="card mt-5"><div class="card-label">Your pay</div><div style="font-size:var(--fs-sm);color:var(--ink);line-height:1.6">${rows.join('')}</div></div>` : '';
 }
 
 // D11: payments set by a contract are never cut - said plainly; a line that may be one is asked about once.
 function _contractLinesHtml(st) {
   const kept = (st && st.contracts) || [], qs = (st && st.contract_questions) || [];
   if (!kept.length && !qs.length) return '';
-  return `<div style="font-size:12px;color:var(--slate);margin-top:10px;line-height:1.6">
+  return `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:10px;line-height:1.6">
     ${kept.length ? `<div>Never cut, because each is set by a contract: ${kept.map(k => `${esc(k.name)} (${fmt(k.amount)})`).join(', ')}.</div>` : ''}
     ${qs.map(q => `<div style="margin-top:4px">Is <b>${esc(q.name)}</b> (${fmt(q.amount)}) a loan, lease or insurance payment set by a contract? Until you say, it is left alone.
       <button class="btn btn-secondary btn-sm" onclick="incomeContractLine(${q.id}, 'yes')">Yes, it's set</button>
@@ -25363,7 +25363,7 @@ function incomeChangeHtml(st) {
   const facts = _payFactsHtml(st);
   if (!ch) {
     const ap = st && st.applied;
-    return (ap ? `<div class="card mt-5" style="font-size:12px;color:var(--slate)">You changed ${ap.changes.length} budget line${ap.changes.length === 1 ? '' : 's'} on ${_billDate(ap.at)} to follow your income.
+    return (ap ? `<div class="card mt-5" style="font-size:var(--fs-sm);color:var(--slate)">You changed ${ap.changes.length} budget line${ap.changes.length === 1 ? '' : 's'} on ${_billDate(ap.at)} to follow your income.
       <button class="btn btn-ghost btn-sm" onclick="incomeChangeUndo()">Undo</button></div>` : '') + facts;
   }
   if (st.snoozed) return facts;
@@ -25383,29 +25383,29 @@ function incomeChangeHtml(st) {
   const cards = (st.order || []).map((k, n) => {
     const x = byKey[k]; if (!x) return '';
     const figs = x.figures.filter(f => f.value != null).map(f => `<div style="display:flex;justify-content:space-between;gap:8px">
-        <span>${esc(f.label)} <span style="font-size:10px;color:var(--slate-2)">(${_KIND_WORD[f.kind] || ''})</span></span>
+        <span>${esc(f.label)} <span style="font-size:var(--fs-xs);color:var(--slate-2)">(${_KIND_WORD[f.kind] || ''})</span></span>
         <span style="font-family:var(--font-mono)">${typeof f.value === 'number' && f.label.indexOf('Months') !== 0 ? fmt(f.value) : esc(String(f.value))}</span></div>`).join('');
     const plan = x.plan && x.plan.changes.length ? `<div style="margin-top:6px">${x.plan.changes.map(c => `<div>${esc(c.name)}: ${fmt(c.old)} → <b>${fmt(c.new)}</b>
-        <span style="font-size:10px;color:var(--slate-2)">(${esc(c.why)})</span></div>`).join('')}
+        <span style="font-size:var(--fs-xs);color:var(--slate-2)">(${esc(c.why)})</span></div>`).join('')}
       ${st.applied && st.applied.month === ch.month
         ? `<div style="margin-top:6px;color:var(--slate)">You made this your budget on ${_billDate(st.applied.at)}. <button class="btn btn-ghost btn-sm" onclick="incomeChangeUndo()">Undo</button></div>`
         : `<div style="margin-top:6px"><button class="btn btn-primary btn-sm" onclick="incomeChangeApply()">Make this my budget</button>
            <button class="btn btn-ghost btn-sm" onclick="incomeChangeSnooze()">Not now</button>
-           <span style="font-size:11px;color:var(--slate-2)">Nothing changes until you tap. Undo is right here after.</span></div>`}</div>` : '';
+           <span style="font-size:var(--fs-xs);color:var(--slate-2)">Nothing changes until you tap. Undo is right here after.</span></div>`}</div>` : '';
     return `<div style="flex:1;min-width:240px;border:1px solid var(--steel-2);border-radius:var(--r-lg);padding:10px 12px;${n === 0 ? 'border-color:var(--sky)' : ''}">
-      <div style="font-size:13px;font-weight:600;color:var(--ink)">${esc(x.title)}</div>
-      <div style="font-size:11px;color:var(--slate-2);margin:2px 0 6px">${x.assumptions.map(esc).join(' ')}</div>
-      <div style="font-size:12px;color:var(--ink);line-height:1.7">${figs}
-        <div style="display:flex;justify-content:space-between"><span>Debt-free <span style="font-size:10px;color:var(--slate-2)">(if this continues)</span></span>
+      <div style="font-size:var(--fs-base);font-weight:600;color:var(--ink)">${esc(x.title)}</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate-2);margin:2px 0 6px">${x.assumptions.map(esc).join(' ')}</div>
+      <div style="font-size:var(--fs-sm);color:var(--ink);line-height:1.7">${figs}
+        <div style="display:flex;justify-content:space-between"><span>Debt-free <span style="font-size:var(--fs-xs);color:var(--slate-2)">(if this continues)</span></span>
           <span>${esc(_debtWhen(x.debt_months))}</span></div>
         ${x.bridge_months != null ? `<div>Your savings cover about <b>${x.bridge_months}</b> month${x.bridge_months === 1 ? '' : 's'} of the gap.</div>` : ''}</div>${plan}</div>`;
   }).join('');
   return `<div class="card mt-5"><div class="card-label" style="margin-bottom:2px">Your income changed
       <button class="btn btn-ghost btn-sm" style="float:right" onclick="openWhy('income_month')">Why does it say this?</button></div>
-    <div style="font-size:13px;color:var(--ink);line-height:1.6">${fact}</div>
-    <div style="font-size:12px;color:var(--slate);margin-top:4px;line-height:1.6">${holds}</div>
-    <div style="font-size:12px;color:var(--slate);margin-top:8px">Do you expect this to last?</div><div>${ask}</div>
-    <div style="font-size:11px;color:var(--slate-2);margin-top:8px">What each would mean, side by side. These are worked out from your record and recalculated when it changes; none of them is a prediction.</div>
+    <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.6">${fact}</div>
+    <div style="font-size:var(--fs-sm);color:var(--slate);margin-top:4px;line-height:1.6">${holds}</div>
+    <div style="font-size:var(--fs-sm);color:var(--slate);margin-top:8px">Do you expect this to last?</div><div>${ask}</div>
+    <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:8px">What each would mean, side by side. These are worked out from your record and recalculated when it changes; none of them is a prediction.</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">${cards}</div>${_contractLinesHtml(st)}</div>` + facts;
 }
 
@@ -25450,23 +25450,23 @@ function whatIfHtml() {
   const b = _wiBase();
   const v = k => _wi[k] != null ? _wi[k] : b[k];
   const months = (_fut && _fut.months) || [];
-  const row = (k, label, min, max, step) => `<div style="display:flex;align-items:center;gap:10px;font-size:12px;margin:4px 0">
+  const row = (k, label, min, max, step) => `<div style="display:flex;align-items:center;gap:10px;font-size:var(--fs-sm);margin:4px 0">
       <label style="width:190px;color:var(--slate)">${label}</label>
       <input type="range" min="${min}" max="${max}" step="${step}" value="${v(k)}" oninput="whatIfSet('${k}', this.value)" style="flex:1">
       <span id="wiVal_${k}" style="font-family:var(--font-mono);min-width:80px;text-align:right">${fmt(v(k))}</span></div>`;
   const hi = x => Math.max(500, Math.round(x * 2 / 50) * 50);
   return `<div id="whatIfPanel" style="margin-top:12px;border-top:1px solid var(--steel);padding-top:10px">
     <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">
-      <div style="font-size:13px;font-weight:600;color:var(--ink)">What if</div>
-      <div style="font-size:11px;color:var(--slate)">A what-if, not a prediction. Nothing is saved unless you make it your plan.</div></div>
+      <div style="font-size:var(--fs-base);font-weight:600;color:var(--ink)">What if</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate)">A what-if, not a prediction. Nothing is saved unless you make it your plan.</div></div>
     ${row('income', 'Income a month', 0, hi(b.income), 25)}
     ${row('spend', 'Spending a month', 0, hi(b.spend), 25)}
     ${row('debt_pay', 'Debt payment a month', 0, hi(b.debt_pay), 10)}
     ${row('save', 'Set aside each month', 0, 2000, 25)}
-    <div style="display:flex;align-items:center;gap:10px;font-size:12px;margin:4px 0">
+    <div style="display:flex;align-items:center;gap:10px;font-size:var(--fs-sm);margin:4px 0">
       <label style="width:190px;color:var(--slate)">A one-time cost</label>
-      <input type="number" min="0" step="50" value="${(_wi.one_time || {}).amount || ''}" placeholder="Amount" class="field-input" style="width:110px;font-size:12px;padding:4px 8px" oninput="whatIfOne('amount', this.value)">
-      <select class="field-input" style="width:auto;font-size:12px;padding:4px 8px" onchange="whatIfOne('month', this.value)">
+      <input type="number" min="0" step="50" value="${(_wi.one_time || {}).amount || ''}" placeholder="Amount" class="field-input" style="width:110px;font-size:var(--fs-sm);padding:4px 8px" oninput="whatIfOne('amount', this.value)">
+      <select class="field-input" style="width:auto;font-size:var(--fs-sm);padding:4px 8px" onchange="whatIfOne('month', this.value)">
         ${months.map(m => `<option value="${m}" ${(_wi.one_time || {}).month === m ? 'selected' : ''}>${new Date(m + '-15T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</option>`).join('')}</select></div>
     <div id="whatIfResult" style="margin-top:8px"></div>
     <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
@@ -25483,21 +25483,21 @@ async function whatIfRun() {
     g('budgetFutures').innerHTML = futuresHtml(_fut); return whatIfRun();
   }
   try { _wiRes = await API.post('/api/futures/what-if', { changes: _wi }); }
-  catch (e) { box.innerHTML = `<div style="font-size:12px;color:var(--slate)">${esc(e.message || '')}</div>`; return; }
+  catch (e) { box.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate)">${esc(e.message || '')}</div>`; return; }
   const r = _wiRes, a = r.as_things_are, w = r.what_if;
   const debt = x => x.debt_months == null ? "can't be dated" : `${x.debt_months} month${x.debt_months === 1 ? '' : 's'}`;
   const line = (label, f) => `<tr><td style="color:var(--slate);padding:2px 8px 2px 0">${label}</td>
       <td style="font-family:var(--font-mono);text-align:right;padding:2px 8px">${f(a)}</td>
       <td style="font-family:var(--font-mono);text-align:right;padding:2px 0;color:var(--ink)"><b>${f(w)}</b></td></tr>`;
-  box.innerHTML = `<table style="font-size:12px;border-collapse:collapse;width:100%;max-width:520px">
-      <tr><td></td><td style="text-align:right;font-size:11px;color:var(--slate);padding:0 8px">As things are</td><td style="text-align:right;font-size:11px;color:var(--slate)">What if</td></tr>
+  box.innerHTML = `<table style="font-size:var(--fs-sm);border-collapse:collapse;width:100%;max-width:520px">
+      <tr><td></td><td style="text-align:right;font-size:var(--fs-xs);color:var(--slate);padding:0 8px">As things are</td><td style="text-align:right;font-size:var(--fs-xs);color:var(--slate)">What if</td></tr>
       ${line('Debt-free in', debt)}
       ${line('Cash in a year', x => fmt(x.cash[x.cash.length - 1]))}
       ${w.set_aside ? line('Set aside over the year', x => fmt(x.set_aside)) : ''}
       ${line('Borrowed to get through', x => fmt(x.borrowed))}
       ${line('Lowest cash', x => fmt(x.lowest_cash))}</table>
-    ${r.below_minimums ? `<div style="font-size:12px;color:var(--ember-text);margin-top:4px">That debt payment is below the minimums (${fmt(r.minimums)} a month), so no payoff date can be worked out.</div>` : ''}
-    <div style="font-size:11px;color:var(--slate);margin-top:6px">${r.changed.length ? 'Changed: ' + r.changed.map(c => `${esc(c.label)} ${fmt(c.from)} → ${fmt(c.to)}${c.month ? ` in ${esc(c.month)}` : ''}`).join('; ') + '.' : 'Nothing changed yet: move a figure.'}</div>
+    ${r.below_minimums ? `<div style="font-size:var(--fs-sm);color:var(--ember-text);margin-top:4px">That debt payment is below the minimums (${fmt(r.minimums)} a month), so no payoff date can be worked out.</div>` : ''}
+    <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:6px">${r.changed.length ? 'Changed: ' + r.changed.map(c => `${esc(c.label)} ${fmt(c.from)} → ${fmt(c.to)}${c.month ? ` in ${esc(c.month)}` : ''}`).join('; ') + '.' : 'Nothing changed yet: move a figure.'}</div>
     ${r.changed.length ? `<button class="btn btn-primary btn-sm" style="margin-top:6px" onclick="whatIfPlan()">Make this my plan</button>` : ''}`;
 }
 async function whatIfPlan() {
@@ -25506,8 +25506,8 @@ async function whatIfPlan() {
   const rows = p.changes.map(c => `<li>${esc(c.what)}: ${c.before == null ? 'none' : fmt(parseFloat(c.before))} → <b>${fmt(c.after)}</b></li>`).join('');
   const notes = p.not_changed.map(n => `<li style="color:var(--slate)">${esc(n)}</li>`).join('');
   if (!rows) { showToast('Nothing here changes your plan', p.not_changed.join(' '), 'info'); return; }
-  confirmAction('Make this my plan?', `<div style="font-size:13px;line-height:1.6">This changes exactly:<ul style="margin:6px 0 6px 18px;padding:0">${rows}</ul>
-      ${notes ? `It doesn't change:<ul style="margin:6px 0 0 18px;padding:0">${notes}</ul>` : ''}<div style="font-size:12px;color:var(--slate);margin-top:6px">You can undo it.</div></div>`,
+  confirmAction('Make this my plan?', `<div style="font-size:var(--fs-base);line-height:1.6">This changes exactly:<ul style="margin:6px 0 6px 18px;padding:0">${rows}</ul>
+      ${notes ? `It doesn't change:<ul style="margin:6px 0 0 18px;padding:0">${notes}</ul>` : ''}<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:6px">You can undo it.</div></div>`,
     async () => {
       try {
         await API.post('/api/futures/what-if/plan', { changes: _wi, apply: true });
@@ -25560,36 +25560,36 @@ function _futChart(title, key, scens, months) {
   }).join('');
   const lab = m => new Date(m + '-15T12:00:00').toLocaleDateString('en-US', { month: 'short' });
   return `<div style="flex:1 1 260px;min-width:0">
-    <div style="font-size:11px;color:var(--slate);margin-bottom:4px">${title}</div>
+    <div style="font-size:var(--fs-xs);color:var(--slate);margin-bottom:4px">${title}</div>
     <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="${esc(title)}">
       <line x1="${L}" y1="${y(0)}" x2="${W - 6}" y2="${y(0)}" stroke="var(--steel)" stroke-width="1"/>
-      <text x="${L - 4}" y="${y(max) + 4}" text-anchor="end" font-size="9" fill="var(--slate)">${axis(max)}</text>
-      <text x="${L - 4}" y="${y(min) + 4}" text-anchor="end" font-size="9" fill="var(--slate)">${axis(min)}</text>
-      <text x="${x(0)}" y="${H - 4}" font-size="9" fill="var(--slate)">${lab(months[0])}</text>
-      <text x="${x(months.length - 1)}" y="${H - 4}" text-anchor="end" font-size="9" fill="var(--slate)">${lab(months[months.length - 1])}</text>
+      <text x="${L - 4}" y="${y(max) + 4}" text-anchor="end" font-size="11" fill="var(--slate)">${axis(max)}</text>
+      <text x="${L - 4}" y="${y(min) + 4}" text-anchor="end" font-size="11" fill="var(--slate)">${axis(min)}</text>
+      <text x="${x(0)}" y="${H - 4}" font-size="11" fill="var(--slate)">${lab(months[0])}</text>
+      <text x="${x(months.length - 1)}" y="${H - 4}" text-anchor="end" font-size="11" fill="var(--slate)">${lab(months[months.length - 1])}</text>
       ${lines}
     </svg></div>`;
 }
 
 function _futMeasure(m) {
   if (!m || !m.label) return '';
-  if (m.value == null) return `<div style="font-size:12px;color:var(--slate)">${esc(m.label)}: can't be dated on this budget</div>`;
+  if (m.value == null) return `<div style="font-size:var(--fs-sm);color:var(--slate)">${esc(m.label)}: can't be dated on this budget</div>`;
   const v = m.unit === 'months' ? `${m.value} month${m.value === 1 ? '' : 's'}` : fmt(m.value);
-  return `<div style="font-size:13px;color:var(--ink)">${esc(m.label)}: <b style="font-family:var(--font-mono)">${v}</b></div>`;
+  return `<div style="font-size:var(--fs-base);color:var(--ink)">${esc(m.label)}: <b style="font-family:var(--font-mono)">${v}</b></div>`;
 }
 
 function _futPossibilityForm(key) {
   return `<div style="background:var(--mist);border-radius:var(--r-md);padding:10px;margin-top:8px">
-    <div style="font-size:12px;color:var(--ink);margin-bottom:6px">What's missing? Groundwork keeps it as something you said, never as a transaction or a budget line, and every future counts it.</div>
+    <div style="font-size:var(--fs-sm);color:var(--ink);margin-bottom:6px">What's missing? Groundwork keeps it as something you said, never as a transaction or a budget line, and every future counts it.</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-      <select id="futPKind" class="field-input" style="width:auto;font-size:12px;padding:4px 8px">
+      <select id="futPKind" class="field-input" style="width:auto;font-size:var(--fs-sm);padding:4px 8px">
         <option value="income">Another income continues</option>
         <option value="cost">A known cost</option>
         <option value="cut">Hours or pay being cut</option>
       </select>
-      <input id="futPLabel" class="field-input" type="text" placeholder="What it is" style="width:140px;font-size:12px;padding:4px 8px">
-      <input id="futPAmount" class="field-input" type="number" min="0" step="0.01" placeholder="Amount" style="width:90px;font-size:12px;padding:4px 8px">
-      <input id="futPMonth" class="field-input" type="month" style="width:auto;font-size:12px;padding:4px 8px" title="For a known cost, its month; otherwise from when">
+      <input id="futPLabel" class="field-input" type="text" placeholder="What it is" style="width:140px;font-size:var(--fs-sm);padding:4px 8px">
+      <input id="futPAmount" class="field-input" type="number" min="0" step="0.01" placeholder="Amount" style="width:90px;font-size:var(--fs-sm);padding:4px 8px">
+      <input id="futPMonth" class="field-input" type="month" style="width:auto;font-size:var(--fs-sm);padding:4px 8px" title="For a known cost, its month; otherwise from when">
       <button class="btn btn-secondary btn-sm" onclick="futuresAddPossibility('${esc(key)}')">Add it</button>
       <button class="btn btn-ghost btn-sm" onclick="_futAsk=null;g('budgetFutures').innerHTML=futuresHtml(_fut)">Cancel</button>
     </div></div>`;
@@ -25597,37 +25597,37 @@ function _futPossibilityForm(key) {
 
 function _futScenarioCard(s, i, st) {
   const c = _FUT_COLORS[i % _FUT_COLORS.length];
-  const figs = (s.figures || []).filter(f => f.value != null).map(f => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:1px 0">
+  const figs = (s.figures || []).filter(f => f.value != null).map(f => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:var(--fs-xs);padding:1px 0">
       <span style="color:var(--slate)">${esc(f.label)}</span>
       <span><span style="font-family:var(--font-mono);color:var(--ink)">${typeof f.value === 'number' ? fmt(f.value) : esc(String(f.value))}</span>
-      <span style="font-size:10px;color:var(--slate-2);margin-left:4px">${_FUT_KIND_WORDS[f.kind] || ''}</span></span></div>`).join('');
+      <span style="font-size:var(--fs-xs);color:var(--slate-2);margin-left:4px">${_FUT_KIND_WORDS[f.kind] || ''}</span></span></div>`).join('');
   const behind = (s.behind != null && s.behind !== 0 && st.goal !== 'unsure')
-    ? `<div style="font-size:11px;color:var(--slate)">${st.goal === 'debt'
+    ? `<div style="font-size:var(--fs-xs);color:var(--slate)">${st.goal === 'debt'
         ? `${Math.abs(s.behind)} month${Math.abs(s.behind) === 1 ? '' : 's'} ${s.behind > 0 ? 'later' : 'sooner'} than as things are`
         : `${fmt(Math.abs(s.behind))} ${s.behind > 0 ? 'less' : 'more'} than as things are`}</div>` : '';
   const chosen = st.choice && st.choice.key === s.key;
   const choose = s.kind === 'baseline' ? '' : chosen
-    ? `<span style="font-size:11px;color:var(--pine-text)">You chose this${st.choice.applied ? `; debt payment set to ${fmt(parseFloat(st.choice.applied.after))}` : ''}</span>
-       <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresUndoChoice()">Undo</button>`
-    : `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresChoose('${s.key}', false)">Choose this path</button>`
-      + (s.new_debt_pay ? `<button class="btn btn-secondary btn-sm" style="font-size:11px" onclick="futuresChoose('${s.key}', true)">Set my debt payment to ${fmt(s.new_debt_pay)}</button>` : '');
-  const ask = s.kind === 'adverse' || s.kind === 'baseline' ? `<div style="margin-top:8px;font-size:11px;color:var(--ink)">Does this reflect your situation?
+    ? `<span style="font-size:var(--fs-xs);color:var(--pine-text)">You chose this${st.choice.applied ? `; debt payment set to ${fmt(parseFloat(st.choice.applied.after))}` : ''}</span>
+       <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="futuresUndoChoice()">Undo</button>`
+    : `<button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="futuresChoose('${s.key}', false)">Choose this path</button>`
+      + (s.new_debt_pay ? `<button class="btn btn-secondary btn-sm" style="font-size:var(--fs-xs)" onclick="futuresChoose('${s.key}', true)">Set my debt payment to ${fmt(s.new_debt_pay)}</button>` : '');
+  const ask = s.kind === 'adverse' || s.kind === 'baseline' ? `<div style="margin-top:8px;font-size:var(--fs-xs);color:var(--ink)">Does this reflect your situation?
       <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">
-        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresAnswer('${s.key}','yes')">Yes, a reasonable scenario</button>
-        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresAnswer('${s.key}','partly')">Partly, something's missing</button>
-        ${s.kind === 'adverse' ? `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresAnswer('${s.key}','unlikely')">Unlikely for me</button>` : ''}
-        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresAnswer('${s.key}','explore')">Explore something else</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="futuresAnswer('${s.key}','yes')">Yes, a reasonable scenario</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="futuresAnswer('${s.key}','partly')">Partly, something's missing</button>
+        ${s.kind === 'adverse' ? `<button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="futuresAnswer('${s.key}','unlikely')">Unlikely for me</button>` : ''}
+        <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="futuresAnswer('${s.key}','explore')">Explore something else</button>
       </div></div>` : '';
   return `<div style="border:1px solid var(--steel);border-left:4px solid ${c};border-radius:var(--r-md);padding:12px;min-width:0;flex:1 1 250px">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-      <label style="font-size:13px;font-weight:600;color:var(--ink);display:flex;gap:6px;align-items:center">
+      <label style="font-size:var(--fs-base);font-weight:600;color:var(--ink);display:flex;gap:6px;align-items:center">
         <input type="checkbox" ${_futOff.has(s.key) ? '' : 'checked'} onchange="futuresToggle('${s.key}')" title="Show on the charts">${esc(s.title)}</label>
-      <span style="font-size:10px;color:var(--slate-2)">${s.kind === 'baseline' ? '' : (_FUT_GROUP_WORDS[s.kind] || '')}</span>
+      <span style="font-size:var(--fs-xs);color:var(--slate-2)">${s.kind === 'baseline' ? '' : (_FUT_GROUP_WORDS[s.kind] || '')}</span>
     </div>
     ${_futMeasure(s.measure)}${behind}
-    <div style="font-size:11px;color:var(--slate);margin-top:2px">Lowest cash ${_futMoney(s.lowest_cash)} · borrowed over the year ${_futMoney(s.borrowed)}${s.covers_minimums ? '' : ' · this budget does not cover the minimum payments'}</div>
-    <details style="margin-top:6px"><summary style="font-size:11px;color:var(--slate);cursor:pointer">What it assumes, and its figures</summary>
-      <ul style="margin:6px 0 6px 16px;padding:0;font-size:11px;color:var(--ink);line-height:1.6">${(s.assumptions || []).map(a => `<li>${esc(a)}</li>`).join('')}</ul>${figs}</details>
+    <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">Lowest cash ${_futMoney(s.lowest_cash)} · borrowed over the year ${_futMoney(s.borrowed)}${s.covers_minimums ? '' : ' · this budget does not cover the minimum payments'}</div>
+    <details style="margin-top:6px"><summary style="font-size:var(--fs-xs);color:var(--slate);cursor:pointer">What it assumes, and its figures</summary>
+      <ul style="margin:6px 0 6px 16px;padding:0;font-size:var(--fs-xs);color:var(--ink);line-height:1.6">${(s.assumptions || []).map(a => `<li>${esc(a)}</li>`).join('')}</ul>${figs}</details>
     ${ask}
     ${_futAsk === s.key ? _futPossibilityForm(s.key) : ''}
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px">${choose}</div>
@@ -25637,37 +25637,37 @@ function _futScenarioCard(s, i, st) {
 function futuresHtml(st) {
   if (!st) return '';
   if (!st.offered) return `<div class="card mb-5"><div class="card-label">Possible futures</div>
-    <div style="font-size:12px;color:var(--slate)">${esc(st.why || '')}</div></div>`;
+    <div style="font-size:var(--fs-sm);color:var(--slate)">${esc(st.why || '')}</div></div>`;
   const scens = st.scenarios || [];
   const charts = `<div style="display:flex;gap:16px;flex-wrap:wrap;margin:10px 0">
       ${_futChart('Cash on hand', 'cash', scens, st.months)}${_futChart('What you owe, with anything borrowed', 'owed', scens, st.months)}</div>`;
-  const qs = (st.questions || []).map(q => `<div style="font-size:12px;padding:4px 0"><b style="color:var(--ink)">${esc(q.q)}</b>
+  const qs = (st.questions || []).map(q => `<div style="font-size:var(--fs-sm);padding:4px 0"><b style="color:var(--ink)">${esc(q.q)}</b>
       <span style="color:var(--ink)"> ${esc(q.a)}</span></div>`).join('');
-  const poss = (st.possibilities || []).map(p => `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:3px 0">
-      <span>${esc(p.label || '')} ${fmt(p.amount)}${p.kind !== 'cost' ? ' a month' : ''}${p.month ? ` · ${esc(p.month)}` : ''} <span style="font-size:10px;color:var(--slate-2)">You said</span></span>
-      ${p.from_trip ? `<span style="font-size:11px;color:var(--slate)">a trip you're going on</span>` : `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresWithdraw('${esc(p.id)}')">Take back</button>`}</div>`).join('');
-  const hidden = (st.hidden || []).map(h => `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresAnswer('${h.key}','show')">Show "${esc(h.title)}" again</button>`).join(' ');
+  const poss = (st.possibilities || []).map(p => `<div style="display:flex;justify-content:space-between;align-items:center;font-size:var(--fs-sm);padding:3px 0">
+      <span>${esc(p.label || '')} ${fmt(p.amount)}${p.kind !== 'cost' ? ' a month' : ''}${p.month ? ` · ${esc(p.month)}` : ''} <span style="font-size:var(--fs-xs);color:var(--slate-2)">You said</span></span>
+      ${p.from_trip ? `<span style="font-size:var(--fs-xs);color:var(--slate)">a trip you're going on</span>` : `<button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="futuresWithdraw('${esc(p.id)}')">Take back</button>`}</div>`).join('');
+  const hidden = (st.hidden || []).map(h => `<button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="futuresAnswer('${h.key}','show')">Show "${esc(h.title)}" again</button>`).join(' ');
   const gaps = (st.gaps || []).map(x => `<li>${esc(x)}</li>`).join('');
   const goalWords = { debt: 'the debt-free date', savings: 'cash saved', goal: 'cash saved toward your goal', invest: 'what is left over', unsure: '' }[st.goal] || '';
   return `<div class="card mb-5">
     <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
       <div class="card-label" style="margin:0">Possible futures</div>
-      <div style="font-size:11px;color:var(--slate)">${goalWords ? `Compared on ${goalWords}, your goal` : 'Side by side: your goal is not set, so none is ranked'}</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate)">${goalWords ? `Compared on ${goalWords}, your goal` : 'Side by side: your goal is not set, so none is ranked'}</div>
     </div>
-    <div style="font-size:12px;color:var(--slate);margin-top:4px">From your record, over the next 12 months. Each one names what it assumes, and you can correct it.</div>
-    <div id="futStale" style="display:none;margin-top:8px;padding:8px;border-radius:var(--r-sm);background:var(--mist);font-size:12px;color:var(--ink)">
-      These figures were worked out from older records. <button class="btn btn-secondary btn-sm" style="font-size:11px" onclick="renderFutures()">Recalculate</button></div>
-    ${st.choice && !scens.some(s => s.key === st.choice.key) ? `<div style="margin-top:8px;font-size:12px;color:var(--ink)">You chose "${esc(st.choice.title)}" on ${new Date(st.choice.at).toLocaleDateString()}${st.choice.applied ? `, and your debt payment was set to ${fmt(parseFloat(st.choice.applied.after))}` : ''}. That future isn't shown now because the figures it changed are part of your plan.
-      <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresUndoChoice()">Undo</button></div>` : ''}
+    <div style="font-size:var(--fs-sm);color:var(--slate);margin-top:4px">From your record, over the next 12 months. Each one names what it assumes, and you can correct it.</div>
+    <div id="futStale" style="display:none;margin-top:8px;padding:8px;border-radius:var(--r-sm);background:var(--mist);font-size:var(--fs-sm);color:var(--ink)">
+      These figures were worked out from older records. <button class="btn btn-secondary btn-sm" style="font-size:var(--fs-xs)" onclick="renderFutures()">Recalculate</button></div>
+    ${st.choice && !scens.some(s => s.key === st.choice.key) ? `<div style="margin-top:8px;font-size:var(--fs-sm);color:var(--ink)">You chose "${esc(st.choice.title)}" on ${new Date(st.choice.at).toLocaleDateString()}${st.choice.applied ? `, and your debt payment was set to ${fmt(parseFloat(st.choice.applied.after))}` : ''}. That future isn't shown now because the figures it changed are part of your plan.
+      <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="futuresUndoChoice()">Undo</button></div>` : ''}
     ${charts}
     <div style="display:flex;gap:10px;flex-wrap:wrap">${scens.map((s, i) => _futScenarioCard(s, i, st)).join('')}</div>
     ${qs ? `<div style="margin-top:12px;border-top:1px solid var(--steel);padding-top:8px">${qs}</div>` : ''}
-    ${poss ? `<div style="margin-top:10px"><div style="font-size:11px;color:var(--slate);margin-bottom:2px">What you've told Groundwork</div>${poss}</div>` : ''}
+    ${poss ? `<div style="margin-top:10px"><div style="font-size:var(--fs-xs);color:var(--slate);margin-bottom:2px">What you've told Groundwork</div>${poss}</div>` : ''}
     ${_futAsk === '__explore' ? _futPossibilityForm('__explore') : ''}
     ${whatIfHtml()}
     ${hidden ? `<div style="margin-top:8px">${hidden}</div>` : ''}
-    ${gaps ? `<details style="margin-top:8px"><summary style="font-size:11px;color:var(--slate);cursor:pointer">Not shown, and why</summary><ul style="font-size:11px;color:var(--ink);margin:6px 0 0 16px;padding:0;line-height:1.6">${gaps}</ul></details>` : ''}
-    <div style="font-size:10px;color:var(--slate-2);margin-top:8px">Worked out ${new Date(st.computed_at).toLocaleString()}. Recorded = your records; Projected = what follows if the stated assumptions hold; You said = something you told Groundwork.</div>
+    ${gaps ? `<details style="margin-top:8px"><summary style="font-size:var(--fs-xs);color:var(--slate);cursor:pointer">Not shown, and why</summary><ul style="font-size:var(--fs-xs);color:var(--ink);margin:6px 0 0 16px;padding:0;line-height:1.6">${gaps}</ul></details>` : ''}
+    <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:8px">Worked out ${new Date(st.computed_at).toLocaleString()}. Recorded = your records; Projected = what follows if the stated assumptions hold; You said = something you told Groundwork.</div>
   </div>${preBudgetHtml(st.pre_budget)}`;
 }
 
@@ -25678,16 +25678,16 @@ function preBudgetHtml(pb) {
   const body = Object.entries(groups).map(([k, label]) => {
     const rows = pb.rows.filter(r => r.group === k);
     if (!rows.length) return '';
-    return `<div style="font-size:11px;color:var(--slate);margin:8px 0 2px">${label}</div>` + rows.map(r => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:2px 0">
-        <span style="color:var(--ink)">${esc(r.label)} <span style="font-size:10px;color:var(--slate-2)">${esc(r.source)}</span></span>
-        <span style="font-family:var(--font-mono)">${fmt(r.amount)} <span style="font-size:10px;color:var(--slate-2)">${_FUT_KIND_WORDS[r.kind] || ''}</span></span></div>`).join('');
+    return `<div style="font-size:var(--fs-xs);color:var(--slate);margin:8px 0 2px">${label}</div>` + rows.map(r => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:var(--fs-sm);padding:2px 0">
+        <span style="color:var(--ink)">${esc(r.label)} <span style="font-size:var(--fs-xs);color:var(--slate-2)">${esc(r.source)}</span></span>
+        <span style="font-family:var(--font-mono)">${fmt(r.amount)} <span style="font-size:var(--fs-xs);color:var(--slate-2)">${_FUT_KIND_WORDS[r.kind] || ''}</span></span></div>`).join('');
   }).join('');
   return `<div class="card mb-5"><div class="card-label">A starting budget from your record</div>
-    <div style="font-size:12px;color:var(--slate)">What your record already commits each month. A starting point you correct, not a claim that Groundwork knows your whole life.</div>
+    <div style="font-size:var(--fs-sm);color:var(--slate)">What your record already commits each month. A starting point you correct, not a claim that Groundwork knows your whole life.</div>
     ${body}
-    <div style="display:flex;justify-content:space-between;font-size:12px;border-top:1px solid var(--steel);margin-top:8px;padding-top:6px"><span>Together</span><span style="font-family:var(--font-mono)">${fmt(pb.total)}</span></div>
-    ${pb.income != null ? `<div style="display:flex;justify-content:space-between;font-size:12px;padding-top:2px"><span>Income a month (recorded)</span><span style="font-family:var(--font-mono)">${fmt(pb.income)}</span></div>
-    <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;padding-top:2px"><span>What remains for everything else</span><span style="font-family:var(--font-mono)">${fmt(pb.remains)}</span></div>` : ''}
+    <div style="display:flex;justify-content:space-between;font-size:var(--fs-sm);border-top:1px solid var(--steel);margin-top:8px;padding-top:6px"><span>Together</span><span style="font-family:var(--font-mono)">${fmt(pb.total)}</span></div>
+    ${pb.income != null ? `<div style="display:flex;justify-content:space-between;font-size:var(--fs-sm);padding-top:2px"><span>Income a month (recorded)</span><span style="font-family:var(--font-mono)">${fmt(pb.income)}</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:var(--fs-base);font-weight:600;padding-top:2px"><span>What remains for everything else</span><span style="font-family:var(--font-mono)">${fmt(pb.remains)}</span></div>` : ''}
   </div>`;
 }
 
@@ -25718,7 +25718,7 @@ function futuresChoose(key, apply) {
   const s = (_fut?.scenarios || []).find(x => x.key === key);
   if (!s) return;
   const what = apply ? `Your monthly debt payment becomes ${fmt(s.new_debt_pay)}. Undo puts it back.` : 'Groundwork notes your choice. Nothing in your budget or plan changes.';
-  confirmAction(`Choose "${s.title}"?`, `<div style="font-size:13px;color:var(--slate)">${what}</div>`, async () => {
+  confirmAction(`Choose "${s.title}"?`, `<div style="font-size:var(--fs-base);color:var(--slate)">${what}</div>`, async () => {
     try { await API.post('/api/futures/choose', { key, apply }); }
     catch (e) { _gwErr('futuresChoose')(e); showToast('Not saved', e?.message || '', 'warning'); return; }
     await renderFutures();
@@ -25768,14 +25768,14 @@ function budgetBillsHtml(bills, checks) {
     if (p) {
       const amt = p.amount != null ? fmt(p.amount) : `the amount didn't read as an amount ("${esc(p.amount_text || 'nothing')}")`;
       const due = p.due ? _billDate(p.due) : `the due date didn't read as a date ("${esc(p.due_text || 'nothing')}")`;
-      return `<div style="padding:8px 0;border-top:1px solid var(--steel-2);font-size:12px;line-height:1.6">
+      return `<div style="padding:8px 0;border-top:1px solid var(--steel-2);font-size:var(--fs-sm);line-height:1.6">
         <b style="font-weight:600">${esc(b.name)}</b>: read from ${esc(p.host)} on ${_billDate(p.read_at)}: amount due ${amt}, due ${due}. Is that right?
         <div style="margin-top:4px"><button class="btn btn-primary btn-sm" onclick="confirmBillReading(${b.id}, true)">Yes, that's right</button>
         <button class="btn btn-ghost btn-sm" onclick="confirmBillReading(${b.id}, false)">Not right</button></div></div>`;
     }
     if (c) {
       const inMonth = c.due && c.due.slice(0, 7) === thisMonth && c.amount != null;
-      return `<div style="padding:8px 0;border-top:1px solid var(--steel-2);font-size:12px;line-height:1.6">
+      return `<div style="padding:8px 0;border-top:1px solid var(--steel-2);font-size:var(--fs-sm);line-height:1.6">
         <b style="font-weight:600">${esc(b.name)}</b>: ${c.amount != null ? fmt(c.amount) : 'amount not read'} due ${c.due ? _billDate(c.due) : '(date not read)'}
         <span style="color:var(--slate-2)">· read from ${esc(c.host)} on ${_billDate(c.read_at)}, confirmed · you planned ${fmt(b.planned || 0)}</span>
         ${inMonth ? `<label style="display:block;color:var(--slate);margin-top:2px"><input type="checkbox" ${c.use_for_month ? 'checked' : ''} onchange="useBillReading(${c.id}, this.checked)">
@@ -25783,13 +25783,13 @@ function budgetBillsHtml(bills, checks) {
         <button class="btn btn-ghost btn-sm" onclick="startFetchAll(['${esc(b.key)}'])">⟳ Read it again</button>
         ${billCheckHtml(ck(b.id), accts)}</div>`;
     }
-    return `<div style="padding:8px 0;border-top:1px solid var(--steel-2);font-size:12px">
+    return `<div style="padding:8px 0;border-top:1px solid var(--steel-2);font-size:var(--fs-sm)">
       <b style="font-weight:600">${esc(b.name)}</b>: not read yet.
       <a href="#" onclick="openAutomationRow('${esc(b.key)}');return false" style="color:var(--pine-text)">Set it up on the Assistant page →</a>
       <button class="btn btn-ghost btn-sm" onclick="startFetchAll(['${esc(b.key)}'])">⟳ Read my bill</button></div>`;
   }).join('');
   return `<div class="card mt-5"><div class="card-label" style="margin-bottom:2px">Bills read from their own website</div>
-    <div style="font-size:12px;color:var(--slate);margin-bottom:4px">What each company's site said, and when. Nothing here is used until you confirm it.</div>${rows}</div>`;
+    <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:4px">What each company's site said, and when. Nothing here is used until you confirm it.</div>${rows}</div>`;
 }
 
 async function renderBudgetBills() {
@@ -25806,11 +25806,11 @@ function billCheckHtml(c, accounts) {
   if (!c) return '';
   const acct = accounts.find(a => a.id === c.account_id);
   const pick = acct
-    ? `<div style="color:var(--slate);margin-top:4px">Paid from ${esc(acct.name)} <a href="#" onclick="openAutomationRow('bill:${c.id}');return false" style="color:var(--pine-text);font-size:11px">change</a></div>`
+    ? `<div style="color:var(--slate);margin-top:4px">Paid from ${esc(acct.name)} <a href="#" onclick="openAutomationRow('bill:${c.id}');return false" style="color:var(--pine-text);font-size:var(--fs-xs)">change</a></div>`
     : `<div style="color:var(--slate);margin-top:4px"><a href="#" onclick="openAutomationRow('bill:${c.id}');return false" style="color:var(--pine-text)">Choose which account pays it, on the Assistant page →</a></div>`;
   if (!acct) return pick;
   const floor = `<label style="display:block;color:var(--slate);margin-top:2px">Always leave at least
-      $<input type="number" min="0" step="1" value="${acct.buffer ?? ''}" placeholder="amount" style="width:90px;font-size:12px" onchange="setAccountBuffer(${acct.id}, this.value)"> in ${esc(acct.name)}</label>`;
+      $<input type="number" min="0" step="1" value="${acct.buffer ?? ''}" placeholder="amount" style="width:90px;font-size:var(--fs-sm)" onchange="setAccountBuffer(${acct.id}, this.value)"> in ${esc(acct.name)}</label>`;
   const ck = c.check || {};
   const when = c.last_download ? new Date(c.last_download) : null;
   const ago = ck.stale_hours == null ? '' : ck.stale_hours < 48 ? `${ck.stale_hours} hours ago` : `${Math.floor(ck.stale_hours / 24)} days ago`;
@@ -25820,7 +25820,7 @@ function billCheckHtml(c, accounts) {
   if (ck.state === 'fits') answer = `Can I pay this? It fits: ${esc(acct.name)} would be ${fmt(ck.after)}, ${fmt(ck.margin)} above your ${fmt(acct.buffer)}.`;
   else if (ck.state === 'below') answer = `Can I pay this? It would leave ${fmt(ck.after)} in ${esc(acct.name)}, ${fmt(-ck.margin)} below your ${fmt(acct.buffer)}.`;
   else answer = `Can I pay this? Groundwork can't work it out yet: it needs ${esc((ck.missing || []).join(' and '))}.`;
-  const working = (ck.working || []).length ? `<div style="color:var(--slate-2);font-family:var(--font-mono);font-size:11px">${ck.working.map(esc).join(' · ')}</div>` : '';
+  const working = (ck.working || []).length ? `<div style="color:var(--slate-2);font-family:var(--font-mono);font-size:var(--fs-xs)">${ck.working.map(esc).join(' · ')}</div>` : '';
   const seen = when ? ` (${esc(acct.name)} last downloaded ${_billDate(c.last_download)})` : '';
   const p = c.paid || {};
   let paid = '';
@@ -25834,10 +25834,10 @@ function billCheckHtml(c, accounts) {
   // Item 68 B8 (b): to the bank's payment screen for this bill, and stop - the person pays
   const payWay = acct.has_portal ? `<div style="margin-top:6px">${c.pay_steps
       ? `<button class="btn btn-secondary btn-sm" onclick="openBillPay(${c.id})">Take me to pay this</button>
-         <span style="color:var(--slate-2);font-size:11px">Groundwork opens your bank's payment screen and stops there. You enter the amount and press Pay.</span>`
+         <span style="color:var(--slate-2);font-size:var(--fs-xs)">Groundwork opens your bank's payment screen and stops there. You enter the amount and press Pay.</span>`
       : `<a href="#" onclick="openAutomationRow('bill:${c.id}');return false" style="color:var(--pine-text)">Show Groundwork the way to pay this, on the Assistant page →</a>`}</div>` : '';
   return pick + floor + notice + `<div style="margin-top:4px;color:var(--ink)">${answer}</div>` + working + payWay
-    + `<div style="color:var(--slate-2);font-size:11px">${esc(ck.cant_see || '')}</div>`
+    + `<div style="color:var(--slate-2);font-size:var(--fs-xs)">${esc(ck.cant_see || '')}</div>`
     + (paid ? `<div style="margin-top:4px;color:var(--ink)">${paid}</div>` : '');
 }
 
@@ -25947,9 +25947,9 @@ function fetchAllPanelHtml(s) {
   const head = s.done
     ? (s.stop === 'bot_check' ? 'Stopped: a bank showed a check for automated access.' : s.stop === 'user' ? 'Stopped.' : 'Finished.')
     : 'Groundwork is visiting each bank, one at a time. If a bank asks for a code, its window comes to the front - type it there.';
-  return `<div style="font-size:12px;color:var(--slate);line-height:1.5">${head}</div>
-    <ol style="font-size:12px;color:var(--ink);margin:8px 0 8px 18px;padding:0">${rows}</ol>
-    <div style="font-size:11px;color:var(--slate-2);margin-bottom:8px">Each file waits for your review before anything is saved.</div>
+  return `<div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.5">${head}</div>
+    <ol style="font-size:var(--fs-sm);color:var(--ink);margin:8px 0 8px 18px;padding:0">${rows}</ol>
+    <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-bottom:8px">Each file waits for your review before anything is saved.</div>
     ${s.done
       ? `<button class="btn btn-secondary btn-sm" onclick="closeFetchAllPanel()">Close</button>`
       : `<button class="btn btn-ghost btn-sm" onclick="stopFetchAll()">Stop</button>`}`;
@@ -25982,14 +25982,14 @@ async function startBankFetch(key) {
   if (!box) return;
   let r;
   try { r = await API.post('/api/settings/bank-agent/fetch', { key }); } catch (e) {
-    box.innerHTML = `<div style="font-size:12px;color:var(--ember-text);margin-top:6px">${esc(e?.message || 'Could not start.')}</div>`; return;
+    box.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--ember-text);margin-top:6px">${esc(e?.message || 'Could not start.')}</div>`; return;
   }
   if (r.result !== 'opened' && r.result !== 'already_open') {
-    box.innerHTML = `<div style="font-size:12px;color:var(--ember-text);margin-top:6px">The window couldn't open (${esc(r.result)}).</div>`;
+    box.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--ember-text);margin-top:6px">The window couldn't open (${esc(r.result)}).</div>`;
     return;
   }
-  box.innerHTML = `<div style="font-size:12px;color:var(--slate);margin-top:6px">Groundwork is following your steps in the window. Stay nearby: if your bank asks for a code, type it there.</div>
-    <ol data-gw-fetch style="font-size:12px;color:var(--ink);margin:6px 0 6px 18px"></ol>
+  box.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:6px">Groundwork is following your steps in the window. Stay nearby: if your bank asks for a code, type it there.</div>
+    <ol data-gw-fetch style="font-size:var(--fs-sm);color:var(--ink);margin:6px 0 6px 18px"></ol>
     <button class="btn btn-ghost btn-sm" onclick="stopBankFetch('${esc(key)}')">Stop</button>`;
   clearInterval(_bankFetchTimer);
   let afterEnd = 0;
@@ -26187,13 +26187,13 @@ async function _preUpgradeNotice() {
   try { r = await API.get('/api/backup/pre-upgrade'); } catch (e) { _gwErr('_preUpgradeNotice')(e); return; }
   if (!r || r.shown || !(r.name || r.error)) return;
   const body = r.name
-    ? `<div style="font-size:13px;line-height:1.6;color:var(--ink)">Before updating your records to this version, Groundwork saved a copy of them as they were:</div>
-       <div style="font-family:var(--font-mono);font-size:12px;margin:8px 0;word-break:break-all">${esc(r.folder)}<br>${esc(r.name)}</div>
-       <div style="font-size:12px;color:var(--slate);line-height:1.6">${r.sealed ? 'It is protected like your other backups.' : 'It is not protected yet: set up backup protection in Backups, and it can be re-saved protected.'}
+    ? `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--ink)">Before updating your records to this version, Groundwork saved a copy of them as they were:</div>
+       <div style="font-family:var(--font-mono);font-size:var(--fs-sm);margin:8px 0;word-break:break-all">${esc(r.folder)}<br>${esc(r.name)}</div>
+       <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6">${r.sealed ? 'It is protected like your other backups.' : 'It is not protected yet: set up backup protection in Backups, and it can be re-saved protected.'}
          Groundwork never deletes it. The update only goes one way, so this copy is how to go back.</div>`
-      + (r.after_name ? `<div style="font-size:13px;line-height:1.6;color:var(--ink);margin-top:10px">And a backup of your records as they are now, after the update:</div>
-       <div style="font-family:var(--font-mono);font-size:12px;margin:8px 0;word-break:break-all">${esc(r.after_name)}</div>` : '')
-    : `<div style="font-size:13px;line-height:1.6;color:var(--ember-text)">Groundwork tried to save a copy of your records before updating them, and could not (${esc(r.error)}). Your records were updated. Make a backup now from Backups.</div>`;
+      + (r.after_name ? `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--ink);margin-top:10px">And a backup of your records as they are now, after the update:</div>
+       <div style="font-family:var(--font-mono);font-size:var(--fs-sm);margin:8px 0;word-break:break-all">${esc(r.after_name)}</div>` : '')
+    : `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--ember-text)">Groundwork tried to save a copy of your records before updating them, and could not (${esc(r.error)}). Your records were updated. Make a backup now from Backups.</div>`;
   confirmAction(r.name ? (r.after_name ? 'Your records were backed up before and after this update' : 'A copy was saved before this update')
     : 'The copy before this update could not be saved', body,
     () => {}, 'OK', false);
@@ -26308,7 +26308,7 @@ function updateReportPreview() {
   txns.filter(t=>t.type==='debit').forEach(t=>{cats[t.category||'Other']=(cats[t.category||'Other']||0)+t.amount;});
   const netDeltaClass = net>=0?'good':'bad';
   const netDeltaText  = net>=0 ? `↑ ${fmt(net)} under budget` : `↓ ${fmt(Math.abs(net))} over budget`;
-  const interestHTML  = totalDebt>0 ? `<div class="report-interest-block"><div class="report-interest-num">${fmt(daily*30,0)}</div><div class="report-interest-label">in interest this month<br><span style="font-size:11px;opacity:.7">${fmt(daily,2)}/day · ${fmt(totalDebt)} total debt</span></div></div>` : '';
+  const interestHTML  = totalDebt>0 ? `<div class="report-interest-block"><div class="report-interest-num">${fmt(daily*30,0)}</div><div class="report-interest-label">in interest this month<br><span style="font-size:var(--fs-xs);opacity:.7">${fmt(daily,2)}/day · ${fmt(totalDebt)} total debt</span></div></div>` : '';
   const bvaHTML = Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([cat,amt])=>{
     const budgeted=S.expenses.find(e=>(e.name||e.cat)===cat)?.amount||0;
     const pct=budgeted>0?Math.min(130,Math.round(amt/budgeted*100)):50;
@@ -26333,7 +26333,7 @@ function updateReportPreview() {
     </div>
     <div class="report-section"><div class="report-section-label">Where the money went</div>${bvaHTML}</div>
     <div class="report-section" id="reportNarrativeSection" style="display:none"><div class="report-section-label">This month in context</div><div class="report-narrative" id="reportAiNarrative"></div><div class="report-ai-badge" id="reportAiBadge"></div></div>
-    <div id="reportGeneratePrompt" style="padding:32px 0;text-align:center"><p style="color:rgba(255,255,255,.62);font-size:14px;margin-bottom:20px">Generate your AI report for a full analysis of this month.</p><button class="btn btn-primary" onclick="openReportModal()">✦ Generate AI Report</button></div>`;
+    <div id="reportGeneratePrompt" style="padding:32px 0;text-align:center"><p style="color:rgba(255,255,255,.62);font-size:var(--fs-md);margin-bottom:20px">Generate your AI report for a full analysis of this month.</p><button class="btn btn-primary" onclick="openReportModal()">✦ Generate AI Report</button></div>`;
 }
 
 // ─── Backup ────────────────────────────────────────────────────────────────────
@@ -26378,7 +26378,7 @@ function _backupReminderLine(r) {
   const last = r.last ? new Date(r.last.at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : null;
   const ago = r.days_since == null ? '' : r.days_since === 0 ? ', today' : r.days_since === 1 ? ', yesterday' : `, ${r.days_since} days ago`;
   return `<br><b style="color:var(--ink)">Last backup:</b> ${last ? esc(last) + ago : 'none yet'}.`
-    + `<br>Remind me after <select onchange="_backupRemindEvery(this.value)" aria-label="Days between backup reminders" style="font-size:12px">`
+    + `<br>Remind me after <select onchange="_backupRemindEvery(this.value)" aria-label="Days between backup reminders" style="font-size:var(--fs-sm)">`
     + r.choices.map(d => `<option value="${d}"${d === r.every ? ' selected' : ''}>${d} days</option>`).join('')
     + `</select> without a backup, when something was added since.`
     + (r.snoozed_until ? ` (Resting until ${esc(new Date(r.snoozed_until + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))}.)` : '');
@@ -26427,7 +26427,7 @@ async function loadBackupList() {
     const res   = await API.get('/api/backup/list');
     const items = res.data || res || [];
     if (!items.length) {
-      list.innerHTML = `<div style="font-size:12px;color:var(--slate);padding:8px 0">
+      list.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate);padding:8px 0">
         No backups on this computer yet. Create one above to protect your data —
         or use "Restore from a file…" if you have a backup from another computer.
       </div>`;
@@ -26449,15 +26449,15 @@ async function loadBackupList() {
       <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;gap:8px;flex-wrap:wrap;
                   border-bottom:0.5px solid var(--steel-2)">
         <div>
-          <div style="font-size:13px;font-weight:500;color:var(--ink)">${b.encrypted ? '🔒 ' : ''}${esc(dateStr)}</div>
-          <div style="font-size:11px;color:var(--slate);margin-top:2px">
+          <div style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">${b.encrypted ? '🔒 ' : ''}${esc(dateStr)}</div>
+          <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">
             ${esc(filename)}${sizeStr ? ` · ${sizeStr}` : ''}${b.encrypted ? ' · protected' : ' · <span style="color:var(--gold-text)">not protected - anyone with the file can open it</span>'}
           </div>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="backupCheck('${esc(filename)}')">Check</button>
-          ${b.encrypted ? '' : `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="backupEncryptOld('${esc(filename)}')">Re-save protected</button>`}
-          <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="backupDelete('${esc(filename)}')">Delete</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="backupCheck('${esc(filename)}')">Check</button>
+          ${b.encrypted ? '' : `<button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="backupEncryptOld('${esc(filename)}')">Re-save protected</button>`}
+          <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="backupDelete('${esc(filename)}')">Delete</button>
           <button class="btn btn-secondary btn-sm"
             onclick="restoreFromBackup('${esc(filename)}')"
             style="color:var(--pine-text);border-color:var(--pine)">
@@ -26467,7 +26467,7 @@ async function loadBackupList() {
       </div>`;
     }).join('');
   } catch(e) {
-    list.innerHTML = '<div style="font-size:12px;color:var(--slate)">Could not load backups.</div>';
+    list.innerHTML = '<div style="font-size:var(--fs-sm);color:var(--slate)">Could not load backups.</div>';
   }
 }
 
@@ -26489,14 +26489,14 @@ async function restoreFromBackup(filename, keys) {
   if (keys) { return _bkRestore(filename, keys); }
   confirmAction(
     'Restore from backup?',
-    `<div style="line-height:1.7;font-size:13px">
+    `<div style="line-height:1.7;font-size:var(--fs-base)">
        <div style="font-weight:500;margin-bottom:8px;color:var(--ink)">${esc(filename)}</div>
        <div style="color:var(--slate)">
          All current data — transactions, budget, debts, and settings — will be
          replaced with this backup. This cannot be undone.
        </div>
        <div style="margin-top:10px;padding:8px 10px;background:var(--mist);
-                   border-radius:var(--r-md);font-size:12px;color:var(--slate)">
+                   border-radius:var(--r-md);font-size:var(--fs-sm);color:var(--slate)">
          Tip: Create a backup of your current data first if you want to be able to go back.
        </div>
      </div>`,
@@ -26524,14 +26524,14 @@ async function handleRestoreUpload(evt) {
 
   confirmAction(
     'Restore from this backup file?',
-    `<div style="line-height:1.7;font-size:13px">
+    `<div style="line-height:1.7;font-size:var(--fs-base)">
        <div style="font-weight:500;margin-bottom:8px;color:var(--ink)">${esc(file.name)}</div>
        <div style="color:var(--slate)">
          All current data — transactions, budget, debts, and settings — will be
          replaced with this backup. This cannot be undone.
        </div>
        <div style="margin-top:10px;padding:8px 10px;background:var(--mist);
-                   border-radius:var(--r-md);font-size:12px;color:var(--slate)">
+                   border-radius:var(--r-md);font-size:var(--fs-sm);color:var(--slate)">
          Tip: Create a backup of your current data first if you want to be able to go back.
        </div>
      </div>`,
@@ -26572,26 +26572,26 @@ async function renderBackupProtect() {
   if (_bkWords) { box.innerHTML = _bkWordsHTML(st); return; }
   if (!st.confirmed) {
     box.innerHTML = `<div style="background:var(--mist);border-radius:var(--r-md);padding:14px;margin-bottom:14px">
-      <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px">Protect your backups</div>
-      <div style="font-size:12px;color:var(--slate);line-height:1.6;margin-bottom:10px">
+      <div style="font-size:var(--fs-base);font-weight:600;color:var(--ink);margin-bottom:6px">Protect your backups</div>
+      <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6;margin-bottom:10px">
         A protected backup can't be opened by anyone who finds the file. Three things open it:
         <b>this computer</b> (nothing to type here)${st.vault_available ? '' : ' - not available here, because this system has no password vault'},
         <b>your backup password</b> (any computer), and <b>a 24-word recovery key</b> you write down, for when the password is forgotten.
         Groundwork never sends any of them anywhere, so nobody else can open your backups - and nobody can reset them for you.</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <input id="bkPw1" type="password" class="field-input" placeholder="Backup password (${st.min_password}+ characters)" style="flex:1;min-width:180px;font-size:12px;padding:6px 10px">
-        <input id="bkPw2" type="password" class="field-input" placeholder="Same password again" style="flex:1;min-width:160px;font-size:12px;padding:6px 10px">
+        <input id="bkPw1" type="password" class="field-input" placeholder="Backup password (${st.min_password}+ characters)" style="flex:1;min-width:180px;font-size:var(--fs-sm);padding:6px 10px">
+        <input id="bkPw2" type="password" class="field-input" placeholder="Same password again" style="flex:1;min-width:160px;font-size:var(--fs-sm);padding:6px 10px">
         <button class="btn btn-primary btn-sm" onclick="backupSetup()">Set up protection</button>
       </div></div>`;
     return;
   }
-  box.innerHTML = `<div style="background:var(--mist);border-radius:var(--r-md);padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--ink);line-height:1.6">
+  box.innerHTML = `<div style="background:var(--mist);border-radius:var(--r-md);padding:12px 14px;margin-bottom:14px;font-size:var(--fs-sm);color:var(--ink);line-height:1.6">
       🔒 <b>Your backups are protected.</b> ${st.key_on_this_computer ? 'This computer opens them with nothing to type.' : "This computer doesn't hold the backup key, so making or opening a backup asks for the password."}
       On another computer: your backup password, or your 24-word recovery key.
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
-        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="backupChangePassword()">Change password</button>
-        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="backupNewRecovery()">New recovery key</button>
-        ${st.key_on_this_computer ? '<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="backupReset()">Forgot the password and lost the words?</button>' : ''}
+        <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="backupChangePassword()">Change password</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="backupNewRecovery()">New recovery key</button>
+        ${st.key_on_this_computer ? '<button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="backupReset()">Forgot the password and lost the words?</button>' : ''}
       </div></div>`;
 }
 
@@ -26599,18 +26599,18 @@ function _bkWordsHTML() {
   const w = _bkWords || [];
   if (_bkAsk) {
     return `<div style="background:var(--mist);border-radius:var(--r-md);padding:14px;margin-bottom:14px">
-      <div style="font-size:13px;font-weight:600;margin-bottom:8px">Check that you saved it</div>
-      <div style="font-size:12px;color:var(--slate);margin-bottom:8px">Type these words from your recovery key.</div>
-      ${_bkAsk.map(i => `<label style="display:flex;align-items:center;gap:8px;font-size:12px;margin:4px 0">Word ${i + 1}
-        <input class="field-input bk-ask" data-i="${i}" style="width:160px;font-size:12px;padding:5px 8px" autocomplete="off"></label>`).join('')}
+      <div style="font-size:var(--fs-base);font-weight:600;margin-bottom:8px">Check that you saved it</div>
+      <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:8px">Type these words from your recovery key.</div>
+      ${_bkAsk.map(i => `<label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);margin:4px 0">Word ${i + 1}
+        <input class="field-input bk-ask" data-i="${i}" style="width:160px;font-size:var(--fs-sm);padding:5px 8px" autocomplete="off"></label>`).join('')}
       <div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-primary btn-sm" onclick="backupConfirmWords()">Confirm</button>
         <button class="btn btn-ghost btn-sm" onclick="_bkAsk=null;renderBackupProtect()">Show the words again</button></div></div>`;
   }
   return `<div id="bkWords" style="background:var(--paper);border:2px solid var(--ink);border-radius:var(--r-md);padding:16px;margin-bottom:14px">
-      <div style="font-size:14px;font-weight:700;margin-bottom:4px">Your Groundwork backup recovery key</div>
-      <div style="font-size:12px;color:var(--slate);margin-bottom:10px">Write these 24 words down, in order, or print this. Keep it somewhere safe and private.
+      <div style="font-size:var(--fs-md);font-weight:700;margin-bottom:4px">Your Groundwork backup recovery key</div>
+      <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:10px">Write these 24 words down, in order, or print this. Keep it somewhere safe and private.
         It opens your backups on any computer if you forget the password. <b>Groundwork will not show it again and does not keep it.</b></div>
-      <ol style="columns:3;font-family:var(--font-mono);font-size:13px;line-height:1.9;padding-left:24px;margin:0">${w.map(x => `<li>${esc(x)}</li>`).join('')}</ol>
+      <ol style="columns:3;font-family:var(--font-mono);font-size:var(--fs-base);line-height:1.9;padding-left:24px;margin:0">${w.map(x => `<li>${esc(x)}</li>`).join('')}</ol>
       <div class="bk-noprint" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
         <button class="btn btn-secondary btn-sm" onclick="backupPrintWords()">Print</button>
         <button class="btn btn-primary btn-sm" onclick="backupWroteItDown()">I've written it down</button></div>
@@ -26627,10 +26627,10 @@ const _outsideHelp = () => [          // a function: the care lists it starts fr
 ];
 function outsideHelpHTML() {
   return `<div class="care" role="region" aria-label="Outside help">
-    <div style="font-size:14px;font-weight:600;color:var(--ink)">Outside help</div>
-    <div style="font-size:12px;color:var(--slate);line-height:1.6;margin-top:4px">Free or low-cost help from real people. Each link opens outside Groundwork; nothing is sent from here.</div>
+    <div style="font-size:var(--fs-md);font-weight:600;color:var(--ink)">Outside help</div>
+    <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6;margin-top:4px">Free or low-cost help from real people. Each link opens outside Groundwork; nothing is sent from here.</div>
     ${_outsideHelp().map(l => _careLine(l)).join('')}
-    <div style="font-size:12px;color:var(--slate);line-height:1.6;margin-top:12px">If it ever feels like more than money, you can call or text <strong>988</strong> any time.</div>
+    <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6;margin-top:12px">If it ever feels like more than money, you can call or text <strong>988</strong> any time.</div>
     ${_careLine(CARE_988)}</div>`;
 }
 function showOutsideHelp() {
@@ -26705,8 +26705,8 @@ async function backupSetup() {
   renderBackupProtect();
 }
 function _bkPrompt(title, fields, done, label) {
-  confirmAction(title, `<div style="font-size:12px;color:var(--slate);margin-bottom:8px">${fields.note || ''}</div>`
-    + fields.inputs.map(f => `<input id="${f.id}" type="${f.type || 'password'}" class="field-input" placeholder="${esc(f.ph)}" style="width:100%;margin-bottom:6px;font-size:12px;padding:6px 10px" autocomplete="off">`).join(''),
+  confirmAction(title, `<div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:8px">${fields.note || ''}</div>`
+    + fields.inputs.map(f => `<input id="${f.id}" type="${f.type || 'password'}" class="field-input" placeholder="${esc(f.ph)}" style="width:100%;margin-bottom:6px;font-size:var(--fs-sm);padding:6px 10px" autocomplete="off">`).join(''),
     () => done(Object.fromEntries(fields.inputs.map(f => [f.id, g(f.id)?.value || '']))), label || 'Continue', false);
 }
 function backupChangePassword() {
@@ -26755,7 +26755,7 @@ async function backupEncryptOld(filename) {
   catch (e) { _gwErr('backupEncryptOld')(e); showToast('Not saved', e?.message || '', 'warning'); }
 }
 function backupDelete(filename) {
-  confirmAction('Delete this backup?', `<div style="font-size:13px;color:var(--slate)">${esc(filename)} will be deleted from this computer. This can't be undone.</div>`,
+  confirmAction('Delete this backup?', `<div style="font-size:var(--fs-base);color:var(--slate)">${esc(filename)} will be deleted from this computer. This can't be undone.</div>`,
     async () => {
       try { await API.post('/api/backup/delete', { filename }); loadBackupList(); }
       catch (e) { _gwErr('backupDelete')(e); showToast('Not deleted', e?.message || '', 'warning'); }
@@ -26772,7 +26772,7 @@ let _aiDisclosureCounter = 0;
 // Item 62 G2: the panel keeps "The numbers behind this analysis"; what was sent lives in the AI log, one line away.
 function _renderAIDisclosure(payload) {
   if (!payload || !payload.logCall) return '';
-  return `<div style="margin-top:10px;font-size:11px;color:var(--slate)">Sent to AI on this computer ·
+  return `<div style="margin-top:10px;font-size:var(--fs-xs);color:var(--slate)">Sent to AI on this computer ·
     <a href="#" onclick="openAiLog('${esc(payload.logCall)}');return false" style="color:var(--slate);text-decoration:underline">see it in the log</a></div>`;
 }
 
@@ -26785,18 +26785,18 @@ function _renderAIDisclosureFull(payload) {
   return `
     <div class="ai-disclosure" style="margin-top:10px">
       <button type="button" onclick="_toggleAIDisclosure('${id}')"
-        style="background:none;border:none;padding:0;font-size:11px;color:var(--slate-2);cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-family:inherit">
-        <span id="${id}-arrow" style="display:inline-block;transition:transform .15s;font-size:10px">▸</span>
+        style="background:none;border:none;padding:0;font-size:var(--fs-xs);color:var(--slate-2);cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-family:inherit">
+        <span id="${id}-arrow" style="display:inline-block;transition:transform .15s;font-size:var(--fs-xs)">▸</span>
         View what was sent to AI
       </button>
       <div id="${id}" class="hidden" style="margin-top:8px;padding:12px;background:var(--mist);border-radius:var(--r-md)">
         ${system ? `<div style="margin-bottom:${userMsg?'10px':'0'}">
-          <div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-bottom:4px">Instructions</div>
-          <pre style="white-space:pre-wrap;font-family:var(--font-mono);font-size:11px;line-height:1.6;color:var(--slate);margin:0">${esc(system)}</pre>
+          <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-bottom:4px">Instructions</div>
+          <pre style="white-space:pre-wrap;font-family:var(--font-mono);font-size:var(--fs-xs);line-height:1.6;color:var(--slate);margin:0">${esc(system)}</pre>
         </div>` : ''}
         ${userMsg ? `<div>
-          <div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-bottom:4px">Your financial summary</div>
-          <pre style="white-space:pre-wrap;font-family:var(--font-mono);font-size:11px;line-height:1.6;color:var(--slate);margin:0">${esc(userMsg)}</pre>
+          <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-bottom:4px">Your financial summary</div>
+          <pre style="white-space:pre-wrap;font-family:var(--font-mono);font-size:var(--fs-xs);line-height:1.6;color:var(--slate);margin:0">${esc(userMsg)}</pre>
         </div>` : ''}
       </div>
     </div>`;
@@ -27083,32 +27083,32 @@ function _evidenceFollow(e) {
 // Rob 2026-10-21: what the person's own record shows, on top of the card it bears on, so their own figures are read
 // first and the finding after - facts only, from the engine
 function _evidenceYours(e) {
-  const lines = (e.yours || []).map(t => `<div style="font-size:13px;color:var(--ink);line-height:1.6">${esc(t)}</div>`).join('');
+  const lines = (e.yours || []).map(t => `<div style="font-size:var(--fs-base);color:var(--ink);line-height:1.6">${esc(t)}</div>`).join('');
   return lines ? `<div class="card-label">In your record</div>${lines}
     <div class="card-label" style="margin-top:14px">What research has found</div>` : '<div class="card-label">What research has found</div>';
 }
 
 function _evidenceSource(x) {
   const s = x.source || {};
-  return `<div style="font-size:11px;color:var(--slate-2);margin-top:6px">${esc(s.authors || '')} (${esc(String(s.year || ''))}). ${esc(s.title || '')}. ${esc(s.journal || '')}. ${esc(x.strength || '')}.${s.url ? ' ' + esc(s.url) : ''}</div>`;
+  return `<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:6px">${esc(s.authors || '')} (${esc(String(s.year || ''))}). ${esc(s.title || '')}. ${esc(s.journal || '')}. ${esc(x.strength || '')}.${s.url ? ' ' + esc(s.url) : ''}</div>`;
 }
 
 function _evidenceHTML(e) {
   const ans = e.answer;
   const offer = ans
-    ? `<div style="font-size:12px;color:var(--slate);margin-top:8px">You said ${ans.answer === 'yes' ? 'yes' : 'no thanks'} on ${esc(String(ans.said_at || '').slice(0, 10))}.${ans.answer === 'yes' ? _evidenceFollow(e) : ''}
+    ? `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:8px">You said ${ans.answer === 'yes' ? 'yes' : 'no thanks'} on ${esc(String(ans.said_at || '').slice(0, 10))}.${ans.answer === 'yes' ? _evidenceFollow(e) : ''}
         <button class="btn btn-ghost btn-sm" onclick="evidenceAnswer('${esc(e.id)}', '${ans.answer === 'yes' ? 'no' : 'yes'}')">Change to ${ans.answer === 'yes' ? 'no thanks' : 'yes'}</button></div>`
-    : `<div style="font-size:12px;color:var(--ink);margin-top:8px">${esc(e.offer)}
+    : `<div style="font-size:var(--fs-sm);color:var(--ink);margin-top:8px">${esc(e.offer)}
         <button class="btn btn-secondary btn-sm" style="margin-left:6px" onclick="evidenceAnswer('${esc(e.id)}', 'yes')">Yes</button>
         <button class="btn btn-ghost btn-sm" onclick="evidenceAnswer('${esc(e.id)}', 'no')">No thanks</button></div>`;
   return `<div class="card mt-5" data-evidence="${esc(e.id)}">${_evidenceYours(e)}
-    <div class="gw-ev-intro" style="font-size:12px;color:var(--slate);font-style:italic;margin-bottom:4px">${esc(_evStripTags(e.intro || ''))}</div>
-    <div style="font-size:13px;color:var(--ink);line-height:1.6;margin:4px 0">${esc(e.finding)}</div>
-    <div style="font-size:12px;color:var(--slate);line-height:1.6"><strong>What it doesn't show:</strong> ${esc(e.limits)}</div>
+    <div class="gw-ev-intro" style="font-size:var(--fs-sm);color:var(--slate);font-style:italic;margin-bottom:4px">${esc(_evStripTags(e.intro || ''))}</div>
+    <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.6;margin:4px 0">${esc(e.finding)}</div>
+    <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6"><strong>What it doesn't show:</strong> ${esc(e.limits)}</div>
     ${_evidenceSource(e)}
     ${(e.also || []).map(x => `<div style="margin-top:10px">
-    <div style="font-size:13px;color:var(--ink);line-height:1.6;margin:4px 0">${esc(x.finding)}</div>
-    <div style="font-size:12px;color:var(--slate);line-height:1.6"><strong>What it doesn't show:</strong> ${esc(x.limits)}</div>
+    <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.6;margin:4px 0">${esc(x.finding)}</div>
+    <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6"><strong>What it doesn't show:</strong> ${esc(x.limits)}</div>
     ${_evidenceSource(x)}</div>`).join('')}
     ${offer}</div>`;
 }
@@ -27146,10 +27146,10 @@ function closeWhy() { const p = g('whyPanel'); if (p) p.remove(); _whyPreview = 
 async function openWhy(figure) {
   _whyFigure = figure;
   const p = _whyPanel();
-  p.innerHTML = '<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--slate)"><div class="spinner"></div>Checking your records…</div>';
+  p.innerHTML = '<div style="display:flex;align-items:center;gap:10px;font-size:var(--fs-sm);color:var(--slate)"><div class="spinner"></div>Checking your records…</div>';
   let d;
   try { d = await API.get('/api/why?figure=' + encodeURIComponent(figure)); }
-  catch (e) { _gwErr('openWhy')(e); p.innerHTML = '<div style="font-size:12px;color:var(--ember-text)">The checks could not run.</div>'; return; }
+  catch (e) { _gwErr('openWhy')(e); p.innerHTML = '<div style="font-size:var(--fs-sm);color:var(--ember-text)">The checks could not run.</div>'; return; }
   let fixes = [];
   try { fixes = ((await API.get('/api/why/fixes')) || {}).fixes || []; } catch (e) { _gwErr('openWhy fixes')(e); }
   p.innerHTML = _whyHTML(d, fixes);
@@ -27157,8 +27157,8 @@ async function openWhy(figure) {
 
 function _whyRowsHTML(rows) {
   if (!rows || !rows.length) return '';
-  return `<details style="margin-top:6px"><summary style="font-size:11px;color:var(--sky);cursor:pointer">The ${rows.length} record${rows.length !== 1 ? 's' : ''}</summary>
-    <div style="font-size:11px;line-height:1.6;margin-top:4px">${rows.map(r => `<div style="display:flex;gap:8px;border-bottom:0.5px solid var(--steel);padding:3px 0">
+  return `<details style="margin-top:6px"><summary style="font-size:var(--fs-xs);color:var(--sky);cursor:pointer">The ${rows.length} record${rows.length !== 1 ? 's' : ''}</summary>
+    <div style="font-size:var(--fs-xs);line-height:1.6;margin-top:4px">${rows.map(r => `<div style="display:flex;gap:8px;border-bottom:0.5px solid var(--steel);padding:3px 0">
       <span style="white-space:nowrap">${esc(r.date)}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${esc(r.merchant || r.description)}</span>
       <span>${r.type === 'credit' ? '+' : '-'}${fmt(r.amount)}</span><span style="color:var(--slate-2)">${esc(r.category)}</span></div>`).join('')}</div></details>`;
 }
@@ -27166,8 +27166,8 @@ function _whyRowsHTML(rows) {
 function _whyHTML(d, fixes) {
   const card = (r, i) => `<div class="card" style="margin-top:10px" data-why-check="${esc(r.check)}">
       <div class="card-label">${esc(r.title)}</div>
-      <div style="font-size:13px;color:var(--ink);line-height:1.6">${esc(r.text)}</div>
-      ${r.table ? `<div style="font-size:11px;margin-top:6px;line-height:1.6"><div style="display:flex;gap:8px;color:var(--slate-2)"><span style="width:64px">Month</span><span style="width:90px">Counted</span><span>Deposits not counted</span></div>
+      <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.6">${esc(r.text)}</div>
+      ${r.table ? `<div style="font-size:var(--fs-xs);margin-top:6px;line-height:1.6"><div style="display:flex;gap:8px;color:var(--slate-2)"><span style="width:64px">Month</span><span style="width:90px">Counted</span><span>Deposits not counted</span></div>
         ${r.table.map(m => {
           const big = Object.entries(m.left_out).filter(([, v]) => v >= 100);
           const small = Object.entries(m.left_out).filter(([, v]) => v < 100);
@@ -27177,19 +27177,19 @@ function _whyHTML(d, fixes) {
           ...(small.length ? [`${small.length} small deposit${small.length !== 1 ? 's' : ''} (refunds and the like) ${fmt(smallSum)}`] : [])].join(' · ') || '-'}</span></div>`;
         }).join('')}</div>` : ''}
       ${_whyRowsHTML(r.rows)}
-      <div style="font-size:11px;color:var(--slate-2);margin-top:6px"><b>What this shows:</b> ${esc(r.establishes)} <b>What it can't tell:</b> ${esc(r.cannot)}</div>
-      ${(r.fixes || []).length ? `<div style="margin-top:8px;font-size:11px;color:var(--slate)">Ways this could be changed - your choice, and nothing changes until you approve the exact list:</div>
-        ${r.fixes.map((f, j) => `<div style="margin-top:4px">${f.to_category_id == null ? `<select id="whyPick${i}_${j}" style="font-size:12px">${(S.categories || []).filter(c => c.type !== 'income').map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>` : ''}
+      <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:6px"><b>What this shows:</b> ${esc(r.establishes)} <b>What it can't tell:</b> ${esc(r.cannot)}</div>
+      ${(r.fixes || []).length ? `<div style="margin-top:8px;font-size:var(--fs-xs);color:var(--slate)">Ways this could be changed - your choice, and nothing changes until you approve the exact list:</div>
+        ${r.fixes.map((f, j) => `<div style="margin-top:4px">${f.to_category_id == null ? `<select id="whyPick${i}_${j}" style="font-size:var(--fs-sm)">${(S.categories || []).filter(c => c.type !== 'income').map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>` : ''}
           <button class="btn btn-secondary btn-sm" onclick="whyPreviewFix(${i}, ${j})">${esc(f.label)}…</button></div>`).join('')}` : ''}
     </div>`;
   window._whyResults = d.results;
-  return `<div style="display:flex;justify-content:space-between;align-items:center"><div class="section-title" style="font-size:16px">Why: ${esc(d.label)}</div>
+  return `<div style="display:flex;justify-content:space-between;align-items:center"><div class="section-title" style="font-size:var(--fs-lg)">Why: ${esc(d.label)}</div>
       <button class="btn btn-ghost btn-sm" onclick="closeWhy()" aria-label="Close">✕</button></div>
-    <div style="font-size:11px;color:var(--slate-2);margin-top:2px">Checked against your records just now. These say what the records show, not why it happened.</div>
+    <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:2px">Checked against your records just now. These say what the records show, not why it happened.</div>
     ${d.results.map(card).join('')}
-    ${d.none_text ? `<div class="card" style="margin-top:10px;font-size:12px;color:var(--slate)">${esc(d.none_text)}</div>` : ''}
+    ${d.none_text ? `<div class="card" style="margin-top:10px;font-size:var(--fs-sm);color:var(--slate)">${esc(d.none_text)}</div>` : ''}
     <div id="whyPreviewBox"></div>
-    ${fixes.length ? `<div class="card" style="margin-top:10px"><div class="card-label">Changes made here</div>${fixes.map(f => `<div style="font-size:12px;padding:4px 0">
+    ${fixes.length ? `<div class="card" style="margin-top:10px"><div class="card-label">Changes made here</div>${fixes.map(f => `<div style="font-size:var(--fs-sm);padding:4px 0">
       ${esc(String(f.at || '').slice(0, 10))}: ${esc(f.label)} (${f.count}, ${fmt(f.total)})
       ${f.undone ? '<span style="color:var(--slate-2)">undone</span>' : `<button class="btn btn-ghost btn-sm" onclick="whyUndo(${f.historian_id})">Undo</button>`}</div>`).join('')}</div>` : ''}`;
 }
@@ -27199,7 +27199,7 @@ async function whyPreviewFix(i, j) {
   if (f.to_category_id == null) f.to_category_id = parseInt(g(`whyPick${i}_${j}`)?.value) || null;
   const box = g('whyPreviewBox');
   try { _whyPreview = await API.post('/api/why/preview', { fix: f }); }
-  catch (e) { if (box) box.innerHTML = `<div style="font-size:12px;color:var(--ember-text)">${esc(e.message)}</div>`; return; }
+  catch (e) { if (box) box.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--ember-text)">${esc(e.message)}</div>`; return; }
   _whyRenderPreview(box);
 }
 
@@ -27207,13 +27207,13 @@ function _whyRenderPreview(box) {
   const p = _whyPreview;
   if (!box || !p) return;
   box.innerHTML = `<div class="card" style="margin-top:12px;border:1px solid var(--sky)"><div class="card-label">The exact change</div>
-    <div style="font-size:12px;color:var(--ink)">${esc(p.label)}: ${p.count} record${p.count !== 1 ? 's' : ''}, ${fmt(p.total)}.</div>
-    <div style="font-size:11px;line-height:1.6;margin-top:6px">${p.rows.map(r => `<div style="display:flex;gap:8px;border-bottom:0.5px solid var(--steel);padding:3px 0">
+    <div style="font-size:var(--fs-sm);color:var(--ink)">${esc(p.label)}: ${p.count} record${p.count !== 1 ? 's' : ''}, ${fmt(p.total)}.</div>
+    <div style="font-size:var(--fs-xs);line-height:1.6;margin-top:6px">${p.rows.map(r => `<div style="display:flex;gap:8px;border-bottom:0.5px solid var(--steel);padding:3px 0">
       <span>${esc(r.date)}</span><span style="flex:1">${esc(r.merchant || r.description)}</span><span>${fmt(r.amount)}</span>
       <span>${esc(r.category)} → <b>${esc(r.proposed)}</b></span></div>`).join('')}</div>
-    <div style="font-size:12px;margin-top:8px"><b>Your monthly income, before and after:</b>${p.figure.map(m => `<div>${esc(m.month)}: ${fmt(m.before)} → ${fmt(m.after)}</div>`).join('')}</div>
-    <div style="font-size:11px;color:var(--slate);margin-top:6px">This feeds: ${p.feeds.map(esc).join('; ')}. ${esc(p.others_may_change)}</div>
-    ${p.rule ? `<label style="display:flex;gap:6px;align-items:flex-start;font-size:12px;margin-top:8px"><input type="checkbox" id="whyUseRule">
+    <div style="font-size:var(--fs-sm);margin-top:8px"><b>Your monthly income, before and after:</b>${p.figure.map(m => `<div>${esc(m.month)}: ${fmt(m.before)} → ${fmt(m.after)}</div>`).join('')}</div>
+    <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:6px">This feeds: ${p.feeds.map(esc).join('; ')}. ${esc(p.others_may_change)}</div>
+    ${p.rule ? `<label style="display:flex;gap:6px;align-items:flex-start;font-size:var(--fs-sm);margin-top:8px"><input type="checkbox" id="whyUseRule">
       <span>Also file future ${p.rule.direction === 'credit' ? 'deposits' : 'charges'} from ${esc(p.rule.value)} under "${esc(p.rule.category)}" when you import.
       ${p.rule.replaces_for_this_direction ? `Today the rule "${esc(p.rule.replaces_for_this_direction.value)}" files them under "${esc(p.rule.replaces_for_this_direction.category)}".` : ''} ${esc(p.rule.note)}</span></label>` : ''}
     <div style="display:flex;gap:8px;margin-top:10px">
@@ -27347,10 +27347,10 @@ function _askNumbersOk(text, entry) {
 
 function _askEntryHTML(it, head) {
   window._askOpen = it.open || null;
-  return head + `<div style="font-size:14px;font-weight:600;color:var(--ink);margin-top:6px">${esc(it.q)}</div>
-    <div style="font-size:13px;color:var(--ink);line-height:1.65;margin-top:6px">${esc(it.a)}</div>
+  return head + `<div style="font-size:var(--fs-md);font-weight:600;color:var(--ink);margin-top:6px">${esc(it.q)}</div>
+    <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.65;margin-top:6px">${esc(it.a)}</div>
     ${it.open ? `<button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="helpOpen(window._askOpen)">Open it for me</button>` : ''}
-    <div style="font-size:11px;color:var(--slate-2);margin-top:10px">From Groundwork's guide - the same answers as the ? button.</div>`;
+    <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:10px">From Groundwork's guide - the same answers as the ? button.</div>`;
 }
 
 function askShowEntry(i) {
@@ -27452,7 +27452,7 @@ function _askNorm(q) {
   return t.replace(/\s+please$/, '').trim();
 }
 
-function _askSay(p, head, html) { p.innerHTML = head + `<div class="byb-in" style="font-size:13px;color:var(--ink);line-height:1.65;margin-top:8px">${html}</div>`; }
+function _askSay(p, head, html) { p.innerHTML = head + `<div class="byb-in" style="font-size:var(--fs-base);color:var(--ink);line-height:1.65;margin-top:8px">${html}</div>`; }
 function _askDone(label) { closeAsk(); const box = g('gwAskBox'); if (box) box.value = ''; if (label) showToast(label, '', 'info'); }
 function _askReveal(id) {
   setTimeout(() => {
@@ -27607,7 +27607,7 @@ function askIntent(q, p, head) {
   for (const r of ASK_RECORD) if (r.re.test(n)) {
     window._askPlace = r.place;
     _askSay(p, head, `${esc(r.say)}<div style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="askGo(window._askPlace)">Show me</button></div>
-      <div style="font-size:11px;color:var(--slate-2);margin-top:8px">Groundwork shows your figures where it works them out, never as a guess.</div>`);
+      <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:8px">Groundwork shows your figures where it works them out, never as a guess.</div>`);
     return true;
   }
   const spend = _askSpend(n);
@@ -27825,25 +27825,25 @@ function showFigTxns(el) {
     ov.onclick = e => { if (e.target === ov) ov.remove(); };
     document.body.appendChild(ov);
   }
-  const td = 'padding:7px 10px;border-bottom:1px solid var(--steel);font-size:12px;vertical-align:top';
+  const td = 'padding:7px 10px;border-bottom:1px solid var(--steel);font-size:var(--fs-sm);vertical-align:top';
   ov.innerHTML = `<div style="background:var(--paper);border:1px solid var(--steel);border-radius:var(--r-lg);box-shadow:0 8px 24px rgba(0,0,0,.18);width:min(820px,100%);padding:18px 20px">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
-      <div><div style="font-size:15px;font-weight:600;color:var(--ink)">${esc(name)}${cat.startsWith('@') || (d.figFrom && !d.figMerchant && _catIsParent(cat)) ? ' and its subcategories' : ''} - ${esc(monthName)}</div>
-        <div style="font-size:12px;color:var(--slate);margin-top:3px">${rows.length} transaction${rows.length === 1 ? '' : 's'} came through your accounts, adding up to <strong>${fmt(total)}</strong>.</div></div>
+      <div><div style="font-size:var(--fs-lg);font-weight:600;color:var(--ink)">${esc(name)}${cat.startsWith('@') || (d.figFrom && !d.figMerchant && _catIsParent(cat)) ? ' and its subcategories' : ''} - ${esc(monthName)}</div>
+        <div style="font-size:var(--fs-sm);color:var(--slate);margin-top:3px">${rows.length} transaction${rows.length === 1 ? '' : 's'} came through your accounts, adding up to <strong>${fmt(total)}</strong>.</div></div>
       <button class="btn btn-ghost btn-sm" onclick="g('figTxnsOverlay').remove()" aria-label="Close">✕</button></div>
     ${rows.length ? `<div style="overflow-x:auto;margin-top:12px"><table style="width:100%;border-collapse:collapse;min-width:560px">
-      <thead><tr style="text-align:left;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2)">
+      <thead><tr style="text-align:left;font-size:var(--fs-xs);letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2)">
         <th style="${td}">Date</th><th style="${td}">Where</th><th style="${td}">Account</th><th style="${td}">Category</th><th style="${td};text-align:right">Amount</th></tr></thead>
       <tbody>${rows.map((t, i) => `<tr style="cursor:pointer" title="Open it in the Ledger" onclick="g('figTxnsOverlay').remove();askLedgerSearch(window._figTxnRows[${i}].description)">
-        <td style="${td};white-space:nowrap;font-family:var(--font-mono)">${esc(t.date || '')}${t.posted_date && t.posted_date !== t.date ? `<div style="font-size:10px;color:var(--slate-2)">posted ${esc(t.posted_date)}</div>` : ''}</td>
-        <td style="${td}">${esc(t.merchant || t.description || '')}${t.merchant && t.description && t.merchant.toLowerCase() !== t.description.toLowerCase() ? `<div style="font-size:10px;color:var(--slate-2)">Bank says: ${esc(t.description)}</div>` : ''}${t.pending ? '<div style="font-size:10px;color:var(--gold-text)">Pending</div>' : ''}</td>
+        <td style="${td};white-space:nowrap;font-family:var(--font-mono)">${esc(t.date || '')}${t.posted_date && t.posted_date !== t.date ? `<div style="font-size:var(--fs-xs);color:var(--slate-2)">posted ${esc(t.posted_date)}</div>` : ''}</td>
+        <td style="${td}">${esc(t.merchant || t.description || '')}${t.merchant && t.description && t.merchant.toLowerCase() !== t.description.toLowerCase() ? `<div style="font-size:var(--fs-xs);color:var(--slate-2)">Bank says: ${esc(t.description)}</div>` : ''}${t.pending ? '<div style="font-size:var(--fs-xs);color:var(--gold-text)">Pending</div>' : ''}</td>
         <td style="${td}">${esc(t.account || '')}${t.card_last4 ? ` ····${esc(t.card_last4)}` : ''}</td>
         <td style="${td}">${esc(t.category || '')}</td>
         <td style="${td};text-align:right;font-family:var(--font-mono)">${fmt(t.amount)}</td></tr>`).join('')}</tbody>
       <tfoot><tr><td style="${td};font-weight:600" colspan="4">Total - ${rows.length} transaction${rows.length === 1 ? '' : 's'}</td>
         <td style="${td};text-align:right;font-family:var(--font-mono);font-weight:600">${fmt(total)}</td></tr></tfoot></table></div>`
-      : `<div style="font-size:13px;color:var(--slate);margin-top:12px">No transactions are filed under ${esc(name)} for ${esc(monthName)}.</div>`}
-    <div style="font-size:11px;color:var(--slate-2);margin-top:12px;line-height:1.6">${same ? `The same ${fmt(total)} the page shows - these are the transactions it adds up.` : `The page shows ${esc(shown)}; these add up to ${fmt(total)}.`}
+      : `<div style="font-size:var(--fs-base);color:var(--slate);margin-top:12px">No transactions are filed under ${esc(name)} for ${esc(monthName)}.</div>`}
+    <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:12px;line-height:1.6">${same ? `The same ${fmt(total)} the page shows - these are the transactions it adds up.` : `The page shows ${esc(shown)}; these add up to ${fmt(total)}.`}
       Only charges are counted, by the category each is filed under; a transaction set aside is left out. One in the wrong category? Tap it to open it in the Ledger and change it there.</div></div>`;
 }
 document.addEventListener('click', ev => {
@@ -27943,20 +27943,20 @@ async function explainPage() {
   const title = (VIEW_LABELS[name] || (view && view.querySelector('h1,h2')?.innerText) || 'This page');
   const what = page ? [page.what, page.tabs && page.tabs[tab]].filter(Boolean).join(' ') : 'Groundwork has no description of this page yet.';
   const head = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-      <div style="font-size:11px;color:var(--slate-2)">Explain this page: ${esc(title)}${tabName ? ' - ' + esc(tabName) : ''}</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate-2)">Explain this page: ${esc(title)}${tabName ? ' - ' + esc(tabName) : ''}</div>
       <button class="btn btn-ghost btn-sm" onclick="closeAsk()" aria-label="Close">✕</button></div>`;
-  const whatHTML = `<div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-top:10px">What this page works out</div>
-    <div style="font-size:13px;color:var(--ink);line-height:1.65;margin-top:4px">${esc(what)}</div>`;
-  const foot = note => `<div style="font-size:11px;color:var(--slate-2);margin-top:12px;line-height:1.6">${note}</div>`;
-  const sectionHead = t => `<div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-top:14px">${t}</div>`;
+  const whatHTML = `<div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-top:10px">What this page works out</div>
+    <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.65;margin-top:4px">${esc(what)}</div>`;
+  const foot = note => `<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:12px;line-height:1.6">${note}</div>`;
+  const sectionHead = t => `<div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-top:14px">${t}</div>`;
   // a report's summary line is named by the report itself ("Total spent"), not "Figure in this report"
-  const figName = (f, i) => `<a href="#" onclick="event.preventDefault();explainShowFig(${i})" style="font-size:12px;font-weight:600;color:var(--pine-text);text-decoration:none">${esc(f.key === 'report.line' ? f.of : (f.of ? f.of + ' - ' : '') + f.label)}: ${esc(f.value)}</a>`;
+  const figName = (f, i) => `<a href="#" onclick="event.preventDefault();explainShowFig(${i})" style="font-size:var(--fs-sm);font-weight:600;color:var(--pine-text);text-decoration:none">${esc(f.key === 'report.line' ? f.of : (f.of ? f.of + ' - ' : '') + f.label)}: ${esc(f.value)}</a>`;
   const txLink = i => (window._explainFigs[i] && window._explainFigs[i].el.dataset.figCat)
-    ? ` <a href="#" onclick="event.preventDefault();showFigTxns(window._explainFigs[${i}].el)" style="font-size:12px;color:var(--pine-text)">See the transactions</a>` : '';
+    ? ` <a href="#" onclick="event.preventDefault();showFigTxns(window._explainFigs[${i}].el)" style="font-size:var(--fs-sm);color:var(--pine-text)">See the transactions</a>` : '';
   // Each figure in Groundwork's own words, from its tag: what it is, and where it is kept - always right, AI or not
   const ownWords = idx => idx.map(i => { const f = window._explainFigs[i]; return `<div style="margin-top:8px">${figName(f, i)}
-      <div style="font-size:13px;color:var(--ink);line-height:1.6">${esc(f.means.charAt(0).toUpperCase() + f.means.slice(1))}.${txLink(i)}</div>
-      <div style="font-size:11px;color:var(--slate-2)">Kept in: ${esc(f.record)}</div></div>`; }).join('');
+      <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.6">${esc(f.means.charAt(0).toUpperCase() + f.means.slice(1))}.${txLink(i)}</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate-2)">Kept in: ${esc(f.record)}</div></div>`; }).join('');
   if (EXPLAIN_FIXED_ONLY[name]) {
     p.innerHTML = head + whatHTML + foot(esc(EXPLAIN_FIXED_ONLY[name]) + ' Nothing here is saved.');
     return;
@@ -27973,7 +27973,7 @@ async function explainPage() {
       + foot((aiEnabled() ? '' : 'With AI on, the AI also says what they mean for you, in plain words. ') + 'Nothing here is saved.');
     return;
   }
-  p.innerHTML = head + whatHTML + `<div id="explainNums" style="font-size:13px;color:var(--slate);margin-top:12px">Reading the figures on this page…</div>`;
+  p.innerHTML = head + whatHTML + `<div id="explainNums" style="font-size:var(--fs-base);color:var(--slate);margin-top:12px">Reading the figures on this page…</div>`;
   const list = figs.map((f, i) => `[${i + 1}] ${f.key === 'report.line' ? f.of : (f.of ? f.of + ' - ' : '') + f.label}: ${f.value} (${f.means})`).join('\n');
   const r = await callAI({
     system: EXPLAIN_SYSTEM, surface: 'explain_page', findings_kinds: EXPLAIN_KINDS[name], max_sentences: 5, max_tokens: 320,
@@ -27985,8 +27985,8 @@ async function explainPage() {
   if (kept.length) {
     g('explainNums').outerHTML = sectionHead('Your numbers, in plain words')
       + kept.map(k => `<div style="margin-top:8px">${figName(k.f, k.i)}
-        <div style="font-size:13px;color:var(--ink);line-height:1.65">${esc(k.body)}${txLink(k.i)}</div></div>`).join('')
-      + (rest.length ? `<details style="margin-top:10px"><summary style="font-size:12px;color:var(--slate);cursor:pointer">The other ${rest.length} figure${rest.length === 1 ? '' : 's'} on this page, in Groundwork's words</summary>${ownWords(rest)}</details>` : '')
+        <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.65">${esc(k.body)}${txLink(k.i)}</div></div>`).join('')
+      + (rest.length ? `<details style="margin-top:10px"><summary style="font-size:var(--fs-sm);color:var(--slate);cursor:pointer">The other ${rest.length} figure${rest.length === 1 ? '' : 's'} on this page, in Groundwork's words</summary>${ownWords(rest)}</details>` : '')
       + foot("Each figure's name and value are Groundwork's; the sentence under it is the AI's, written on this computer and checked against that figure only. Tap a figure to see it on the page. Nothing is saved and nothing is changed.");
   } else {
     g('explainNums').outerHTML = sectionHead('Your numbers, in Groundwork\'s words') + ownWords(all)
@@ -28061,32 +28061,32 @@ function careOpen(url) {
 function _careLine(l, big) {
   const btns = l.links.map(([t, u]) => `<button class="btn ${big ? 'btn-primary' : 'btn-ghost'} btn-sm" style="margin:4px 6px 0 0" onclick="careOpen('${u}')">${esc(t)}</button>`).join('');
   return `<div style="margin-top:${big ? 10 : 9}px"><div style="font-size:${big ? 14 : 13}px;font-weight:600;color:var(--ink)">${esc(l.name)}</div>
-    <div style="font-size:12px;color:var(--slate)">${esc(l.how)}</div><div>${btns}</div></div>`;
+    <div style="font-size:var(--fs-sm);color:var(--slate)">${esc(l.how)}</div><div>${btns}</div></div>`;
 }
-const CARE_NOTE = `<div style="font-size:11px;color:var(--slate-2);margin-top:12px;line-height:1.6">Groundwork is a program, not a person, and can't call anyone for you. Nothing you typed here was saved or sent anywhere.</div>`;
+const CARE_NOTE = `<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:12px;line-height:1.6">Groundwork is a program, not a person, and can't call anyone for you. Nothing you typed here was saved or sent anywhere.</div>`;
 
 function careHTML(level) {
   if (level === 'danger') {
     return `<div class="care" role="alert" aria-live="assertive">
-      <div style="font-size:16px;font-weight:600;color:var(--ink)">You matter more than any bill.</div>
-      <div style="font-size:13px;color:var(--ink);line-height:1.7;margin-top:6px">It sounds like things feel really heavy right now, and I'm glad you said it. You don't have to carry this alone. Please reach out to a person now - they're there for exactly this, any hour, and it's free and private.</div>
-      <div style="font-size:13px;color:var(--ink);line-height:1.7;margin-top:6px">It will be okay. Money trouble is temporary, and it can be fixed - people come back from debt, collections and lost jobs every day. How you feel right now can change too.</div>
+      <div style="font-size:var(--fs-lg);font-weight:600;color:var(--ink)">You matter more than any bill.</div>
+      <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.7;margin-top:6px">It sounds like things feel really heavy right now, and I'm glad you said it. You don't have to carry this alone. Please reach out to a person now - they're there for exactly this, any hour, and it's free and private.</div>
+      <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.7;margin-top:6px">It will be okay. Money trouble is temporary, and it can be fixed - people come back from debt, collections and lost jobs every day. How you feel right now can change too.</div>
       ${_careLine(CARE_988, true)}
-      <div style="font-size:13px;font-weight:600;color:var(--danger,#b42318);margin-top:10px">If you or someone else is in danger right now, call 911.</div>
-      <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-top:14px">More people ready to listen</div>
+      <div style="font-size:var(--fs-base);font-weight:600;color:var(--danger,#b42318);margin-top:10px">If you or someone else is in danger right now, call 911.</div>
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-top:14px">More people ready to listen</div>
       ${CARE_LINES.map(l => _careLine(l)).join('')}
-      <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-top:14px">When you're ready: help with the money</div>
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-top:14px">When you're ready: help with the money</div>
       ${CARE_MONEY.map(l => _careLine(l)).join('')}
       ${CARE_NOTE}</div>`;
   }
   return `<div class="care" role="status">
-    <div style="font-size:16px;font-weight:600;color:var(--ink)">Take a breath. You're not alone in this.</div>
-    <div style="font-size:13px;color:var(--ink);line-height:1.7;margin-top:6px">Money stress is real, and feeling this way makes sense. It will be okay. Money trouble is temporary, and it can be fixed - one step at a time, the way many people have worked through it before you. You don't have to sort it all out today.</div>
-    <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-top:14px">Free help from real people</div>
+    <div style="font-size:var(--fs-lg);font-weight:600;color:var(--ink)">Take a breath. You're not alone in this.</div>
+    <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.7;margin-top:6px">Money stress is real, and feeling this way makes sense. It will be okay. Money trouble is temporary, and it can be fixed - one step at a time, the way many people have worked through it before you. You don't have to sort it all out today.</div>
+    <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-top:14px">Free help from real people</div>
     ${CARE_MONEY.map(l => _careLine(l)).join('')}
-    <div style="font-size:13px;color:var(--ink);line-height:1.7;margin-top:12px">If it ever feels like more than money, you can call or text <strong>988</strong> any time, day or night.</div>
+    <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.7;margin-top:12px">If it ever feels like more than money, you can call or text <strong>988</strong> any time, day or night.</div>
     ${_careLine(CARE_988)}
-    <div style="font-size:13px;color:var(--slate);line-height:1.7;margin-top:12px">There's no rush. Whenever you feel up to it, Groundwork can help you map out a way through, one small step at a time.</div>
+    <div style="font-size:var(--fs-base);color:var(--slate);line-height:1.7;margin-top:12px">There's no rush. Whenever you feel up to it, Groundwork can help you map out a way through, one small step at a time.</div>
     ${CARE_NOTE}</div>`;
 }
 
@@ -28105,7 +28105,7 @@ async function askGroundwork(question) {
   if (!q) return;
   const p = _askPanel();
   const head = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-      <div style="font-size:11px;color:var(--slate-2)">You asked: ${esc(q)}</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate-2)">You asked: ${esc(q)}</div>
       <button class="btn btn-ghost btn-sm" onclick="closeAsk()" aria-label="Close">✕</button></div>`;
   window._askHead = head;
   if (careAsk(q, p, head)) return;            // item 104: someone struggling hears this first, from fixed words
@@ -28113,7 +28113,7 @@ async function askGroundwork(question) {
   if (!aiEnabled()) {                         // the box is hidden with AI off; a question already typed gets the guide
     const hit = helpMatch(q);
     p.innerHTML = hit && !hit.choices ? _askEntryHTML(hit, head)
-      : head + `<div style="font-size:13px;color:var(--ink);margin-top:6px">Ask is AI help, and AI is off. The ? button has the whole guide.</div>`;
+      : head + `<div style="font-size:var(--fs-base);color:var(--ink);margin-top:6px">Ask is AI help, and AI is off. The ? button has the whole guide.</div>`;
     return;
   }
   // A question about your records (why a figure looks off) goes to Groundwork's fixed checks, as before (item 72 C2)
@@ -28122,15 +28122,15 @@ async function askGroundwork(question) {
     try { route = await API.post('/api/why/route', { question: q }); } catch (e) { _gwErr('askGroundwork route')(e); }
     if (route && route.state === 'picked') {
       window._askWhyChecks = route.checks || [];
-      p.innerHTML = head + `<div style="font-size:13px;color:var(--ink);line-height:1.65;margin-top:6px">This looks like a question for one of Groundwork's checks on your records:</div>
+      p.innerHTML = head + `<div style="font-size:var(--fs-base);color:var(--ink);line-height:1.65;margin-top:6px">This looks like a question for one of Groundwork's checks on your records:</div>
         <div style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="closeAsk(); openWhyCheck('${esc(route.check)}')">${esc(route.title)}</button></div>
-        <div style="font-size:11px;color:var(--slate-2);margin-top:8px">Picked by the AI from Groundwork's fixed list - the answer comes from your records, not from the AI.
+        <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:8px">Picked by the AI from Groundwork's fixed list - the answer comes from your records, not from the AI.
           <button class="btn btn-ghost btn-sm" onclick="askWhyChoose()">Choose a different check</button></div>`;
       return;
     }
     if (route && (route.state === 'unsure' || route.state === 'off') && (route.checks || []).length) {
       window._askWhyChecks = route.checks;
-      p.innerHTML = head + `<div style="font-size:13px;color:var(--ink);margin-top:6px">If this is about your records, Groundwork has these checks. Which one?</div>${_askWhyChoicesHTML()}`;
+      p.innerHTML = head + `<div style="font-size:var(--fs-base);color:var(--ink);margin-top:6px">If this is about your records, Groundwork has these checks. Which one?</div>${_askWhyChoicesHTML()}`;
       return;
     }
   }
@@ -28138,12 +28138,12 @@ async function askGroundwork(question) {
   window._askClosest = closest;
   if (!closest.length) {
     try { await API.post('/api/help/unanswered', { text: q }); } catch (e) { _gwErr('askGroundwork')(e); }
-    p.innerHTML = head + `<div style="font-size:13px;color:var(--ink);line-height:1.65;margin-top:6px">${esc(HELP_OUTSIDE)}</div>
-      <div style="font-size:11px;color:var(--slate-2);margin-top:10px">Your question is kept in your own list of questions Groundwork couldn't answer.
+    p.innerHTML = head + `<div style="font-size:var(--fs-base);color:var(--ink);line-height:1.65;margin-top:6px">${esc(HELP_OUTSIDE)}</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:10px">Your question is kept in your own list of questions Groundwork couldn't answer.
         <button class="btn btn-ghost btn-sm" onclick="showUnanswered()">See the list</button></div>`;
     return;
   }
-  p.innerHTML = head + `<div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--slate);margin-top:10px"><div class="spinner"></div>Looking it up in the guide…</div>`;
+  p.innerHTML = head + `<div style="display:flex;align-items:center;gap:10px;font-size:var(--fs-base);color:var(--slate);margin-top:10px"><div class="spinner"></div>Looking it up in the guide…</div>`;
   const guide = closest.map((it, i) => `[${i + 1}] ${it.q}\n${it.a}`).join('\n\n');
   let r = null;
   try {
@@ -28163,15 +28163,15 @@ async function askGroundwork(question) {
   if (used && answer && _askNumbersOk(checked, used)) {
     window._askOpen = used.open || null;
     window._askClosest = [used, ...closest.filter(x => x !== used)];
-    p.innerHTML = head + `<div class="byb-in" style="font-size:13px;color:var(--ink);line-height:1.7;margin-top:8px;white-space:pre-line">${esc(answer)}</div>
+    p.innerHTML = head + `<div class="byb-in" style="font-size:var(--fs-base);color:var(--ink);line-height:1.7;margin-top:8px;white-space:pre-line">${esc(answer)}</div>
       ${used.open ? `<button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="helpOpen(window._askOpen)">Open it for me</button>` : ''}
-      <details style="margin-top:10px;font-size:12px;color:var(--slate)"><summary style="cursor:pointer">From the guide: ${esc(used.q)}</summary>
+      <details style="margin-top:10px;font-size:var(--fs-sm);color:var(--slate)"><summary style="cursor:pointer">From the guide: ${esc(used.q)}</summary>
         <div style="margin-top:6px;line-height:1.6">${esc(used.a)}</div></details>
-      <div style="font-size:11px;color:var(--slate-2);margin-top:8px">Written by the AI on this computer, only from Groundwork's guide.</div>`;
+      <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:8px">Written by the AI on this computer, only from Groundwork's guide.</div>`;
     return;
   }
   try { await API.post('/api/help/unanswered', { text: q }); } catch (e) { _gwErr('askGroundwork')(e); }
-  p.innerHTML = head + `<div style="font-size:13px;color:var(--ink);margin-top:6px">The guide doesn't answer that exactly. These are the closest:</div>
+  p.innerHTML = head + `<div style="font-size:var(--fs-base);color:var(--ink);margin-top:6px">The guide doesn't answer that exactly. These are the closest:</div>
     ${closest.slice(0, 3).map((it, i) => `<div style="margin-top:6px"><button class="btn btn-secondary btn-sm" style="text-align:left" onclick="askShowEntry(${i})">${esc(it.q)}</button></div>`).join('')}
     <div style="margin-top:8px"><button class="btn btn-ghost btn-sm" onclick="closeAsk(); showHelpOverlay()">Browse the whole guide</button>
       <button class="btn btn-ghost btn-sm" onclick="showUnanswered()">Your unanswered questions</button></div>`;
@@ -28190,10 +28190,10 @@ function askWhyChoose() {
 async function openWhyCheck(check) {
   _whyFigure = 'records';
   const p = _whyPanel();
-  p.innerHTML = '<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--slate)"><div class="spinner"></div>Checking your records…</div>';
+  p.innerHTML = '<div style="display:flex;align-items:center;gap:10px;font-size:var(--fs-sm);color:var(--slate)"><div class="spinner"></div>Checking your records…</div>';
   let d;
   try { d = await API.get('/api/why/check?id=' + encodeURIComponent(check)); }
-  catch (e) { _gwErr('openWhyCheck')(e); p.innerHTML = '<div style="font-size:12px;color:var(--ember-text)">The check could not run.</div>'; return; }
+  catch (e) { _gwErr('openWhyCheck')(e); p.innerHTML = '<div style="font-size:var(--fs-sm);color:var(--ember-text)">The check could not run.</div>'; return; }
   let fixes = [];
   try { fixes = ((await API.get('/api/why/fixes')) || {}).fixes || []; } catch (e) { _gwErr('openWhyCheck fixes')(e); }
   p.innerHTML = _whyHTML(d, fixes);
@@ -28268,12 +28268,12 @@ async function showUnanswered() {
   try { list = ((await API.get('/api/help/unanswered')) || {}).questions || []; } catch (e) { _gwErr('showUnanswered')(e); }
   p.innerHTML = `<div style="display:flex;justify-content:space-between"><div class="card-label">Questions Groundwork couldn't answer</div>
       <button class="btn btn-ghost btn-sm" onclick="closeAsk()" aria-label="Close">✕</button></div>
-    <div style="font-size:11px;color:var(--slate-2);margin-bottom:6px">Your own words, kept only here. Nothing in Groundwork reads them.</div>
-    ${list.length ? list.map((x, i) => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:4px 0;border-bottom:0.5px solid var(--steel)">
+    <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-bottom:6px">Your own words, kept only here. Nothing in Groundwork reads them.</div>
+    ${list.length ? list.map((x, i) => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:var(--fs-sm);padding:4px 0;border-bottom:0.5px solid var(--steel)">
       <span>${esc(x.text)} <span style="color:var(--slate-2)">${esc(String(x.at || '').slice(0, 10))}</span></span>
       <button class="btn btn-ghost btn-sm" onclick="clearUnanswered(${i})">Delete</button></div>`).join('')
       + `<button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="clearUnanswered(null)">Clear all</button>`
-      : '<div style="font-size:12px;color:var(--slate)">None.</div>'}`;
+      : '<div style="font-size:var(--fs-sm);color:var(--slate)">None.</div>'}`;
 }
 
 async function clearUnanswered(index) {
@@ -28349,17 +28349,17 @@ async function _rcMonthlyShowSaved(month, keepNarrative) {
     const when = m.written_at ? `Written ${new Date(m.written_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'Written before reviews waited for a complete month';
     const extra = m.missing && m.missing.length ? ` while still waiting for ${m.missing.map(esc).join(', ')}` : '';
     const changed = sv.changed_since ? ` ${Math.abs(sv.changed_since.records_now - sv.changed_since.records_then) || 'Some'} record${Math.abs(sv.changed_since.records_now - sv.changed_since.records_then) === 1 ? '' : 's'} for ${esc(label)} have arrived or changed since. <button class="btn btn-ghost btn-sm" onclick="_rcMonthlyGenerate()">Write it again</button>` : '';
-    head = `<div style="font-size:12px;color:var(--slate);margin-bottom:8px">${esc(when)}${extra}.${changed}</div>`;
+    head = `<div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:8px">${esc(when)}${extra}.${changed}</div>`;
     if (!keepNarrative) _rcMonthlyDisplayNarrative(sv.text, label, true);
     if (m.seen === false) API.post('/api/reports/review/seen', { month }).then(() => renderReviewReady()).catch(_gwErr('review seen'));
   } else if (st.state === 'waiting') {
-    head = `<div class="card" style="padding:14px;margin-bottom:10px;font-size:12px;color:var(--ink);line-height:1.7">${esc(label)}'s review waits for
+    head = `<div class="card" style="padding:14px;margin-bottom:10px;font-size:var(--fs-sm);color:var(--ink);line-height:1.7">${esc(label)}'s review waits for
       ${st.waiting.map(w => `<b>${esc(w.account)}</b>: its records end ${w.records_end ? esc(new Date(w.records_end + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' })) : 'before this month'}
         <button class="btn btn-ghost btn-sm" onclick="_rcReviewSkipAccount(${w.account_id}, '${month}')">Not needed for reviews</button>`).join('; ')}.
       <div style="margin-top:6px"><button class="btn btn-secondary btn-sm" onclick="_rcMonthlyGenerate()">Write it anyway</button>
       <span style="color:var(--slate-2)">The review will name what it was missing.</span></div></div>`;
   } else if (st.state === 'in_progress') {
-    head = `<div style="font-size:12px;color:var(--slate);margin-bottom:8px">${esc(label)} is still in progress. Its review is written once the month is complete; a look at it so far is not saved as its review.</div>`;
+    head = `<div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:8px">${esc(label)} is still in progress. Its review is written once the month is complete; a look at it so far is not saved as its review.</div>`;
   }
   const box = g('rcMonthlyReviewHead') || (() => { const d = document.createElement('div'); d.id = 'rcMonthlyReviewHead'; cont.parentNode.insertBefore(d, cont); return d; })();
   box.innerHTML = head;
@@ -28380,7 +28380,7 @@ async function renderReviewReady() {
   if (!m) { el.innerHTML = ''; return; }
   const label = new Date(+m.slice(0, 4), +m.slice(5, 7) - 1).toLocaleDateString('en-US', { month: 'long' });
   el.innerHTML = `<div class="card mb-5" style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
-    <span style="font-size:13px;color:var(--ink)">Your ${esc(label)} review is ready.</span>
+    <span style="font-size:var(--fs-base);color:var(--ink)">Your ${esc(label)} review is ready.</span>
     <button class="btn btn-secondary btn-sm" onclick="_openMonthReview('${m}')">Read it</button></div>`;
 }
 
@@ -28597,8 +28597,8 @@ function _gwLiveNarration(host, key) {
   const ctl = new AbortController();
   const box = document.createElement('div');
   box.id = `gwLive-${key}`;
-  box.style.cssText = 'margin-top:16px;padding:16px 20px;font-size:14px;color:var(--ink);line-height:1.8';
-  box.innerHTML = `<div data-gw-live-text></div><div style="margin-top:8px;font-size:11px;color:var(--slate-2)">
+  box.style.cssText = 'margin-top:16px;padding:16px 20px;font-size:var(--fs-md);color:var(--ink);line-height:1.8';
+  box.innerHTML = `<div data-gw-live-text></div><div style="margin-top:8px;font-size:var(--fs-xs);color:var(--slate-2)">
       <span data-gw-live-status>Writing on your machine…</span>
       <button class="btn btn-ghost btn-sm" data-gw-live-stop style="margin-left:8px">Stop</button></div>`;
   host.appendChild(box);
@@ -28617,8 +28617,8 @@ function _gwLiveNarration(host, key) {
 
 function _gwShowStopped(host, text, id, replace) {
   const html = `<div id="${id}" class="card" style="padding:20px;margin-top:16px">
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);font-weight:600">Stopped before it finished</div>
-      <div style="font-size:14px;color:var(--ink);line-height:1.8;margin-top:8px">${esc(text || '')}</div></div>`;
+      <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);font-weight:600">Stopped before it finished</div>
+      <div style="font-size:var(--fs-md);color:var(--ink);line-height:1.8;margin-top:8px">${esc(text || '')}</div></div>`;
   if (replace) host.innerHTML = html; else host.insertAdjacentHTML('beforeend', html);
 }
 
@@ -28797,7 +28797,7 @@ async function _loadDashProjection(totalIncome, spent, projected, txns, totalDeb
   const withRedirect = leverage.surplus>0 && topDebt ? _simulatePayoffOnce(leverage.surplus, topDebt._dbId || topDebt.id) : null;
   // Item 110 V2: asked only once the engine has answered both; the re-render that follows its answer asks then
   if (baseline === undefined || withRedirect === undefined) {
-    content.innerHTML=`<div style="display:flex;align-items:center;gap:10px;color:var(--slate-2)"><div class="spinner"></div><span style="font-size:12px">Working out the figures…</span></div>`;
+    content.innerHTML=`<div style="display:flex;align-items:center;gap:10px;color:var(--slate-2)"><div class="spinner"></div><span style="font-size:var(--fs-sm)">Working out the figures…</span></div>`;
     return;
   }
   const monthsSooner = withRedirect && baseline ? baseline.months-withRedirect.months : 0;
@@ -28880,7 +28880,7 @@ async function _renderProjectionAI(content, badge, d) {
   if (_projLast && _projLast.fp === prompt) { content.innerHTML = _projLast.html; return; }
   if (_projAsking === prompt) return;
   _projAsking = prompt;
-  content.innerHTML=`<div style="display:flex;align-items:center;gap:10px;color:var(--slate-2)"><div class="spinner"></div><span style="font-size:12px">Building your projection…</span></div>`;
+  content.innerHTML=`<div style="display:flex;align-items:center;gap:10px;color:var(--slate-2)"><div class="spinner"></div><span style="font-size:var(--fs-sm)">Building your projection…</span></div>`;
   try {
     const result=await callAI({max_tokens:280,max_sentences:2,system:'Direct financial projection. Two sentences, about 40 words. Exact numbers.',messages:[{role:'user',content:prompt}],surface:'projection',findings_kinds:['category','total','debt','date','achievement']});
     if(result.ok){
@@ -28909,7 +28909,7 @@ function _renderProjectionFallback(content, badge, d) {
 function _renderProjectionHTML(content, leadText, isAI, d, payload) {
   const hasChain=d.withRedirect&&d.monthsSooner>0;
   const chainHTML=hasChain?`<div class="dash-proj-chain">This month's <strong>$${d.surplus}, once → ${esc(d.topDebt?.name||'highest-rate debt')}</strong><br>→ payoff moves <strong>${d.baseline.freeDate} → ${d.withRedirect.freeDate}</strong> (${d.monthsSooner} month${d.monthsSooner!==1?'s':''} sooner)<br>${d.intSaved>0?`→ saves <strong>${fmt(d.intSaved)} in interest</strong><br>`:'' }${d.nextAch?`→ unlocks <strong>${d.nextAch.icon} ${esc(d.nextAch.name)}</strong>`:'' }</div>`:'';
-  content.innerHTML=`<p style="margin:0;font-size:13px;line-height:1.75">${esc(leadText)}</p>${chainHTML}${!isAI?`<div style="font-size:10px;color:var(--slate-2);margin-top:8px">Based on actual spending averages and debt schedule</div>`:''}${isAI?_renderAIDisclosure(payload):''}`;
+  content.innerHTML=`<p style="margin:0;font-size:var(--fs-base);line-height:1.75">${esc(leadText)}</p>${chainHTML}${!isAI?`<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:8px">Based on actual spending averages and debt schedule</div>`:''}${isAI?_renderAIDisclosure(payload):''}`;
 }
 
 // ─── Phase 9B: Daily interest (already in file above, kept for reference) ──────
@@ -29009,7 +29009,7 @@ async function _rcAnalyzeWithAI(reportId, dataLines, buildPrompt, container) {
   // sending: generate straight away.
   const loading = document.createElement('div');
   loading.id = `rcAILoading-${reportId}`;
-  loading.style.cssText = 'margin-top:24px;padding:16px 20px;display:flex;align-items:center;gap:12px;color:var(--slate);font-size:13px';
+  loading.style.cssText = 'margin-top:24px;padding:16px 20px;display:flex;align-items:center;gap:12px;color:var(--slate);font-size:var(--fs-base)';
   loading.innerHTML = `<div class="spinner" style="width:16px;height:16px;border-width:2px;flex-shrink:0"></div>Analyzing on your machine…`;
   target.appendChild(loading);
   await _rcSendAI(reportId);
@@ -29026,7 +29026,7 @@ async function _rcSendAI(reportId) {
     previewPanel.innerHTML = `
       <div style="padding:24px 20px;display:flex;align-items:center;gap:12px">
         <div class="spinner" style="width:18px;height:18px;border-width:2px;flex-shrink:0"></div>
-        <span style="font-size:13px;color:var(--slate)">Analyzing…</span>
+        <span style="font-size:var(--fs-base);color:var(--slate)">Analyzing…</span>
       </div>`;
   }
 
@@ -29103,7 +29103,7 @@ function _rcRenderAIFallback(reportId, dataLines, target) {
   g(`rcAIFallback-${reportId}`)?.remove();
   const note = document.createElement('div');
   note.id = `rcAIFallback-${reportId}`;
-  note.style.cssText = 'margin-top:10px;font-size:11px;color:var(--slate-2)';
+  note.style.cssText = 'margin-top:10px;font-size:var(--fs-xs);color:var(--slate-2)';
   note.innerHTML = `The written explanation didn't pass Groundwork's checks this time; the figures above are complete.
     <a href="#" onclick="this.parentNode.remove();_rcSendAI('${reportId}');return false" style="color:var(--slate-2);text-decoration:underline">Try the explanation again</a>`;
   target.appendChild(note);
@@ -29123,12 +29123,12 @@ function _rcRenderSummary(reportId, dataLines, target) {
   if (!rows.length || !target) return;
   g(`rcSummary-${reportId}`)?.remove();
   const slow = aiEnabled() && globalThis._gwAiSlowSecs && globalThis._gwAiSlowSecs >= 25
-    ? `<div style="margin-top:8px;font-size:11px;color:var(--slate-2)">The AI took about ${Math.round(globalThis._gwAiSlowSecs)} seconds to answer on this computer. Every report works fully without it - <a href="#" onclick="showView('settings');return false" style="color:var(--slate-2);text-decoration:underline">AI settings</a>.</div>` : '';
+    ? `<div style="margin-top:8px;font-size:var(--fs-xs);color:var(--slate-2)">The AI took about ${Math.round(globalThis._gwAiSlowSecs)} seconds to answer on this computer. Every report works fully without it - <a href="#" onclick="showView('settings');return false" style="color:var(--slate-2);text-decoration:underline">AI settings</a>.</div>` : '';
   const box = document.createElement('div');
   box.id = `rcSummary-${reportId}`;
   box.style.cssText = 'margin-top:24px;border:1px solid var(--steel-2);border-radius:var(--r-md);padding:12px 14px';
-  box.innerHTML = `<div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px">Summary</div>
-    ${rows.map(r => `<div style="display:flex;gap:10px;justify-content:space-between;font-size:12px;line-height:1.8;border-top:1px solid var(--mist)">
+  box.innerHTML = `<div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px">Summary</div>
+    ${rows.map(r => `<div style="display:flex;gap:10px;justify-content:space-between;font-size:var(--fs-sm);line-height:1.8;border-top:1px solid var(--mist)">
       <span style="color:var(--slate)">${esc(r.label)}</span><span style="color:var(--ink);text-align:right">${r.label && /\d/.test(r.value) ? gwFig('report.line', esc(r.value), r.label) : esc(r.value)}</span></div>`).join('')}${slow}`;
   target.appendChild(box);
 }
@@ -29167,8 +29167,8 @@ function _rcRenderAIPanel(reportId, responseText, target, dataLines, buildPrompt
     .map((p, i) => (opts.pullquoteFirst && i === 0)
       // Panel-scoped pullquote: .report-pullquote is color:#fff for the old
       // dark magazine container — invisible on the panel's pine background.
-      ? `<div style="font-family:var(--font-display);font-style:italic;font-size:20px;color:var(--ink);line-height:1.5;padding:14px 0;border-top:1px solid var(--pine-border);border-bottom:1px solid var(--pine-border);margin:2px 0 16px">${esc(p)}</div>`
-      : `<p style="margin:0 0 12px;line-height:1.75;font-size:13px;color:var(--ink)">${esc(p)}</p>`)
+      ? `<div style="font-family:var(--font-display);font-style:italic;font-size:var(--fs-2xl);color:var(--ink);line-height:1.5;padding:14px 0;border-top:1px solid var(--pine-border);border-bottom:1px solid var(--pine-border);margin:2px 0 16px">${esc(p)}</div>`
+      : `<p style="margin:0 0 12px;line-height:1.75;font-size:var(--fs-base);color:var(--ink)">${esc(p)}</p>`)
     .join('');
 
   const threadLen = (_rcAIThread[reportId] || []).filter(m => m.role === 'user').length;
@@ -29179,33 +29179,33 @@ function _rcRenderAIPanel(reportId, responseText, target, dataLines, buildPrompt
   panel.style.cssText = `margin-top:${opts.compact ? '0' : '32px'};border:1px solid var(--pine-border);border-radius:var(--r-md);overflow:hidden;background:var(--pine-bg)`;
   panel.innerHTML = `
     <div style="padding:12px 20px;border-bottom:1px solid var(--pine-border);display:flex;align-items:center;gap:10px">
-      <span style="font-size:13px;color:var(--pine-text)">✦</span>
-      <div style="flex:1;font-size:11px;font-weight:600;color:var(--pine-text);letter-spacing:.05em;text-transform:uppercase">${esc(opts.title || "Groundwork's analysis")}</div>
+      <span style="font-size:var(--fs-base);color:var(--pine-text)">✦</span>
+      <div style="flex:1;font-size:var(--fs-xs);font-weight:600;color:var(--pine-text);letter-spacing:.05em;text-transform:uppercase">${esc(opts.title || "Groundwork's analysis")}</div>
       <button onclick="_rcCopyAI('${reportId}')" id="rcCopyBtn-${reportId}"
-        style="font-size:11px;padding:3px 10px;border:1px solid var(--pine-border);border-radius:var(--r-sm);background:transparent;color:var(--pine-text);cursor:pointer">Copy</button>
+        style="font-size:var(--fs-xs);padding:3px 10px;border:1px solid var(--pine-border);border-radius:var(--r-sm);background:transparent;color:var(--pine-text);cursor:pointer">Copy</button>
     </div>
     <div style="padding:16px 20px 4px" id="rcAIText-${reportId}">${paragraphs}</div>
     ${(dataLines && dataLines.length) ? `
     <details style="margin:0 20px 12px">
-      <summary style="cursor:pointer;color:var(--slate);font-size:11px;user-select:none">The numbers behind this analysis</summary>
-      <div style="margin-top:8px;padding:10px 12px;background:var(--paper);border:1px solid var(--pine-border);border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;line-height:1.8;color:var(--slate);white-space:pre-wrap">${dataLines.map(l => esc(l)).join('\n')}</div>
+      <summary style="cursor:pointer;color:var(--slate);font-size:var(--fs-xs);user-select:none">The numbers behind this analysis</summary>
+      <div style="margin-top:8px;padding:10px 12px;background:var(--paper);border:1px solid var(--pine-border);border-radius:var(--r-sm);font-family:var(--font-mono);font-size:var(--fs-xs);line-height:1.8;color:var(--slate);white-space:pre-wrap">${dataLines.map(l => esc(l)).join('\n')}</div>
     </details>` : ''}
     ${canFollowUp ? `
     <div style="padding:0 20px 16px">
       <div style="display:flex;gap:8px;margin-top:4px">
         <input id="rcFollowUpInput-${reportId}" type="text" placeholder="Ask a follow-up…"
-          style="flex:1;font-size:12px;padding:7px 10px;border:1px solid var(--pine-border);border-radius:var(--r-sm);background:var(--paper);color:var(--ink);outline:none"
+          style="flex:1;font-size:var(--fs-sm);padding:7px 10px;border:1px solid var(--pine-border);border-radius:var(--r-sm);background:var(--paper);color:var(--ink);outline:none"
           onkeydown="if(event.key==='Enter')_rcFollowUp('${reportId}')">
         <button onclick="_rcFollowUp('${reportId}')"
-          style="font-size:12px;padding:7px 14px;border:none;border-radius:var(--r-sm);background:var(--pine-text);color:#fff;cursor:pointer">Ask</button>
+          style="font-size:var(--fs-sm);padding:7px 14px;border:none;border-radius:var(--r-sm);background:var(--pine-text);color:#fff;cursor:pointer">Ask</button>
       </div>
       <div id="rcFollowUpThread-${reportId}"></div>
-    </div>` : (opts.compact ? '' : `<div style="padding:0 20px 14px;font-size:11px;color:var(--slate)">Maximum follow-up exchanges reached.</div>`)}
+    </div>` : (opts.compact ? '' : `<div style="padding:0 20px 14px;font-size:var(--fs-xs);color:var(--slate)">Maximum follow-up exchanges reached.</div>`)}
     ${opts.payload ? `<div style="padding:0 20px 10px">${_renderAIDisclosure(opts.payload)}</div>` : ''}
     <div style="padding:8px 20px 12px;border-top:1px solid var(--pine-border);display:flex;align-items:center;justify-content:space-between">
-      <div style="font-size:11px;color:var(--slate)">${esc(_rcAttributionText(reportId))}</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate)">${esc(_rcAttributionText(reportId))}</div>
       ${opts.compact ? '' : `<button onclick="_rcRegenerateAI('${reportId}')"
-        style="font-size:11px;background:none;border:none;padding:0;color:var(--slate);cursor:pointer;text-decoration:underline">Regenerate</button>`}
+        style="font-size:var(--fs-xs);background:none;border:none;padding:0;color:var(--slate);cursor:pointer;text-decoration:underline">Regenerate</button>`}
     </div>`;
   target.appendChild(panel);
 }
@@ -29234,12 +29234,12 @@ async function _rcFollowUp(reportId) {
   if (!_rcAIThread[reportId]) _rcAIThread[reportId] = [];
 
   const userBubble = document.createElement('div');
-  userBubble.style.cssText = 'margin-top:10px;font-size:12px;color:var(--slate);line-height:1.6';
+  userBubble.style.cssText = 'margin-top:10px;font-size:var(--fs-sm);color:var(--slate);line-height:1.6';
   userBubble.innerHTML = `<span style="font-weight:500;color:var(--ink)">You:</span> ${esc(question)}`;
   threadEl.appendChild(userBubble);
 
   const spinner = document.createElement('div');
-  spinner.style.cssText = 'margin-top:6px;font-size:12px;color:var(--slate);opacity:.6';
+  spinner.style.cssText = 'margin-top:6px;font-size:var(--fs-sm);color:var(--slate);opacity:.6';
   spinner.textContent = 'Thinking…';
   threadEl.appendChild(spinner);
 
@@ -29259,13 +29259,13 @@ async function _rcFollowUp(reportId) {
   if (result.ok && result.text) {
     _rcAIThread[reportId].push({ role: 'assistant', content: result.text });
     const aiBubble = document.createElement('div');
-    aiBubble.style.cssText = 'margin-top:8px;font-size:12px;color:var(--ink);line-height:1.7;padding:10px 12px;background:var(--paper);border:1px solid var(--pine-border);border-radius:var(--r-sm)';
+    aiBubble.style.cssText = 'margin-top:8px;font-size:var(--fs-sm);color:var(--ink);line-height:1.7;padding:10px 12px;background:var(--paper);border:1px solid var(--pine-border);border-radius:var(--r-sm)';
     aiBubble.textContent = result.text;
     threadEl.appendChild(aiBubble);
     const userTurns = _rcAIThread[reportId].filter(m => m.role === 'user').length;
     if (userTurns >= 3) {
       const limitNote = document.createElement('div');
-      limitNote.style.cssText = 'margin-top:8px;font-size:11px;color:var(--slate)';
+      limitNote.style.cssText = 'margin-top:8px;font-size:var(--fs-xs);color:var(--slate)';
       limitNote.textContent = 'Maximum follow-up exchanges reached.';
       threadEl.appendChild(limitNote);
       input.disabled = true;
@@ -29275,7 +29275,7 @@ async function _rcFollowUp(reportId) {
     }
   } else {
     const errBubble = document.createElement('div');
-    errBubble.style.cssText = 'margin-top:6px;font-size:12px;color:var(--slate)';
+    errBubble.style.cssText = 'margin-top:6px;font-size:var(--fs-sm);color:var(--slate)';
     errBubble.textContent = 'Could not get a response. Try again.';
     threadEl.appendChild(errBubble);
     input.disabled = false;
@@ -29474,15 +29474,15 @@ function _rcRenderCatalog(cont) {
 
       <div style="margin-bottom:32px">
         <h1 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;
-                   font-size:28px;font-weight:600;color:var(--ink);margin-bottom:6px">Reports</h1>
-        <div style="font-size:13px;color:var(--slate);line-height:1.6">
+                   font-size:var(--fs-4xl);font-weight:600;color:var(--ink);margin-bottom:6px">Reports</h1>
+        <div style="font-size:var(--fs-base);color:var(--slate);line-height:1.6">
           What happened · What's the plan · Is it working.
         </div>
       </div>
 
       ${Object.entries(sections).map(([section, reports]) => `
         <div style="margin-bottom:32px">
-          <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+          <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.1em;text-transform:uppercase;
                       color:var(--slate-2);margin-bottom:12px">${esc(section)}</div>
           <div style="display:flex;flex-direction:column;gap:8px">
             ${reports.map(r => {
@@ -29506,17 +29506,17 @@ function _rcRenderCatalog(cont) {
                        opacity:${locked?'.5':'1'};transition:border-color .15s"
                 ${locked?'':` onmouseover="this.style.borderColor='var(--pine)'"
                            onmouseout="this.style.borderColor='var(--steel)'"`}>
-                <div style="font-size:18px;color:var(--slate);flex-shrink:0;width:24px;text-align:center">${r.icon}</div>
+                <div style="font-size:var(--fs-xl);color:var(--slate);flex-shrink:0;width:24px;text-align:center">${r.icon}</div>
                 <div style="flex:1;min-width:0">
                   <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
-                    <span style="font-size:14px;font-weight:500;color:var(--ink)">${esc(r.title)}</span>
-                    ${r.aiUtility === 'high' ? `<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:var(--pine-bg);color:var(--pine-text);border:1px solid var(--pine-border)">✦ analysis available</span>` : ''}
+                    <span style="font-size:var(--fs-md);font-weight:500;color:var(--ink)">${esc(r.title)}</span>
+                    ${r.aiUtility === 'high' ? `<span style="font-size:var(--fs-xs);padding:1px 7px;border-radius:10px;background:var(--pine-bg);color:var(--pine-text);border:1px solid var(--pine-border)">✦ analysis available</span>` : ''}
                   </div>
-                  <div style="font-size:12px;color:var(--slate);line-height:1.5">
+                  <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.5">
                     ${hint ? `<span style="color:var(--gold-text)">${esc(hint)}</span>` : esc(r.sub)}
                   </div>
                 </div>
-                <div style="flex-shrink:0;color:var(--slate-2);font-size:16px">›</div>
+                <div style="flex-shrink:0;color:var(--slate-2);font-size:var(--fs-lg)">›</div>
               </div>`;
             }).join('')}
           </div>
@@ -29524,7 +29524,7 @@ function _rcRenderCatalog(cont) {
       `).join('')}
 
       <div style="margin-top:16px;padding:14px 16px;background:var(--mist);border-radius:var(--r-sm);
-                  font-size:12px;color:var(--slate);line-height:1.6">
+                  font-size:var(--fs-sm);color:var(--slate);line-height:1.6">
         ✦ <strong>Groundwork's analysis</strong> — runs on your own machine. Nothing is sent
              anywhere; you'll see exactly what's being analyzed before it runs.
       </div>
@@ -29553,13 +29553,13 @@ function _rcRenderReport(reportId) {
                 border-bottom:1px solid var(--steel);background:var(--paper);
                 position:sticky;top:0;z-index:10">
       <button onclick="_rcBackToCatalog()"
-        style="background:none;border:none;font-size:13px;color:var(--slate);
+        style="background:none;border:none;font-size:var(--fs-base);color:var(--slate);
                cursor:pointer;padding:0;display:flex;align-items:center;gap:4px">
         ← Reports
       </button>
     </div>
     <div style="max-width:720px;margin:0 auto;padding:32px 24px 80px" id="rcReportBody">
-      <div style="font-size:13px;color:var(--slate)">Loading…</div>
+      <div style="font-size:var(--fs-base);color:var(--slate)">Loading…</div>
     </div>`;
   cont.innerHTML = header;
 
@@ -29612,24 +29612,24 @@ function _rcRenderMonthlyReport() {
 
   body.innerHTML = `
     <div style="margin-bottom:24px">
-      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:24px;font-weight:600;color:var(--ink);margin-bottom:4px">Monthly Report</h2>
-      <div style="font-size:13px;color:var(--slate);line-height:1.6">A plain-language summary of how the month went — spending, saving, and what it means.</div>
+      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-3xl);font-weight:600;color:var(--ink);margin-bottom:4px">Monthly Report</h2>
+      <div style="font-size:var(--fs-base);color:var(--slate);line-height:1.6">A plain-language summary of how the month went — spending, saving, and what it means.</div>
     </div>
     <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:24px">
       <div>
-        <label style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Month</label>
-        <select id="rcMonthSel" onchange="_rcMonthlyRefreshPreview()" style="font-size:13px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 10px;background:var(--paper);color:var(--ink);font-family:var(--font-mono)">
+        <label style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Month</label>
+        <select id="rcMonthSel" onchange="_rcMonthlyRefreshPreview()" style="font-size:var(--fs-base);border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 10px;background:var(--paper);color:var(--ink);font-family:var(--font-mono)">
           ${monthOpts.map(m=>`<option value="${m.val}">${m.lbl}</option>`).join('')}
         </select>
       </div>
       <div style="flex:1;min-width:200px">
-        <label style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Anything unusual? <span style="font-weight:400;color:var(--slate-2)">${aiEnabled() ? '(AI reads this)' : '(kept with this report)'}</span></label>
+        <label style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Anything unusual? <span style="font-weight:400;color:var(--slate-2)">${aiEnabled() ? '(AI reads this)' : '(kept with this report)'}</span></label>
         <input type="text" id="rcMonthAnnotation" placeholder="car repair, holiday spending, medical bill…"
           oninput="_rcMonthlyAnnotationInput()"
-          style="width:100%;padding:6px 10px;border:1px solid var(--steel);border-radius:var(--r-sm);font-size:13px;background:var(--paper);color:var(--ink)">
+          style="width:100%;padding:6px 10px;border:1px solid var(--steel);border-radius:var(--r-sm);font-size:var(--fs-base);background:var(--paper);color:var(--ink)">
       </div>
       <button id="rcMonthlyGenBtn" onclick="_rcMonthlyGenerate()"
-        style="padding:8px 18px;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);font-size:13px;cursor:pointer;white-space:nowrap;display:none">✦ Generate analysis</button>
+        style="padding:8px 18px;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);font-size:var(--fs-base);cursor:pointer;white-space:nowrap;display:none">✦ Generate analysis</button>
     </div>
     <div id="rcMonthlyStats" style="margin-bottom:24px"></div>
     <div id="rcMonthlyTeaching" style="margin-bottom:24px"></div>
@@ -29673,19 +29673,19 @@ function _rcMonthlyRefreshPreview() {
   const stats = g('rcMonthlyStats');
   if (!stats) return;
   if (!txns.length) {
-    stats.innerHTML=`<div class="card" style="padding:20px;text-align:center;color:var(--slate);font-size:13px">No transactions for ${monthName}.</div>`;
+    stats.innerHTML=`<div class="card" style="padding:20px;text-align:center;color:var(--slate);font-size:var(--fs-base)">No transactions for ${monthName}.</div>`;
     return;
   }
   stats.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:16px">
-      <div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Spent</div><div style="font-family:var(--font-mono);font-size:22px;font-weight:600;color:var(--ember-text)">${fmt(spent)}</div></div>
-      <div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Earned</div><div style="font-family:var(--font-mono);font-size:22px;font-weight:600;color:var(--pine-text)">${fmt(earned)}</div></div>
-      <div class="card" style="padding:14px;${net>=0?'border-color:var(--pine-border)':'border-color:var(--ember-border)'}"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Net</div><div style="font-family:var(--font-mono);font-size:22px;font-weight:600;color:${net>=0?'var(--pine-text)':'var(--ember-text)'}">${net>=0?'+':''}${fmt(net)}</div></div>
-      <div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Transactions</div><div style="font-family:var(--font-mono);font-size:22px;font-weight:600;color:var(--ink)">${txns.length}</div></div>
+      <div class="card" style="padding:14px"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Spent</div><div style="font-family:var(--font-mono);font-size:var(--fs-3xl);font-weight:600;color:var(--ember-text)">${fmt(spent)}</div></div>
+      <div class="card" style="padding:14px"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Earned</div><div style="font-family:var(--font-mono);font-size:var(--fs-3xl);font-weight:600;color:var(--pine-text)">${fmt(earned)}</div></div>
+      <div class="card" style="padding:14px;${net>=0?'border-color:var(--pine-border)':'border-color:var(--ember-border)'}"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Net</div><div style="font-family:var(--font-mono);font-size:var(--fs-3xl);font-weight:600;color:${net>=0?'var(--pine-text)':'var(--ember-text)'}">${net>=0?'+':''}${fmt(net)}</div></div>
+      <div class="card" style="padding:14px"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Transactions</div><div style="font-family:var(--font-mono);font-size:var(--fs-3xl);font-weight:600;color:var(--ink)">${txns.length}</div></div>
     </div>
-    ${moved > 0 ? `<div style="font-size:12px;color:var(--slate);margin:-6px 0 14px">${fmt(moved)} moved between your own accounts this month - not spending, so not in Spent.</div>` : ''}
-    ${topCats.length?`<div class="card" style="padding:16px"><div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">Top spending</div>
-    ${topCats.map(([cat,amt])=>{const pct=spent>0?(amt/spent*100):0;const cs=_categoryStyle(cat);return`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--steel-2)"><div style="flex:1;font-size:13px;color:var(--ink)">${esc(cat)}</div><div style="font-family:var(--font-mono);font-size:13px;color:var(--ink)">${fmt(amt)}</div><div style="width:40px;text-align:right;font-size:11px;color:var(--slate-2)">${pct.toFixed(0)}%</div></div>`;}).join('')}
+    ${moved > 0 ? `<div style="font-size:var(--fs-sm);color:var(--slate);margin:-6px 0 14px">${fmt(moved)} moved between your own accounts this month - not spending, so not in Spent.</div>` : ''}
+    ${topCats.length?`<div class="card" style="padding:16px"><div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">Top spending</div>
+    ${topCats.map(([cat,amt])=>{const pct=spent>0?(amt/spent*100):0;const cs=_categoryStyle(cat);return`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--steel-2)"><div style="flex:1;font-size:var(--fs-base);color:var(--ink)">${esc(cat)}</div><div style="font-family:var(--font-mono);font-size:var(--fs-base);color:var(--ink)">${fmt(amt)}</div><div style="width:40px;text-align:right;font-size:var(--fs-xs);color:var(--slate-2)">${pct.toFixed(0)}%</div></div>`;}).join('')}
     </div>`:''}`;
 
   // Item 75 M3: opening Reports writes nothing by itself - a month in progress is never reviewed as if it were whole.
@@ -29702,8 +29702,8 @@ async function _rcMonthlyLoadPastReports() {
     const entries = Object.keys(settings).filter(k=>k.startsWith('report_text_')&&settings[k]).sort().reverse()
       .map(k=>{ const [yr,mo]=k.replace('report_text_','').split('-').map(Number); return {key:k,label:new Date(yr,mo-1,1).toLocaleDateString('en-US',{month:'long',year:'numeric'})}; });
     if (!entries.length) return;
-    container.innerHTML=`<div style="margin-bottom:8px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2)">Saved reports</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">${entries.map(e=>`<button onclick="_rcMonthlyLoadPast('${e.key}')" style="padding:5px 14px;font-size:12px;background:var(--paper);border:1px solid var(--steel);border-radius:20px;cursor:pointer;color:var(--slate)">${esc(e.label)}</button>`).join('')}</div>`;
+    container.innerHTML=`<div style="margin-bottom:8px;font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2)">Saved reports</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${entries.map(e=>`<button onclick="_rcMonthlyLoadPast('${e.key}')" style="padding:5px 14px;font-size:var(--fs-sm);background:var(--paper);border:1px solid var(--steel);border-radius:20px;cursor:pointer;color:var(--slate)">${esc(e.label)}</button>`).join('')}</div>`;
   } catch(e) { _gwErr('_rcMonthlyLoadPastReports')(e); }
 }
 
@@ -29728,13 +29728,13 @@ function _rcMonthlyDisplayNarrative(text, label, isSaved, note) {
   const rest       = paragraphs.slice(1);
   cont.innerHTML=`<div class="card" style="padding:24px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);font-weight:600">
+      <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);font-weight:600">
         Groundwork's analysis${isSaved?` · <span style="color:var(--slate-2)">Saved — ${esc(label)}</span>`:''}${note?` · <span style="color:var(--gold-text)">${esc(note)}</span>`:''}
       </div>
-      <button onclick="window.print()" style="background:none;border:1px solid var(--steel);border-radius:var(--r-sm);padding:4px 10px;font-size:11px;cursor:pointer;color:var(--slate)">⎙ Print</button>
+      <button onclick="window.print()" style="background:none;border:1px solid var(--steel);border-radius:var(--r-sm);padding:4px 10px;font-size:var(--fs-xs);cursor:pointer;color:var(--slate)">⎙ Print</button>
     </div>
-    ${pullquote?`<div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:20px;color:var(--ink);line-height:1.5;padding:20px 0;border-top:2px solid var(--steel);border-bottom:2px solid var(--steel);margin-bottom:20px">${esc(pullquote)}</div>`:''}
-    <div style="font-size:14px;color:var(--ink);line-height:1.8">${rest.map(p=>`<p style="margin:0 0 14px">${esc(p)}</p>`).join('')}</div>
+    ${pullquote?`<div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-2xl);color:var(--ink);line-height:1.5;padding:20px 0;border-top:2px solid var(--steel);border-bottom:2px solid var(--steel);margin-bottom:20px">${esc(pullquote)}</div>`:''}
+    <div style="font-size:var(--fs-md);color:var(--ink);line-height:1.8">${rest.map(p=>`<p style="margin:0 0 14px">${esc(p)}</p>`).join('')}</div>
   </div>`;
 }
 
@@ -29757,7 +29757,7 @@ async function _rcMonthlyGenerate() {
   const btn = g('rcMonthlyGenBtn');
   if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.style.cursor = 'default'; }
   const stillCurrent = () => g('rcMonthSel')?.value === month;
-  cont.innerHTML=`<div class="card" style="padding:32px;text-align:center"><div style="display:inline-flex;align-items:center;gap:12px;color:var(--slate);font-size:13px"><div class="spinner"></div>Writing your report…</div></div>`;
+  cont.innerHTML=`<div class="card" style="padding:32px;text-align:center"><div style="display:inline-flex;align-items:center;gap:12px;color:var(--slate);font-size:var(--fs-base)"><div class="spinner"></div>Writing your report…</div></div>`;
   const [yr,mo]=month.split('-').map(Number);
   const start=`${yr}-${String(mo).padStart(2,'0')}-01`;
   const end=_localISODate(new Date(yr,mo,0));
@@ -29852,22 +29852,22 @@ function _rcRenderCategoryDeepDive() {
   body.innerHTML = `
     <div style="margin-bottom:24px">
       <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;
-                 font-size:22px;font-weight:600;color:var(--ink);margin-bottom:4px">Category Deep-Dive</h2>
-      <div style="font-size:13px;color:var(--slate)">Trend, total, and top merchants for any category over any date range.</div>
+                 font-size:var(--fs-3xl);font-weight:600;color:var(--ink);margin-bottom:4px">Category Deep-Dive</h2>
+      <div style="font-size:var(--fs-base);color:var(--slate)">Trend, total, and top merchants for any category over any date range.</div>
     </div>
 
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px">
       <div>
-        <label style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Category</label>
+        <label style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Category</label>
         <select id="rcCatSelect" onchange="_rcUpdateCategoryDeepDive()"
-          style="font-size:13px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 10px;background:var(--paper);color:var(--ink)">
+          style="font-size:var(--fs-base);border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 10px;background:var(--paper);color:var(--ink)">
           ${cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
         </select>
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">From</label>
+        <label style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">From</label>
         <select id="rcCatFrom" onchange="_rcUpdateCategoryDeepDive()"
-          style="font-size:13px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 10px;background:var(--paper);color:var(--ink)">
+          style="font-size:var(--fs-base);border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 10px;background:var(--paper);color:var(--ink)">
           ${months.map(m => {
             const [y,mo] = m.split('-').map(Number);
             const lbl = new Date(y,mo-1,1).toLocaleDateString('en-US',{month:'short',year:'numeric'});
@@ -29876,9 +29876,9 @@ function _rcRenderCategoryDeepDive() {
         </select>
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">To</label>
+        <label style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">To</label>
         <select id="rcCatTo" onchange="_rcUpdateCategoryDeepDive()"
-          style="font-size:13px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 10px;background:var(--paper);color:var(--ink)">
+          style="font-size:var(--fs-base);border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 10px;background:var(--paper);color:var(--ink)">
           ${[...months].reverse().map(m => {
             const [y,mo] = m.split('-').map(Number);
             const lbl = new Date(y,mo-1,1).toLocaleDateString('en-US',{month:'short',year:'numeric'});
@@ -29939,7 +29939,7 @@ function _rcUpdateCategoryDeepDive() {
   const txns = _rcCatTxns(cat, moRange);
 
   if (!txns.length) {
-    res.innerHTML = `<div style="color:var(--slate);font-size:13px">No transactions in ${esc(cat)} for this range.</div>`;
+    res.innerHTML = `<div style="color:var(--slate);font-size:var(--fs-base)">No transactions in ${esc(cat)} for this range.</div>`;
     return;
   }
 
@@ -29975,7 +29975,7 @@ function _rcUpdateCategoryDeepDive() {
       <div style="width:100%;height:${barH}px;display:flex;align-items:flex-end">
         <div style="width:100%;height:${h}px;background:${cs.color};border-radius:2px 2px 0 0;opacity:.85"></div>
       </div>
-      <div style="font-size:9px;color:var(--slate-2);writing-mode:vertical-rl;transform:rotate(180deg);height:28px;overflow:hidden">${lbl}</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate-2);writing-mode:vertical-rl;transform:rotate(180deg);height:28px;overflow:hidden">${lbl}</div>
     </div>`;
   }).join('');
 
@@ -29988,41 +29988,41 @@ function _rcUpdateCategoryDeepDive() {
   res.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px">
       <div class="card" style="padding:14px">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Total</div>
-        <div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--ink)">${gwFig('rc.cat_total', fmt(total), cat, null, { cat, from, to })}</div>
+        <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Total</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:var(--ink)">${gwFig('rc.cat_total', fmt(total), cat, null, { cat, from, to })}</div>
       </div>
       <div class="card" style="padding:14px">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Monthly avg</div>
-        <div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--ink)">${gwFig('rc.cat_avg', fmt(avg), cat)}</div>
+        <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Monthly avg</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:var(--ink)">${gwFig('rc.cat_avg', fmt(avg), cat)}</div>
       </div>
       <div class="card" style="padding:14px">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Highest month</div>
-        <div style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--ember-text)">${gwFig('rc.cat_high', fmt(highest.amt), cat, null, { cat, from: highest.mo, to: highest.mo })}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">${gwFig('rc.cat_high_month', esc(highLbl), cat)}</div>
+        <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Highest month</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-lg);font-weight:600;color:var(--ember-text)">${gwFig('rc.cat_high', fmt(highest.amt), cat, null, { cat, from: highest.mo, to: highest.mo })}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${gwFig('rc.cat_high_month', esc(highLbl), cat)}</div>
       </div>
       <div class="card" style="padding:14px">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Lowest month</div>
-        <div style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--pine-text)">${lowest ? gwFig('rc.cat_low', fmt(lowest.amt), cat, null, { cat, from: lowest.mo, to: lowest.mo }) : '—'}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">${lowest ? gwFig('rc.cat_low_month', esc(lowLbl), cat) : esc(lowLbl)}</div>
+        <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Lowest month</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-lg);font-weight:600;color:var(--pine-text)">${lowest ? gwFig('rc.cat_low', fmt(lowest.amt), cat, null, { cat, from: lowest.mo, to: lowest.mo }) : '—'}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${lowest ? gwFig('rc.cat_low_month', esc(lowLbl), cat) : esc(lowLbl)}</div>
       </div>
     </div>
     ${priceCtxList.length ? `
-    <div class="card" style="padding:12px 16px;margin-bottom:20px;font-size:12px;color:var(--slate)">
+    <div class="card" style="padding:12px 16px;margin-bottom:20px;font-size:var(--fs-sm);color:var(--slate)">
       ${priceCtxList.map((ctx, i) => `⛽ ${esc(ctx.areaLabel)} avg ${ctx.label} price${ctx.period ? ` (${esc(ctx.period)})` : ''}: <strong style="color:var(--ink)">${esc(ctx.priceStr)}</strong> · source: EIA${priceCtxList.length > 1 ? ` <span style="color:var(--slate-2)">(${esc(priceNames[i])})</span>` : ''}`).join('<br>')}
       — a swing in this category can reflect market price, not just how much you used.
     </div>` : ''}
 
     <div class="card" style="margin-bottom:20px;padding:16px">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">Monthly trend</div>
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">Monthly trend</div>
       <div style="display:flex;align-items:flex-end;gap:2px;overflow-x:auto;padding-bottom:4px">${bars}</div>
     </div>
 
     <div class="card" style="padding:16px">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">Top merchants</div>
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">Top merchants</div>
       ${topMerchants.map(([name,amt]) => `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--steel)">
-          <span style="font-size:13px;color:var(--ink)">${esc(name)}</span>
-          <span style="font-family:var(--font-mono);font-size:13px;color:var(--slate)"${_figGridAttr({ cat, from, to, merchant: name })}>${fmt(amt)}</span>
+          <span style="font-size:var(--fs-base);color:var(--ink)">${esc(name)}</span>
+          <span style="font-family:var(--font-mono);font-size:var(--fs-base);color:var(--slate)"${_figGridAttr({ cat, from, to, merchant: name })}>${fmt(amt)}</span>
         </div>`).join('')}
     </div>
   `;
@@ -30085,42 +30085,42 @@ async function _rcRenderYearEnd() {
   if (!body) return;
   let p;
   try { p = await API.get(`/api/year-end?year=${_yeYear || ''}&include_health=${_yeHealth ? 1 : 0}`); }
-  catch (e) { body.innerHTML = `<div style="font-size:13px;color:var(--slate)">${esc(e.message || 'Could not gather the year.')}</div>`; return; }
+  catch (e) { body.innerHTML = `<div style="font-size:var(--fs-base);color:var(--slate)">${esc(e.message || 'Could not gather the year.')}</div>`; return; }
   _yeYear = p.year;
   const money = v => `<span style="font-family:var(--font-mono)">${fmt(v)}</span>`;
-  const table = (rows, a, b) => rows.length ? `<table style="width:100%;font-size:12px;border-collapse:collapse">${rows.map(r =>
+  const table = (rows, a, b) => rows.length ? `<table style="width:100%;font-size:var(--fs-sm);border-collapse:collapse">${rows.map(r =>
       `<tr><td style="padding:3px 0;border-bottom:0.5px solid var(--steel-2)">${esc(r[a])}${r.deposits ? ` <span style="color:var(--slate)">(${r.deposits} deposits)</span>` : ''}</td>
        <td style="text-align:right;border-bottom:0.5px solid var(--steel-2)">${money(r[b])}</td></tr>`).join('')}</table>`
-    : '<div style="font-size:12px;color:var(--slate)">None in the record for this year.</div>';
+    : '<div style="font-size:var(--fs-sm);color:var(--slate)">None in the record for this year.</div>';
   const sec = (title, total, inner) => `<div class="card mb-4"><div style="display:flex;justify-content:space-between;align-items:baseline">
       <div class="card-label" style="margin:0">${title}</div>${total != null ? money(total) : ''}</div><div style="margin-top:8px">${inner}</div></div>`;
   const miss = p.missing_months.length || p.account_gaps.length;
   const gn = p.gains;
   body.innerHTML = `
     <div style="margin-bottom:16px">
-      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:22px;font-weight:600;color:var(--ink);margin-bottom:4px">Year-end packet, ${p.year}</h2>
-      <div style="font-size:13px;color:var(--ink)">${esc(p.statement)}</div>
+      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-3xl);font-weight:600;color:var(--ink);margin-bottom:4px">Year-end packet, ${p.year}</h2>
+      <div style="font-size:var(--fs-base);color:var(--ink)">${esc(p.statement)}</div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
-        <select onchange="_yeYear = +this.value; _rcRenderYearEnd()" class="field-input" style="width:auto;font-size:12px;padding:4px 8px">
+        <select onchange="_yeYear = +this.value; _rcRenderYearEnd()" class="field-input" style="width:auto;font-size:var(--fs-sm);padding:4px 8px">
           ${p.years.map(y => `<option value="${y}" ${y === p.year ? 'selected' : ''}>${y}</option>`).join('')}</select>
-        <label style="font-size:12px;color:var(--slate)"><input type="checkbox" ${p.include_health ? 'checked' : ''} onchange="_yeHealth = this.checked; _rcRenderYearEnd()"> Include health spending</label>
+        <label style="font-size:var(--fs-sm);color:var(--slate)"><input type="checkbox" ${p.include_health ? 'checked' : ''} onchange="_yeHealth = this.checked; _rcRenderYearEnd()"> Include health spending</label>
         <button class="btn btn-secondary btn-sm" onclick="window.print()">Print or save as PDF</button>
         <button class="btn btn-secondary btn-sm" onclick="yearEndCsv()">Save as CSV</button>
       </div>
-      ${p.health_left_out ? `<div style="font-size:12px;color:var(--slate);margin-top:6px">${p.health_left_out} health spending transaction${p.health_left_out === 1 ? ' is' : 's are'} left out. Tick "Include health spending" to include ${p.health_left_out === 1 ? 'it' : 'them'}.</div>` : ''}
+      ${p.health_left_out ? `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:6px">${p.health_left_out} health spending transaction${p.health_left_out === 1 ? ' is' : 's are'} left out. Tick "Include health spending" to include ${p.health_left_out === 1 ? 'it' : 'them'}.</div>` : ''}
     </div>
-    ${miss ? sec('Missing from the record', null, `<div style="font-size:12px;color:var(--ink);line-height:1.6">These are not counted as zero. The totals below cover only what was imported.
+    ${miss ? sec('Missing from the record', null, `<div style="font-size:var(--fs-sm);color:var(--ink);line-height:1.6">These are not counted as zero. The totals below cover only what was imported.
         ${p.missing_months.length ? `<div>No records at all: ${p.missing_months.map(esc).join(', ')}.</div>` : ''}
         ${p.account_gaps.map(gp => `<div>${esc(gp.account)}: ${esc(gp.note)}${gp.note.startsWith('nothing imported') ? '' : ` (${gp.months.map(esc).join(', ')})`}.</div>`).join('')}</div>`)
-      : `<div style="font-size:12px;color:var(--slate);margin-bottom:12px">Every month of ${p.year} on record has transactions in every account that had any.</div>`}
+      : `<div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:12px">Every month of ${p.year} on record has transactions in every account that had any.</div>`}
     ${sec('Income by payer', p.income_total, table(p.income, 'payer', 'total'))}
     ${sec('Spending by category', p.spending_total, table(p.categories, 'name', 'total'))}
     ${sec('Interest and fees, from your categories for them', p.interest_total, table(p.interest, 'name', 'total'))}
     ${sec('Charitable donations', p.donations_total, table(p.donations, 'name', 'total'))}
-    ${sec('Realized investment gains and losses', gn.total, gn.lots ? `<div style="font-size:12px">Short term ${money(gn.short_term)} · Long term ${money(gn.long_term)} · from ${gn.lots} closed lot${gn.lots === 1 ? '' : 's'}</div>` : '<div style="font-size:12px;color:var(--slate)">No lots closed in the record for this year.</div>')}
-    ${sec('Statements and documents Groundwork holds', null, p.documents.length ? `<div style="font-size:12px">${p.documents.length} document${p.documents.length === 1 ? '' : 's'} dated ${p.year}: ${p.documents.map(d => `#${d.id} (${esc(d.as_of)})`).join(', ')}</div>` : `<div style="font-size:12px;color:var(--slate)">Groundwork holds no statements or documents dated ${p.year}.</div>`)}
+    ${sec('Realized investment gains and losses', gn.total, gn.lots ? `<div style="font-size:var(--fs-sm)">Short term ${money(gn.short_term)} · Long term ${money(gn.long_term)} · from ${gn.lots} closed lot${gn.lots === 1 ? '' : 's'}</div>` : '<div style="font-size:var(--fs-sm);color:var(--slate)">No lots closed in the record for this year.</div>')}
+    ${sec('Statements and documents Groundwork holds', null, p.documents.length ? `<div style="font-size:var(--fs-sm)">${p.documents.length} document${p.documents.length === 1 ? '' : 's'} dated ${p.year}: ${p.documents.map(d => `#${d.id} (${esc(d.as_of)})`).join(', ')}</div>` : `<div style="font-size:var(--fs-sm);color:var(--slate)">Groundwork holds no statements or documents dated ${p.year}.</div>`)}
     ${_yeHealthSection(p, sec, money)}
-    ${sec('What this does not include', null, `<ul style="font-size:12px;color:var(--ink);margin:0 0 0 18px;padding:0;line-height:1.6">${p.not_included.map(n => `<li>${esc(n)}</li>`).join('')}</ul>`)}`;
+    ${sec('What this does not include', null, `<ul style="font-size:var(--fs-sm);color:var(--ink);margin:0 0 0 18px;padding:0;line-height:1.6">${p.not_included.map(n => `<li>${esc(n)}</li>`).join('')}</ul>`)}`;
 }
 
 // ── Item 91 (VISIT_REPORT_YEAR_REVIEW.md): the year in review's Schedule A section, and the visit report ─────────
@@ -30129,25 +30129,25 @@ async function _rcRenderYearEnd() {
 function _yeHealthSection(p, sec, money) {
   const sa = p.health_schedule_a;
   if (!sa) return '';
-  const rows = xs => xs.length ? `<table style="width:100%;font-size:12px;border-collapse:collapse">${xs.map(r =>
+  const rows = xs => xs.length ? `<table style="width:100%;font-size:var(--fs-sm);border-collapse:collapse">${xs.map(r =>
       `<tr><td style="padding:3px 0;border-bottom:0.5px solid var(--steel-2)">${esc(r.date)} · ${esc(r.name)} <span style="color:var(--slate)">(${esc(r.category)}${r.account ? ', ' + esc(r.account) : ''})</span></td>
        <td style="text-align:right;border-bottom:0.5px solid var(--steel-2)">${money(r.amount)}</td></tr>`).join('')}</table>`
-    : '<div style="font-size:12px;color:var(--slate)">None in the record for this year.</div>';
+    : '<div style="font-size:var(--fs-sm);color:var(--slate)">None in the record for this year.</div>';
   const h = sa.hsa_8889;
   return sec('Health care, for Schedule A', sa.total, `
-      ${sa.lines.map(l => `<div style="font-size:12px;color:var(--ink);line-height:1.6">${esc(l)}</div>`).join('')}
-      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px;color:var(--slate)">
-        Your AGI for ${p.year}: <input id="yeAgi" type="number" step="1" min="0" value="${sa.agi != null ? sa.agi : ''}" placeholder="from your return" class="field-input" style="width:130px;font-size:12px;padding:3px 6px">
+      ${sa.lines.map(l => `<div style="font-size:var(--fs-sm);color:var(--ink);line-height:1.6">${esc(l)}</div>`).join('')}
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:var(--fs-sm);color:var(--slate)">
+        Your AGI for ${p.year}: <input id="yeAgi" type="number" step="1" min="0" value="${sa.agi != null ? sa.agi : ''}" placeholder="from your return" class="field-input" style="width:130px;font-size:var(--fs-sm);padding:3px 6px">
         <button class="btn btn-secondary btn-sm" onclick="_yeSaveAgi()">Save</button></div>
-      ${(sa.by_person || []).length ? `<div style="margin-top:8px;font-size:12px;color:var(--ink)">By person (detail; the household total above is the figure)</div>${sa.by_person.map(b => `<div style="font-size:12px;display:flex;justify-content:space-between"><span>${esc(b.name)}</span>${money(b.total)}</div>`).join('')}` : ''}
-      <div style="margin-top:10px;font-size:12px;color:var(--ink)">Counted</div>${rows(sa.counted)}
-      ${sa.refunds.length ? `<div style="margin-top:10px;font-size:12px;color:var(--ink)">Refunds, taken off the total</div>${rows(sa.refunds)}` : ''}
-      ${sa.set_aside.map(gp => `<div style="margin-top:10px;font-size:12px;color:var(--ink)">Set aside: ${esc(gp.reason)}</div>${rows(gp.rows)}`).join('')}
-      ${h ? `<div style="margin-top:10px;font-size:12px;color:var(--ink)">HSA, for Form 8889</div>
-        ${h.contributions.map(c => `<div style="font-size:12px">${esc(c)}</div>`).join('')}
-        <div style="font-size:12px">Payments out of the HSA: ${h.distributions == null ? `not known - nothing imported into it for ${p.year}` : money(h.distributions)}.</div>
-        <div style="font-size:11px;color:var(--slate)">${esc(h.note)}</div>` : ''}
-      <div style="font-size:12px;color:var(--slate);margin-top:10px">${esc(sa.statement)}</div>`);
+      ${(sa.by_person || []).length ? `<div style="margin-top:8px;font-size:var(--fs-sm);color:var(--ink)">By person (detail; the household total above is the figure)</div>${sa.by_person.map(b => `<div style="font-size:var(--fs-sm);display:flex;justify-content:space-between"><span>${esc(b.name)}</span>${money(b.total)}</div>`).join('')}` : ''}
+      <div style="margin-top:10px;font-size:var(--fs-sm);color:var(--ink)">Counted</div>${rows(sa.counted)}
+      ${sa.refunds.length ? `<div style="margin-top:10px;font-size:var(--fs-sm);color:var(--ink)">Refunds, taken off the total</div>${rows(sa.refunds)}` : ''}
+      ${sa.set_aside.map(gp => `<div style="margin-top:10px;font-size:var(--fs-sm);color:var(--ink)">Set aside: ${esc(gp.reason)}</div>${rows(gp.rows)}`).join('')}
+      ${h ? `<div style="margin-top:10px;font-size:var(--fs-sm);color:var(--ink)">HSA, for Form 8889</div>
+        ${h.contributions.map(c => `<div style="font-size:var(--fs-sm)">${esc(c)}</div>`).join('')}
+        <div style="font-size:var(--fs-sm)">Payments out of the HSA: ${h.distributions == null ? `not known - nothing imported into it for ${p.year}` : money(h.distributions)}.</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate)">${esc(h.note)}</div>` : ''}
+      <div style="font-size:var(--fs-sm);color:var(--slate);margin-top:10px">${esc(sa.statement)}</div>`);
 }
 
 async function _yeSaveAgi() {
@@ -30168,17 +30168,17 @@ async function renderPeopleCard() {
   host.innerHTML = `
     <div style="padding:12px 0;border-bottom:0.5px solid var(--steel-2)">
       <div class="card-label" style="margin-bottom:4px">People</div>
-      <div style="font-size:12px;color:var(--slate);margin-bottom:6px">${esc(st.visibility)}</div>
-      ${ppl.length ? ppl.map(p => `<div data-person-row="${p.id}" style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px;color:${p.active ? 'var(--ink)' : 'var(--slate)'}">
+      <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:6px">${esc(st.visibility)}</div>
+      ${ppl.length ? ppl.map(p => `<div data-person-row="${p.id}" style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:var(--fs-base);color:${p.active ? 'var(--ink)' : 'var(--slate)'}">
           <span style="flex:1">${esc(p.name)}${p.active ? '' : ' (inactive)'}</span>
-          ${p.active ? `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="_peopleRename(${p.id})">Rename</button>
-          <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="_peopleRemove(${p.id}, ${p.used})">${p.used ? 'Make inactive' : 'Remove'}</button>` : ''}
-        </div>`).join('') : '<div style="font-size:12px;color:var(--slate)">No one added yet. Health payments stay "Household" until you say whom they were for.</div>'}
-      ${(st.offer || []).length ? `<div style="font-size:12px;margin-top:6px;padding:6px 8px;background:var(--mist);border-radius:var(--r-sm)">
+          ${p.active ? `<button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="_peopleRename(${p.id})">Rename</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="_peopleRemove(${p.id}, ${p.used})">${p.used ? 'Make inactive' : 'Remove'}</button>` : ''}
+        </div>`).join('') : '<div style="font-size:var(--fs-sm);color:var(--slate)">No one added yet. Health payments stay "Household" until you say whom they were for.</div>'}
+      ${(st.offer || []).length ? `<div style="font-size:var(--fs-sm);margin-top:6px;padding:6px 8px;background:var(--mist);border-radius:var(--r-sm)">
           Household mode has ${st.offer.map(esc).join(' and ')}. Add ${st.offer.length === 1 ? 'them' : 'them both'} as people?
           <button class="btn btn-sm btn-secondary" style="margin-left:6px" onclick='_peopleAddMany(${JSON.stringify(st.offer)})'>Yes, add</button></div>` : ''}
       <div style="display:flex;gap:6px;margin-top:8px">
-        <input id="peopleNew" type="text" placeholder="A name" class="field-input" style="width:180px;font-size:12px;padding:3px 6px">
+        <input id="peopleNew" type="text" placeholder="A name" class="field-input" style="width:180px;font-size:var(--fs-sm);padding:3px 6px">
         <button class="btn btn-sm btn-secondary" onclick="_peopleAddMany([g('peopleNew').value])">Add person</button>
       </div>
     </div>`;
@@ -30196,7 +30196,7 @@ async function _peopleAddMany(names) {
 function _peopleRename(id) {
   const row = document.querySelector(`[data-person-row="${id}"]`);
   if (!row) return;
-  row.innerHTML = `<input data-person-name type="text" class="field-input" style="width:160px;font-size:12px;padding:3px 6px">
+  row.innerHTML = `<input data-person-name type="text" class="field-input" style="width:160px;font-size:var(--fs-sm);padding:3px 6px">
     <button class="btn btn-sm btn-secondary" data-person-save>Save</button>
     <button class="btn btn-ghost btn-sm" onclick="renderPeopleCard()">Cancel</button>`;
   row.querySelector('[data-person-save]').addEventListener('click', async () => {
@@ -30222,11 +30222,11 @@ async function _careForSlot(bloom, id) {
   if (!st.health) return;
   const opts = [['household', 'Household (not said)']].concat((st.people || []).map(p => [String(p.id), p.name]));
   const cur = st.person_id == null ? 'household' : String(st.person_id);
-  slot.innerHTML = `<div style="padding:8px 18px;border-top:1px solid var(--mist-2);font-size:12px;color:var(--slate)">
+  slot.innerHTML = `<div style="padding:8px 18px;border-top:1px solid var(--mist-2);font-size:var(--fs-sm);color:var(--slate)">
       <label>Who was this for?
-        <select data-care-sel style="font-size:12px;padding:3px 6px;margin-left:6px">${opts.map(([v, l]) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
+        <select data-care-sel style="font-size:var(--fs-sm);padding:3px 6px;margin-left:6px">${opts.map(([v, l]) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
       ${(st.people || []).length ? '' : ' <span>Add people in Settings, Accounts.</span>'}
-      ${st.history.length > 1 ? `<div style="font-size:11px;margin-top:3px">Earlier: ${st.history.slice(0, -1).map(h => esc(h.person) + ' (' + esc(h.on || '') + ')').join(', ')}</div>` : ''}
+      ${st.history.length > 1 ? `<div style="font-size:var(--fs-xs);margin-top:3px">Earlier: ${st.history.slice(0, -1).map(h => esc(h.person) + ' (' + esc(h.on || '') + ')').join(', ')}</div>` : ''}
       <div data-care-offer></div></div>`;
   slot.querySelector('[data-care-sel]').addEventListener('change', async e => {
     e.stopPropagation();
@@ -30251,16 +30251,16 @@ async function _rcRenderVisitReport() {
   if (!body) return;
   let ps = [];
   try { ps = ((await API.get('/api/accounts/health-providers')) || {}).providers || []; }
-  catch (e) { body.innerHTML = `<div style="font-size:13px;color:var(--slate)">${esc(e.message || 'Could not load.')}</div>`; return; }
+  catch (e) { body.innerHTML = `<div style="font-size:var(--fs-base);color:var(--slate)">${esc(e.message || 'Could not load.')}</div>`; return; }
   body.innerHTML = `
-    <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:22px;font-weight:600;color:var(--ink);margin-bottom:4px">Visit report</h2>
-    <div style="font-size:13px;color:var(--ink)">What you have paid one provider, and where your plan year stands, to take to an appointment. Pick the names on your record that are this provider. Nothing is sent anywhere, and your pick isn't saved.</div>
+    <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-3xl);font-weight:600;color:var(--ink);margin-bottom:4px">Visit report</h2>
+    <div style="font-size:var(--fs-base);color:var(--ink)">What you have paid one provider, and where your plan year stands, to take to an appointment. Pick the names on your record that are this provider. Nothing is sent anywhere, and your pick isn't saved.</div>
     ${ps.length ? `<div style="margin-top:10px;max-height:220px;overflow:auto;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 10px">
-      ${ps.map((p, i) => `<label style="display:block;font-size:12px;padding:2px 0"><input type="checkbox" data-vr="${i}" ${_vrPicked.includes(p.name) ? 'checked' : ''}> ${esc(p.name)} <span style="color:var(--slate)">(${p.payments} payment${p.payments === 1 ? '' : 's'}, last ${esc(p.last || '')})</span></label>`).join('')}
+      ${ps.map((p, i) => `<label style="display:block;font-size:var(--fs-sm);padding:2px 0"><input type="checkbox" data-vr="${i}" ${_vrPicked.includes(p.name) ? 'checked' : ''}> ${esc(p.name)} <span style="color:var(--slate)">(${p.payments} payment${p.payments === 1 ? '' : 's'}, last ${esc(p.last || '')})</span></label>`).join('')}
     </div>
-    <div style="margin-top:8px;font-size:12px;color:var(--slate)">For <select id="vrPerson" style="font-size:12px;padding:3px 6px"><option value="">everyone (the household)</option></select></div>
+    <div style="margin-top:8px;font-size:var(--fs-sm);color:var(--slate)">For <select id="vrPerson" style="font-size:var(--fs-sm);padding:3px 6px"><option value="">everyone (the household)</option></select></div>
     <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="_vrMake()">Make the report</button>`
-    : '<div style="font-size:12px;color:var(--slate);margin-top:10px">No health payments on your record yet.</div>'}
+    : '<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:10px">No health payments on your record yet.</div>'}
     <div id="vrOut" style="margin-top:16px"></div>`;
   body._vrProviders = ps;
   try {                         // item 92 N5a: the report for one person
@@ -30277,17 +30277,17 @@ async function _vrMake() {
   let r;
   try { r = await API.post('/api/accounts/visit-report', { names: _vrPicked, person_id: (g('vrPerson') || {}).value || null }); }
   catch (e) { showToast('No report', e.message || '', 'warning'); return; }
-  const list = (title, xs) => xs && xs.length ? `<div class="card mb-4"><div class="card-label">${title}</div>${xs.map(x => `<div style="font-size:12px;line-height:1.6">${esc(x)}</div>`).join('')}</div>` : '';
+  const list = (title, xs) => xs && xs.length ? `<div class="card mb-4"><div class="card-label">${title}</div>${xs.map(x => `<div style="font-size:var(--fs-sm);line-height:1.6">${esc(x)}</div>`).join('')}</div>` : '';
   g('vrOut').innerHTML = `
     <div class="card mb-4"><div class="card-label">${esc(r.provider.join(', '))} · as of ${esc(r.as_of)}</div>
-      <div style="font-size:13px;color:var(--ink);margin-bottom:6px">${esc(r.summary)}</div>
-      ${r.payments.map(p => `<div style="font-size:12px">${esc(p.line)}</div>`).join('')}
-      <div style="font-size:11px;color:var(--slate);margin-top:6px">${esc(r.not_a_price)}</div></div>
-    ${r.not_said ? `<div class="card mb-4"><div class="card-label">Not said</div><div style="font-size:12px;color:var(--slate)">${esc(r.not_said.note)}</div>${r.not_said.lines.map(l => `<div style="font-size:12px">${esc(l)}</div>`).join('')}</div>` : ''}
+      <div style="font-size:var(--fs-base);color:var(--ink);margin-bottom:6px">${esc(r.summary)}</div>
+      ${r.payments.map(p => `<div style="font-size:var(--fs-sm)">${esc(p.line)}</div>`).join('')}
+      <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:6px">${esc(r.not_a_price)}</div></div>
+    ${r.not_said ? `<div class="card mb-4"><div class="card-label">Not said</div><div style="font-size:var(--fs-sm);color:var(--slate)">${esc(r.not_said.note)}</div>${r.not_said.lines.map(l => `<div style="font-size:var(--fs-sm)">${esc(l)}</div>`).join('')}</div>` : ''}
     ${list('Your plan year', r.plan)}
     ${list('HSA and FSA', r.accounts)}
     ${list('Health reserve', r.reserve)}
-    <div style="font-size:11px;color:var(--slate);margin-bottom:10px">${esc(r.not_included)}</div>
+    <div style="font-size:var(--fs-xs);color:var(--slate);margin-bottom:10px">${esc(r.not_included)}</div>
     <button class="btn btn-secondary btn-sm" onclick="window.print()">Print or save as PDF</button>`;
 }
 
@@ -30312,14 +30312,14 @@ function _rcRenderAnnualSummary() {
   body.innerHTML = `
     <div style="margin-bottom:24px">
       <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;
-                 font-size:22px;font-weight:600;color:var(--ink);margin-bottom:4px">Annual Summary</h2>
-      <div style="font-size:13px;color:var(--slate)">Full year income, spending, savings, and top categories.</div>
+                 font-size:var(--fs-3xl);font-weight:600;color:var(--ink);margin-bottom:4px">Annual Summary</h2>
+      <div style="font-size:var(--fs-base);color:var(--slate)">Full year income, spending, savings, and top categories.</div>
     </div>
 
     <div style="margin-bottom:24px">
-      <label style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Year</label>
+      <label style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Year</label>
       <select id="rcAnnualYear" onchange="_rcUpdateAnnualSummary()"
-        style="font-size:13px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 10px;background:var(--paper);color:var(--ink)">
+        style="font-size:var(--fs-base);border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 10px;background:var(--paper);color:var(--ink)">
         ${availYears.map(y => `<option value="${y}" ${y===thisYear?'selected':''}>${y}</option>`).join('')}
       </select>
     </div>
@@ -30377,32 +30377,32 @@ function _rcUpdateAnnualSummary() {
     const delta = curr - prev;
     const pct   = prev > 0 ? Math.round((delta/prev)*100) : 0;
     const clr   = delta > 0 ? 'var(--pine-text)' : delta < 0 ? 'var(--ember-text)' : 'var(--slate)';
-    return `<div style="font-size:11px;color:${clr};margin-top:2px">${delta>=0?'+':''}${pct}% vs ${prevYear}</div>`;
+    return `<div style="font-size:var(--fs-xs);color:${clr};margin-top:2px">${delta>=0?'+':''}${pct}% vs ${prevYear}</div>`;
   };
 
   res.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px">
       <div class="card" style="padding:14px">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Income</div>
-        <div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--pine-text)">${fmt(totalIncome)}</div>
+        <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Income</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:var(--pine-text)">${fmt(totalIncome)}</div>
         ${yoyRow('income', totalIncome, prevIncome)}
       </div>
       <div class="card" style="padding:14px">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Expenses</div>
-        <div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--ember-text)">${fmt(totalExpenses)}</div>
+        <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Expenses</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:var(--ember-text)">${fmt(totalExpenses)}</div>
         ${yoyRow('expenses', totalExpenses, prevExpenses)}
       </div>
       <div class="card" style="padding:14px">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Saved</div>
-        <div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:${totalSaved>=0?'var(--pine-text)':'var(--ember-text)'}">${fmt(totalSaved)}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">${savingsRate}% savings rate</div>
+        <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Saved</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:${totalSaved>=0?'var(--pine-text)':'var(--ember-text)'}">${fmt(totalSaved)}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${savingsRate}% savings rate</div>
       </div>
     </div>
 
     <div class="card" style="margin-bottom:20px;padding:16px">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">Month by month</div>
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">Month by month</div>
       <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <table style="width:100%;border-collapse:collapse;font-size:var(--fs-sm)">
           <thead>
             <tr style="border-bottom:1px solid var(--steel)">
               <th style="text-align:left;padding:5px 8px;color:var(--slate-2);font-weight:500">Month</th>
@@ -30425,18 +30425,18 @@ function _rcUpdateAnnualSummary() {
     </div>
 
     <div class="card" style="padding:16px">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">Top spending categories</div>
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">Top spending categories</div>
       ${topCats.map(([cat,amt],i) => {
         const cs  = _categoryStyle(cat);
         const pct = totalExpenses > 0 ? Math.round((amt/totalExpenses)*100) : 0;
         const bg  = _catTint(cs.color);
         const br  = _catTintBorder(cs.color);
         return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--steel)">
-          <div style="font-size:11px;color:var(--slate-2);width:16px;text-align:right">${i+1}</div>
+          <div style="font-size:var(--fs-xs);color:var(--slate-2);width:16px;text-align:right">${i+1}</div>
           <div><div class="cat-icon" style="background:${bg};border-color:${br};color:${cs.color}">${_renderCatIcon(cs.icon,cs.color,18)}</div></div>
-          <span style="flex:1;font-size:13px;color:var(--ink)">${esc(cat)}</span>
-          <span style="font-size:11px;color:var(--slate-2)">${pct}%</span>
-          <span style="font-family:var(--font-mono);font-size:13px;color:var(--ink)">${fmt(amt)}</span>
+          <span style="flex:1;font-size:var(--fs-base);color:var(--ink)">${esc(cat)}</span>
+          <span style="font-size:var(--fs-xs);color:var(--slate-2)">${pct}%</span>
+          <span style="font-family:var(--font-mono);font-size:var(--fs-base);color:var(--ink)">${fmt(amt)}</span>
         </div>`;
       }).join('')}
     </div>
@@ -30550,66 +30550,66 @@ function _rcRenderImportAudit() {
   body.innerHTML = `
     <div style="margin-bottom:24px">
       <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;
-                 font-size:22px;font-weight:600;color:var(--ink);margin-bottom:4px">Import Audit</h2>
-      <div style="font-size:13px;color:var(--slate)">Data quality overview — categorization rate, sources, and items needing attention.</div>
+                 font-size:var(--fs-3xl);font-weight:600;color:var(--ink);margin-bottom:4px">Import Audit</h2>
+      <div style="font-size:var(--fs-base);color:var(--slate)">Data quality overview — categorization rate, sources, and items needing attention.</div>
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:24px">
       <div class="card" style="padding:14px">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Total transactions</div>
-        <div style="font-family:var(--font-mono);font-size:22px;font-weight:600;color:var(--ink)">${total.toLocaleString()}</div>
+        <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Total transactions</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-3xl);font-weight:600;color:var(--ink)">${total.toLocaleString()}</div>
       </div>
       <div class="card" style="padding:14px">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Imported</div>
-        <div style="font-family:var(--font-mono);font-size:22px;font-weight:600;color:var(--ink)">${imported.toLocaleString()}</div>
+        <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Imported</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-3xl);font-weight:600;color:var(--ink)">${imported.toLocaleString()}</div>
       </div>
       <div class="card" style="padding:14px">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Manual entries</div>
-        <div style="font-family:var(--font-mono);font-size:22px;font-weight:600;color:var(--ink)">${manual.toLocaleString()}</div>
+        <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Manual entries</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-3xl);font-weight:600;color:var(--ink)">${manual.toLocaleString()}</div>
       </div>
       <div class="card" style="padding:14px;${uncatd>0?'border-color:var(--gold)':''}">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Categorized</div>
-        <div style="font-family:var(--font-mono);font-size:22px;font-weight:600;color:${pctCatd>=90?'var(--pine-text)':pctCatd>=70?'var(--gold-text)':'var(--ember-text)'}">${pctCatd}%</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">${uncatd} in "Other"</div>
+        <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Categorized</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-3xl);font-weight:600;color:${pctCatd>=90?'var(--pine-text)':pctCatd>=70?'var(--gold-text)':'var(--ember-text)'}">${pctCatd}%</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${uncatd} in "Other"</div>
       </div>
     </div>
 
     ${uncatd > 0 ? `
     <div class="card" style="margin-bottom:20px;padding:16px;border-color:var(--gold);background:var(--gold-bg,var(--gold-bg))">
-      <div style="font-size:12px;font-weight:600;color:var(--gold-text);margin-bottom:10px">
+      <div style="font-size:var(--fs-sm);font-weight:600;color:var(--gold-text);margin-bottom:10px">
         ${uncatd} transaction${uncatd!==1?'s':''} in "Other" — review and categorize for better reports
       </div>
       ${needsAttention.slice(0,5).map(t => `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(217,119,6,.2);font-size:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(217,119,6,.2);font-size:var(--fs-sm)">
           <span style="color:var(--ink)">${esc(t.description||t.merchant||'')}</span>
           <span style="font-family:var(--font-mono);color:var(--ember-text)">${fmt(t.amount)}</span>
         </div>`).join('')}
-      ${uncatd > 5 ? `<div style="font-size:11px;color:var(--slate);margin-top:8px">…and ${uncatd-5} more. Open the Ledger to review.</div>` : ''}
+      ${uncatd > 5 ? `<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:8px">…and ${uncatd-5} more. Open the Ledger to review.</div>` : ''}
       <div style="margin-top:10px">
         <button onclick="showView('ledger')"
-          style="font-size:12px;background:none;border:1px solid var(--gold-border);
+          style="font-size:var(--fs-sm);background:none;border:1px solid var(--gold-border);
                  border-radius:var(--r-sm);padding:5px 12px;cursor:pointer;color:var(--gold-text)">
           Review in Ledger →
         </button>
       </div>
     </div>` : `
     <div class="card" style="margin-bottom:20px;padding:14px;border-color:var(--pine-border);background:var(--pine-bg)">
-      <div style="font-size:13px;color:var(--pine-text)">✓ All transactions are categorized. Good data quality.</div>
+      <div style="font-size:var(--fs-base);color:var(--pine-text)">✓ All transactions are categorized. Good data quality.</div>
     </div>`}
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
       <div class="card" style="padding:16px">
-        <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">By source</div>
+        <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">By source</div>
         ${Object.entries(srcCounts).map(([src,cnt]) => `
-          <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--steel);font-size:12px">
+          <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--steel);font-size:var(--fs-sm)">
             <span style="color:var(--ink);text-transform:capitalize">${esc(src)}</span>
             <span style="font-family:var(--font-mono);color:var(--slate)">${cnt.toLocaleString()}</span>
           </div>`).join('')}
       </div>
       <div class="card" style="padding:16px">
-        <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">By account</div>
+        <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">By account</div>
         ${acctRows.map(([acct,cnt]) => `
-          <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--steel);font-size:12px">
+          <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--steel);font-size:var(--fs-sm)">
             <span style="color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">${esc(acct)}</span>
             <span style="font-family:var(--font-mono);color:var(--slate)">${cnt.toLocaleString()}</span>
           </div>`).join('')}
@@ -30617,11 +30617,11 @@ function _rcRenderImportAudit() {
     </div>
 
     <div class="card" style="padding:16px">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">Transactions by category</div>
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">Transactions by category</div>
       ${catRows.map(([cat,cnt]) => {
         const pct = total > 0 ? Math.round((cnt/total)*100) : 0;
         const cs  = _categoryStyle(cat);
-        return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--steel);font-size:12px">
+        return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--steel);font-size:var(--fs-sm)">
           <div style="width:6px;height:6px;border-radius:50%;background:${cs.color};flex-shrink:0"></div>
           <span style="flex:1;color:var(--ink)">${esc(cat)}</span>
           <span style="color:var(--slate-2)">${pct}%</span>
@@ -31036,10 +31036,10 @@ function _renderRecordStatus() {
   // Rung 1 — all ready: quiet one-line indicator, click to expand.
   if (conf.overall === 'ready') {
     host.innerHTML = `
-      <div onclick="_toggleRecordStatus()" style="display:flex;align-items:center;gap:8px;margin-bottom:16px;cursor:pointer;font-size:12px;color:var(--slate)">
+      <div onclick="_toggleRecordStatus()" style="display:flex;align-items:center;gap:8px;margin-bottom:16px;cursor:pointer;font-size:var(--fs-sm);color:var(--slate)">
         <span style="color:var(--pine-text)">\u2713</span>
         <span>Financial Record: up to date</span>
-        <span style="color:var(--slate-2);font-size:11px">\u00b7 what Groundwork can assess</span>
+        <span style="color:var(--slate-2);font-size:var(--fs-xs)">\u00b7 what Groundwork can assess</span>
       </div>
       ${_recordStatusExpanded ? _recordStatusDetail(conf) : ''}`;
     return;
@@ -31059,13 +31059,13 @@ function _renderRecordStatus() {
     <div style="margin-bottom:20px;padding:12px 0 14px;border-top:2px solid ${tone};border-bottom:1px solid var(--steel)">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="color:${tone};font-size:12px">${promote ? '\u25c9' : '\u2713'}</span>
-          <span style="font-size:13px;font-weight:600;color:var(--ink)">${headline}</span>
+          <span style="color:${tone};font-size:var(--fs-sm)">${promote ? '\u25c9' : '\u2713'}</span>
+          <span style="font-size:var(--fs-base);font-weight:600;color:var(--ink)">${headline}</span>
         </div>
-        <button onclick="_toggleRecordStatus()" style="font-size:11px;background:none;border:none;color:var(--slate-2);cursor:pointer;white-space:nowrap">${_recordStatusExpanded ? 'Hide details' : 'Details'}</button>
+        <button onclick="_toggleRecordStatus()" style="font-size:var(--fs-xs);background:none;border:none;color:var(--slate-2);cursor:pointer;white-space:nowrap">${_recordStatusExpanded ? 'Hide details' : 'Details'}</button>
       </div>
-      <div style="font-size:12px;color:var(--slate);line-height:1.7;margin-top:6px;padding-left:20px">${blurb}</div>
-      ${promote ? `<div style="padding-left:20px;margin-top:8px"><button onclick="_recordStatusAction()" style="font-size:12px;background:none;border:1px solid var(--gold-border);color:var(--gold-text);border-radius:var(--r-sm);padding:5px 12px;cursor:pointer">Verify account balances \u2192</button></div>` : ''}
+      <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.7;margin-top:6px;padding-left:20px">${blurb}</div>
+      ${promote ? `<div style="padding-left:20px;margin-top:8px"><button onclick="_recordStatusAction()" style="font-size:var(--fs-sm);background:none;border:1px solid var(--gold-border);color:var(--gold-text);border-radius:var(--r-sm);padding:5px 12px;cursor:pointer">Verify account balances \u2192</button></div>` : ''}
       ${_recordStatusExpanded ? `<div style="margin-top:12px;padding-left:20px">${_recordStatusDetail(conf)}</div>` : ''}
     </div>`;
 }
@@ -31089,7 +31089,7 @@ function _recordStatusDetail(conf) {
   const iconFor = s => s === 'pass' ? '<span style="color:var(--pine-text)">\u2713</span>'
     : s === 'warn' ? '<span style="color:var(--gold-text)">\u26a0</span>'
     : '<span style="color:var(--ember-text)">\u00b7</span>';
-  return `<div style="font-size:12px;line-height:1.9">
+  return `<div style="font-size:var(--fs-sm);line-height:1.9">
     ${Object.values(conf.claims).map(cl => `
       <div style="margin-bottom:6px">
         <span style="font-weight:600;color:var(--ink)">${cl.label}</span>
@@ -31407,11 +31407,11 @@ function _renderCurrentPriority() {
   host.innerHTML = `
     <div class="card mb-5" style="padding:18px 20px;border-left:3px solid ${accent}">
       <div class="card-label" style="margin-bottom:6px">${isCalm ? 'Where you stand' : 'Current priority'}</div>
-      <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:19px;color:var(--ink);margin-bottom:8px">${esc(p.title)}</div>
-      <div style="font-size:13px;color:var(--slate);line-height:1.7">
+      <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-xl);color:var(--ink);margin-bottom:8px">${esc(p.title)}</div>
+      <div style="font-size:var(--fs-base);color:var(--slate);line-height:1.7">
         ${p.why.map(w => `<div style="padding:1px 0">${esc(w)}</div>`).join('')}
       </div>
-      ${p.actionLabel ? `<button onclick="${p.action}" style="margin-top:12px;font-size:12px;font-weight:600;background:${accent};color:#fff;border:none;border-radius:var(--r-sm);padding:8px 16px;cursor:pointer">${esc(p.actionLabel)}</button>` : ''}
+      ${p.actionLabel ? `<button onclick="${p.action}" style="margin-top:12px;font-size:var(--fs-sm);font-weight:600;background:${accent};color:#fff;border:none;border-radius:var(--r-sm);padding:8px 16px;cursor:pointer">${esc(p.actionLabel)}</button>` : ''}
     </div>`;
 }
 
@@ -31429,7 +31429,7 @@ function _renderWhatChanged() {
   host.style.display = '';
 
   const row = (item) => `
-    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;color:var(--ink)">
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:var(--fs-base);color:var(--ink)">
       <span style="color:${item.good ? 'var(--pine-text)' : 'var(--gold-text)'};flex-shrink:0">${item.good ? '\u2713' : '\u2191'}</span>
       <span>${esc(item.label)}</span>
     </div>`;
@@ -31439,15 +31439,15 @@ function _renderWhatChanged() {
     <div>
       <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
         <div class="card-label" style="margin-bottom:12px;flex:1">What changed since last month</div>
-        ${wc.spendWindow ? `<span style="font-size:12px;color:var(--slate-2);font-family:var(--font-mono);white-space:nowrap">${esc(_monthLabel(wc.spendWindow.cur))} vs ${esc(_monthLabel(wc.spendWindow.prev))}</span>` : ''}
+        ${wc.spendWindow ? `<span style="font-size:var(--fs-sm);color:var(--slate-2);font-family:var(--font-mono);white-space:nowrap">${esc(_monthLabel(wc.spendWindow.cur))} vs ${esc(_monthLabel(wc.spendWindow.prev))}</span>` : ''}
       </div>
       ${wc.confirmed.length ? `
-        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--pine-text);margin-bottom:4px">Confirmed</div>
+        <div style="font-size:var(--fs-xs);font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--pine-text);margin-bottom:4px">Confirmed</div>
         ${wc.confirmed.map(row).join('')}` : ''}
       ${wc.evaluating.length ? `
-        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin:${wc.confirmed.length ? '14px' : '0'} 0 4px">Still being evaluated</div>
+        <div style="font-size:var(--fs-xs);font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin:${wc.confirmed.length ? '14px' : '0'} 0 4px">Still being evaluated</div>
         ${wc.evaluating.map(e => `
-          <div style="font-size:12px;color:var(--slate);line-height:1.6;padding:4px 0">
+          <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6;padding:4px 0">
             <span style="color:var(--ink);font-weight:500">${esc(e.label)}</span> — ${esc(e.reason)}.
           </div>`).join('')}` : ''}
     </div>`;
@@ -31551,15 +31551,15 @@ function _renderFinancialSnapshot(container) {
   // HTML (not AI-authored), so they can never drift from the computation.
   const section = (title, items, tone) => items.length ? `
     <div style="margin-bottom:16px">
-      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:${tone};margin-bottom:8px">${title}</div>
-      ${items.map(t => `<div style="font-size:13px;color:var(--ink);line-height:1.7;padding-left:16px;position:relative">
+      <div style="font-size:var(--fs-xs);font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:${tone};margin-bottom:8px">${title}</div>
+      ${items.map(t => `<div style="font-size:var(--fs-base);color:var(--ink);line-height:1.7;padding-left:16px;position:relative">
         <span style="position:absolute;left:0;color:${tone}">${tone === 'var(--pine-text)' ? '\u2713' : '\u00b7'}</span>${esc(t)}</div>`).join('')}
     </div>` : '';
 
   const bodyHtml = `
     <div style="margin-bottom:20px">
-      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:22px;font-weight:600;color:var(--ink);margin-bottom:4px">Your Financial Snapshot</h2>
-      <div style="font-size:12px;color:var(--slate)">${snap.counts.transactions.toLocaleString()} transactions${snap.counts.months ? ` \u00b7 ${snap.counts.months} months of history` : ''} \u00b7 already enough to start helping.</div>
+      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-3xl);font-weight:600;color:var(--ink);margin-bottom:4px">Your Financial Snapshot</h2>
+      <div style="font-size:var(--fs-sm);color:var(--slate)">${snap.counts.transactions.toLocaleString()} transactions${snap.counts.months ? ` \u00b7 ${snap.counts.months} months of history` : ''} \u00b7 already enough to start helping.</div>
     </div>
     ${section('What I can determine', snap.canDetermine, 'var(--pine-text)')}
     ${section('What I can\u2019t determine yet', snap.cantYet, 'var(--slate-2)')}
@@ -31586,8 +31586,8 @@ function _renderFinancialSnapshot(container) {
       const btnLabel = 'Turn on AI';
       aiSlot.innerHTML = `
         <div style="margin-top:4px;padding:12px 14px;background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-sm)">
-          <div style="font-size:12px;color:var(--ink);line-height:1.7">${msg}</div>
-          <button onclick="_snapshotOpenAISetup()" style="margin-top:8px;font-size:12px;background:none;border:1px solid var(--pine-border);border-radius:var(--r-sm);padding:5px 12px;cursor:pointer;color:var(--pine-text)">${btnLabel}</button>
+          <div style="font-size:var(--fs-sm);color:var(--ink);line-height:1.7">${msg}</div>
+          <button onclick="_snapshotOpenAISetup()" style="margin-top:8px;font-size:var(--fs-sm);background:none;border:1px solid var(--pine-border);border-radius:var(--r-sm);padding:5px 12px;cursor:pointer;color:var(--pine-text)">${btnLabel}</button>
         </div>`;
     }
     _snapshotShowContinue(target);
@@ -31633,8 +31633,8 @@ function _snapshotShowContinue(target) {
   btn.id = 'snapshotContinue';
   btn.style.cssText = 'margin-top:20px;display:flex;gap:10px;align-items:center';
   btn.innerHTML = `
-    <button onclick="_onboardingAdvance('income')" style="font-size:13px;font-weight:600;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);padding:9px 18px;cursor:pointer">Keep building this picture \u2192</button>
-    <button onclick="_onboardingDismiss()" style="font-size:12px;background:none;border:none;color:var(--slate-2);cursor:pointer">I\u2019ll explore on my own</button>`;
+    <button onclick="_onboardingAdvance('income')" style="font-size:var(--fs-base);font-weight:600;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);padding:9px 18px;cursor:pointer">Keep building this picture \u2192</button>
+    <button onclick="_onboardingDismiss()" style="font-size:var(--fs-sm);background:none;border:none;color:var(--slate-2);cursor:pointer">I\u2019ll explore on my own</button>`;
   target.appendChild(btn);
 }
 
@@ -31643,7 +31643,7 @@ async function _rcRenderDistanceTraveled() {
   if (!body) return;
 
   if (!Object.keys(_debtHistoryCache).length) {
-    body.innerHTML = `<div style="font-size:13px;color:var(--slate);display:flex;align-items:center;gap:8px"><div class="spinner"></div>Loading…</div>`;
+    body.innerHTML = `<div style="font-size:var(--fs-base);color:var(--slate);display:flex;align-items:center;gap:8px"><div class="spinner"></div>Loading…</div>`;
     await _budgetLoadDebtHistory().catch(_gwErr('_rcRenderDistanceTraveled'));
   }
 
@@ -31710,10 +31710,10 @@ async function _rcRenderDistanceTraveled() {
   if (!d.perCard.length) {
     body.innerHTML = `
       <div style="margin-bottom:24px">
-        <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:22px;font-weight:600;color:var(--ink);margin-bottom:4px">Distance Traveled</h2>
-        <div style="font-size:13px;color:var(--slate);line-height:1.7">This report measures the ground you've covered — principal paid down, debts retired, monthly cash flow freed. Add your debt accounts and it starts recording from your first balance.</div>
+        <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-3xl);font-weight:600;color:var(--ink);margin-bottom:4px">Distance Traveled</h2>
+        <div style="font-size:var(--fs-base);color:var(--slate);line-height:1.7">This report measures the ground you've covered — principal paid down, debts retired, monthly cash flow freed. Add your debt accounts and it starts recording from your first balance.</div>
       </div>
-      <button onclick="showView('debt')" style="font-size:12px;background:none;border:1px solid var(--steel);border-radius:var(--r-sm);padding:5px 12px;cursor:pointer;color:var(--ink)">Set up debt accounts</button>`;
+      <button onclick="showView('debt')" style="font-size:var(--fs-sm);background:none;border:1px solid var(--steel);border-radius:var(--r-sm);padding:5px 12px;cursor:pointer;color:var(--ink)">Set up debt accounts</button>`;
     return;
   }
 
@@ -31725,39 +31725,39 @@ async function _rcRenderDistanceTraveled() {
   // Hero stat cells — only stats that exist render at all
   const hero = [];
   hero.push(`<div class="card" style="padding:16px">
-    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Ground covered</div>
-    <div style="font-family:var(--font-mono);font-size:24px;font-weight:600;color:var(--pine-text)">${fmt(d.totalCovered)}</div>
-    <div style="font-size:11px;color:var(--slate);margin-top:2px">${d.pctCovered}% of ${fmt(d.totalStart)} paid down</div>
+    <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Ground covered</div>
+    <div style="font-family:var(--font-mono);font-size:var(--fs-3xl);font-weight:600;color:var(--pine-text)">${fmt(d.totalCovered)}</div>
+    <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${d.pctCovered}% of ${fmt(d.totalStart)} paid down</div>
   </div>`);
   if (d.retired.length) hero.push(`<div class="card" style="padding:16px">
-    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Debts retired</div>
-    <div style="font-family:var(--font-mono);font-size:24px;font-weight:600;color:var(--pine-text)">${d.retired.length}</div>
-    <div style="font-size:11px;color:var(--slate);margin-top:2px">${esc(d.retired.map(x=>x.card.name||'Card').join(', '))}</div>
+    <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Debts retired</div>
+    <div style="font-family:var(--font-mono);font-size:var(--fs-3xl);font-weight:600;color:var(--pine-text)">${d.retired.length}</div>
+    <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${esc(d.retired.map(x=>x.card.name||'Card').join(', '))}</div>
   </div>`);
   if (d.freedMonthly > 0) hero.push(`<div class="card" style="padding:16px;border-color:var(--pine-border);background:var(--pine-bg)">
-    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--pine-text);margin-bottom:4px">Freed every month</div>
-    <div style="font-family:var(--font-mono);font-size:24px;font-weight:600;color:var(--pine-text)">+${fmt(d.freedMonthly)}</div>
-    <div style="font-size:11px;color:var(--pine-text);opacity:.85;margin-top:2px">cash that used to be claimed by debt</div>
+    <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--pine-text);margin-bottom:4px">Freed every month</div>
+    <div style="font-family:var(--font-mono);font-size:var(--fs-3xl);font-weight:600;color:var(--pine-text)">+${fmt(d.freedMonthly)}</div>
+    <div style="font-size:var(--fs-xs);color:var(--pine-text);opacity:.85;margin-top:2px">cash that used to be claimed by debt</div>
   </div>`);
   if (d.monthsPulled) hero.push(`<div class="card" style="padding:16px">
-    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Date pulled closer</div>
-    <div style="font-family:var(--font-mono);font-size:24px;font-weight:600;color:var(--pine-text)">${d.monthsPulled} mo</div>
-    <div style="font-size:11px;color:var(--slate);margin-top:2px">${d.allClear ? 'debt-free today' : `now ${_dtDateShort(d.dateNow)}, was heading to ${_dtDateShort(d.dateThen)}`}</div>
+    <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Date pulled closer</div>
+    <div style="font-family:var(--font-mono);font-size:var(--fs-3xl);font-weight:600;color:var(--pine-text)">${d.monthsPulled} mo</div>
+    <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${d.allClear ? 'debt-free today' : `now ${_dtDateShort(d.dateNow)}, was heading to ${_dtDateShort(d.dateThen)}`}</div>
   </div>`);
   if (d.interestNeverCharged) hero.push(`<div class="card" style="padding:16px">
-    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Interest never to be charged</div>
-    <div style="font-family:var(--font-mono);font-size:24px;font-weight:600;color:var(--pine-text)">${fmt(d.interestNeverCharged)}</div>
-    <div style="font-size:11px;color:var(--slate);margin-top:2px">vs the path you were on ${d.earliestMonth ? 'in ' + _dtMonthLabel(d.earliestMonth) : 'at the start'}</div>
+    <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Interest never to be charged</div>
+    <div style="font-family:var(--font-mono);font-size:var(--fs-3xl);font-weight:600;color:var(--pine-text)">${fmt(d.interestNeverCharged)}</div>
+    <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">vs the path you were on ${d.earliestMonth ? 'in ' + _dtMonthLabel(d.earliestMonth) : 'at the start'}</div>
   </div>`);
   if (d.paymentCompliance) hero.push(`<div class="card" style="padding:16px">
-    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Payments on schedule</div>
-    <div style="font-family:var(--font-mono);font-size:24px;font-weight:600;color:var(--ink)">${d.paymentCompliance.onTime}/${d.paymentCompliance.total}</div>
-    <div style="font-size:11px;color:var(--slate);margin-top:2px">±5% of plan · avg variance ${d.paymentCompliance.avgVariancePct > 0 ? '+' : ''}${d.paymentCompliance.avgVariancePct}%</div>
+    <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Payments on schedule</div>
+    <div style="font-family:var(--font-mono);font-size:var(--fs-3xl);font-weight:600;color:var(--ink)">${d.paymentCompliance.onTime}/${d.paymentCompliance.total}</div>
+    <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">±5% of plan · avg variance ${d.paymentCompliance.avgVariancePct > 0 ? '+' : ''}${d.paymentCompliance.avgVariancePct}%</div>
   </div>`);
   if (d.payoffConfidence != null) hero.push(`<div class="card" style="padding:16px">
-    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Payoff confidence</div>
-    <div style="font-family:var(--font-mono);font-size:24px;font-weight:600;color:${d.payoffConfidence>=70?'var(--pine-text)':d.payoffConfidence>=40?'var(--gold-text)':'var(--ember-text)'}">${d.payoffConfidence}%</div>
-    <div style="font-size:11px;color:var(--slate);margin-top:2px">from your real payment reliability</div>
+    <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Payoff confidence</div>
+    <div style="font-family:var(--font-mono);font-size:var(--fs-3xl);font-weight:600;color:${d.payoffConfidence>=70?'var(--pine-text)':d.payoffConfidence>=40?'var(--gold-text)':'var(--ember-text)'}">${d.payoffConfidence}%</div>
+    <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">from your real payment reliability</div>
   </div>`);
 
   // Per-debt distance rows — retired cards get the struck-through display,
@@ -31771,27 +31771,27 @@ async function _rcRenderDistanceTraveled() {
       const spark = x.history.length >= 2 ? _debtCardSparkline(x.card, 120, 28) : '';
       return `<div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--steel)">
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.card.name||'Card')}
-            ${paid ? `<span style="font-size:10px;font-weight:600;color:var(--pine-text);margin-left:6px">Paid in full</span>` : ''}
+          <div style="font-size:var(--fs-base);font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.card.name||'Card')}
+            ${paid ? `<span style="font-size:var(--fs-xs);font-weight:600;color:var(--pine-text);margin-left:6px">Paid in full</span>` : ''}
           </div>
           ${askStart
-            ? `<div style="font-size:11px;color:var(--slate);margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            ? `<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
                  <span>You paid this off before Groundwork saw its balance · started at</span>
                  <input type="number" min="1" step="0.01" placeholder="e.g. 4200"
-                   style="width:84px;font-family:var(--font-mono);font-size:11px;padding:3px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);text-align:right"
+                   style="width:84px;font-family:var(--font-mono);font-size:var(--fs-xs);padding:3px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);text-align:right"
                    onchange="_dtSetStartBal(${x.card.id}, this.value)">
                  <span style="color:var(--slate-2)">so this win counts</span>
                </div>`
-            : `<div style="font-size:11px;color:var(--slate);font-family:var(--font-mono);margin-top:2px">
+            : `<div style="font-size:var(--fs-xs);color:var(--slate);font-family:var(--font-mono);margin-top:2px">
                  ${paid ? `<s style="color:var(--slate-2);opacity:.65">${fmt(x.startBal)}</s> → $0` : `${fmt(x.startBal)} → ${fmt(x.nowBal)}`}
                </div>`}
         </div>
         ${spark ? `<div style="flex-shrink:0">${spark}</div>` : ''}
         <div style="text-align:right;flex-shrink:0;min-width:90px">
           ${askStart
-            ? `<div style="font-size:10px;color:var(--slate-2)">not counted yet</div>`
-            : `<div style="font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--pine-text)">${x.covered > 0 ? fmt(x.covered) : '—'}</div>
-               <div style="font-size:10px;color:var(--slate-2)">${pct}% covered</div>`}
+            ? `<div style="font-size:var(--fs-xs);color:var(--slate-2)">not counted yet</div>`
+            : `<div style="font-family:var(--font-mono);font-size:var(--fs-base);font-weight:600;color:var(--pine-text)">${x.covered > 0 ? fmt(x.covered) : '—'}</div>
+               <div style="font-size:var(--fs-xs);color:var(--slate-2)">${pct}% covered</div>`}
         </div>
       </div>`;
     }).join('');
@@ -31807,8 +31807,8 @@ async function _rcRenderDistanceTraveled() {
       const dNow = new Date(); dNow.setMonth(dNow.getMonth() + base.months);
       const dRed = new Date(); dRed.setMonth(dRed.getMonth() + withRedirect.months);
       unlockSection = `<div class="card" style="padding:16px;margin-bottom:24px;border-color:var(--pine-border)">
-        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--pine-text);margin-bottom:8px">What the freed ${fmt(d.freedMonthly)}/mo unlocks</div>
-        <div style="font-size:13px;color:var(--ink);line-height:1.7">Routed at your remaining debt, it pulls your debt-free date <strong style="color:var(--pine-text)">${sooner} month${sooner!==1?'s':''} closer</strong> — ${_dtDateShort(dRed)} instead of ${_dtDateShort(dNow)}.</div>
+        <div style="font-size:var(--fs-xs);font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--pine-text);margin-bottom:8px">What the freed ${fmt(d.freedMonthly)}/mo unlocks</div>
+        <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.7">Routed at your remaining debt, it pulls your debt-free date <strong style="color:var(--pine-text)">${sooner} month${sooner!==1?'s':''} closer</strong> — ${_dtDateShort(dRed)} instead of ${_dtDateShort(dNow)}.</div>
       </div>`;
     }
   }
@@ -31817,24 +31817,24 @@ async function _rcRenderDistanceTraveled() {
   let nwSection = '';
   if (nwFirst && nwLast && nwLast.net_worth !== nwFirst.net_worth) {
     const delta = nwLast.net_worth - nwFirst.net_worth;
-    nwSection = `<div style="font-size:12px;color:var(--slate);margin-bottom:24px;padding:10px 14px;background:var(--mist);border-radius:var(--r-sm);line-height:1.7">
+    nwSection = `<div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:24px;padding:10px 14px;background:var(--mist);border-radius:var(--r-sm);line-height:1.7">
       Net worth over the same stretch: <span style="font-family:var(--font-mono);color:${delta>=0?'var(--pine-text)':'var(--ember-text)'}">${delta>=0?'+':'−'}${fmt(Math.abs(delta))}</span>
       (${fmt(nwFirst.net_worth)} → ${fmt(nwLast.net_worth)})
     </div>`;
   }
 
-  const sparseNote = (!d.earliestMonth) ? `<div style="font-size:12px;color:var(--slate);padding:10px 14px;background:var(--mist);border-radius:var(--r-sm);margin-bottom:24px;line-height:1.7">
+  const sparseNote = (!d.earliestMonth) ? `<div style="font-size:var(--fs-sm);color:var(--slate);padding:10px 14px;background:var(--mist);border-radius:var(--r-sm);margin-bottom:24px;line-height:1.7">
     Measured from your starting balances. Groundwork records a balance snapshot each month — this report deepens as that history builds, adding your date movement and interest avoided.</div>` : '';
 
   body.innerHTML = `
     <div style="margin-bottom:24px">
-      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:22px;font-weight:600;color:var(--ink);margin-bottom:4px">Distance Traveled</h2>
-      <div style="font-size:13px;color:var(--slate)">${sinceLabel}${monthsInWindow ? ` · ${monthsInWindow} month${monthsInWindow!==1?'s':''}` : ''} · the ground you've covered, not what's left.</div>
+      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-3xl);font-weight:600;color:var(--ink);margin-bottom:4px">Distance Traveled</h2>
+      <div style="font-size:var(--fs-base);color:var(--slate)">${sinceLabel}${monthsInWindow ? ` · ${monthsInWindow} month${monthsInWindow!==1?'s':''}` : ''} · the ground you've covered, not what's left.</div>
     </div>
     ${sparseNote}
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px">${hero.join('')}</div>
     ${unlockSection}
-    <div style="margin-bottom:8px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2)">Per debt</div>
+    <div style="margin-bottom:8px;font-size:var(--fs-xs);font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2)">Per debt</div>
     <div style="margin-bottom:24px">${rows}</div>
     ${nwSection}
     <div id="rcDistanceAI"></div>`;
@@ -31904,13 +31904,13 @@ async function _rcRenderDebtProgress() {
   const body = g('rcReportBody');
   if (!body) return;
   if (!Object.keys(_debtHistoryCache).length) {
-    body.innerHTML = `<div style="font-size:13px;color:var(--slate);display:flex;align-items:center;gap:8px"><div class="spinner"></div>Loading...</div>`;
+    body.innerHTML = `<div style="font-size:var(--fs-base);color:var(--slate);display:flex;align-items:center;gap:8px"><div class="spinner"></div>Loading...</div>`;
     await _budgetLoadDebtHistory();
   }
   const allDebts    = S.debtCards;
   const activeDebts = allDebts.filter(c => !c.paidInFull);
   const hasHistory  = Object.values(_debtHistoryCache).some(h => h.length > 0);
-  if (!allDebts.length) { body.innerHTML = `<div style="color:var(--slate);font-size:13px">No debt accounts found.</div>`; return; }
+  if (!allDebts.length) { body.innerHTML = `<div style="color:var(--slate);font-size:var(--fs-base)">No debt accounts found.</div>`; return; }
   let totalInterestPaid = 0;
   let hasRealInterest = false;
   allDebts.forEach(card => {
@@ -31938,16 +31938,16 @@ async function _rcRenderDebtProgress() {
   const pctDone      = totalBegin > 0 ? Math.round((totalPaid/totalBegin)*100) : 0;
   body.innerHTML = `
     <div style="margin-bottom:24px">
-      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:22px;font-weight:600;color:var(--ink);margin-bottom:4px">Debt Progress</h2>
-      <div style="font-size:13px;color:var(--slate)">Balance history, interest paid, and freed minimums across all debt accounts.</div>
+      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-3xl);font-weight:600;color:var(--ink);margin-bottom:4px">Debt Progress</h2>
+      <div style="font-size:var(--fs-base);color:var(--slate)">Balance history, interest paid, and freed minimums across all debt accounts.</div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px">
-      <div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Principal paid</div><div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--pine-text)">${fmt(totalPaid)}</div><div style="font-size:11px;color:var(--slate);margin-top:2px">${pctDone}% of starting balance</div></div>
-      <div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Remaining</div><div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--ember-text)">${fmt(totalCurrent)}</div></div>
-      <div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Interest paid</div><div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--ember-text)">${totalInterestPaid>0?fmt(totalInterestPaid):'--'}</div><div style="font-size:11px;color:var(--slate-2);margin-top:2px">${totalInterestPaid>0?(hasRealInterest?'from imports':'estimated from history'):'link cards to track'}</div></div>
-      ${freed!==null&&freed>0?`<div class="card" style="padding:14px;border-color:var(--pine-border);background:var(--pine-bg)"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--pine-text);margin-bottom:4px">Freed minimums</div><div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--pine-text)">+${fmt(freed)}/mo</div><div style="font-size:11px;color:var(--pine-text);opacity:.8;margin-top:2px">since January</div></div>`:''}
+      <div class="card" style="padding:14px"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Principal paid</div><div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:var(--pine-text)">${fmt(totalPaid)}</div><div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${pctDone}% of starting balance</div></div>
+      <div class="card" style="padding:14px"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Remaining</div><div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:var(--ember-text)">${fmt(totalCurrent)}</div></div>
+      <div class="card" style="padding:14px"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Interest paid</div><div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:var(--ember-text)">${totalInterestPaid>0?fmt(totalInterestPaid):'--'}</div><div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:2px">${totalInterestPaid>0?(hasRealInterest?'from imports':'estimated from history'):'link cards to track'}</div></div>
+      ${freed!==null&&freed>0?`<div class="card" style="padding:14px;border-color:var(--pine-border);background:var(--pine-bg)"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--pine-text);margin-bottom:4px">Freed minimums</div><div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:var(--pine-text)">+${fmt(freed)}/mo</div><div style="font-size:var(--fs-xs);color:var(--pine-text);opacity:.8;margin-top:2px">since January</div></div>`:''}
     </div>
-    ${!hasHistory?`<div class="card" style="padding:16px;border-color:var(--gold-border);background:var(--gold-bg);margin-bottom:20px"><div style="font-size:13px;font-weight:500;color:var(--gold-text);margin-bottom:6px">Balance history not yet available</div><div style="font-size:12px;color:var(--slate);line-height:1.6">Link each debt card to its imported bank account in the Budget page, then import monthly statements. Groundwork builds the history automatically.</div><button onclick="showView('budget')" style="margin-top:10px;font-size:12px;background:none;border:1px solid var(--gold-border);border-radius:var(--r-sm);padding:5px 12px;cursor:pointer;color:var(--gold-text)">Set up in Budget</button></div>`:''}
+    ${!hasHistory?`<div class="card" style="padding:16px;border-color:var(--gold-border);background:var(--gold-bg);margin-bottom:20px"><div style="font-size:var(--fs-base);font-weight:500;color:var(--gold-text);margin-bottom:6px">Balance history not yet available</div><div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6">Link each debt card to its imported bank account in the Budget page, then import monthly statements. Groundwork builds the history automatically.</div><button onclick="showView('budget')" style="margin-top:10px;font-size:var(--fs-sm);background:none;border:1px solid var(--gold-border);border-radius:var(--r-sm);padding:5px 12px;cursor:pointer;color:var(--gold-text)">Set up in Budget</button></div>`:''}
     <div style="display:flex;flex-direction:column;gap:12px">
       ${allDebts.map(card => {
         const bal   = _cardBal(card);
@@ -31974,23 +31974,23 @@ async function _rcRenderDebtProgress() {
         return `<div class="card" style="padding:16px${card.paidInFull?';border-color:var(--pine-border);background:var(--pine-bg)':''}">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:12px">
             <div>
-              <div style="font-size:14px;font-weight:600;color:var(--ink)">${esc(card.name||'Debt')}</div>
-              <div style="font-size:11px;color:var(--slate)">${apr>0?`${apr}% APR`:''}</div>
+              <div style="font-size:var(--fs-md);font-weight:600;color:var(--ink)">${esc(card.name||'Debt')}</div>
+              <div style="font-size:var(--fs-xs);color:var(--slate)">${apr>0?`${apr}% APR`:''}</div>
             </div>
             <div style="text-align:right;flex-shrink:0">
               ${sparklineSvg
-                ? `<div>${sparklineSvg}<div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:9px;color:var(--slate-2);margin-top:2px;width:120px"><span>${fmtMo(firstMo)}</span><span>${fmtMo(lastMo)}</span></div></div>`
-                : `<div style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:${card.paidInFull?'var(--pine-text)':'var(--ember-text)'}">${card.paidInFull?'Paid off':fmt(bal)}</div>`}
+                ? `<div>${sparklineSvg}<div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--slate-2);margin-top:2px;width:120px"><span>${fmtMo(firstMo)}</span><span>${fmtMo(lastMo)}</span></div></div>`
+                : `<div style="font-family:var(--font-mono);font-size:var(--fs-lg);font-weight:600;color:${card.paidInFull?'var(--pine-text)':'var(--ember-text)'}">${card.paidInFull?'Paid off':fmt(bal)}</div>`}
             </div>
           </div>
-          ${begin>0?`<div style="height:5px;background:var(--steel);border-radius:3px;overflow:hidden;margin-bottom:5px"><div style="height:100%;width:${pct}%;background:${barClr};border-radius:3px"></div></div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--slate-2);margin-bottom:8px"><span>${pct}% paid</span><span>${card.paidInFull?'Complete':fmt(bal)+' left'}</span></div>`:''}
-          ${stats?`<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--slate);margin-bottom:6px">
+          ${begin>0?`<div style="height:5px;background:var(--steel);border-radius:3px;overflow:hidden;margin-bottom:5px"><div style="height:100%;width:${pct}%;background:${barClr};border-radius:3px"></div></div><div style="display:flex;justify-content:space-between;font-size:var(--fs-xs);color:var(--slate-2);margin-bottom:8px"><span>${pct}% paid</span><span>${card.paidInFull?'Complete':fmt(bal)+' left'}</span></div>`:''}
+          ${stats?`<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:var(--fs-sm);color:var(--slate);margin-bottom:6px">
             <span style="font-family:var(--font-mono);color:${trendColor}">${trendIcon} ${stats.trending==='down'?`−${fmt(Math.abs(stats.monthlyRate))}/mo`:stats.trending==='up'?`+${fmt(Math.abs(stats.monthlyRate))}/mo`:'holding steady'}</span>
             ${stats.netReduction>0?`<span><span style="color:var(--slate-2)">Net paid:</span> <span style="font-family:var(--font-mono);color:var(--pine-text)">${fmt(stats.netReduction)}</span></span>`:''}
             ${stats.avgPayment>0?`<span><span style="color:var(--slate-2)">Avg pmt:</span> <span style="font-family:var(--font-mono)">${fmt(stats.avgPayment)}/mo</span></span>`:''}
             ${interestDisplay}
           </div>`:''}
-          ${!card.paidInFull&&snaps.length?`<div style="display:flex;gap:20px;font-size:12px;flex-wrap:wrap"><span><span style="color:var(--slate-2)">Payoff:</span> <span style="font-family:var(--font-mono)">${_payoffDateLabel(snaps.length)}</span></span>${stats?.months?`<span style="color:var(--slate-2)">${stats.months} mo history</span>`:''}
+          ${!card.paidInFull&&snaps.length?`<div style="display:flex;gap:20px;font-size:var(--fs-sm);flex-wrap:wrap"><span><span style="color:var(--slate-2)">Payoff:</span> <span style="font-family:var(--font-mono)">${_payoffDateLabel(snaps.length)}</span></span>${stats?.months?`<span style="color:var(--slate-2)">${stats.months} mo history</span>`:''}
           </div>`:''}
         </div>`;
       }).join('')}
@@ -32037,32 +32037,32 @@ function _rcRenderIncomeSavings() {
     const h=Math.round((Math.abs(m.rate)/maxAbs)*BAR_H), neg=m.rate<0;
     const clr=m.rate>=20?'var(--pine-text)':m.rate>=0?'var(--gold-text)':'var(--ember-text)';
     return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:18px">
-      <div style="font-size:9px;color:var(--slate-2)">${m.rate}%</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate-2)">${m.rate}%</div>
       <div style="width:100%;height:${BAR_H}px;display:flex;flex-direction:column;justify-content:${neg?'flex-start':'flex-end'}"><div style="width:100%;height:${h}px;background:${clr};border-radius:${neg?'0 0 2px 2px':'2px 2px 0 0'}"></div></div>
-      <div style="font-size:9px;color:var(--slate-2);writing-mode:vertical-rl;transform:rotate(180deg);height:22px">${m.lbl}</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate-2);writing-mode:vertical-rl;transform:rotate(180deg);height:22px">${m.lbl}</div>
     </div>`;
   }).join('');
   body.innerHTML = `
     <div style="margin-bottom:24px">
-      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:22px;font-weight:600;color:var(--ink);margin-bottom:4px">Income & Savings Rate</h2>
-      <div style="font-size:13px;color:var(--slate)">How much you're saving as a percentage of income each month.</div>
+      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-3xl);font-weight:600;color:var(--ink);margin-bottom:4px">Income & Savings Rate</h2>
+      <div style="font-size:var(--fs-base);color:var(--slate)">How much you're saving as a percentage of income each month.</div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:24px">
-      <div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Avg savings rate</div><div style="font-family:var(--font-mono);font-size:22px;font-weight:600;color:var(--ink)">${avgRate}%</div><div style="font-size:11px;color:var(--slate);margin-top:2px">of income, 12-month average</div></div>
-      <div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Trend</div><div style="font-size:18px;font-weight:600;color:${improving?'var(--pine-text)':'var(--slate)'}">${improving?'Improving':'Mixed'}</div><div style="font-size:11px;color:var(--slate);margin-top:2px">last 3 months</div></div>
-      <div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Best month</div><div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--pine-text)">${bestMonth.rate}%</div><div style="font-size:11px;color:var(--slate);margin-top:2px">${bestMonth.lbl}${bestIsPartial ? ' (so far)' : ''}</div></div>
-      <div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Lowest month</div><div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:${worstMonth.rate<0?'var(--ember-text)':'var(--gold-text)'}">${worstMonth.rate}%</div><div style="font-size:11px;color:var(--slate);margin-top:2px">${worstMonth.lbl}${worstIsPartial ? ' (so far)' : ''}</div></div>
+      <div class="card" style="padding:14px"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Avg savings rate</div><div style="font-family:var(--font-mono);font-size:var(--fs-3xl);font-weight:600;color:var(--ink)">${avgRate}%</div><div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">of income, 12-month average</div></div>
+      <div class="card" style="padding:14px"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Trend</div><div style="font-size:var(--fs-xl);font-weight:600;color:${improving?'var(--pine-text)':'var(--slate)'}">${improving?'Improving':'Mixed'}</div><div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">last 3 months</div></div>
+      <div class="card" style="padding:14px"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Best month</div><div style="font-family:var(--font-mono);font-size:var(--fs-xl);font-weight:600;color:var(--pine-text)">${bestMonth.rate}%</div><div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${bestMonth.lbl}${bestIsPartial ? ' (so far)' : ''}</div></div>
+      <div class="card" style="padding:14px"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Lowest month</div><div style="font-family:var(--font-mono);font-size:var(--fs-xl);font-weight:600;color:${worstMonth.rate<0?'var(--ember-text)':'var(--gold-text)'}">${worstMonth.rate}%</div><div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${worstMonth.lbl}${worstIsPartial ? ' (so far)' : ''}</div></div>
     </div>
     <div class="card" style="margin-bottom:20px;padding:16px">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:8px">Savings rate - last 12 months</div>
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:8px">Savings rate - last 12 months</div>
       <div style="display:flex;align-items:flex-end;gap:3px">${bars}</div>
-      <div style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--slate-2);flex-wrap:wrap">
+      <div style="display:flex;gap:16px;margin-top:8px;font-size:var(--fs-xs);color:var(--slate-2);flex-wrap:wrap">
         <span style="color:var(--pine-text)">20%+ solid</span><span style="color:var(--gold-text)">0-19% building</span><span style="color:var(--ember-text)">negative over-spent</span>
       </div>
     </div>
     <div class="card" style="padding:16px">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">Month by month</div>
-      <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">Month by month</div>
+      <table style="width:100%;border-collapse:collapse;font-size:var(--fs-sm)">
         <thead><tr style="border-bottom:1px solid var(--steel)"><th style="text-align:left;padding:5px 8px;color:var(--slate-2);font-weight:500">Month</th><th style="text-align:right;padding:5px 8px;color:var(--slate-2);font-weight:500">Income</th><th style="text-align:right;padding:5px 8px;color:var(--slate-2);font-weight:500">Expenses</th><th style="text-align:right;padding:5px 8px;color:var(--slate-2);font-weight:500">Saved</th><th style="text-align:right;padding:5px 8px;color:var(--slate-2);font-weight:500">Rate</th></tr></thead>
         <tbody>${moData.map(m=>`<tr style="border-bottom:1px solid var(--steel)"><td style="padding:6px 8px;color:var(--ink)">${m.lbl}</td><td style="padding:6px 8px;font-family:var(--font-mono);text-align:right;color:var(--pine-text)">${fmt(m.inc)}</td><td style="padding:6px 8px;font-family:var(--font-mono);text-align:right;color:var(--ember-text)">${fmt(m.exp)}</td><td style="padding:6px 8px;font-family:var(--font-mono);text-align:right;color:${m.saved>=0?'var(--pine-text)':'var(--ember-text)'}">${fmt(m.saved)}</td><td style="padding:6px 8px;font-family:var(--font-mono);text-align:right;font-weight:500;color:${m.rate>=20?'var(--pine-text)':m.rate>=0?'var(--gold-text)':'var(--ember-text)'}">${m.rate}%</td></tr>`).join('')}</tbody>
       </table>
@@ -32117,12 +32117,12 @@ async function _rcRenderNetWorthTimeline() {
   const body = g('rcReportBody');
   if (!body) return;
   if (!_nwHistory || !_nwHistory.length) {
-    body.innerHTML = `<div style="font-size:13px;color:var(--slate)">Loading...</div>`;
+    body.innerHTML = `<div style="font-size:var(--fs-base);color:var(--slate)">Loading...</div>`;
     await loadNWHistory();
   }
   const history = _nwHistory || [];
   if (!history.length) {
-    body.innerHTML = `<div style="color:var(--slate);font-size:13px">No net worth snapshots yet.</div><button onclick="showView('networth')" style="margin-top:12px;font-size:12px;background:none;border:1px solid var(--steel);border-radius:var(--r-sm);padding:5px 12px;cursor:pointer;color:var(--ink)">Go to Net Worth</button>`;
+    body.innerHTML = `<div style="color:var(--slate);font-size:var(--fs-base)">No net worth snapshots yet.</div><button onclick="showView('networth')" style="margin-top:12px;font-size:var(--fs-sm);background:none;border:1px solid var(--steel);border-radius:var(--r-sm);padding:5px 12px;cursor:pointer;color:var(--ink)">Go to Net Worth</button>`;
     return;
   }
   const sorted     = [...history].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
@@ -32144,13 +32144,13 @@ async function _rcRenderNetWorthTimeline() {
   const clr=last.net_worth>=0?'var(--pine-text)':'var(--ember-text)';
   body.innerHTML = `
     <div style="margin-bottom:24px">
-      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:22px;font-weight:600;color:var(--ink);margin-bottom:4px">Net Worth Timeline</h2>
-      <div style="font-size:13px;color:var(--slate)">All-time trajectory from first snapshot to today.</div>
+      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-3xl);font-weight:600;color:var(--ink);margin-bottom:4px">Net Worth Timeline</h2>
+      <div style="font-size:var(--fs-base);color:var(--slate)">All-time trajectory from first snapshot to today.</div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:24px">
-      <div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Current</div><div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:${last.net_worth>=0?'var(--pine-text)':'var(--ember-text)'}">${fmt(last.net_worth)}</div></div>
-      <div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Total change</div><div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:${totalGain>=0?'var(--pine-text)':'var(--ember-text)'}">${totalGain>=0?'+':''}${fmt(totalGain)}</div><div style="font-size:11px;color:var(--slate);margin-top:2px">since ${first.month_label||first.date}</div></div>
-      ${debtContrib>0?`<div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">From debt paydown</div><div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--pine-text)">+${fmt(debtContrib)}</div></div>`:''}
+      <div class="card" style="padding:14px"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Current</div><div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:${last.net_worth>=0?'var(--pine-text)':'var(--ember-text)'}">${fmt(last.net_worth)}</div></div>
+      <div class="card" style="padding:14px"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Total change</div><div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:${totalGain>=0?'var(--pine-text)':'var(--ember-text)'}">${totalGain>=0?'+':''}${fmt(totalGain)}</div><div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">since ${first.month_label||first.date}</div></div>
+      ${debtContrib>0?`<div class="card" style="padding:14px"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">From debt paydown</div><div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:var(--pine-text)">+${fmt(debtContrib)}</div></div>`:''}
     </div>
     <div class="card" style="margin-bottom:20px;padding:16px">
       <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="${esc('Net worth from ' + fmt(first.net_worth) + ' (' + (first.month_label || first.date) + ') to ' + fmt(last.net_worth) + ' (' + (last.month_label || last.date) + ')')}">
@@ -32158,12 +32158,12 @@ async function _rcRenderNetWorthTimeline() {
         <path d="${areaD}" fill="${clr}" opacity=".08"/>
         <polyline points="${pts}" fill="none" stroke="${clr}" stroke-width="2" stroke-linejoin="round"/>
       </svg>
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--slate-2);margin-top:4px"><span>${first.month_label||first.date}</span><span>${last.month_label||last.date}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px"><span>${first.month_label||first.date}</span><span>${last.month_label||last.date}</span></div>
     </div>
-    ${milestones.length?`<div class="card" style="margin-bottom:20px;padding:16px"><div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">Milestones</div>${milestones.map(m=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--steel);font-size:12px"><span style="color:var(--ink)">Net worth crossed ${m.threshold>=0?'+':''}${fmt(m.threshold)}</span><span style="font-family:var(--font-mono);color:var(--slate)">${m.label}</span></div>`).join('')}</div>`:''}
+    ${milestones.length?`<div class="card" style="margin-bottom:20px;padding:16px"><div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">Milestones</div>${milestones.map(m=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--steel);font-size:var(--fs-sm)"><span style="color:var(--ink)">Net worth crossed ${m.threshold>=0?'+':''}${fmt(m.threshold)}</span><span style="font-family:var(--font-mono);color:var(--slate)">${m.label}</span></div>`).join('')}</div>`:''}
     <div class="card" style="padding:16px">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">All snapshots</div>
-      <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">All snapshots</div>
+      <table style="width:100%;border-collapse:collapse;font-size:var(--fs-sm)">
         <thead><tr style="border-bottom:1px solid var(--steel)"><th style="text-align:left;padding:5px 8px;color:var(--slate-2);font-weight:500">Date</th><th style="text-align:right;padding:5px 8px;color:var(--slate-2);font-weight:500">Assets</th><th style="text-align:right;padding:5px 8px;color:var(--slate-2);font-weight:500">Liabilities</th><th style="text-align:right;padding:5px 8px;color:var(--slate-2);font-weight:500">Net Worth</th></tr></thead>
         <tbody>${[...sorted].reverse().map(s=>`<tr style="border-bottom:1px solid var(--steel)"><td style="padding:6px 8px;color:var(--ink)">${s.month_label||s.date}</td><td style="padding:6px 8px;font-family:var(--font-mono);text-align:right;color:var(--pine-text)">${fmt(s.total_assets)}</td><td style="padding:6px 8px;font-family:var(--font-mono);text-align:right;color:var(--ember-text)">${fmt(s.total_liabilities)}</td><td style="padding:6px 8px;font-family:var(--font-mono);text-align:right;font-weight:600;color:${s.net_worth>=0?'var(--pine-text)':'var(--ember-text)'}">${fmt(s.net_worth)}</td></tr>`).join('')}</tbody>
       </table>
@@ -32175,7 +32175,7 @@ function _rcRenderBudgetVsActual() {
   const body = g('rcReportBody');
   if (!body) return;
   if (!S.expenses.length) {
-    body.innerHTML = `<div style="color:var(--slate);font-size:13px">No budget set yet.</div><button onclick="showView('budget')" style="margin-top:12px;font-size:12px;background:none;border:1px solid var(--steel);border-radius:var(--r-sm);padding:5px 12px;cursor:pointer;color:var(--ink)">Set up budget</button>`;
+    body.innerHTML = `<div style="color:var(--slate);font-size:var(--fs-base)">No budget set yet.</div><button onclick="showView('budget')" style="margin-top:12px;font-size:var(--fs-sm);background:none;border:1px solid var(--steel);border-radius:var(--r-sm);padding:5px 12px;cursor:pointer;color:var(--ink)">Set up budget</button>`;
     return;
   }
   const now    = new Date();
@@ -32183,12 +32183,12 @@ function _rcRenderBudgetVsActual() {
   const curMo  = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   body.innerHTML = `
     <div style="margin-bottom:24px">
-      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:22px;font-weight:600;color:var(--ink);margin-bottom:4px">Spending vs. Budget</h2>
-      <div style="font-size:13px;color:var(--slate)">How actual spending compares to budgeted amounts for any month.</div>
+      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-3xl);font-weight:600;color:var(--ink);margin-bottom:4px">Spending vs. Budget</h2>
+      <div style="font-size:var(--fs-base);color:var(--slate)">How actual spending compares to budgeted amounts for any month.</div>
     </div>
     <div style="margin-bottom:24px">
-      <label style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Month</label>
-      <select id="rcBVAMonth" onchange="_rcUpdateBudgetVsActual()" style="font-size:13px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 10px;background:var(--paper);color:var(--ink)">
+      <label style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Month</label>
+      <select id="rcBVAMonth" onchange="_rcUpdateBudgetVsActual()" style="font-size:var(--fs-base);border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 10px;background:var(--paper);color:var(--ink)">
         ${months.map(m=>{const [y,mo]=m.split('-').map(Number);return`<option value="${m}"${m===curMo?' selected':''}>${new Date(y,mo-1,1).toLocaleDateString('en-US',{month:'long',year:'numeric'})}</option>`;}).join('')}
       </select>
     </div>
@@ -32214,15 +32214,15 @@ function _rcUpdateBudgetVsActual() {
   const netDiff = totalActual - totalBudget;
   res.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:24px">
-      <div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Budgeted</div><div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--ink)">${fmt(totalBudget)}</div></div>
-      <div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Actual</div><div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--ink)">${fmt(totalActual)}</div></div>
-      <div class="card" style="padding:14px${totalOver>0?';border-color:var(--ember-border);background:var(--ember-bg)':''}"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Over budget</div><div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--ember-text)">${totalOver>0?fmt(totalOver):'--'}</div></div>
-      <div class="card" style="padding:14px${totalUnder>0?';border-color:var(--pine-border)':''}"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Under budget</div><div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--pine-text)">${totalUnder>0?fmt(totalUnder):'--'}</div></div>
+      <div class="card" style="padding:14px"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Budgeted</div><div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:var(--ink)">${fmt(totalBudget)}</div></div>
+      <div class="card" style="padding:14px"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Actual</div><div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:var(--ink)">${fmt(totalActual)}</div></div>
+      <div class="card" style="padding:14px${totalOver>0?';border-color:var(--ember-border);background:var(--ember-bg)':''}"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Over budget</div><div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:var(--ember-text)">${totalOver>0?fmt(totalOver):'--'}</div></div>
+      <div class="card" style="padding:14px${totalUnder>0?';border-color:var(--pine-border)':''}"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Under budget</div><div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:var(--pine-text)">${totalUnder>0?fmt(totalUnder):'--'}</div></div>
     </div>
     <div class="card" style="padding:16px">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">By category</div>
-      ${rows.map(r=>{const iconBg=_catTint(r.cs.color),iconBr=_catTintBorder(r.cs.color);return`<div style="padding:10px 0;border-bottom:1px solid var(--steel)"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><div><div class="cat-icon" style="background:${iconBg};border-color:${iconBr};color:${r.cs.color}">${_renderCatIcon(r.cs.icon,r.cs.color,18)}</div></div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:var(--ink)">${esc(r.exp.name||r.catName)}</div></div><div style="text-align:right;flex-shrink:0"><div style="font-family:var(--font-mono);font-size:13px;color:${r.diff>0?'var(--ember-text)':'var(--ink)'}">${fmt(r.actual)}</div><div style="font-size:11px;color:var(--slate-2)">of ${fmt(r.budget)}</div></div><div style="width:40px;text-align:right;flex-shrink:0"><span style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:${r.pct>=100?'var(--ember-text)':r.pct>=85?'var(--gold-text)':'var(--pine-text)'}">${r.pct}%</span></div></div><div style="height:4px;background:var(--steel);border-radius:2px;overflow:hidden"><div style="width:${Math.min(100,r.pct)}%;height:100%;background:${r.barClr};border-radius:2px"></div></div>${r.diff>0?`<div style="font-size:11px;color:var(--ember-text);margin-top:3px">${fmt(r.diff)} over</div>`:r.diff<-1?`<div style="font-size:11px;color:var(--pine-text);margin-top:3px">${fmt(Math.abs(r.diff))} remaining</div>`:''}</div>`;}).join('')}
-      <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:13px;font-weight:600"><span style="color:var(--ink)">Net</span><span style="font-family:var(--font-mono);color:${netDiff<=0?'var(--pine-text)':'var(--ember-text)'}">${netDiff>0?'+':''}${fmt(netDiff)}</span></div>
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">By category</div>
+      ${rows.map(r=>{const iconBg=_catTint(r.cs.color),iconBr=_catTintBorder(r.cs.color);return`<div style="padding:10px 0;border-bottom:1px solid var(--steel)"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><div><div class="cat-icon" style="background:${iconBg};border-color:${iconBr};color:${r.cs.color}">${_renderCatIcon(r.cs.icon,r.cs.color,18)}</div></div><div style="flex:1;min-width:0"><div style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">${esc(r.exp.name||r.catName)}</div></div><div style="text-align:right;flex-shrink:0"><div style="font-family:var(--font-mono);font-size:var(--fs-base);color:${r.diff>0?'var(--ember-text)':'var(--ink)'}">${fmt(r.actual)}</div><div style="font-size:var(--fs-xs);color:var(--slate-2)">of ${fmt(r.budget)}</div></div><div style="width:40px;text-align:right;flex-shrink:0"><span style="font-family:var(--font-mono);font-size:var(--fs-xs);font-weight:600;color:${r.pct>=100?'var(--ember-text)':r.pct>=85?'var(--gold-text)':'var(--pine-text)'}">${r.pct}%</span></div></div><div style="height:4px;background:var(--steel);border-radius:2px;overflow:hidden"><div style="width:${Math.min(100,r.pct)}%;height:100%;background:${r.barClr};border-radius:2px"></div></div>${r.diff>0?`<div style="font-size:var(--fs-xs);color:var(--ember-text);margin-top:3px">${fmt(r.diff)} over</div>`:r.diff<-1?`<div style="font-size:var(--fs-xs);color:var(--pine-text);margin-top:3px">${fmt(Math.abs(r.diff))} remaining</div>`:''}</div>`;}).join('')}
+      <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:var(--fs-base);font-weight:600"><span style="color:var(--ink)">Net</span><span style="font-family:var(--font-mono);color:${netDiff<=0?'var(--pine-text)':'var(--ember-text)'}">${netDiff>0?'+':''}${fmt(netDiff)}</span></div>
     </div>`;
 }
 
@@ -32239,8 +32239,8 @@ async function _rcRenderDebtPayoff() {
   const activeDebts = _activeDebtCards();
 
   if (!activeDebts.length) {
-    body.innerHTML = `<div style="color:var(--slate);font-size:13px;padding:20px 0">No active debt accounts found.</div>
-      <button onclick="showView('debt')" style="font-size:12px;background:none;border:1px solid var(--steel);border-radius:var(--r-sm);padding:5px 12px;cursor:pointer;color:var(--ink)">Go to Debt Payoff</button>`;
+    body.innerHTML = `<div style="color:var(--slate);font-size:var(--fs-base);padding:20px 0">No active debt accounts found.</div>
+      <button onclick="showView('debt')" style="font-size:var(--fs-sm);background:none;border:1px solid var(--steel);border-radius:var(--r-sm);padding:5px 12px;cursor:pointer;color:var(--ink)">Go to Debt Payoff</button>`;
     return;
   }
 
@@ -32310,52 +32310,52 @@ async function _rcRenderDebtPayoff() {
 
   body.innerHTML = `
     <div style="margin-bottom:24px">
-      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:22px;font-weight:600;color:var(--ink);margin-bottom:4px">Debt Payoff Analysis</h2>
-      <div style="font-size:13px;color:var(--slate)">Your complete debt picture — balances, sequence, interest cost, and what the math says about your trajectory.</div>
+      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-3xl);font-weight:600;color:var(--ink);margin-bottom:4px">Debt Payoff Analysis</h2>
+      <div style="font-size:var(--fs-base);color:var(--slate)">Your complete debt picture — balances, sequence, interest cost, and what the math says about your trajectory.</div>
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px">
       <div class="card" style="padding:14px">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Total remaining</div>
-        <div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--ember-text)">${fmt(totalDebt)}</div>
-        ${eliminated>0?`<div style="font-size:11px;color:var(--pine-text);margin-top:2px">${pctElim}% eliminated (${fmt(eliminated)} paid)</div>`:''}
+        <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Total remaining</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:var(--ember-text)">${fmt(totalDebt)}</div>
+        ${eliminated>0?`<div style="font-size:var(--fs-xs);color:var(--pine-text);margin-top:2px">${pctElim}% eliminated (${fmt(eliminated)} paid)</div>`:''}
       </div>
       <div class="card" style="padding:14px">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Debt-free date</div>
-        <div style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--pine-text)">${debtFreeDate}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">your ${_planName()} plan, ${fmt(_getMonthlyBudget())}/mo</div>
+        <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Debt-free date</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-lg);font-weight:600;color:var(--pine-text)">${debtFreeDate}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">your ${_planName()} plan, ${fmt(_getMonthlyBudget())}/mo</div>
       </div>
       <div class="card" style="padding:14px">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Remaining interest</div>
-        <div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--ember-text)">${fmt(totalRemInt)}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">at current rates</div>
+        <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Remaining interest</div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:var(--ember-text)">${fmt(totalRemInt)}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">at current rates</div>
       </div>
-      ${planSaves>0?`<div class="card" style="padding:14px;border-color:var(--pine-border);background:var(--pine-bg)"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--pine-text);margin-bottom:4px">Less interest than minimums only</div><div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--pine-text)">${fmt(planSaves)}</div><div style="font-size:11px;color:var(--pine-text);opacity:.8;margin-top:2px">your ${_planName()} plan at ${fmt(_getMonthlyBudget())}/mo, against paying only each minimum as issuers calculate it</div></div>`:''}
-      ${freed>0?`<div class="card" style="padding:14px;border-color:var(--pine-border);background:var(--pine-bg)"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--pine-text);margin-bottom:4px">Freed minimums</div><div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--pine-text)">+${fmt(freed)}/mo</div><div style="font-size:11px;color:var(--pine-text);opacity:.8;margin-top:2px">since January</div></div>`:''}
+      ${planSaves>0?`<div class="card" style="padding:14px;border-color:var(--pine-border);background:var(--pine-bg)"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--pine-text);margin-bottom:4px">Less interest than minimums only</div><div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:var(--pine-text)">${fmt(planSaves)}</div><div style="font-size:var(--fs-xs);color:var(--pine-text);opacity:.8;margin-top:2px">your ${_planName()} plan at ${fmt(_getMonthlyBudget())}/mo, against paying only each minimum as issuers calculate it</div></div>`:''}
+      ${freed>0?`<div class="card" style="padding:14px;border-color:var(--pine-border);background:var(--pine-bg)"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--pine-text);margin-bottom:4px">Freed minimums</div><div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:var(--pine-text)">+${fmt(freed)}/mo</div><div style="font-size:var(--fs-xs);color:var(--pine-text);opacity:.8;margin-top:2px">since January</div></div>`:''}
     </div>
 
     <div class="card" style="margin-bottom:20px;padding:16px">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:14px">Per-card breakdown</div>
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:14px">Per-card breakdown</div>
       ${cardData.map(d => {
         const isTarget = d.card.id === targetData?.card.id;
-        const aprNote  = d.aprHistory.length ? `<div style="font-size:11px;color:var(--gold-text);margin-top:3px">APR changed: ${d.aprHistory.map(h=>`${h.from}% to ${h.to}% in ${h.month}`).join(', ')}</div>` : '';
+        const aprNote  = d.aprHistory.length ? `<div style="font-size:var(--fs-xs);color:var(--gold-text);margin-top:3px">APR changed: ${d.aprHistory.map(h=>`${h.from}% to ${h.to}% in ${h.month}`).join(', ')}</div>` : '';
         return `<div style="padding:12px 0;border-bottom:1px solid var(--steel)">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px">
             <div style="flex:1;min-width:0">
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                <span style="font-size:13px;font-weight:600;color:var(--ink)">${esc(d.card.name||'Card')}</span>
-                ${isTarget?`<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:var(--gold-bg);color:var(--gold-text);border:1px solid var(--gold-border)">${_planName()} target</span>`:''}
-                ${d.linked?`<span style="font-size:10px;color:var(--pine-text)">from imports</span>`:`<span style="font-size:10px;color:var(--slate-2)">manual</span>`}
+                <span style="font-size:var(--fs-base);font-weight:600;color:var(--ink)">${esc(d.card.name||'Card')}</span>
+                ${isTarget?`<span style="font-size:var(--fs-xs);padding:1px 7px;border-radius:10px;background:var(--gold-bg);color:var(--gold-text);border:1px solid var(--gold-border)">${_planName()} target</span>`:''}
+                ${d.linked?`<span style="font-size:var(--fs-xs);color:var(--pine-text)">from imports</span>`:`<span style="font-size:var(--fs-xs);color:var(--slate-2)">manual</span>`}
               </div>
-              <div style="font-size:11px;color:var(--slate);margin-top:2px">${d.apr>0?`${d.apr}% APR · `:''}${fmt(d.pmt)}/mo${d.calcMin>0&&Math.abs(d.pmt-d.calcMin)>1?` (min ${fmt(d.calcMin)})`:''}</div>
+              <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${d.apr>0?`${d.apr}% APR · `:''}${fmt(d.pmt)}/mo${d.calcMin>0&&Math.abs(d.pmt-d.calcMin)>1?` (min ${fmt(d.calcMin)})`:''}</div>
               ${aprNote}
             </div>
             <div style="text-align:right;flex-shrink:0">
-              <div style="font-family:var(--font-mono);font-size:15px;font-weight:600;color:var(--ember-text)">${fmt(d.bal)}</div>
-              <div style="font-size:11px;color:var(--slate)">${d.payoffLabel}</div>
+              <div style="font-family:var(--font-mono);font-size:var(--fs-lg);font-weight:600;color:var(--ember-text)">${fmt(d.bal)}</div>
+              <div style="font-size:var(--fs-xs);color:var(--slate)">${d.payoffLabel}</div>
             </div>
           </div>
-          ${d.totalInt>0?`<div style="font-size:11px;color:var(--slate-2);flex-wrap:wrap;display:flex;gap:16px">
+          ${d.totalInt>0?`<div style="font-size:var(--fs-xs);color:var(--slate-2);flex-wrap:wrap;display:flex;gap:16px">
             <span>Interest: <span style="font-family:var(--font-mono);color:var(--ember-text)">${fmt(d.totalInt)}</span></span>
             ${d.intSaved>0?`<span style="color:var(--pine-text)">${fmt(d.intSaved)} less interest than minimums only · ${d.mosSooner} months sooner</span>`:''}
           </div>`:''}
@@ -32364,36 +32364,36 @@ async function _rcRenderDebtPayoff() {
     </div>
 
     ${planSeq.length ? `<div class="card" style="margin-bottom:20px;padding:16px">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:4px">Payoff sequence — your ${_planName()} plan</div>
-      <div style="font-size:12px;color:var(--slate);margin-bottom:12px">${_planName() === 'snowball' ? 'Smallest balance first' : 'Highest APR first'}, ${fmt(_getMonthlyBudget())}/mo. Each payoff rolls its payment to the next debt.</div>
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:4px">Payoff sequence — your ${_planName()} plan</div>
+      <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:12px">${_planName() === 'snowball' ? 'Smallest balance first' : 'Highest APR first'}, ${fmt(_getMonthlyBudget())}/mo. Each payoff rolls its payment to the next debt.</div>
       ${planSeq.map(({d, month},i)=>`<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--steel)">
-        <div style="width:20px;height:20px;border-radius:50%;background:${i===0?'var(--gold)':'var(--steel)'};color:${i===0?'#92400e':'var(--slate)'};font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</div>
-        <div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--ink)">${esc(d.card.name||'Card')}</div><div style="font-size:11px;color:var(--slate)">${d.apr}% APR · ${fmt(d.bal)}</div></div>
-        <div style="font-family:var(--font-mono);font-size:12px;color:var(--slate)">${_payoffDateLabel(month)}</div>
+        <div style="width:20px;height:20px;border-radius:50%;background:${i===0?'var(--gold)':'var(--steel)'};color:${i===0?'#92400e':'var(--slate)'};font-size:var(--fs-xs);font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</div>
+        <div style="flex:1"><div style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">${esc(d.card.name||'Card')}</div><div style="font-size:var(--fs-xs);color:var(--slate)">${d.apr}% APR · ${fmt(d.bal)}</div></div>
+        <div style="font-family:var(--font-mono);font-size:var(--fs-sm);color:var(--slate)">${_payoffDateLabel(month)}</div>
       </div>`).join('')}
     </div>` : ''}
 
     ${scenario50||scenario100 ? `<div class="card" style="margin-bottom:20px;padding:16px">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:4px">What if you paid more?</div>
-      <div style="font-size:12px;color:var(--slate);margin-bottom:12px">Applied to ${esc(targetData?.card.name||'highest-APR card')}.</div>
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:4px">What if you paid more?</div>
+      <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:12px">Applied to ${esc(targetData?.card.name||'highest-APR card')}.</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        ${scenario50?`<div style="padding:12px;background:var(--mist);border-radius:var(--r-sm)"><div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:6px">+$50/month extra</div><div style="font-size:12px;color:var(--pine-text)">${scenario50.mosSooner} months sooner</div><div style="font-size:11px;color:var(--slate)">${fmt(scenario50.intSaved)} less interest</div></div>`:''}
-        ${scenario100?`<div style="padding:12px;background:var(--mist);border-radius:var(--r-sm)"><div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:6px">+$100/month extra</div><div style="font-size:12px;color:var(--pine-text)">${scenario100.mosSooner} months sooner</div><div style="font-size:11px;color:var(--slate)">${fmt(scenario100.intSaved)} less interest</div></div>`:''}
+        ${scenario50?`<div style="padding:12px;background:var(--mist);border-radius:var(--r-sm)"><div style="font-size:var(--fs-sm);font-weight:600;color:var(--ink);margin-bottom:6px">+$50/month extra</div><div style="font-size:var(--fs-sm);color:var(--pine-text)">${scenario50.mosSooner} months sooner</div><div style="font-size:var(--fs-xs);color:var(--slate)">${fmt(scenario50.intSaved)} less interest</div></div>`:''}
+        ${scenario100?`<div style="padding:12px;background:var(--mist);border-radius:var(--r-sm)"><div style="font-size:var(--fs-sm);font-weight:600;color:var(--ink);margin-bottom:6px">+$100/month extra</div><div style="font-size:var(--fs-sm);color:var(--pine-text)">${scenario100.mosSooner} months sooner</div><div style="font-size:var(--fs-xs);color:var(--slate)">${fmt(scenario100.intSaved)} less interest</div></div>`:''}
       </div>
     </div>` : ''}
 
     <div class="card" id="rcDebtPayoffAICard" style="padding:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div>
-          <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2)">Groundwork's analysis</div>
-          <div style="font-size:12px;color:var(--slate);margin-top:2px">What the math means for your specific situation right now.</div>
+          <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2)">Groundwork's analysis</div>
+          <div style="font-size:var(--fs-sm);color:var(--slate);margin-top:2px">What the math means for your specific situation right now.</div>
         </div>
       </div>
       <div id="rcDebtPayoffAIContent">
         ${aiEnabled()
-          ? `<button onclick="_rcRunDebtPayoffAI()" class="btn btn-primary" style="font-size:13px">Generate analysis</button>
-             <div style="font-size:11px;color:var(--slate-2);margin-top:8px">Runs on your own machine — debt balances, APRs, payoff sequence, and interest data never leave your computer.</div>`
-          : `<div style="font-size:13px;color:var(--slate)">${S.prefs?.aiEnabled === false
+          ? `<button onclick="_rcRunDebtPayoffAI()" class="btn btn-primary" style="font-size:var(--fs-base)">Generate analysis</button>
+             <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:8px">Runs on your own machine — debt balances, APRs, payoff sequence, and interest data never leave your computer.</div>`
+          : `<div style="font-size:var(--fs-base);color:var(--slate)">${S.prefs?.aiEnabled === false
                 ? 'Turn AI on in Settings to enable Groundwork\'s analysis.'
                 : 'AI is off. Turn it on in Settings to get Groundwork\'s analysis; everything else works without it.'}</div>`}
       </div>
@@ -32489,7 +32489,7 @@ async function boot() {
       // Show a visible error in the content area so we can see what failed
       const content = document.querySelector('.content');
       if (content) {
-        content.innerHTML = `<div style="padding:32px;font-family:monospace;font-size:13px;color:var(--ember-text);background:#fff;border:2px solid #dc2626;border-radius:8px;margin:24px">
+        content.innerHTML = `<div style="padding:32px;font-family:monospace;font-size:var(--fs-base);color:var(--ember-text);background:#fff;border:2px solid #dc2626;border-radius:8px;margin:24px">
           <strong>Boot error in bootFromDB:</strong><br><br>${e?.message || e}<br><br>
           <span style="color:var(--slate)">Check the browser console (F12) for details.</span>
         </div>`;
@@ -32510,7 +32510,7 @@ async function boot() {
       console.error('showView/renderDashboard failed:', e);
       const content = document.querySelector('.content');
       if (content && !content.querySelector('[style*="dc2626"]')) {
-        content.innerHTML = `<div style="padding:32px;font-family:monospace;font-size:13px;color:var(--ember-text);background:#fff;border:2px solid #dc2626;border-radius:8px;margin:24px">
+        content.innerHTML = `<div style="padding:32px;font-family:monospace;font-size:var(--fs-base);color:var(--ember-text);background:#fff;border:2px solid #dc2626;border-radius:8px;margin:24px">
           <strong>Render error in renderDashboard:</strong><br><br>${e?.message || e}<br><br>
           <span style="color:var(--slate)">Stack: ${(e?.stack||'').slice(0,300)}</span>
         </div>`;
@@ -32851,7 +32851,7 @@ async function _loadRealizedGains() {
 
     _renderRealizedGains(taxRows, gains);
   } catch (e) {
-    content.innerHTML = `<div style="font-size:12px;color:var(--slate-2)">Could not load realized gains.</div>`;
+    content.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate-2)">Could not load realized gains.</div>`;
     _gwErr('_loadRealizedGains')(e);
   }
 }
@@ -32888,17 +32888,17 @@ function _renderRealizedGains(taxRows, gains) {
       </div>
       <div class="stat-card">
         <div class="stat-label">Short-term</div>
-        <div class="stat-value" style="color:${gainColor(summary.short_term)};font-size:20px">${fmt(summary.short_term||0)}</div>
+        <div class="stat-value" style="color:${gainColor(summary.short_term)};font-size:var(--fs-2xl)">${fmt(summary.short_term||0)}</div>
         <div class="stat-delta">held under 1 year</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Long-term</div>
-        <div class="stat-value" style="color:${gainColor(summary.long_term)};font-size:20px">${fmt(summary.long_term||0)}</div>
+        <div class="stat-value" style="color:${gainColor(summary.long_term)};font-size:var(--fs-2xl)">${fmt(summary.long_term||0)}</div>
         <div class="stat-delta">held 1 year or more</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Closed lots</div>
-        <div class="stat-value" style="font-size:20px">${summary.count||0}</div>
+        <div class="stat-value" style="font-size:var(--fs-2xl)">${summary.count||0}</div>
       </div>
     </div>`;
 
@@ -32908,12 +32908,12 @@ function _renderRealizedGains(taxRows, gains) {
       <td style="padding:8px 12px;text-align:right;font-family:var(--font-mono);color:${gainColor(r.short_term)}">${fmt(r.short_term)}</td>
       <td style="padding:8px 12px;text-align:right;font-family:var(--font-mono);color:${gainColor(r.long_term)}">${fmt(r.long_term)}</td>
       <td style="padding:8px 12px;text-align:right;font-family:var(--font-mono);font-weight:600;color:${gainColor(r.total)}">${fmt(r.total)}</td>
-      <td style="padding:8px 12px;text-align:right;color:var(--slate-2);font-size:11px">${r.lots}</td>
+      <td style="padding:8px 12px;text-align:right;color:var(--slate-2);font-size:var(--fs-xs)">${r.lots}</td>
     </tr>`).join('');
 
   const yearTable = taxRows.length ? `
     <div style="margin-bottom:20px">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-bottom:8px">By tax year</div>
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-bottom:8px">By tax year</div>
       <div style="overflow-x:auto">
         <table class="data-table" style="width:100%">
           <thead><tr>
@@ -32937,20 +32937,20 @@ function _renderRealizedGains(taxRows, gains) {
       <td style="padding:8px 12px;text-align:right;font-family:var(--font-mono)">${fmt(l.cost_basis_per_share||0)}</td>
       <td style="padding:8px 12px;text-align:right;font-family:var(--font-mono)">${fmt(l.sell_price_per_share||0)}</td>
       <td style="padding:8px 12px;text-align:right;font-family:var(--font-mono);font-weight:600;color:${gainColor(l.realized_gain)}">${fmt(l.realized_gain||0)}</td>
-      <td style="padding:8px 12px;text-align:right;font-size:11px;color:${gainColor(l.realized_gain_pct)}">${(l.realized_gain_pct||0)>=0?'+':''}${(l.realized_gain_pct||0).toFixed(1)}%</td>
+      <td style="padding:8px 12px;text-align:right;font-size:var(--fs-xs);color:${gainColor(l.realized_gain_pct)}">${(l.realized_gain_pct||0)>=0?'+':''}${(l.realized_gain_pct||0).toFixed(1)}%</td>
       <td style="padding:8px 12px;text-align:center">
-        <span style="font-size:10px;padding:2px 8px;border-radius:20px;
+        <span style="font-size:var(--fs-xs);padding:2px 8px;border-radius:20px;
                      background:${l.is_long_term?'var(--pine-bg)':'var(--gold-bg)'};
                      color:${l.is_long_term?'var(--pine-text)':'#92400e'};
                      border:1px solid ${l.is_long_term?'var(--pine-border)':'var(--gold-border)'}">${esc(l.term_label||'')}</span>
       </td>
-      <td style="padding:8px 12px;color:var(--slate-2);font-size:11px;white-space:nowrap">${esc(l.sell_date||'')}</td>
+      <td style="padding:8px 12px;color:var(--slate-2);font-size:var(--fs-xs);white-space:nowrap">${esc(l.sell_date||'')}</td>
     </tr>`;
   }).join('');
 
   const lotsTable = lots.length ? `
     <div>
-      <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-bottom:8px">
+      <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-bottom:8px">
         Closed lots${_realizedGainsYear ? ` — ${_realizedGainsYear}` : ''}
       </div>
       <div style="overflow-x:auto">
@@ -32968,10 +32968,10 @@ function _renderRealizedGains(taxRows, gains) {
           <tbody>${lotRows}</tbody>
         </table>
       </div>
-    </div>` : `<div style="font-size:12px;color:var(--slate-2)">No closed lots${_realizedGainsYear ? ` in ${_realizedGainsYear}` : ''}.</div>`;
+    </div>` : `<div style="font-size:var(--fs-sm);color:var(--slate-2)">No closed lots${_realizedGainsYear ? ` in ${_realizedGainsYear}` : ''}.</div>`;
 
   content.innerHTML = statsRow + yearTable + lotsTable + `
-    <div style="margin-top:16px;font-size:11px;color:var(--slate-2);line-height:1.6">
+    <div style="margin-top:16px;font-size:var(--fs-xs);color:var(--slate-2);line-height:1.6">
       Short-term = held under a year, generally taxed as ordinary income. Long-term = held a year
       or more, usually taxed at a lower rate. This is informational, not tax advice — check with a
       tax professional for your specific situation.
@@ -33005,7 +33005,7 @@ async function renderBybFromRecord() {
   if (!offers.length) { el.innerHTML = ''; return; }
   const when = n => n == null ? 'not priced' : `${n} month${n !== 1 ? 's' : ''}`;
   el.innerHTML = `<div class="card mb-5"><div class="card-label">Purchases you didn't ask about</div>
-    <div style="font-size:12px;color:var(--slate);margin-bottom:6px">Found in your records, not asked here first - shown as if you had asked. Nothing changes unless you change it.</div>
+    <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:6px">Found in your records, not asked here first - shown as if you had asked. Nothing changes unless you change it.</div>
     ${offers.map(o => {
       const im = o.impact || {};
       const head = o.kind === 'new_recurring'
@@ -33016,9 +33016,9 @@ async function renderBybFromRecord() {
       if (im.payoff_months_now != null) lines.push(`Debt-free in: ${when(im.payoff_months_now)} → ${when(im.payoff_months_with)}.`);
       (im.goals || []).forEach(gl => lines.push(`${esc(gl.name)}: ${_monthName(gl.date_now)} → ${gl.date_with ? _monthName(gl.date_with) : 'not reached at this rate'}.`));
       return `<div style="padding:10px 0;border-top:1px solid var(--steel)" data-byb-offer="${esc(o.key)}">
-        <div style="font-size:13px;color:var(--ink)">${head}</div>
-        <div style="font-size:12px;color:var(--ink);line-height:1.7;margin-top:4px">${lines.join('<br>') || 'Nothing on record to price it against yet.'}</div>
-        <div style="font-size:11px;color:var(--slate-2);margin-top:2px">${esc(im.assumption || '')}</div>
+        <div style="font-size:var(--fs-base);color:var(--ink)">${head}</div>
+        <div style="font-size:var(--fs-sm);color:var(--ink);line-height:1.7;margin-top:4px">${lines.join('<br>') || 'Nothing on record to price it against yet.'}</div>
+        <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:2px">${esc(im.assumption || '')}</div>
         <div style="margin-top:6px">
           <button class="btn btn-secondary btn-sm" onclick="bybOfferAnswer('${esc(o.key)}', 'meant')">I meant to</button>
           ${o.kind === 'new_recurring' ? `<button class="btn btn-secondary btn-sm" onclick="bybOfferAnswer('${esc(o.key)}', 'cancel')">I'll cancel it</button>` : ''}
@@ -33048,15 +33048,15 @@ async function renderBybReceipts() {
   const open = kept.filter(r => !r.done);
   _bybAfterCount('receipts', open.length);
   el.innerHTML = `<div class="card mb-5"><div class="card-label">Return windows and free trials</div>
-    <div style="font-size:12px;color:var(--slate);margin-bottom:8px">Paste a confirmation, or choose its PDF or saved email. Groundwork reads the dates it states, and shows each on your dashboard a week before. The receipt is read on this computer and not kept.</div>
-    <textarea id="bybReceiptText" rows="3" placeholder="Paste the receipt or confirmation" style="width:100%;padding:8px;border:1px solid var(--steel);border-radius:var(--r-md);font-size:12px;background:var(--paper);color:var(--ink)"></textarea>
+    <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:8px">Paste a confirmation, or choose its PDF or saved email. Groundwork reads the dates it states, and shows each on your dashboard a week before. The receipt is read on this computer and not kept.</div>
+    <textarea id="bybReceiptText" rows="3" placeholder="Paste the receipt or confirmation" style="width:100%;padding:8px;border:1px solid var(--steel);border-radius:var(--r-md);font-size:var(--fs-sm);background:var(--paper);color:var(--ink)"></textarea>
     <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
       <button class="btn btn-secondary btn-sm" onclick="bybReadReceipt(null)">Read it</button>
       <label class="btn btn-ghost btn-sm" style="cursor:pointer">Choose a file
         <input type="file" id="bybReceiptFile" accept=".pdf,.eml,.txt,.html,.htm" style="display:none" onchange="if (this.files[0]) bybReadReceipt(this.files[0])"></label>
     </div>
     <div id="bybReceiptResult" style="margin-top:8px"></div>
-    ${open.length ? `<div style="margin-top:10px;font-size:12px;color:var(--ink);line-height:1.8">${open.map(r =>
+    ${open.length ? `<div style="margin-top:10px;font-size:var(--fs-sm);color:var(--ink);line-height:1.8">${open.map(r =>
       `<div>${esc(_RECEIPT_WHAT[r.kind] || r.kind)}: <b>${esc(r.merchant)}</b>, ${_billDate(r.date)}${r.price_after ? `, then ${fmt(r.price_after)}${r.every ? ' a ' + esc(r.every) : ''}` : ''}
         <button class="btn btn-ghost btn-sm" onclick="bybReceiptDone(${r.id})">Handled</button></div>`).join('')}</div>` : ''}
   </div>`;
@@ -33076,17 +33076,17 @@ async function bybReadReceipt(file) {
     } else {
       _bybReceiptRead = await API.post('/api/byb/receipt/read', { text });
     }
-  } catch (e) { if (out) out.innerHTML = `<div style="font-size:12px;color:var(--ember-text)">${esc(e.message)}</div>`; return; }
+  } catch (e) { if (out) out.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--ember-text)">${esc(e.message)}</div>`; return; }
   const d = _bybReceiptRead;
   if (!d.dates.length) {
-    out.innerHTML = `<div style="font-size:12px;color:var(--slate)">No trial, return or cancel date with its year was found.${d.warnings.length ? ' ' + d.warnings.map(esc).join(' · ') : ''}</div>`;
+    out.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate)">No trial, return or cancel date with its year was found.${d.warnings.length ? ' ' + d.warnings.map(esc).join(' · ') : ''}</div>`;
     return;
   }
-  out.innerHTML = `<div style="font-size:12px;color:var(--ink)">From <input id="bybReceiptMerchant" value="${esc(d.merchant)}" style="font-size:12px;width:180px">:</div>
-    ${d.dates.map((x, i) => `<label style="display:flex;gap:6px;align-items:flex-start;font-size:12px;margin-top:4px"><input type="checkbox" id="bybRd${i}" checked>
+  out.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--ink)">From <input id="bybReceiptMerchant" value="${esc(d.merchant)}" style="font-size:var(--fs-sm);width:180px">:</div>
+    ${d.dates.map((x, i) => `<label style="display:flex;gap:6px;align-items:flex-start;font-size:var(--fs-sm);margin-top:4px"><input type="checkbox" id="bybRd${i}" checked>
       <span><b>${esc(_RECEIPT_WHAT[x.kind])}: ${_billDate(x.date)}</b>${x.price_after ? `, then ${fmt(x.price_after)}${x.every ? ' a ' + esc(x.every) : ''}` : ''}
       <span style="color:var(--slate-2)">- "${esc(x.phrase)}"</span></span></label>`).join('')}
-    ${d.warnings.length ? `<div style="font-size:11px;color:var(--gold-text);margin-top:4px">${d.warnings.map(esc).join(' · ')}</div>` : ''}
+    ${d.warnings.length ? `<div style="font-size:var(--fs-xs);color:var(--gold-text);margin-top:4px">${d.warnings.map(esc).join(' · ')}</div>` : ''}
     <button class="btn btn-primary btn-sm" style="margin-top:6px" onclick="bybKeepReceiptDates()">Keep the ticked dates</button>`;
 }
 
@@ -33113,21 +33113,21 @@ async function bybReceiptDone(id) {
 function renderBybCost() {
   const el = g('bybCost');
   if (!el) return;
-  const f = (id, label, ph) => `<label style="font-size:12px;display:inline-flex;flex-direction:column;margin:0 10px 6px 0">${label}
-    <input id="${id}" type="number" step="0.01" placeholder="${ph || ''}" style="width:120px;font-size:12px"></label>`;
+  const f = (id, label, ph) => `<label style="font-size:var(--fs-sm);display:inline-flex;flex-direction:column;margin:0 10px 6px 0">${label}
+    <input id="${id}" type="number" step="0.01" placeholder="${ph || ''}" style="width:120px;font-size:var(--fs-sm)"></label>`;
   // Item 99 L2/L3: these live inside the question now ("Not sure what it costs a month?", "Paying over time?"), and
   // each answer can become the question's monthly figure with one tap - the same figures, now one flow.
   el.innerHTML = `<div style="background:var(--mist);border-radius:var(--r-md);padding:12px 14px">
-    <div style="font-size:12px;color:var(--slate);margin-bottom:6px">What a car, a phone or a yearly charge costs each month, built from your own figures and what Groundwork already knows - each part with its source.</div>
-    <select id="bybCostKind" onchange="bybCostFields()" style="font-size:12px;margin-bottom:6px">
+    <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:6px">What a car, a phone or a yearly charge costs each month, built from your own figures and what Groundwork already knows - each part with its source.</div>
+    <select id="bybCostKind" onchange="bybCostFields()" style="font-size:var(--fs-sm);margin-bottom:6px">
       <option value="car">A car</option><option value="phone">A phone on a plan</option><option value="annual">A yearly charge</option></select>
     <div id="bybCostFields"></div>
     <button class="btn btn-secondary btn-sm" onclick="bybFullCost()">Work out the monthly cost</button>
     <div id="bybCostResult" style="margin-top:8px"></div></div>`;
   const offerEl = g('bybOffer');
   if (offerEl) offerEl.innerHTML = `<div style="background:var(--mist);border-radius:var(--r-md);padding:12px 14px">
-    <div style="font-size:12px;color:var(--slate)">Paste a financing offer (a store card, a car loan, "no interest for 12 months"). Its rate, term, payment, fees and any deferred-interest terms are read - each figure must be in the offer.</div>
-    <textarea id="bybOfferText" rows="3" style="width:100%;padding:8px;border:1px solid var(--steel);border-radius:var(--r-md);font-size:12px;background:var(--paper);color:var(--ink);margin-top:6px"></textarea>
+    <div style="font-size:var(--fs-sm);color:var(--slate)">Paste a financing offer (a store card, a car loan, "no interest for 12 months"). Its rate, term, payment, fees and any deferred-interest terms are read - each figure must be in the offer.</div>
+    <textarea id="bybOfferText" rows="3" style="width:100%;padding:8px;border:1px solid var(--steel);border-radius:var(--r-md);font-size:var(--fs-sm);background:var(--paper);color:var(--ink);margin-top:6px"></textarea>
     <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="bybReadOffer()">Read the offer</button>
     <div id="bybOfferResult" style="margin-top:8px"></div></div>`;
   window._bybCostField = f;
@@ -33149,8 +33149,8 @@ async function bybFullCost() {
     : k === 'phone' ? { device_payment: v('bcDevice'), plan_change: v('bcPlan') } : { yearly: v('bcYearly') };
   const out = g('bybCostResult');
   let d;
-  try { d = await API.post('/api/byb/full-cost', { kind: k, inputs }); } catch (e) { out.innerHTML = `<div style="font-size:12px;color:var(--ember-text)">${esc(e.message)}</div>`; return; }
-  out.innerHTML = `<div style="font-size:12px;line-height:1.7">${d.parts.map(p => `<div><b>${esc(p.label)}</b>: ${fmt(p.monthly)} a month <span style="color:var(--slate-2)">(${esc(p.source)})</span></div>`).join('')}
+  try { d = await API.post('/api/byb/full-cost', { kind: k, inputs }); } catch (e) { out.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--ember-text)">${esc(e.message)}</div>`; return; }
+  out.innerHTML = `<div style="font-size:var(--fs-sm);line-height:1.7">${d.parts.map(p => `<div><b>${esc(p.label)}</b>: ${fmt(p.monthly)} a month <span style="color:var(--slate-2)">(${esc(p.source)})</span></div>`).join('')}
     <div style="margin-top:4px"><b>About ${fmt(d.monthly)} a month, ${fmt(d.yearly)} a year</b>, counting only the parts above.</div>
     ${d.left_out.length ? `<div style="color:var(--slate-2);margin-top:2px">Not included: ${d.left_out.map(esc).join('; ')}.</div>` : ''}
     ${d.monthly > 0 ? `<button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="bybUseFigure(${Number(d.monthly)}, '${k === 'car' ? 'vehicle' : k === 'phone' ? 'subscription' : 'other'}')">Use ${fmt(d.monthly)} a month above</button>` : ''}</div>`;
@@ -33174,21 +33174,21 @@ async function bybReadOffer() {
   const text = g('bybOfferText')?.value?.trim(), out = g('bybOfferResult');
   if (!text) { showToast('Paste the financing offer first', '', 'warning'); return; }
   let d;
-  try { d = await API.post('/api/byb/financing', { text }); } catch (e) { out.innerHTML = `<div style="font-size:12px;color:var(--ember-text)">${esc(e.message)}</div>`; return; }
+  try { d = await API.post('/api/byb/financing', { text }); } catch (e) { out.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--ember-text)">${esc(e.message)}</div>`; return; }
   const o = d.offer, c = d.compare, read = [];
   if (o.price != null) read.push(`price ${fmt(o.price)}`);
   if (o.apr != null) read.push(`${o.apr}% APR`);
   if (o.term_months) read.push(`${o.term_months} months`);
   if (o.payment != null) read.push(`${fmt(o.payment)} a month`);
   if (o.fees) read.push(`${fmt(o.fees)} in fees`);
-  out.innerHTML = `<div style="font-size:12px;line-height:1.7">
+  out.innerHTML = `<div style="font-size:var(--fs-sm);line-height:1.7">
     <div style="color:var(--slate)">Read from the offer: ${read.join(', ') || 'no figures'}.</div>
     ${c.rows.map(r => `<div><b>${esc(r.label)}</b>: ${fmt(r.total)} <span style="color:var(--slate-2)">(${esc(r.how)})</span></div>`).join('')}
     ${c.extra != null && c.extra > 0 ? `<div>Financing costs ${fmt(c.extra)} more than paying cash.</div>` : ''}
     ${o.deferred ? `<div style="margin-top:6px;padding:6px 10px;border-left:2px solid var(--gold);background:var(--gold-bg)"><b>Deferred interest.</b> The offer says: "${esc(o.deferred_phrase || '')}"${c.deferred ? `<br>${esc(c.deferred.how)}.` : ''}</div>` : ''}
     ${c.own_debt ? `<div style="margin-top:6px">Your ${esc(c.own_debt.name)} balance (${fmt(c.own_debt.balance)}) costs ${c.own_debt.rate}%${c.own_debt.offer_apr != null ? `; this offer's rate is ${c.own_debt.offer_apr}%` : ''}.${c.own_debt.year_interest_on_cash ? ` The same cash on that balance would save about ${fmt(c.own_debt.year_interest_on_cash)} of interest in a year (worked out by Groundwork).` : ''}</div>` : ''}
-    ${o.warnings.length ? `<div style="font-size:11px;color:var(--gold-text);margin-top:4px">${o.warnings.map(esc).join(' · ')}</div>` : ''}
-    <div style="font-size:11px;color:var(--slate-2);margin-top:4px">Side by side, so you can weigh them. Nothing is saved.</div>
+    ${o.warnings.length ? `<div style="font-size:var(--fs-xs);color:var(--gold-text);margin-top:4px">${o.warnings.map(esc).join(' · ')}</div>` : ''}
+    <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px">Side by side, so you can weigh them. Nothing is saved.</div>
     ${o.payment != null && o.payment > 0 ? `<button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick='bybUseFigure(${Number(o.payment)}, "purchase", ${JSON.stringify({ amount: o.price ?? null, apr: o.apr ?? null, term: o.term_months ?? null })})'>Use ${fmt(o.payment)} a month above</button>` : ''}</div>`;
 }
 
@@ -33268,9 +33268,9 @@ function _renderBYBList() {
   const dtiNow           = calcDTI() || 0;
 
   const decisionBadge = d => {
-    if (d === 'commit')   return `<span style="font-size:10px;background:var(--pine-bg);color:var(--pine-text);border:1px solid var(--pine-border);border-radius:20px;padding:2px 8px;font-weight:600">Bought</span>`;
-    if (d === 'track')    return `<span style="font-size:10px;background:var(--mist);color:var(--slate);border:1px solid var(--steel);border-radius:20px;padding:2px 8px">Tracking</span>`;
-    if (d === 'walkaway') return `<span style="font-size:10px;background:var(--ember-bg);color:var(--ember-text);border:1px solid var(--ember-border);border-radius:20px;padding:2px 8px">Not buying</span>`;
+    if (d === 'commit')   return `<span style="font-size:var(--fs-xs);background:var(--pine-bg);color:var(--pine-text);border:1px solid var(--pine-border);border-radius:20px;padding:2px 8px;font-weight:600">Bought</span>`;
+    if (d === 'track')    return `<span style="font-size:var(--fs-xs);background:var(--mist);color:var(--slate);border:1px solid var(--steel);border-radius:20px;padding:2px 8px">Tracking</span>`;
+    if (d === 'walkaway') return `<span style="font-size:var(--fs-xs);background:var(--ember-bg);color:var(--ember-text);border:1px solid var(--ember-border);border-radius:20px;padding:2px 8px">Not buying</span>`;
     return '';
   };
 
@@ -33287,21 +33287,21 @@ function _renderBYBList() {
       <div class="card mb-3" style="${b.decision==='commit'?'border-color:var(--pine-border)':b.decision==='walkaway'?'opacity:.75':''}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
           <div style="flex:1">
-            <div style="font-weight:600;font-size:13px;color:var(--ink);margin-bottom:3px">${esc(b.name||'')}</div>
+            <div style="font-weight:600;font-size:var(--fs-base);color:var(--ink);margin-bottom:3px">${esc(b.name||'')}</div>
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               ${decisionBadge(b.decision)}
-              ${decidedAt ? `<span style="font-size:11px;color:var(--slate-2)">${decidedAt}</span>` : ''}
+              ${decidedAt ? `<span style="font-size:var(--fs-xs);color:var(--slate-2)">${decidedAt}</span>` : ''}
             </div>
           </div>
           <div style="text-align:right;flex-shrink:0">
-            <div style="font-family:var(--font-mono);font-size:14px;font-weight:600;color:${b.decision==='commit'?'var(--ember-text)':'var(--slate)'}">
+            <div style="font-family:var(--font-mono);font-size:var(--fs-md);font-weight:600;color:${b.decision==='commit'?'var(--ember-text)':'var(--slate)'}">
               ${b.monthly>0?fmt(b.monthly)+'/mo':''}
             </div>
-            ${b.replacing?.name ? `<div style="font-size:10px;color:var(--slate-2)">replacing ${esc(b.replacing.name)}</div>` : ''}
+            ${b.replacing?.name ? `<div style="font-size:var(--fs-xs);color:var(--slate-2)">replacing ${esc(b.replacing.name)}</div>` : ''}
           </div>
         </div>
         ${(dtiDelta !== null || payoffImpact !== null) ? `
-        <div style="display:flex;gap:16px;font-size:11px;color:var(--slate);padding-top:8px;border-top:0.5px solid var(--steel-2);flex-wrap:wrap">
+        <div style="display:flex;gap:16px;font-size:var(--fs-xs);color:var(--slate);padding-top:8px;border-top:0.5px solid var(--steel-2);flex-wrap:wrap">
           ${dtiDelta !== null ? `<span>DTI: <span style="font-family:var(--font-mono);color:${parseFloat(dtiDelta)>0?'var(--ember-text)':'var(--pine-text)'}">${parseFloat(dtiDelta)>0?'+':''}${dtiDelta}%</span></span>` : ''}
           ${payoffImpact !== null
             ? `<span>Payoff: <span style="font-family:var(--font-mono);color:${payoffImpact>0?'var(--ember-text)':'var(--pine-text)'}">${payoffImpact>0?'+':''}${payoffImpact} mo</span></span>`
@@ -33310,26 +33310,26 @@ function _renderBYBList() {
         </div>` : ''}
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
           ${b.decision === 'track' ? `
-          <button class="btn btn-secondary btn-sm" onclick="_bybResolveTracked(${b._dbId}, '${esc(b.name).replace(/'/g,"\\'")}', ${b.monthly||0})" style="font-size:11px">Decide now</button>
+          <button class="btn btn-secondary btn-sm" onclick="_bybResolveTracked(${b._dbId}, '${esc(b.name).replace(/'/g,"\\'")}', ${b.monthly||0})" style="font-size:var(--fs-xs)">Decide now</button>
           ` : ''}
-          <button class="btn btn-ghost btn-sm" onclick="_bybReEvaluate(${safeJson})" style="font-size:11px">Re-evaluate</button>
-          <button class="btn btn-ghost btn-sm" onclick="removeBYBItem(${b._dbId})" style="color:var(--slate-2);font-size:11px">Remove</button>
+          <button class="btn btn-ghost btn-sm" onclick="_bybReEvaluate(${safeJson})" style="font-size:var(--fs-xs)">Re-evaluate</button>
+          <button class="btn btn-ghost btn-sm" onclick="removeBYBItem(${b._dbId})" style="color:var(--slate-2);font-size:var(--fs-xs)">Remove</button>
         </div>
       </div>`;
   };
 
   const summaryBar = committed.length ? `
     <div style="background:var(--mist);border-radius:var(--r-md);padding:12px 14px;margin-bottom:18px">
-      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:8px">What you bought, together</div>
+      <div style="font-size:var(--fs-xs);font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:8px">What you bought, together</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
-        <div><div style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--ember-text)">${fmt(totalMonthly)}/mo</div><div style="font-size:10px;color:var(--slate-2)">added</div></div>
-        <div><div style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:${dtiNow>20?'var(--ember-text)':dtiNow>15?'var(--gold-text)':'var(--pine-text)'}">${dtiNow.toFixed(1)}%</div><div style="font-size:10px;color:var(--slate-2)">DTI now</div></div>
-        <div><div style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:${totalPayoffShift>0?'var(--ember-text)':'var(--pine-text)'}">${totalPayoffShift>0?'+':''}${totalPayoffShift} mo</div><div style="font-size:10px;color:var(--slate-2)">payoff shift</div></div>
+        <div><div style="font-family:var(--font-mono);font-size:var(--fs-lg);font-weight:600;color:var(--ember-text)">${fmt(totalMonthly)}/mo</div><div style="font-size:var(--fs-xs);color:var(--slate-2)">added</div></div>
+        <div><div style="font-family:var(--font-mono);font-size:var(--fs-lg);font-weight:600;color:${dtiNow>20?'var(--ember-text)':dtiNow>15?'var(--gold-text)':'var(--pine-text)'}">${dtiNow.toFixed(1)}%</div><div style="font-size:var(--fs-xs);color:var(--slate-2)">DTI now</div></div>
+        <div><div style="font-family:var(--font-mono);font-size:var(--fs-lg);font-weight:600;color:${totalPayoffShift>0?'var(--ember-text)':'var(--pine-text)'}">${totalPayoffShift>0?'+':''}${totalPayoffShift} mo</div><div style="font-size:var(--fs-xs);color:var(--slate-2)">payoff shift</div></div>
       </div>
     </div>` : '';
 
   const section = (label, items) => items.length ? `
-    <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:8px;margin-top:14px">${label}</div>
+    <div style="font-size:var(--fs-xs);font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:8px;margin-top:14px">${label}</div>
     ${items.map(itemCard).join('')}` : '';
 
   cont.innerHTML = `
@@ -33346,9 +33346,9 @@ function _renderBYBFollowUps() {
   _bybAfterCount('tracked', tracked.length);
   if (!el) return;
   el.innerHTML = tracked.length ? `<div class="card mb-5"><div class="card-label">Did you buy it?</div>
-    <div style="font-size:12px;color:var(--slate);margin-bottom:6px">What you said you'd wait and watch. Tell Groundwork how it turned out, and what it really cost.</div>
+    <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:6px">What you said you'd wait and watch. Tell Groundwork how it turned out, and what it really cost.</div>
     ${tracked.map(b => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--steel)">
-      <div style="font-size:13px;color:var(--ink)"><b>${esc(b.name || '')}</b> <span style="font-family:var(--font-mono);color:var(--slate)">${b.monthly > 0 ? fmt(b.monthly) + '/mo' : ''}</span></div>
+      <div style="font-size:var(--fs-base);color:var(--ink)"><b>${esc(b.name || '')}</b> <span style="font-family:var(--font-mono);color:var(--slate)">${b.monthly > 0 ? fmt(b.monthly) + '/mo' : ''}</span></div>
       <button class="btn btn-secondary btn-sm" onclick="_bybResolveTracked(${b._dbId}, '${esc(b.name).replace(/'/g, "\\'")}', ${b.monthly || 0})">Tell it</button></div>`).join('')}</div>` : '';
 }
 

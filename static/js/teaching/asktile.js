@@ -46,11 +46,11 @@
   // checks Groundwork's wording, never reads them as Groundwork's.
   function _requestsHTML(reqs) {
     if (!reqs || !reqs.length) return '';
-    return '<div style="font-size:11px;color:var(--slate-2);margin-top:8px">Your requests Groundwork can\'t show yet:</div>'
+    return '<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:8px">Your requests Groundwork can\'t show yet:</div>'
       + reqs.slice().reverse().map(function (r) {
-        return '<div style="display:flex;gap:8px;align-items:center;font-size:12px;padding:3px 0">'
+        return '<div style="display:flex;gap:8px;align-items:center;font-size:var(--fs-sm);padding:3px 0">'
           + '<span data-gw-user-words style="flex:1;color:var(--slate)">“' + esc(r.text) + '”</span>'
-          + '<span style="font-size:11px;color:var(--slate-2)">' + _date(r.at) + '</span>'
+          + '<span style="font-size:var(--fs-xs);color:var(--slate-2)">' + _date(r.at) + '</span>'
           + '<button class="btn btn-sm btn-secondary" data-gw-ask-delete data-at="' + esc(r.at) + '" data-text="' + esc(r.text) + '">Delete</button></div>';
       }).join('');
   }
@@ -60,9 +60,9 @@
     if (!box) return;
     box.innerHTML = '<div style="display:flex;gap:8px">'
       + '<input id="gwAskInput" class="input" maxlength="200" placeholder="Ask for a tile - e.g. net worth over time"'
-      + ' style="flex:1;font-size:12px">'
+      + ' style="flex:1;font-size:var(--fs-sm)">'
       + '<button class="btn btn-sm btn-secondary" data-gw-ask>Ask</button></div>'
-      + '<div id="gwAskResult" style="font-size:12px;color:var(--slate);margin-top:6px">' + (result || '') + '</div>'
+      + '<div id="gwAskResult" style="font-size:var(--fs-sm);color:var(--slate);margin-top:6px">' + (result || '') + '</div>'
       + _requestsHTML(_prefs && _prefs.requests);
   }
 
@@ -132,9 +132,9 @@
     if (!t) return;
     var title = (_prefs && _prefs.titles && _prefs.titles[id]) || id;
     card.innerHTML = '<div class="card-label">' + esc(title) + '</div>'
-      + t.lines.map(function (l) { return '<div style="font-size:12px;color:var(--slate);line-height:1.7">' + esc(l) + '</div>'; }).join('')
+      + t.lines.map(function (l) { return '<div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.7">' + esc(l) + '</div>'; }).join('')
       + (id === 'gwPictureCard' && d && d.backed ? '<div style="margin-top:6px"><button class="btn btn-sm btn-secondary" onclick="showView(\'picture\')">Open the working picture</button></div>' : '')
-      + (t.source ? '<div class="gw-src" style="font-size:10px;color:var(--slate-2);margin-top:8px">' + esc(t.source) + '</div>' : '');
+      + (t.source ? '<div class="gw-src" style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:8px">' + esc(t.source) + '</div>' : '');
     card.style.display = '';
   }
 

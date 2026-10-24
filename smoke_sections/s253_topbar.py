@@ -17,7 +17,7 @@ def run(ctx):
           and 'openFeedbackModal()' in app.split('function _renderHelpFaq(filter) {')[1].split('\n}\n')[0]
           and 'openBackupModal();' in app)
     check('s253 the Ask bar is a white pill that springs open on a click and closes on leaving, motion off when asked',
-          '#gwAskBox{' in html and 'border-radius:999px' in html and '#gwAskBox:focus{width:460px' in html
+          '#gwAskBox{' in html and 'border-radius:999px' in html and '#gwAskBox:focus{width:28.75rem' in html
           and 'cubic-bezier(.34,1.56,.64,1)' in html and '#gwAskBox{transition:none}' in html)
     check('s253 the date stays the date while the Ask bar is open: no clock, nothing on focus or leaving (Rob: "remove the clock")',
           '_topbarClock' not in app and '_topbarClock' not in html and 'gw-clock' not in html and 'gw-clock' not in app

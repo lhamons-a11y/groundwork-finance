@@ -49,7 +49,7 @@
   // category, and the user can answer it where they stand. Shared with paths.js
   // - the one direction the seam allows.
   function _declareInline(category, proposalText) {
-    return ' <a href="#" style="font-size:11px;color:var(--slate-2);white-space:nowrap"'
+    return ' <a href="#" style="font-size:var(--fs-xs);color:var(--slate-2);white-space:nowrap"'
       + ' data-gw-declare="protect" data-gw-category="' + esc(category) + '" data-gw-kind="proposal"'
       + ' data-gw-answer="' + esc(proposalText) + '">never ' + esc(category) + '</a>';
   }
@@ -112,7 +112,7 @@
     var aside = r.receipt.set_aside ? _claimText(r.receipt.set_aside) : '';
     return fact + ' What Groundwork read about <strong>' + esc(r.category) + '</strong> from before then is set'
       + ' aside until the months since show where it stands.'
-      + (aside ? '<div style="font-size:11px;color:var(--slate-2);margin-top:3px">Set aside: ' + aside + '</div>' : '');
+      + (aside ? '<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:3px">Set aside: ' + aside + '</div>' : '');
   }
 
   function _claimControls(r) {
@@ -134,7 +134,7 @@
         : ', then set it back to ' + fmt(x.restore.new) + ' on ' + _date(x.restore.date) + '.')
       + ' Which do you mean?';
     var plain = _plain(text);
-    return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:12px;color:var(--slate);line-height:1.8">'
+    return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:var(--fs-sm);color:var(--slate);line-height:1.8">'
       + text + '<div>'
       + _control(d.category, d.stance, 'claim', plain, d.stance === 'protect' ? 'Keep it protected' : 'Keep it flexible')
       + _control(d.category, d.stance === 'protect' ? 'flexible' : 'protect', 'claim', plain, d.stance === 'protect' ? 'It is flexible' : 'Protect it')
@@ -151,7 +151,7 @@
       var why = st.reason === 'too_few'
         ? 'there are ' + st.events + ' short months you answered with a budget change on record, and it takes 10 to test a reading'
         : 'the earlier short months did not predict the later ones well enough to hold a reading';
-      return '<div class="card mt-5"><div class="card-label">After a short month</div><div style="font-size:12px;color:var(--slate);line-height:1.7">'
+      return '<div class="card mt-5"><div class="card-label">After a short month</div><div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.7">'
         + 'Groundwork has no reading of what you tend to do after a month when spending passed income: ' + why + '. That is the usual answer.</div></div>';
     }
     var line = 'After months when spending passed income, you have tended to answer by <strong>' + lever + '</strong>.'
@@ -159,11 +159,11 @@
       + ': it was right ' + st.hits + ' times (picking at random would match that less than ' + Math.max(1, Math.round(st.p * 100)) + ' in 100 times).'
       + ' This is a reading of what you did, recomputed every time, never a judgement.';
     var use = st.set_aside
-      ? '<div style="font-size:11px;color:var(--slate-2);margin-top:4px">You set this aside on ' + _date(st.set_aside.said) + ': Groundwork shows it but does not use it.</div>'
+      ? '<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px">You set this aside on ' + _date(st.set_aside.said) + ': Groundwork shows it but does not use it.</div>'
         + '<button class="btn btn-sm btn-secondary" style="margin-top:4px" data-gw-strategy="true">Use it again</button>'
-      : '<div style="font-size:11px;color:var(--slate-2);margin-top:4px">Groundwork uses it only to list paths of that kind first among the ones that need a cut.</div>'
+      : '<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px">Groundwork uses it only to list paths of that kind first among the ones that need a cut.</div>'
         + '<button class="btn btn-sm btn-secondary" style="margin-top:4px" data-gw-strategy="false">That is not how I work - set it aside</button>';
-    return '<div class="card mt-5"><div class="card-label">After a short month</div><div style="font-size:12px;color:var(--slate);line-height:1.7">'
+    return '<div class="card mt-5"><div class="card-label">After a short month</div><div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.7">'
       + line + '</div>' + use + '</div>';
   }
 
@@ -178,7 +178,7 @@
       line += ' On ' + _date(st.applied.at) + ' you moved ' + fmt(st.applied.changes.reduce(function (t, x) { return t + (x.old - x.new); }, 0))
         + ' a month out of ' + esc(st.applied.changes.map(function (x) { return x.name; }).join(', ')) + '.';
     }
-    return '<div class="card mt-5"><div class="card-label">Your income</div><div style="font-size:12px;color:var(--slate);line-height:1.7">'
+    return '<div class="card mt-5"><div class="card-label">Your income</div><div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.7">'
       + line + ' <a href="#" onclick="showView(\'budget\');return false">The options are on the Budget page</a>.</div></div>';
   }
 
@@ -196,7 +196,7 @@
         + ' cut, because cutting them breaks stability - so Groundwork still will not offer it.';
     }
     if (d.answer_text) {
-      line += '<div style="font-size:11px;color:var(--slate-2);margin-top:3px">Answering: '
+      line += '<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:3px">Answering: '
         + esc(d.answer_text) + '</div>';
     }
     return line;
@@ -213,7 +213,7 @@
   function _historyRow(d) {
     var what = d.stance === 'release' ? 'released what you had said about'
       : d.stance === 'protect' ? 'marked protected' : 'marked flexible';
-    return '<div style="font-size:11px;color:var(--slate);padding:3px 0">' + _date(d.said_at) + ' - '
+    return '<div style="font-size:var(--fs-xs);color:var(--slate);padding:3px 0">' + _date(d.said_at) + ' - '
       + (d.stance === 'release' ? what + ' <strong>' + esc(d.category) + '</strong>'
         : '<strong>' + esc(d.category) + '</strong> ' + what) + '</div>';
   }
@@ -236,7 +236,7 @@
     var head = '<div class="section-header"><div class="section-title">Working picture</div>'
       + '<div class="section-sub">What Groundwork has concluded about how you handle money, and what you have told it.</div></div>';
 
-    var how = '<div style="font-size:12px;color:var(--slate);line-height:1.7">'
+    var how = '<div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.7">'
       + 'Groundwork concludes only from your own record: a budget cut that holds for three months, a cut you'
       + ' later undo, and - once there are enough of them - what you did to your budget after months when'
       + ' spending passed income. Each conclusion appears here with the edits and months behind it, and you can'
@@ -247,9 +247,9 @@
 
     if (!claims.length && !answered.length && !history.length && !strat && !inc) {
       return head + '<div class="card"><div class="card-label">Nothing concluded yet</div>'
-        + '<div style="font-size:14px;color:var(--ink);margin:4px 0 10px">Groundwork has not drawn any conclusions about you yet.</div>'
+        + '<div style="font-size:var(--fs-md);color:var(--ink);margin:4px 0 10px">Groundwork has not drawn any conclusions about you yet.</div>'
         + how
-        + '<div style="font-size:12px;color:var(--slate);line-height:1.7;margin-top:8px">Until it has, there is'
+        + '<div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.7;margin-top:8px">Until it has, there is'
         + ' nothing here to set - on purpose. When a decision screen offers a path that names one of your'
         + ' categories, you can answer it there, and what you say will appear here.</div></div>';
     }
@@ -259,25 +259,25 @@
     var needs = [], record = '', saidHtml = '';
     if (asks) {
       needs.push('<div class="card" style="border-left:3px solid var(--gold)"><div class="card-label">A question about what you said</div>'
-        + '<div style="font-size:12px;color:var(--slate);margin-bottom:4px">Your word stands until you change it. These ask which you mean - nothing has been changed.</div>'
+        + '<div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:4px">Your word stands until you change it. These ask which you mean - nothing has been changed.</div>'
         + asks + '</div>');
     }
     // Item 80 E4: old "Make this my budget" + Undo entries read as the person's own decisions - shown, then marked
     (s.planRepair || []).forEach(function (pr) {
       needs.push('<div class="card" style="border-left:3px solid var(--gold)"><div class="card-label">Changes that weren\'t your decisions</div>'
-        + '<div style="font-size:12px;color:var(--ink);line-height:1.7">On ' + esc(pr.apply_at.slice(0, 16)) + ', "Make this my budget" changed '
+        + '<div style="font-size:var(--fs-sm);color:var(--ink);line-height:1.7">On ' + esc(pr.apply_at.slice(0, 16)) + ', "Make this my budget" changed '
         + pr.lines.length + ' budget lines, and Undo put them back on ' + esc(pr.undo_at.slice(0, 16)) + '. Groundwork has been reading each one'
         + ' as you choosing to keep that budget. Marked as the plan\'s, an undone plan counts for nothing.</div>'
-        + '<details style="margin-top:6px;font-size:12px;color:var(--slate)"><summary style="cursor:pointer">The ' + pr.lines.length + ' lines</summary>'
+        + '<details style="margin-top:6px;font-size:var(--fs-sm);color:var(--slate)"><summary style="cursor:pointer">The ' + pr.lines.length + ' lines</summary>'
         + pr.lines.map(function (l) { return '<div>' + esc(l.name) + ': ' + fmt(l.old) + ' &rarr; ' + fmt(l.new) + ' &rarr; ' + fmt(l.old) + '</div>'; }).join('')
         + '</details><div style="margin-top:8px"><button class="btn btn-secondary btn-sm" data-gw-planmark="' + esc(pr.apply_at) + '">Mark them as the plan\'s</button>'
-        + '<span style="font-size:11px;color:var(--slate-2);margin-left:8px">Nothing is deleted - the record keeps every change.</span></div></div>');
+        + '<span style="font-size:var(--fs-xs);color:var(--slate-2);margin-left:8px">Nothing is deleted - the record keeps every change.</span></div></div>');
     });
     // Item 112 P4: one partner's cut, the other's restore - asked once, never concluded
     claims.filter(function (r) { return r.reason === 'partners_differ' && !(r.receipt.restore || {}).shared_answer; })
       .forEach(function (r) {
         needs.push('<div class="card" style="border-left:3px solid var(--gold)"><div class="card-label">Is this a shared decision?</div>'
-          + '<div style="font-size:12px;color:var(--ink);line-height:1.7">' + _claimText(r) + '</div>'
+          + '<div style="font-size:var(--fs-sm);color:var(--ink);line-height:1.7">' + _claimText(r) + '</div>'
           + '<div style="margin-top:8px"><button class="btn btn-secondary btn-sm" data-gw-shared="shared" data-gw-restore="' + r.receipt.restore.id + '">Yes, we decided together</button> '
           + '<button class="btn btn-ghost btn-sm" data-gw-shared="not_yet" data-gw-restore="' + r.receipt.restore.id + '">Not yet</button></div></div>');
       });
@@ -286,22 +286,22 @@
     if (claims.length) {
       record = '<div class="card"><div class="card-label">What your record shows</div>'
         + claims.map(function (r) {
-          return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:12px;color:var(--slate);line-height:1.8">'
+          return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:var(--fs-sm);color:var(--slate);line-height:1.8">'
             + _claimText(r) + '<div>' + _claimControls(r) + '</div></div>';
         }).join('') + '</div>';
     }
     if ((s.current || []).length) {
       saidHtml += '<div class="card"><div class="card-label">What you have told Groundwork</div>'
-        + '<div style="font-size:12px;color:var(--slate);margin-bottom:4px">Your word stands over anything'
+        + '<div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:4px">Your word stands over anything'
         + ' Groundwork reads from your record, and it stays until you change it.</div>'
         + s.current.map(function (d) {
           var r = answered.filter(function (a) { return a.category.trim().toLowerCase() === d.category.trim().toLowerCase(); })[0];
           // The reading under the statement, unless the statement already
           // quotes it word for word (it answered this very claim, unchanged).
           var rec = r && _plain(_claimText(r)) !== d.answer_text ? _claimText(r) : '';
-          return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:12px;color:var(--slate);line-height:1.8">'
+          return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:var(--fs-sm);color:var(--slate);line-height:1.8">'
             + _statementText(d)
-            + (rec ? '<div style="font-size:11px;color:var(--slate-2);margin-top:3px">Your record now: ' + rec + '</div>' : '')
+            + (rec ? '<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:3px">Your record now: ' + rec + '</div>' : '')
             + '<div>' + _statementControls(d) + '</div></div>';
         }).join('') + '</div>';
     }
@@ -320,14 +320,14 @@
         var on = x[0] === _tab;
         return '<button id="wpTab-' + x[0] + '" role="tab" aria-selected="' + on + '" aria-controls="wpPanel-' + x[0] + '" data-gw-wtab="' + x[0] + '"'
           + ' style="background:none;border:none;border-bottom:2px solid ' + (on ? 'var(--pine-text)' : 'transparent') + ';padding:8px 14px;margin-bottom:-1px;'
-          + 'font-size:13px;cursor:pointer;color:' + (on ? 'var(--pine-text)' : 'var(--slate)') + ';font-weight:' + (on ? '500' : 'normal') + '">' + esc(x[1]) + '</button>';
+          + 'font-size:var(--fs-base);cursor:pointer;color:' + (on ? 'var(--pine-text)' : 'var(--slate)') + ';font-weight:' + (on ? '500' : 'normal') + '">' + esc(x[1]) + '</button>';
       }).join('') + '</div>';
     var panel = function (id, html, none) {
       return '<div id="wpPanel-' + id + '" role="tabpanel" aria-labelledby="wpTab-' + id + '"' + (id === _tab ? '' : ' style="display:none"') + '>'
-        + (html || '<div class="card" style="font-size:12px;color:var(--slate)">' + none + '</div>') + '</div>';
+        + (html || '<div class="card" style="font-size:var(--fs-sm);color:var(--slate)">' + none + '</div>') + '</div>';
     };
     // T4: how Groundwork concludes, one line that opens in place
-    var howLine = '<details style="margin:-4px 0 6px;font-size:12px;color:var(--slate)"><summary style="cursor:pointer">How Groundwork reaches these conclusions</summary>'
+    var howLine = '<details style="margin:-4px 0 6px;font-size:var(--fs-sm);color:var(--slate)"><summary style="cursor:pointer">How Groundwork reaches these conclusions</summary>'
       + '<div style="margin-top:6px">' + how + '</div></details>';
     return head + howLine + bar
       + panel('needs', needs.join('<div class="mt-5"></div>'), 'Nothing is waiting for your answer.')
@@ -350,7 +350,7 @@
     } catch (e) {
       _gwErr('willingness render')(e);
       view.innerHTML = '<div class="section-header"><div class="section-title">Working picture</div></div>'
-        + '<div class="card" style="font-size:12px;color:var(--slate)">The working picture could not be loaded.</div>';
+        + '<div class="card" style="font-size:var(--fs-sm);color:var(--slate)">The working picture could not be loaded.</div>';
     }
   }
 
@@ -464,7 +464,7 @@
     if (settingsHead && !g('gwPicturePointer')) {
       var p = document.createElement('div');
       p.id = 'gwPicturePointer';
-      p.style.cssText = 'font-size:12px;margin:-6px 0 14px';
+      p.style.cssText = 'font-size:var(--fs-sm);margin:-6px 0 14px';
       p.innerHTML = '<a href="#" onclick="showView(\'' + VIEW + '\');return false" style="color:var(--pine-text)">'
         + 'What Groundwork has concluded about how you handle money →</a>';
       settingsHead.parentNode.insertBefore(p, settingsHead.nextSibling);

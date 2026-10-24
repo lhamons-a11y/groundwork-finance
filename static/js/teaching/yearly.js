@@ -29,25 +29,25 @@
     var q = x.question;
     if (!q) return '';
     var box = '<div style="margin-top:8px;padding:8px 10px;border:0.5px solid var(--steel-2);border-radius:8px">'
-      + '<div style="font-size:13px;color:var(--ink);margin-bottom:6px">' + esc(q.text) + '</div>';
+      + '<div style="font-size:var(--fs-base);color:var(--ink);margin-bottom:6px">' + esc(q.text) + '</div>';
     if (q.kind === 'price') {
       box += '<button class="btn btn-secondary btn-sm" data-gw-ys="yes" data-i="' + i + '">Yes, ' + fmt(q.amount) + '</button> '
-        + '<span style="font-size:12px;color:var(--slate)">or it is $</span>'
+        + '<span style="font-size:var(--fs-sm);color:var(--slate)">or it is $</span>'
         + '<input type="number" min="0" step="0.01" data-gw-ys-amount="' + i + '" style="width:90px" aria-label="The bill\'s amount"> '
         + '<button class="btn btn-secondary btn-sm" data-gw-ys="amount" data-i="' + i + '">Save</button> '
         + '<button class="btn btn-ghost btn-sm" data-gw-ys="not_sure" data-i="' + i + '">Not sure</button>';
       if (x.line) {
-        box += '<div style="font-size:11px;color:var(--slate);margin-top:6px">Your answer sets your budget line '
+        box += '<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:6px">Your answer sets your budget line '
           + esc(x.line.name) + ' (now ' + fmt(x.line.amount) + '), with Undo.</div>';
       }
     } else {
-      box += '<span style="font-size:12px;color:var(--slate)">Yes, by</span> '
+      box += '<span style="font-size:var(--fs-sm);color:var(--slate)">Yes, by</span> '
         + '<input type="number" step="0.1" data-gw-ys-pct="' + i + '" style="width:70px" aria-label="The rate change, in percent">'
-        + '<span style="font-size:12px;color:var(--slate)">%</span> '
+        + '<span style="font-size:var(--fs-sm);color:var(--slate)">%</span> '
         + '<button class="btn btn-secondary btn-sm" data-gw-ys="rate" data-i="' + i + '">Save</button> '
         + '<button class="btn btn-secondary btn-sm" data-gw-ys="no_change" data-i="' + i + '">No</button> '
         + '<button class="btn btn-ghost btn-sm" data-gw-ys="not_sure" data-i="' + i + '">Not sure</button>'
-        + '<div data-gw-ys-preview="' + i + '" style="font-size:11px;color:var(--slate);margin-top:6px">'
+        + '<div data-gw-ys-preview="' + i + '" style="font-size:var(--fs-xs);color:var(--slate);margin-top:6px">'
         + (x.line ? 'Your answer sets your budget line ' + esc(x.line.name) + ' (now ' + fmt(x.line.amount) + ') by that percent, with Undo.' : '')
         + '</div>';
     }
@@ -61,14 +61,14 @@
     _budTabCount('bills', asked, 'yearly');
     if (!_items.length) { host.innerHTML = ''; return; }
     host.innerHTML = '<div class="card mt-5"><div class="card-label">Yearly price steps</div>'
-      + '<div style="font-size:12px;color:var(--slate);margin-bottom:8px">Bills whose price has changed about a year apart, '
+      + '<div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:8px">Bills whose price has changed about a year apart, '
       + 'from your record and your answers. A figure for the next year is shown from three such steps; with two, Groundwork '
       + 'asks when the new price arrives. It shows what the charges say, not why a price changed.</div>'
       + _items.map(function (x, i) {
         var rows = '<div style="padding:8px 0;border-bottom:0.5px solid var(--steel-2)">'
-          + '<div style="font-size:13px;color:var(--ink)">' + esc(x.sentence || ((x.label || x.payee) + ': no step on record yet.')) + '</div>';
+          + '<div style="font-size:var(--fs-base);color:var(--ink)">' + esc(x.sentence || ((x.label || x.payee) + ': no step on record yet.')) + '</div>';
         if (x.steps && x.steps.length) {
-          rows += '<details style="font-size:11px;color:var(--slate);margin-top:4px"><summary style="cursor:pointer">The years</summary>'
+          rows += '<details style="font-size:var(--fs-xs);color:var(--slate);margin-top:4px"><summary style="cursor:pointer">The years</summary>'
             + x.steps.map(function (s) {
               return '<div style="font-family:var(--font-mono)">' + _month(s.month) + ' &nbsp; ' + _pct(s.pct)
                 + (s.before != null ? ' &nbsp; ' + fmt(s.before) + ' to ' + fmt(s.after) : '')
@@ -76,7 +76,7 @@
             }).join('') + '</details>';
         }
         if (x.projection) {
-          rows += '<div style="margin-top:6px;font-size:12px;color:var(--slate)">' + esc(_projWords(x.projection)) + '.';
+          rows += '<div style="margin-top:6px;font-size:var(--fs-sm);color:var(--slate)">' + esc(_projWords(x.projection)) + '.';
           if (x.line && x.line.kind === 'budget') {
             rows += ' <label style="cursor:pointer"><input type="checkbox" data-gw-ys-follow="' + i + '"' + (x.followed ? ' checked' : '')
               + '> Use it for ' + esc(x.line.name) + ' in the totals from ' + esc(_month(x.projection.month))
@@ -114,7 +114,7 @@
       if (!row) return;
       var note = document.createElement('div');
       note.setAttribute('data-gw-yearly-note', '');
-      note.style.cssText = 'font-size:11px;color:var(--slate-2);margin:4px 0 0 46px;line-height:1.5';
+      note.style.cssText = 'font-size:var(--fs-xs);color:var(--slate-2);margin:4px 0 0 46px;line-height:1.5';
       note.textContent = _projWords(x.projection) + ' · not in the totals (the Bills tab can add it) · you saved '
         + fmt(x.line.amount);
       row.appendChild(note);

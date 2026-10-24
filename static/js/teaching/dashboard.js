@@ -102,7 +102,7 @@
     var head = g('gwSummaryHead');
     if (head) {
       head.innerHTML = '<div class="card-label" style="margin:0">Your summary</div>'
-        + '<a href="#" id="gwArrangeToggle" style="font-size:11px;color:var(--slate-2)">' + (_arranging ? 'Done' : 'Arrange') + '</a>';
+        + '<a href="#" id="gwArrangeToggle" style="font-size:var(--fs-xs);color:var(--slate-2)">' + (_arranging ? 'Done' : 'Arrange') + '</a>';
     }
     _renderArrange();
   }
@@ -115,7 +115,7 @@
     function btn(act, id, label) {
       return '<button class="btn btn-sm btn-secondary" style="margin-left:4px" data-gw-arrange="' + act + '" data-gw-tile="' + id + '">' + label + '</button>';
     }
-    panel.innerHTML = '<div class="card mb-5" style="font-size:12px;color:var(--slate)">'
+    panel.innerHTML = '<div class="card mb-5" style="font-size:var(--fs-sm);color:var(--slate)">'
       + '<div style="margin-bottom:6px">Arrange your summary. It stays exactly as you set it: Groundwork does not'
       + ' move tiles by what you open.</div>'
       + seq.map(function (id, i) {
@@ -178,26 +178,26 @@
       source = 'From the bill you typed in, your savings on record and your reserve. Groundwork never contacts anyone or pays anything.';
       action = '<button class="btn btn-sm btn-secondary" onclick="showView(\'settings\');_settingsShowTab(\'accounts\')">Open Medical bills</button>';
     } else if (i.kind === 'two_accounts') {                 // item 107 D7: the server's fixed words, D8: the answers
-      return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:12px;color:var(--slate);line-height:1.7"'
+      return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:var(--fs-sm);color:var(--slate);line-height:1.7"'
         + ' data-gw-two-item="' + esc(i.pair) + '">'
-        + '<div style="font-size:11px;color:var(--slate-2)">' + esc(i.label) + '</div>'
+        + '<div style="font-size:var(--fs-xs);color:var(--slate-2)">' + esc(i.label) + '</div>'
         + '<strong>' + esc(i.title) + '</strong>: ' + esc(i.sentence)
-        + '<div style="font-size:11px;color:var(--slate-2)">' + esc(i.source) + '</div>'
+        + '<div style="font-size:var(--fs-xs);color:var(--slate-2)">' + esc(i.source) + '</div>'
         + '<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;align-items:flex-start">'
         + '<button class="btn btn-sm btn-secondary" data-gw-two-show="' + esc(i.search) + '">Show the charges</button>'
         + '<span style="display:inline-flex;flex-direction:column"><button class="btn btn-sm btn-secondary" data-gw-two-answer="both_meant" data-gw-two-pair="' + esc(i.pair) + '">Both are meant</button>'
-        + '<span style="font-size:10px;color:var(--slate-2);padding-left:2px">e.g. one is for someone else</span></span>'
+        + '<span style="font-size:var(--fs-xs);color:var(--slate-2);padding-left:2px">e.g. one is for someone else</span></span>'
         + '<button class="btn btn-sm btn-secondary" data-gw-two-answer="should_stop" data-gw-two-pair="' + esc(i.pair) + '">One of these should stop</button>'
         + '<button class="btn btn-sm btn-secondary" data-gw-two-answer="not_same" data-gw-two-pair="' + esc(i.pair) + '">These aren\'t the same</button>'
         + '<button class="btn btn-sm btn-secondary" data-gw-two-answer="not_now" data-gw-two-pair="' + esc(i.pair) + '">Dismiss</button>'
         + '</div></div>';
     } else if (i.kind === 'backup_due') {                   // the backup reminder (Rob 2026-10-22)
       var n = i.transactions, added = n ? n + ' transaction' + (n === 1 ? '' : 's') + ' added' : 'records added';
-      return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:12px;color:var(--slate);line-height:1.7">'
+      return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:var(--fs-sm);color:var(--slate);line-height:1.7">'
         + (i.last
           ? '<strong>Backup</strong>: your last backup was ' + _date(i.last) + ', ' + i.days + ' day' + (i.days === 1 ? '' : 's') + ' ago, with ' + added + ' since.'
           : '<strong>Backup</strong>: your records haven\'t been backed up yet' + (n ? ' (' + n + ' transaction' + (n === 1 ? '' : 's') + ')' : '') + '.')
-        + '<div style="font-size:11px;color:var(--slate-2)">' + (i.last ? 'From the date of your last backup and what was added since.' : 'There is no backup of your records on record yet.')
+        + '<div style="font-size:var(--fs-xs);color:var(--slate-2)">' + (i.last ? 'From the date of your last backup and what was added since.' : 'There is no backup of your records on record yet.')
         + ' How often to be reminded is yours to change in Settings.</div>'
         + '<div style="margin-top:4px"><button class="btn btn-sm btn-secondary" onclick="showView(\'settings\');_settingsShowTab(\'data\')">Back up now</button>'
         + ' <button class="btn btn-sm btn-secondary" data-gw-backup-later>Remind me later</button></div></div>';
@@ -210,8 +210,8 @@
       source = 'From what your Financial Record holds so far.';
       action = '<button class="btn btn-sm btn-secondary" onclick="_recordStatusAction()">Verify account balances →</button>';
     }
-    return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:12px;color:var(--slate);line-height:1.7">'
-      + fact + '<div style="font-size:11px;color:var(--slate-2)">' + source + '</div>'
+    return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:var(--fs-sm);color:var(--slate);line-height:1.7">'
+      + fact + '<div style="font-size:var(--fs-xs);color:var(--slate-2)">' + source + '</div>'
       + '<div style="margin-top:4px">' + action
       + ' <button class="btn btn-sm btn-secondary" data-gw-dismiss="' + esc(A.fingerprint(i)) + '">Dismiss</button></div></div>';
   }
@@ -220,8 +220,8 @@
   // Two or more stale imports are one row that opens to the list; conclusions blocked by the same missing input are
   // one row naming each. Nothing is dropped: every item keeps its date, source and its own Dismiss.
   function _rowHTML(fact, source, action, dismissFps) {
-    return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:12px;color:var(--slate);line-height:1.7">'
-      + fact + '<div style="font-size:11px;color:var(--slate-2)">' + source + '</div>'
+    return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:var(--fs-sm);color:var(--slate);line-height:1.7">'
+      + fact + '<div style="font-size:var(--fs-xs);color:var(--slate-2)">' + source + '</div>'
       + '<div style="margin-top:4px">' + action
       + ' <button class="btn btn-sm btn-secondary" data-gw-dismiss-all="' + esc(JSON.stringify(dismissFps)) + '">Dismiss</button></div></div>';
   }
@@ -237,10 +237,10 @@
         staleDone = true;
         var least = Math.min.apply(null, stale.map(function (s) { return s.days; }));
         out.push(_rowHTML('<strong>' + stale.length + ' accounts</strong> haven\'t been imported for ' + least + '+ days.'
-            + '<details style="margin-top:2px"><summary style="cursor:pointer;font-size:11px">Which ones</summary>'
+            + '<details style="margin-top:2px"><summary style="cursor:pointer;font-size:var(--fs-xs)">Which ones</summary>'
             + stale.map(function (s) {
               return '<div>' + esc(s.title) + ': last imported ' + _date(s.last_import) + ', ' + s.days + ' days ago'
-                + ' <button class="btn btn-ghost btn-sm" style="font-size:11px" data-gw-dismiss="' + esc(A.fingerprint(s)) + '">Dismiss</button></div>';
+                + ' <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" data-gw-dismiss="' + esc(A.fingerprint(s)) + '">Dismiss</button></div>';
             }).join('') + '</details>',
           'From when each account\'s transactions were last imported. An account kept by hand is never listed.',
           '<button class="btn btn-sm btn-secondary" onclick="showView(\'ledger\')">Import</button>',
@@ -311,7 +311,7 @@
     var head = '<div class="card-label" style="margin-bottom:4px">Needs attention</div>';
     try { _tiles(imports, items, payments); } catch (e) { _gwErr('dashboard tiles')(e); }
     if (!items.length) {
-      host.innerHTML = '<div class="card mb-5">' + head + '<div style="font-size:12px;color:var(--slate)">Nothing needs'
+      host.innerHTML = '<div class="card mb-5">' + head + '<div style="font-size:var(--fs-sm);color:var(--slate)">Nothing needs'
         + ' attention.' + (conf.overall === 'ready' ? ' Financial Record: up to date.' : '') + '</div></div>';
       return;
     }

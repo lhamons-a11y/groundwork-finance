@@ -66,7 +66,7 @@ def run(ctx):
           and 'Read as a whole itinerary' in quote.split('return;')[0])
     check('s217 F2 "AI reads this" is said only when AI is on',
           "${aiEnabled() ? '(AI reads this)' : '(kept with this report)'}" in app
-          and '<span class="ai-feature" style="font-size:10px;color:rgba(255,255,255,.62)">AI reads this</span>' in html)
+          and '<span class="ai-feature" style="font-size:var(--fs-xs);color:rgba(255,255,255,.62)">AI reads this</span>' in html)
     ask = app.split('async function askGroundwork(question) {')[1].split('\nfunction ')[0]
     # Item 102 (Rob 2026-10-19: "if the user selects no AI it goes away") supersedes F6's Ask box: the box is AI help, hidden
     # with AI off or unable to run; the record checks stay reachable without AI from "Check my records" (Assistant page).

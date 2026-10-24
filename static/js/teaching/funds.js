@@ -61,7 +61,7 @@
             + ` more to make the deadline, and nothing in your record has that room.`;
     }
 
-    return `<div style="font-size:11px;color:var(--slate);line-height:1.7;margin-top:4px">
+    return `<div style="font-size:var(--fs-xs);color:var(--slate);line-height:1.7;margin-top:4px">
       ${at.charAt(0).toUpperCase()}${at.slice(1)}, this ${lands} ${verdict}.${lever}
     </div>`;
   }
@@ -114,7 +114,7 @@
       box.setAttribute('data-gw-fund-purchase', '');
       box.innerHTML = qs.map(function (q) {
         var when = q.date ? new Date(q.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-        return '<div style="margin:0 0 10px;padding:10px 12px;border:0.5px solid var(--pine-border);border-radius:8px;background:var(--pine-bg);font-size:12px;color:var(--ink);line-height:1.6">'
+        return '<div style="margin:0 0 10px;padding:10px 12px;border:0.5px solid var(--pine-border);border-radius:8px;background:var(--pine-bg);font-size:var(--fs-sm);color:var(--ink);line-height:1.6">'
           + 'The <strong style="font-family:var(--font-mono)">' + fmt(q.amount) + '</strong> at <strong>' + esc(q.payee) + '</strong>' + (when ? ' on ' + when : '')
           + ' is close to what <strong>' + esc(q.fund) + '</strong> holds (' + fmt(q.held) + '). Is this what you were saving for? '
           + '<button class="btn btn-secondary btn-sm" data-gw-fp="yes" data-fund="' + q.fund_id + '" data-txn="' + q.txn_id + '">Yes, take it from the fund</button> '

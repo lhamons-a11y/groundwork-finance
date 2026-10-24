@@ -53,14 +53,14 @@
         ? `Covering it would take <strong style="font-family:var(--font-mono)">${fmt(o.fix.monthly)}/mo</strong>
            from ${esc(_joinNames(o.fix.sources))} — budgeted there, and not spent.`
         : `No other envelope has room to cover it, on what the ledger records.`;
-      return `<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:12px;color:var(--slate);line-height:1.8">
+      return `<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:var(--fs-sm);color:var(--slate);line-height:1.8">
         ${lead} ${cost} ${fix}
       </div>`;
     };
 
     return `<div class="card mt-5" id="budgetPressure">
       <div class="card-label">What these amounts cost</div>
-      <div style="font-size:12px;color:var(--slate);line-height:1.7;margin-bottom:6px">
+      <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.7;margin-bottom:6px">
         Measured against <strong>${_payoffDateLabel(d.base.months)}</strong>, and counted only where
         the ledger says it held every month. Each line is measured on its own — two of them can
         name the same envelope, because neither is a plan to do both.
