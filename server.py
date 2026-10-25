@@ -3517,7 +3517,10 @@ def voice_status():
     from core import voice
     with db_session() as session:
         on = _voice_on(session)
-    return ok({'on': on, **voice.status()})
+    st = voice.status()
+    if on and st['available']:
+        voice.preload()           # the page asks on load; the model is ready before the first command
+    return ok({'on': on, **st})
 
 
 @voice_bp.route('/transcribe', methods=['POST'])
@@ -10196,9 +10199,12 @@ def update_settings():
                 session.add(AppSetting(key=key, value=str(value)))
         session.commit()
     # Switching AI off releases the model; switching it on loads it (R-a). Only the launcher allows a real load.
-    if str(body.get('voice_commands', 'on')).lower() != 'on':
+    if 'voice_commands' in body:
         from core import voice
-        voice.release()
+        if str(body['voice_commands']).lower() == 'on':
+            voice.preload()
+        else:
+            voice.release()
     if 'ai_enabled' in body:
         from core import engine
         if str(body['ai_enabled']).lower() == 'false':

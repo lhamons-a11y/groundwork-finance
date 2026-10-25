@@ -181,6 +181,7 @@ HEALTH_SINKS = {
     ('core/engine.py', '*', 'log'): LOG, ('utility_price.py', '*', 'log'): LOG, ('price_engine.py', '*', 'log'): LOG,
     ('gas_price.py', '*', 'log'): LOG, ('core/airfare.py', '*', 'log'): LOG, ('core/per_diem.py', '*', 'log'): LOG,
     ('trip_distance.py', '*', 'log'): LOG, ('core/engine_fit.py', '*', 'log'): LOG,
+    ('core/voice.py', '*', 'log'): LOG,     # item 113: a model that would not load - never a clip or its words
 }
 
 

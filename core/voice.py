@@ -9,6 +9,7 @@ One engine, off by default (the voice_commands setting). Without pywhispercpp or
 and says why; the rest of Groundwork is untouched.
 """
 import io
+import logging
 import os
 import threading
 import wave
@@ -29,6 +30,8 @@ MAX_BYTES = 44 + RATE * 2 * MAX_SECONDS
 
 _lock = threading.Lock()
 _model = None
+# The library notes each clip it hears in Groundwork's log; only its warnings are let through, so no trace of a clip is kept
+logging.getLogger('pywhispercpp').setLevel(logging.WARNING)
 
 
 class VoiceError(Exception):
@@ -71,6 +74,20 @@ def _load():
                        language='en', single_segment=True, no_context=True,
                        n_threads=max(1, min(4, (os.cpu_count() or 2) - 1)))
     return _model
+
+
+def preload():
+    """Voice switched on: the model is loaded in the background, so the first command isn't kept waiting."""
+    if _model is not None or not status()['available']:
+        return
+
+    def _go():
+        try:
+            with _lock:
+                _load()
+        except Exception:
+            logging.getLogger(__name__).warning('voice: the model could not be loaded', exc_info=True)
+    threading.Thread(target=_go, name='voice-preload', daemon=True).start()
 
 
 def release():

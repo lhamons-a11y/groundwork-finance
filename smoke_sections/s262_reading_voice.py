@@ -57,7 +57,8 @@ def run(ctx):
                   'httpx', 'aiohttp'}
     check(f"s262 113 the voice engine imports nothing that can reach a network, and loads its model from a file path "
           f"(imports: {sorted(mods)})",
-          not net and 'Model(str(model_path())' in src and 'initial_prompt=HINT' in src)
+          not net and 'Model(str(model_path())' in src and 'initial_prompt=HINT' in src
+          and __import__('logging').getLogger('pywhispercpp').level >= __import__('logging').WARNING)
 
     real_connect, tried = socket.socket.connect, []
 
@@ -92,8 +93,9 @@ def run(ctx):
         s.commit()
     st = (c.get('/api/voice', headers=H).get_json() or {}).get('data') or {}
     off = c.post('/api/voice/transcribe', headers={**H, 'Content-Type': 'audio/wav'}, data=_wav(1.0))
+    real_status, real_model, real_preload, preloads = voice.status, voice._model, voice.preload, []
+    voice.preload = lambda: preloads.append(1)       # switching on readies the model; the real one is not loaded here
     c.patch('/api/settings', headers={**H, 'Content-Type': 'application/json'}, data=json.dumps({'voice_commands': 'on'}))
-    real_status, real_model = voice.status, voice._model
     try:
         voice.status = lambda: {'available': False, 'reason': 'no model'}
         missing = c.post('/api/voice/transcribe', headers={**H, 'Content-Type': 'audio/wav'}, data=_wav(1.0))
@@ -102,7 +104,7 @@ def run(ctx):
         got = c.post('/api/voice/transcribe', headers={**H, 'Content-Type': 'audio/wav'}, data=_wav(1.0))
         bad = c.post('/api/voice/transcribe', headers={**H, 'Content-Type': 'audio/wav'}, data=_wav(1.0, rate=8000))
     finally:
-        voice.status, voice._model = real_status, real_model
+        voice.status, voice._model, voice.preload = real_status, real_model, real_preload
     with db_session() as s:
         kept = [r.key for r in s.query(AppSetting).all() if 'explain further' in str(r.value)]
     c.patch('/api/settings', headers={**H, 'Content-Type': 'application/json'}, data=json.dumps({'voice_commands': 'off'}))
@@ -111,7 +113,7 @@ def run(ctx):
           f"{bad.status_code})",
           st.get('on') is False and 'available' in st and off.status_code == 409 and missing.status_code == 503
           and got.status_code == 200 and (got.get_json().get('data') or {}).get('text') == 'explain further'
-          and bad.status_code == 400 and not kept and voice._model is None)
+          and bad.status_code == 400 and not kept and voice._model is None and preloads)
 
     # ── The page ────────────────────────────────────────────────────────────────────────────────────────────────
     acc_path = ctx.BASE / 'static' / 'js' / 'teaching' / 'access.js'

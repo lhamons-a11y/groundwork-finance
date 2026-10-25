@@ -425,6 +425,7 @@
     } catch (e) { /* defaults: everything off, standard size */ }
     applySize(prefs.text_size);
     if (lastView === null) _watchViews();
+    if (prefs.voice_commands === 'on') API.get('/api/voice').catch(function () {});    // the server readies the model
     _micButton();
     _card();
   }
