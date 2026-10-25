@@ -230,6 +230,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(tidy_bp,           url_prefix='/api/tidy')
     app.register_blueprint(price_changes_bp,  url_prefix='/api/price-changes')
     app.register_blueprint(yearly_steps_bp,   url_prefix='/api/yearly-steps')
+    app.register_blueprint(voice_bp,          url_prefix='/api/voice')          # item 113
     app.register_blueprint(two_accounts_bp,   url_prefix='/api/two-accounts')   # item 107
     app.register_blueprint(first_import_bp,   url_prefix='/api/first-import')
     app.register_blueprint(year_end_bp,       url_prefix='/api/year-end')
@@ -3500,6 +3501,42 @@ def two_accounts_undo():
 
 
 # ── Item 106 (YEARLY_PRICE_STEPS.md): a bill that steps at the same time each year - said, projected, asked ───────
+# ── Item 113: voice commands, recognised on this computer (core/voice.py) ──────────────────────────────────────────
+# The page posts a push-to-talk clip here, to 127.0.0.1, and gets the words back. The clip and the words are not
+# saved or logged. Off by default: with voice_commands not 'on', nothing is listened to.
+voice_bp = Blueprint('voice', __name__)
+
+
+def _voice_on(session):
+    row = _get_setting(session, 'voice_commands')
+    return bool(row) and str(row.value).lower() == 'on'
+
+
+@voice_bp.route('', methods=['GET'])
+def voice_status():
+    from core import voice
+    with db_session() as session:
+        on = _voice_on(session)
+    return ok({'on': on, **voice.status()})
+
+
+@voice_bp.route('/transcribe', methods=['POST'])
+def voice_transcribe():
+    from core import voice
+    with db_session() as session:
+        if not _voice_on(session):
+            return err('Voice commands are off.', 409)
+    st = voice.status()
+    if not st['available']:
+        return err(st['reason'], 503)
+    data = request.get_data(cache=False)
+    try:
+        text = voice.transcribe(data)
+    except voice.VoiceError as e:
+        return err(str(e), 400)
+    return ok({'text': text})
+
+
 yearly_steps_bp = Blueprint('yearly_steps', __name__)
 # Y5: usage bills item 26 already estimates from EIA's regional price - a yearly rate step is in that figure already,
 # so a household step on top would count it twice (section 7). The rest are asked about (Y5(c)).
@@ -10159,6 +10196,9 @@ def update_settings():
                 session.add(AppSetting(key=key, value=str(value)))
         session.commit()
     # Switching AI off releases the model; switching it on loads it (R-a). Only the launcher allows a real load.
+    if str(body.get('voice_commands', 'on')).lower() != 'on':
+        from core import voice
+        voice.release()
     if 'ai_enabled' in body:
         from core import engine
         if str(body['ai_enabled']).lower() == 'false':

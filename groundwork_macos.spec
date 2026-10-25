@@ -23,6 +23,8 @@ sys.path.insert(0, str(Path(SPECPATH)))
 import spec_engine
 _engine_binaries, _engine_datas, _engine_imports = spec_engine.engine_parts()
 _model_datas = spec_engine.model_data()
+_voice_binaries, _voice_datas, _voice_imports = spec_engine.voice_parts()     # item 113
+_voice_model = spec_engine.voice_model_data()
 
 try:
     import webview
@@ -35,9 +37,10 @@ icon_path = root / 'assets' / 'groundwork.icns'
 a = Analysis(
     ['launch.py'],
     pathex=[str(root)],
-    binaries=[*_engine_binaries],
+    binaries=[*_engine_binaries, *_voice_binaries],
     datas=[
         *_engine_datas,
+        *_voice_datas, *_voice_model,
         *_model_datas,             # -> models/ (macOS: Contents/Resources/models), where core/engine.py looks
         ('static', 'static'),
         ('core', 'core'),
@@ -49,7 +52,7 @@ a = Analysis(
         # keyring - item 57 (BANK_AGENT.md A4): bank logins live in the operating system's vault. Imported
         # inside core/bank_vault.py's functions, and its backend is chosen at runtime, so both are named here.
         'keyring', 'keyring.backends', 'keyring.backends.macOS',
-        *_engine_imports,
+        *_engine_imports, *_voice_imports, 'core.voice',
         # waitress — the WSGI server every launch path now uses. Imported
         # inside server.serve() rather than at module scope, which is exactly
         # the import style PyInstaller's static analysis is least likely to
@@ -217,5 +220,8 @@ app = BUNDLE(
         'CFBundleDisplayName': 'Groundwork',
         'CFBundleShortVersionString': '1.1.1',
         'NSHighResolutionCapable': True,
+        # Item 113: push-to-talk voice commands. macOS asks the first time; the words are recognised on this Mac.
+        'NSMicrophoneUsageDescription': 'Groundwork listens only while you hold Talk, for voice commands. What you say '
+                                        'is recognised on this Mac and is never sent anywhere or kept.',
     },
 )

@@ -46,6 +46,8 @@ Source: "dist\Groundwork\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdi
 ; where core/engine.py looks for it and checks its SHA-256 before loading. No Ollama, no second program, no
 ; download, and nothing written outside {app}. Already compressed, so it is stored as-is.
 Source: "vendor\phi3.5_model\blobs\sha256-b5374915da534cb93df39f03bd4f2cd5a0c533df0d5e21957dc9556c260be9eb"; DestDir: "{app}\models"; DestName: "phi3.5-mini-instruct-q4.gguf"; Flags: ignoreversion nocompression
+; Item 113: the voice model, when staged (scripts/fetch_whisper_model.py); without it voice reports unavailable
+Source: "vendor\whisper\ggml-base.en.bin"; DestDir: "{app}\models"; Flags: ignoreversion nocompression skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"

@@ -110,12 +110,12 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 
 /* Topbar */
 .topbar{background:var(--paper);border-bottom:1px solid var(--steel);padding:0 24px;min-height:3.25rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.topbar-title{font-size:var(--fs-lg);font-weight:600;color:var(--ink)}
-.topbar-right{display:flex;align-items:center;gap:12px}
-.topbar-date{font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--slate-2)}
+.topbar-title{font-size:var(--fs-lg);font-weight:600;color:var(--ink);white-space:nowrap;flex-shrink:0;margin-right:12px}
+.topbar-right{display:flex;align-items:center;gap:12px;min-width:0}
+.topbar-date{font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--slate-2);white-space:nowrap}
 /* The Ask bar (Rob 2026-10-22): a pill at rest that springs open when clicked, like the Mac's Dynamic Island, and
    stays white; the date beside it stays as it is */
-#gwAskBox{font-size:var(--fs-sm);height:1.75rem;padding:0 14px;border:1px solid var(--steel);border-radius:999px;width:10.625rem;
+#gwAskBox{font-size:var(--fs-sm);height:1.75rem;padding:0 14px;border:1px solid var(--steel);border-radius:999px;width:10.625rem;min-width:4rem;
   background:var(--paper);color:var(--ink);transition:width .5s cubic-bezier(.34,1.56,.64,1),height .5s cubic-bezier(.34,1.56,.64,1),box-shadow .3s}
 #gwAskBox:focus{width:28.75rem;height:2.25rem;font-size:var(--fs-md);outline:none;box-shadow:0 6px 24px rgba(13,17,23,.16)}
 @media (max-width:900px){#gwAskBox:focus{width:18.75rem}}

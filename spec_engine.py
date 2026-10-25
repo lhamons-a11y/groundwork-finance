@@ -92,3 +92,40 @@ def model_data(stage_dir=None):
     except OSError as e:
         raise BuildRefused(f'spec_engine: the model could not be staged for packaging ({e}).')
     return [(str(dest), 'models')]
+
+
+# ── Item 113: voice commands (core/voice.py) ─────────────────────────────────────────────────────────────────────────
+# Optional, unlike the AI engine: voice is off by default and Groundwork says when it is unavailable. A build without
+# the runtime or the model says so loudly and carries on; a model that is not the measured file is still refused.
+_VOICE_SRC = (ROOT / 'core' / 'voice.py').read_text(encoding='utf-8')
+VOICE_FILE = re.search(r"^MODEL_FILE = '([^']+)'", _VOICE_SRC, re.M).group(1)
+_vpin = re.search(r"^MODEL_SHA256 = '([0-9a-f]{64})'", _VOICE_SRC, re.M)
+VOICE_SHA256 = _vpin.group(1) if _vpin else ''
+
+
+def voice_parts():
+    """(binaries, datas, hiddenimports) for pywhispercpp, or empty with a warning when it is not installed."""
+    try:
+        import pywhispercpp  # noqa: F401
+    except Exception as e:
+        print('[spec] WARNING: pywhispercpp is not installed (%s) - this build has no voice commands.' % e)
+        return [], [], []
+    from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs, collect_submodules
+    return (collect_dynamic_libs('pywhispercpp') + collect_dynamic_libs('_pywhispercpp'),
+            collect_data_files('pywhispercpp'), collect_submodules('pywhispercpp') + ['_pywhispercpp'])
+
+
+def voice_model_data():
+    """[(file, 'models')] - the measured whisper model, from GW_WHISPER_PATH or vendor/whisper/. Missing: a warning and
+    no voice. Present but not the measured file: the build is refused."""
+    env = os.environ.get('GW_WHISPER_PATH')
+    src = Path(env) if env else ROOT / 'vendor' / 'whisper' / VOICE_FILE
+    if not src.is_file():
+        print('[spec] WARNING: the voice model is missing (%s) - this build has no voice commands. '
+              'scripts/fetch_whisper_model.py fetches it.' % src)
+        return []
+    got = _sha256(src)
+    if not VOICE_SHA256 or got != VOICE_SHA256:
+        raise BuildRefused(f'spec_engine: {src} is not the measured voice model (SHA-256 {got}, pinned '
+                           f'{VOICE_SHA256 or "none"} in core/voice.py).')
+    return [(str(src), 'models')]

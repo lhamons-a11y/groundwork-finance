@@ -46,6 +46,10 @@ psutil>=5.9.0
 # (ENGINE_OTHER_PLATFORMS.md Q2). The application runs there; the engine reports local AI unavailable.
 llama-cpp-python==0.3.35; sys_platform != "darwin" or platform_machine == "arm64"
 
+# Item 113 (PANEL_REVIEW.md): voice commands, recognised on this computer by whisper.cpp (core/voice.py). Optional: without
+# it, or without the model file (models/ggml-base.en.bin, scripts/fetch_whisper_model.py), voice reports unavailable.
+pywhispercpp==1.5.1
+
 # ── Platform-specific ─────────────────────────────────────────────────────────
 # Linux only: install these via your package manager, NOT pip
 #

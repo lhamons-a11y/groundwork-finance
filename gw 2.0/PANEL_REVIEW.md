@@ -244,3 +244,42 @@ into 16 kHz files with `say`, then run through each engine on this Mac. Nothing 
 - Groundwork says what it heard before acting, with Undo;
 - the Windows laptop's microphone with real voices as the real test;
 - on this computer only, push to talk, off by default (the hard rule above).
+
+## 7. Built: P6 and item 113 (2026-10-24), s262
+
+Rob: *"build p6 and item 113"*.
+
+| | What | Where |
+|---|---|---|
+| P6a | One type scale: every font size on every page is a `--fs-*` step on `:root` (2,350 sizes converted; SVG labels below 11px raised to 11); the sidebar, top bar and Ask pill in rem | 6a7105c |
+| P6a | Settings → General → Reading and voice → Text size: Standard / Larger / Largest (100 / 115 / 130%), the whole app at once. Every page checked at 130%: nothing clipped; the top bar keeps the page name whole and the Ask pill gives way | `access.js` |
+| P6b | Read aloud, off by default: on Alt+R (the default) or on resting the pointer (0.7 s). A figure is read as its tag's name and value; a card as its heading and its figures; the AI's answers are not read. Only voices installed on the computer; Esc stops; slower / normal / faster | `access.js` |
+| P6c | After a section: "Would you like this explained further?", spoken and shown with Yes / No. Yes reads what each figure means (its item 103 tag), or what the page works out | `access.js` |
+| 113 | Push to talk (Alt+V or the Talk button: hold, or tap to start and tap to stop; 14 s at most), off by default. The clip is posted to this computer's Groundwork server and recognised there by whisper.cpp base.en with the word hint; nothing is kept. The browser's own recognition is switched off. What was heard is shown before it acts, with Undo. Commands: yes, no, stop, repeat, slower, faster, read this, read the page, next, go back, explain further; anything else goes to the Ask bar as if typed | `core/voice.py`, `/api/voice`, `access.js` |
+| 113 | Packaging: pywhispercpp 1.5.1; the model pinned by SHA-256 (`a03779c8…d002`, 147,964,211 bytes) and fetched for builds by `scripts/fetch_whisper_model.py`; the Mac app's microphone line (NSMicrophoneUsageDescription); the Windows installers place `models/ggml-base.en.bin` | specs, `.iss` |
+
+**Decided while building (open points in section 5):**
+- (a) Both: the key by default, resting the pointer as a choice.
+- (b) Simple mode is not built: it was never decided, so it is left out.
+- "Explained further" reads Groundwork's fixed words only, never the AI's lines - P6b's rule that nothing the model
+  wrote is spoken, applied to P6c too.
+- A screen reader can't be detected from the page, so read aloud being off by default is what keeps it from speaking
+  twice; the setting says what it does.
+
+**Measured on Rob's Mac (recorded audio, no microphone):**
+- Six spoken clips through the AI engine's process with the phi model loaded on Metal: all six heard word for word, about
+  0.1 s each after the first. The two engines carry their own graphics libraries and run side by side.
+- Through the server route from the page: 200, the exact words, 114-486 ms.
+
+**Held by s262:**
+- the voice engine imports nothing that can reach a network, and a clip is recognised with the network blocked;
+- off until chosen, refused while off, unavailable says why, nothing kept;
+- the page posts only to this computer's server, and the browser's recognition is gone;
+- read aloud uses a local voice and asks the question;
+- what was heard is said first, with Undo.
+
+**Still owed:**
+- The Windows laptop with real voices and a real microphone (the WebView2 microphone prompt included).
+- A Mac with a microphone (USB or Bluetooth) to try push to talk end to end; until then, say plainly at release that
+  it is untested by voice on a Mac.
+- The website and privacy copy: a line on the microphone.
