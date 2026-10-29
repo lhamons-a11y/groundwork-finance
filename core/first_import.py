@@ -11,6 +11,8 @@ import math
 from datetime import date
 from statistics import mean, median, pstdev
 
+from core.money_kind import not_spending_category
+
 MIN_MONTHS = 10
 # yearly / twice-yearly: every gap between the payee's charges fits one rhythm, and the amounts agree
 RHYTHMS = (('yearly', 355, 375, 12), ('twice a year', 176, 189, 6))
@@ -18,8 +20,7 @@ AMOUNT_TOL = 0.15
 # a payee with everyday spending is not a bill: two coffees a year apart are a coincidence, not a renewal
 EVERYDAY = {'groceries', 'food', 'restaurant', 'restaurants', 'fast food / takeout', 'fastfood', 'coffee shops',
             'gas', 'gas / fuel', 'gasoline / diesel', 'ev charging', 'shopping', 'clothing', 'personal', 'other', 'household supplies', 'entertainment',
-            'hobbies', 'hobby', 'gifts', 'work lunches', 'parking / tolls', 'rideshare / transit', 'atm', 'transfer',
-            'refund', 'interest', 'interest / fees', 'fees', 'debt', 'savings', 'income', 'beauty', 'personal care'}
+            'hobbies', 'hobby', 'gifts', 'work lunches', 'parking / tolls', 'rideshare / transit', 'beauty', 'personal care'}
 GRACE = 20                  # days of slack before a missing renewal counts against the rhythm
 SLACK = 6                   # days each of several gaps may wander, when their middle gap is in the window
 # heavy months (W1 null model): one year cannot tell a heavy month from an ordinary bumpy one - the single-year rule
@@ -58,7 +59,8 @@ def renewals(by_payee, categories=None, history=None):
     checked: a bill begins some time, and a new policy in a long record is still a yearly bill."""
     out = []
     for payee, xs in by_payee.items():
-        if (categories or {}).get(payee, '').strip().lower() in EVERYDAY:
+        cat = (categories or {}).get(payee, '')
+        if cat.strip().lower() in EVERYDAY or not_spending_category(cat):    # item 111: money that is not spending
             continue
         xs = sorted((d, round(abs(float(a)), 2)) for d, a in xs if d and a)
         if not 2 <= len(xs) <= 4:

@@ -40,6 +40,15 @@ async function _gwFetch(path, opts = {}, _retried = false) {
   return r;
 }
 
+// Item 111 (TRANSFERS.md): a row added, changed, removed or tied to a debt can pair or unpair another - a move is two
+// rows - so after any such change the page asks the server for every row's kind again (_refreshKinds)
+let _kindsTimer = null;
+function _kindsChanged(path) {
+  if (!/^\/api\/(transactions|debt|own-moves)(\/|$)/.test(path) || /^\/api\/transactions\/lesson/.test(path)) return;
+  clearTimeout(_kindsTimer);
+  _kindsTimer = setTimeout(() => { if (typeof _refreshKinds === 'function') _refreshKinds(); }, 300);
+}
+
 const API = {
   async get(path) {
     const r = await _gwFetch(path);
@@ -59,6 +68,7 @@ const API = {
       if (j.need_bank) e.needBank = j.need_bank;     // item 93 B2: the page asks which bank, then tries again
       throw e;
     }
+    _kindsChanged(path);
     return j.data !== undefined ? j.data : j;
   },
   async patch(path, body = {}) {
@@ -69,6 +79,7 @@ const API = {
     });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || `${r.status} ${path}`);
+    _kindsChanged(path);
     return j.data !== undefined ? j.data : j;
   },
   async put(path, body = {}) {
@@ -85,6 +96,7 @@ const API = {
     const r = await _gwFetch(path, { method: 'DELETE' });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || `${r.status} ${path}`);
+    _kindsChanged(path);
     return j;
   },
 };
@@ -258,33 +270,76 @@ function _catChildIds(parentName) {
 
 // Get parent name for a given category name
 // Returns the name itself if it's already a parent (or null if not found)
-// Canonical "is this real spending?" test. A transfer (money moving between the
-// user's own accounts — Home Banking transfer, ATM withdrawal, savings move) is
-// NOT spending; counting it inflated the dashboard's spent total, projected
-// spend, the donut, and What Changed (field-caught: a $5,000 transfer read as
-// "Over budget $12,651"). Debit + not a Transfer-category row. Used everywhere
-// the dashboard sums spending.
+// Item 111 X1 (gw 2.0/TRANSFERS.md): every row's kind comes from the server (core/money_kind.py) and the page never
+// decides it - spending, income, a move between the person's own accounts, a card or loan payment, interest and
+// fees, a refund, or cash taken out. A row the server hasn't answered for yet (an optimistic insert) is 'unknown',
+// counted nowhere until _refreshKinds() fills it in.
+function _kind(t) {
+  return (t && t.kind) || 'unknown';
+}
+
+// Spending: a purchase or bill. A card payment is not spending - the purchases on the card were (X4).
 function _isSpend(t) {
-  if (!t || t.type !== 'debit') return false;
-  return !_isTransferCat(t.category);
+  return !!t && t.type === 'debit' && _kind(t) === 'spending';
 }
 
-// A transfer category: named Transfer, typed transfer, or under one - the same test as the server's
-// core/checkin._transfer_ids, so the page and the server never disagree about what moved
-function _isTransferCat(name) {
-  const parent = _catParentName(name) || name;
-  if (parent === 'Transfer' || name === 'Transfer') return true;
-  const c = _catByName(name), p = c && c.parent_id ? (S.categories || []).find(x => x.id === c.parent_id) : null;
-  return (c && c.type === 'transfer') || (p && p.type === 'transfer');
-}
-
-// The credit-side mirror of _isSpend: money that actually arrived from outside,
-// not an internal move between the user's own accounts. Any ratio built from
-// gross credits and gross debits needs both sides filtered the same way, or the
-// transfers inflate the numerator and denominator by different amounts.
+// Income: money in from outside - not a move between the person's own accounts, not a refund.
 function _isEarn(t) {
-  if (!t || t.type !== 'credit') return false;
-  return !_isTransferCat(t.category);
+  return !!t && t.type === 'credit' && _kind(t) === 'income';
+}
+
+// What a row adds to spending: a purchase its amount, a refund less (X5), anything else nothing. Every spending total
+// on the page is a sum of this, so they all agree with the server's (money_kind.spending_of).
+function _spendAmt(t) {
+  const k = _kind(t);
+  return (k === 'spending' && t.type === 'debit') ? (t.amount || 0) : k === 'refund' ? -(t.amount || 0) : 0;
+}
+
+// The Ledger's word, on its own line under the payee, for a row that is not spending or income (X1), and for a found pair not yet confirmed (X3)
+const _KIND_WORDS = { own_move: 'move between your accounts', debt_payment: 'card or loan payment',
+  interest_fees: 'interest and fees', refund: 'refund', cash_out: 'cash taken out' };
+function _kindTag(t) {
+  const w = _KIND_WORDS[_kind(t)];
+  if (!w) return '';
+  const found = t.pair_id && !t.pair_confirmed ? ' (found, not yet confirmed)' : '';
+  const why = _kind(t) === 'cash_out' ? "Cash taken out: what it was spent on isn't on record. It isn't counted as spending."
+    : _kind(t) === 'refund' ? `Money back. It reduces spending in ${t.kind_category || 'its category'}.`
+    : `Not counted as spending${found ? ' - Groundwork found the other side and asks you on the Dashboard' : ''}.`;
+  return `<div class="merchant-sub" style="color:var(--slate)" title="${esc(why)}">${esc(w + found)}</div>`;
+}
+
+// What left the accounts but isn't spending, each part named for what it is - a card payment is never called a move.
+// `by` {kind: amount}, the server's (checkin moved_by) or the page's own rows (_movedBy).
+function _movedBy(txns) {
+  const by = {};
+  txns.forEach(t => { const k = _kind(t); if (t.type === 'debit' && k !== 'spending' && k !== 'unknown') by[k] = (by[k] || 0) + t.amount; });
+  return by;
+}
+function _movedWords(by) {
+  const words = [['debt_payment', 'paid to cards and loans'], ['own_move', 'moved between your own accounts'],
+                 ['cash_out', 'taken out as cash'], ['interest_fees', 'in interest and fees']];
+  const parts = words.filter(([k]) => (by || {})[k] > 0).map(([k, w]) => `${fmt(by[k])} ${w}`);
+  return parts.length < 2 ? parts.join('') : parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1];
+}
+
+// The category a row counts in: a refund in the category of the purchase it reverses (X5), anything else as filed.
+function _spendCat(t) {
+  return (t && (t.kind === 'refund' ? t.kind_category : t.category)) || 'Other';
+}
+
+// Item 111: a change to one row can pair or unpair another (a move is two rows), so after a change the page asks the
+// server for every row's kind again. Nothing is decided here.
+async function _refreshKinds() {
+  try {
+    const r = await API.get('/api/transactions/kinds');
+    const k = (r && (r.data || r)) || {};
+    (S.transactions || []).forEach(t => {
+      const x = k[String(t.id)];
+      if (x) Object.assign(t, x);
+    });
+  } catch (e) { _gwErr('refresh kinds')(e); return; }
+  if (typeof renderDashboard === 'function') renderDashboard();
+  if (document.querySelector('#view-ledger.active') && typeof renderLedger === 'function') { renderLedger(); updateLedgerStats(); }
 }
 
 function _catParentName(catName) {  const cat = (S.categories || []).find(c => c.name === catName);
@@ -2296,7 +2351,7 @@ function renderDashboard() {
   const totalIncome = _effectiveIncome();   // rolling avg in commission mode
   const rawIncome   = _householdTotalIncome(); // always the budget amount
   const isSmoothed  = S.lifeStage?.commissionMode && totalIncome !== rawIncome;
-  const spent       = txns.filter(_isSpend).reduce((s,t) => s + t.amount, 0);
+  const spent       = txns.reduce((s,t) => s + _spendAmt(t), 0);
   const daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
   const daysGone    = now.getDate();
   const daysLeft    = daysInMonth - daysGone;
@@ -2394,8 +2449,7 @@ function _streakFromData() {
     // spending push months over budget with nothing to offset them and quietly
     // suppress the streak.
     const spent = inMonth
-      .filter(_isSpend)
-      .reduce((s,t) => s+t.amount, 0);
+      .reduce((s,t) => s+_spendAmt(t), 0);
     if (spent < income) {
       run++;
       if (run > peak) peak = run;
@@ -2695,12 +2749,13 @@ function _renderDashSpendingDonut(txns) {
   if (!debits.length) { card.style.display = 'none'; return; }
 
   // Aggregate by PARENT category for clean donut slices
-  // Children roll up to their parent so we don't get 15 tiny slices
+  // Children roll up to their parent so we don't get 15 tiny slices. Item 111 X5: a refund nets in its category.
   const bycat = {};
-  debits.forEach(t => {
-    const cat = _catParentName(t.category || 'Other') || t.category || 'Other';
-    bycat[cat] = (bycat[cat] || 0) + t.amount;
+  txns.filter(_spendAmt).forEach(t => {
+    const cat = _catParentName(_spendCat(t)) || _spendCat(t);
+    bycat[cat] = (bycat[cat] || 0) + _spendAmt(t);
   });
+  Object.keys(bycat).forEach(c => { if (bycat[c] <= 0) delete bycat[c]; });    // a slice is never negative
   const total   = Object.values(bycat).reduce((s,v)=>s+v,0);
   const sorted  = Object.entries(bycat).sort((a,b)=>b[1]-a[1]);
   const top5    = sorted.slice(0,5);
@@ -4619,7 +4674,7 @@ function _ledgerRowHTML(t) {
     <div class="row-check"><input type="checkbox" class="txn-check" data-id="${t.id}" onclick="event.stopPropagation();_onTxnCheckChange()"></div>
     <div><div class="cat-icon" style="background:${iconBg};border-color:${iconBorder};color:${catStyle.color}">${_renderCatIcon(catStyle.icon, catStyle.color, 18)}</div></div>
     <div class="cell-date">${fmtDate(t.date)}</div>
-    <div class="cell-desc" title="${esc(fullDesc)}">${t.pending ? '<span class="badge" style="margin-right:6px;font-size:var(--fs-xs);color:var(--slate);border:0.5px solid var(--steel-2);border-radius:var(--r-sm);padding:0 4px" title="The bank\'s file said this line was still pending">pending</span>' : ''}${t.corrected || t.was_pending ? `<span style="margin-right:5px;color:var(--slate);font-size:var(--fs-xs)" title="${t.corrected ? 'You corrected this line. Double-click to see the earlier versions.' : 'This line was pending first. Double-click to see both.'}">✎</span>` : ''}${esc(primary)}${debtLinkIcon}${sub ? `<div class="merchant-sub">${esc(sub)}</div>` : ''}</div>
+    <div class="cell-desc" title="${esc(fullDesc)}">${t.pending ? '<span class="badge" style="margin-right:6px;font-size:var(--fs-xs);color:var(--slate);border:0.5px solid var(--steel-2);border-radius:var(--r-sm);padding:0 4px" title="The bank\'s file said this line was still pending">pending</span>' : ''}${t.corrected || t.was_pending ? `<span style="margin-right:5px;color:var(--slate);font-size:var(--fs-xs)" title="${t.corrected ? 'You corrected this line. Double-click to see the earlier versions.' : 'This line was pending first. Double-click to see both.'}">✎</span>` : ''}${esc(primary)}${debtLinkIcon}${sub ? `<div class="merchant-sub">${esc(sub)}</div>` : ''}${_kindTag(t)}</div>
     <div class="cell-account">${esc(acctMain)}${acctTail ? `<span class="acct-suffix">${esc(acctTail)}</span>` : ''}</div>
     <div class="cell-cat"><span class="cat-dot" style="background:${catStyle.color}"></span><span class="cat-name">${esc(t.category||'Other')}</span></div>
     <div class="cell-amount ${sign}">${prefix}${fmtD(t.amount)}</div>
@@ -7072,7 +7127,7 @@ function clientAutoCategory(desc='') {
   if (/\bpayroll\b|\bdirect dep(osit)?\b|\bsalary\b|\bach credit.*deposit\b/.test(d)) return 'Paycheck / Salary';
   if (/\birs\s*treas\s*310\b|\btax refund\b/.test(d)) return 'Other';
   if (/\btransfer (to|from)\b|\bach transfer\b|\binternal transfer\b|\bonline transfer\b|\bvenmo\b|\bcash app\b|\bzelle\b|\bpaypal\s+(transfer|p2p)\b|\batm\s+(eft|withdraw)\b|\bat atm\b|\beft withdrawal\b|\batm withdrawal\b|\bdraft\s+\d|\bcheck received\b|\bdeposit\b|\btransactor:\b/.test(d)) return 'Transfer';
-  if (/\brefund\b|\breversal\b|\bchargeback\b|\bcredit memo\b|\breturn.{0,10}(credit|merch)|\bmerchandise return\b/.test(d)) return 'Transfer';
+  // item 111 X5: a refund is no longer filed under Transfer - it is filed by its merchant, and nets (core/money_kind.py)
   if (/\btransfer (to|from)\b|\bach transfer\b|\binternal transfer\b|\bonline transfer\b/.test(d)) return 'Transfer';
   if (/\btransfer.{0,10}sav\b|\bsavings (account|deposit)\b|\bfidelity\b|\bvanguard\b|\bschwab\b|\b401\s*k\b|\broth ira\b|\bbrokerage\b/.test(d)) return 'Transfer';
   if (/\bnetflix\b|\bhulu\b|\bdisney(plus|\+)?\b|\bspotify\b|\bapple music\b|\bhbo (max)?\b|\bparamount\b|\bpeacock\b|\byoutube (premium|tv)\b|\bsling tv\b|\bstarz\b/.test(d)) return 'Streaming Video';
@@ -8639,7 +8694,7 @@ function _paceProjection(txns, daysElapsed, daysInMonth) {
 function _monthSpendSplit() {
   const spend = getTxnsForPeriod().filter(_isSpend);
   return {
-    spent: spend.reduce((s, t) => s + t.amount, 0),
+    spent: getTxnsForPeriod().reduce((s, t) => s + _spendAmt(t), 0),     // item 111: refunds net
     bills: spend.filter(_isMonthlyBill).reduce((s, t) => s + t.amount, 0),
   };
 }
@@ -8914,12 +8969,11 @@ function _budgetPrefillFromHistory() {
   const catTotals  = {};
   const catMonths  = {};   // how many months had spend for this cat
   S.transactions
-    .filter(t => t.type === 'debit' && months.includes((t.date||'').slice(0,7))
-              && t.category && t.category !== 'Income' && t.category !== 'Transfer')
+    .filter(t => _spendAmt(t) && months.includes((t.date||'').slice(0,7)) && _spendCat(t))    // item 111: spending, refunds net
     .forEach(t => {
-      const c = t.category;
+      const c = _spendCat(t);
       const mo = (t.date||'').slice(0,7);
-      catTotals[c] = (catTotals[c]||0) + t.amount;
+      catTotals[c] = (catTotals[c]||0) + _spendAmt(t);
       if (!catMonths[c]) catMonths[c] = new Set();
       catMonths[c].add(mo);
     });
@@ -11166,7 +11220,7 @@ function tripOwnSavingsRate(transactions, today) {
     const mi = tx.filter(_isEarn).reduce((s, t) => s + t.amount, 0);
     if (!(mi > 0)) return null;
     inc += mi;
-    spend += tx.filter(_isSpend).reduce((s, t) => s + t.amount, 0);
+    spend += tx.reduce((s, t) => s + _spendAmt(t), 0);
   }
   return { rate: Math.round(((inc - spend) / inc) * 1000) / 10, monthlyIncome: inc / 6 };
 }
@@ -12884,14 +12938,17 @@ function _checkinLines(f) {
   const ch = w.change;
   lines.push(`Last week (${day(w.from)} to ${day(w.to)}): ${fmt(w.spent)} spent` +
     (w.last_week > 0 ? `, ${ch === 0 ? 'the same as' : `${fmt(Math.abs(ch))} ${ch > 0 ? 'more than' : 'less than'}`} the week before (${fmt(w.last_week)}).` : '.'));
-  if (w.moved > 0) lines.push(`${fmt(w.moved)} moved between your own accounts - not spending.`);
+  if (w.moved > 0) lines.push(`${_movedWords(w.moved_by)} - not spending.`);     // item 111: each named for what it is
   const m = f.month;
-  // panel I-01: what is spent includes debt payments, so the budget it is measured against says it includes them
+  // panel I-01: the budget holds the debt payments; item 111 X4: they are not spending, so they are said beside it
   const bp = f.budget_parts;
   const parts = bp && bp.debt > 0
     ? ` (${fmt(bp.spending)} of spending and ${fmt(bp.debt)} of debt payments${bp.debt_basis === 'plan' ? ', your payoff plan' : ', your minimums'})`
     : '';
-  if (m.budget) lines.push(`This month so far: ${fmt(m.spent)} of the ${fmt(m.budget)} budgeted${parts}, ${m.left >= 0 ? `with ${fmt(m.left)} left` : `${fmt(Math.abs(m.left))} past it`} for the ${m.days_left} day${m.days_left !== 1 ? 's' : ''} that remain.`);
+  const sofar = m.debt_paid > 0
+    ? `${fmt(m.spent)} spent and ${fmt(m.debt_paid)} paid to cards and loans, ${fmt(m.spent + m.debt_paid)}`
+    : fmt(m.spent);
+  if (m.budget) lines.push(`This month so far: ${sofar} of the ${fmt(m.budget)} budgeted${parts}, ${m.left >= 0 ? `with ${fmt(m.left)} left` : `${fmt(Math.abs(m.left))} past it`} for the ${m.days_left} day${m.days_left !== 1 ? 's' : ''} that remain.`);
   if (f.interest && f.interest.week > 0) lines.push(`Your debts cost about ${fmt(f.interest.week)} in interest this week - about ${fmt(f.interest.month)} a month at these balances, whatever else is paid.`);
   if (f.bills && f.bills.length) lines.push('Due this week: ' + f.bills.map(b => `${b.name}${b.amount != null ? ` (${fmt(b.amount)})` : ''}, ${day(b.date)}`).join('; ') + '.');
   if (f.goals && f.goals.length) lines.push('Your goals: ' + f.goals.map(gl => `${gl.name}, ${fmt(gl.saved)} of ${fmt(gl.target)}` +
@@ -13946,13 +14003,12 @@ function _obRenderExpenseAnalysis() {
 
   const now = new Date();
   const sixMoAgo = _localISODate(new Date(now.getFullYear(), now.getMonth()-6, 1));
-  const txns = S.transactions.filter(t => t.type==='debit' && t.date>=sixMoAgo
-    && t.category!=='Income' && t.category!=='Transfer' && t.category!=='Debt');
+  const txns = S.transactions.filter(t => _spendAmt(t) && t.date>=sixMoAgo);    // item 111: spending, refunds net
 
   const catTotals = {};
   txns.forEach(t => {
-    const c = t.category || 'Other';
-    catTotals[c] = (catTotals[c]||0) + t.amount;
+    const c = _spendCat(t);
+    catTotals[c] = (catTotals[c]||0) + _spendAmt(t);
   });
   const months  = new Set(txns.map(t => t.date.slice(0,7)));
   const moCount = Math.max(1, months.size);
@@ -16741,7 +16797,7 @@ function _debtPaidThisMonth(planRow, moKey) {
   const thisMonthDebits = S.transactions.filter(t =>
     t.type === 'debit' &&
     (t.date || '').startsWith(moKey) &&
-    ((t.category === 'Debt' || _catParentName(t.category) === 'Debt') || t.category === 'Transfer' || t.category === 'Payment')
+    (_kind(t) === 'debt_payment' || _kind(t) === 'own_move')    // item 111: a payment, or a move not yet tied to one
   );
 
   if (!thisMonthDebits.length) return { paid: false, amount: 0, date: '' };
@@ -26297,7 +26353,7 @@ function updateReportPreview() {
   const end     = _localISODate(new Date(yr,mo,0));
   const txns    = S.transactions.filter(t => t.date>=start && t.date<=end);
   const income  = txns.filter(_isEarn).reduce((s,t)=>s+t.amount,0);    // transfers on neither side (2026-10-13)
-  const spent   = txns.filter(_isSpend).reduce((s,t)=>s+t.amount,0);
+  const spent   = txns.reduce((s,t)=>s+_spendAmt(t),0);
   const budgetInc = S.incomes.reduce((s,i)=>s+i.amount,0);
   const totalDebt = S.debtCards.filter(c=>!c.paidInFull).reduce((s,c)=>s+(_cardBal(c)),0);
   const daily     = calcDailyInterest();
@@ -28293,10 +28349,10 @@ function _rcMonthFacts(month) {
   const end = _localISODate(new Date(yr, mo, 0));
   const txns = S.transactions.filter(t => t.date >= start && t.date <= end);
   const monthName = new Date(yr, mo - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  const spent = txns.filter(_isSpend).reduce((s, t) => s + t.amount, 0);
+  const spent = txns.reduce((s, t) => s + _spendAmt(t), 0);
   const income = S.incomes.reduce((s, i) => s + i.amount, 0);
   const cats = {};
-  txns.filter(_isSpend).forEach(t => { const pn = _catParentName(t.category || 'Other') || 'Other'; cats[pn] = (cats[pn] || 0) + t.amount; });
+  txns.filter(_spendAmt).forEach(t => { const pn = _catParentName(_spendCat(t)) || 'Other'; cats[pn] = (cats[pn] || 0) + _spendAmt(t); });
   const topCats = Object.entries(cats).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([c, a]) => `${c}: ${fmt(a)}`).join(', ');
   return { monthName, spent, income, under: income - spent, topCats };
 }
@@ -29659,15 +29715,16 @@ function _rcMonthlyRefreshPreview() {
   const txns  = S.transactions.filter(t => t.date >= start && t.date <= end);
   // Transfers are money moving between the person's own accounts, never spending or earning (_isSpend / _isEarn, as
   // the dashboard and Annual Summary count them; fixed 2026-10-13 - September 2026's top "spending" was a transfer)
-  const spent = txns.filter(_isSpend).reduce((s,t)=>s+t.amount,0);
+  const spent = txns.reduce((s,t)=>s+_spendAmt(t),0);
   const earned= txns.filter(_isEarn).reduce((s,t)=>s+t.amount,0);
-  const moved = txns.filter(t=>t.type==='debit' && !_isSpend(t)).reduce((s,t)=>s+t.amount,0);
+  const moved = txns.filter(t=>t.type==='debit' && !_isSpend(t)).reduce((s,t)=>s+t.amount,0);   // item 111: moves, payments, cash
+  const movedBy = _movedBy(txns);
   const net   = earned - spent;
   const monthName = new Date(yr,mo-1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
   const cats = {};
-  txns.filter(_isSpend).forEach(t=>{
-    const pn = _catParentName(t.category||'Other')||'Other';
-    cats[pn]=(cats[pn]||0)+t.amount;
+  txns.filter(_spendAmt).forEach(t=>{
+    const pn = _catParentName(_spendCat(t))||'Other';
+    cats[pn]=(cats[pn]||0)+_spendAmt(t);
   });
   const topCats = Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const stats = g('rcMonthlyStats');
@@ -29683,7 +29740,7 @@ function _rcMonthlyRefreshPreview() {
       <div class="card" style="padding:14px;${net>=0?'border-color:var(--pine-border)':'border-color:var(--ember-border)'}"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Net</div><div style="font-family:var(--font-mono);font-size:var(--fs-3xl);font-weight:600;color:${net>=0?'var(--pine-text)':'var(--ember-text)'}">${net>=0?'+':''}${fmt(net)}</div></div>
       <div class="card" style="padding:14px"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Transactions</div><div style="font-family:var(--font-mono);font-size:var(--fs-3xl);font-weight:600;color:var(--ink)">${txns.length}</div></div>
     </div>
-    ${moved > 0 ? `<div style="font-size:var(--fs-sm);color:var(--slate);margin:-6px 0 14px">${fmt(moved)} moved between your own accounts this month - not spending, so not in Spent.</div>` : ''}
+    ${moved > 0 ? `<div style="font-size:var(--fs-sm);color:var(--slate);margin:-6px 0 14px">This month: ${_movedWords(movedBy)} - not spending, so not in Spent.</div>` : ''}
     ${topCats.length?`<div class="card" style="padding:16px"><div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">Top spending</div>
     ${topCats.map(([cat,amt])=>{const pct=spent>0?(amt/spent*100):0;const cs=_categoryStyle(cat);return`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--steel-2)"><div style="flex:1;font-size:var(--fs-base);color:var(--ink)">${esc(cat)}</div><div style="font-family:var(--font-mono);font-size:var(--fs-base);color:var(--ink)">${fmt(amt)}</div><div style="width:40px;text-align:right;font-size:var(--fs-xs);color:var(--slate-2)">${pct.toFixed(0)}%</div></div>`;}).join('')}
     </div>`:''}`;
@@ -29765,10 +29822,10 @@ async function _rcMonthlyGenerate() {
   const monthName=new Date(yr,mo-1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
   // _isSpend, not a raw debit filter — see generateReport(); this is the same
   // budget-profile comparison and was carrying the same transfer inflation.
-  const spent=txns.filter(_isSpend).reduce((s,t)=>s+t.amount,0);
+  const spent=txns.reduce((s,t)=>s+_spendAmt(t),0);
   const income=S.incomes.reduce((s,i)=>s+i.amount,0);
   const under=income-spent;
-  const cats={}; txns.filter(_isSpend).forEach(t=>{const pn=_catParentName(t.category||'Other')||'Other';cats[pn]=(cats[pn]||0)+t.amount;});
+  const cats={}; txns.filter(_spendAmt).forEach(t=>{const pn=_catParentName(_spendCat(t))||'Other';cats[pn]=(cats[pn]||0)+_spendAmt(t);});
   const topCatEntries=Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const topCats=topCatEntries.map(([c,a])=>`${c}: ${fmt(a)}`).join(', ');
   // topCatEntries holds PARENT category names (see _catParentName above) —
@@ -30344,28 +30401,28 @@ function _rcUpdateAnnualSummary() {
   // the bug hid there — but savingsRate divides by the inflated income, and the
   // category ranking below listed "Transfer" as real spending.
   const totalIncome   = yearTxns.filter(_isEarn).reduce((s,t)=>s+t.amount,0);
-  const totalExpenses = yearTxns.filter(_isSpend).reduce((s,t)=>s+t.amount,0);
+  const totalExpenses = yearTxns.reduce((s,t)=>s+_spendAmt(t),0);
   const totalSaved    = totalIncome - totalExpenses;
   const savingsRate   = totalIncome > 0 ? Math.round((totalSaved / totalIncome) * 100) : 0;
 
   const prevIncome    = prevTxns.filter(_isEarn).reduce((s,t)=>s+t.amount,0);
-  const prevExpenses  = prevTxns.filter(_isSpend).reduce((s,t)=>s+t.amount,0);
+  const prevExpenses  = prevTxns.reduce((s,t)=>s+_spendAmt(t),0);
   const hasPrev       = prevTxns.length > 0;
 
   // Top 10 categories — rolled up to parent (e.g. "Electric"+"Gas" under
   // "Utilities" combine into one line), matching Monthly Report's convention
   // instead of splitting the same spending into separate child entries.
   const catTotals = {};
-  yearTxns.filter(t=>_isSpend(t)&&t.category).forEach(t => {
-    const pn = _catParentName(t.category)||t.category;
-    catTotals[pn] = (catTotals[pn]||0) + t.amount;
+  yearTxns.filter(t=>_spendAmt(t)&&_spendCat(t)).forEach(t => {
+    const pn = _catParentName(_spendCat(t))||_spendCat(t);
+    catTotals[pn] = (catTotals[pn]||0) + _spendAmt(t);
   });
   const topCats = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]).slice(0,10);
 
   // Month-by-month
   const moData = months.map(mo => {
     const inc = yearTxns.filter(t=>_isEarn(t) &&(t.date||'').startsWith(mo)).reduce((s,t)=>s+t.amount,0);
-    const exp = yearTxns.filter(t=>_isSpend(t)&&(t.date||'').startsWith(mo)).reduce((s,t)=>s+t.amount,0);
+    const exp = yearTxns.filter(t=>(t.date||'').startsWith(mo)).reduce((s,t)=>s+_spendAmt(t),0);
     const net = inc - exp;
     const rate = inc > 0 ? Math.round((net / inc) * 100) : 0;
     const [y,m] = mo.split('-').map(Number);
@@ -31260,8 +31317,8 @@ function _computeCurrentPriority() {
   for (let i = 1; i <= 6; i++) {
     const mk = _prevMonthKey(i);
     const spent = (S.transactions || [])
-      .filter(t => _isSpend(t) && (t.date || '').startsWith(mk))
-      .reduce((s, t) => s + t.amount, 0);
+      .filter(t => (t.date || '').startsWith(mk))
+      .reduce((s, t) => s + _spendAmt(t), 0);
     const earned = (S.transactions || [])
       .filter(t => _isEarn(t) && (t.date || '').startsWith(mk))
       .reduce((s, t) => s + t.amount, 0);
@@ -32012,7 +32069,7 @@ function _rcRenderIncomeSavings() {
     // transfers on neither side (_isEarn / _isSpend; fixed 2026-10-13)
     const inc  = S.transactions.filter(t=>_isEarn(t)&&(t.date||'').startsWith(mo)).reduce((s,t)=>s+t.amount,0);
     const effI = inc>0?inc:budgetInc;
-    const exp  = S.transactions.filter(t=>_isSpend(t)&&(t.date||'').startsWith(mo)).reduce((s,t)=>s+t.amount,0);
+    const exp  = S.transactions.filter(t=>(t.date||'').startsWith(mo)).reduce((s,t)=>s+_spendAmt(t),0);
     const saved = effI-exp, rate = effI>0?Math.round((saved/effI)*100):0;
     const [y,m] = mo.split('-').map(Number);
     return { mo, lbl:new Date(y,m-1,1).toLocaleDateString('en-US',{month:'short'}), inc:effI, exp, saved, rate };

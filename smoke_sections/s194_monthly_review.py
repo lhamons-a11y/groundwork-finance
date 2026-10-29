@@ -108,8 +108,10 @@ def run(ctx):
         # item 109: _localISODate and _localStamp, the page's local clock, come in with the functions that use them
         fn = lambda name, pre='function ': re.search(r'\n(?:async )?' + pre + name + r'\(.*?\n\}\n', app, re.S).group(0)
         js = ('const posts = []; let due = "2019-03", ai = false, aiResult = null, calls = 0;\n'
-              'const S = {transactions: [{date: "2019-03-05", amount: 40, type: "debit", category: "Food"}], incomes: [{amount: 2000}]};\n'
-              'const _isSpend = t => t.type === "debit"; const _catParentName = c => c; const fmt = n => "$" + Number(n).toFixed(2);\n'
+              'const S = {transactions: [{date: "2019-03-05", amount: 40, type: "debit", category: "Food", kind: "spending"}], incomes: [{amount: 2000}]};\n'
+              'const _catParentName = c => c; const fmt = n => "$" + Number(n).toFixed(2);\n'
+              + fn('_kind') + fn('_isSpend') + fn('_spendAmt') + fn('_spendCat') +      # item 111: the kind is the server's
+              '\n'
               'const esc = s => String(s); const _gwErr = () => () => {}; const renderReviewReady = () => {};\n'
               'const aiEnabled = () => ai; const callAI = async () => { calls++; return aiResult; };\n'
               'const API = { get: async () => ({ month: due }), post: async (u, b) => { posts.push(b); return {}; } };\n'

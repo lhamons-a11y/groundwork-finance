@@ -50,11 +50,12 @@ def run(ctx):
     mon = app.split('function _rcMonthlyRefreshPreview() {')[1].split('\n}\n')[0]
     inc = app.split('function _rcRenderIncomeSavings() {')[1].split('\n}\n')[0]
     prev = app.split('function updateReportPreview() {')[1].split('\n}\n')[0]
+    # item 111 (TRANSFERS.md): spending is a sum of _spendAmt (refunds net), and what moved is said by kind
     check('s221 2 the Monthly Report, Income & Savings and the report preview count transfers on neither side, and the report says what moved',
-          'txns.filter(_isSpend)' in mon and 'txns.filter(_isEarn)' in mon and "type==='debit').reduce" not in mon
-          and 'moved between your own accounts this month' in mon
-          and '_isEarn(t)&&' in inc and '_isSpend(t)&&' in inc and 'txns.filter(_isEarn)' in prev and 'txns.filter(_isSpend)' in prev)
-    tc = re.search(r'^function _isTransferCat\(name\) \{.*?^\}', app, re.M | re.S)
-    check("s221 2 one transfer test on the page, as the server's: named Transfer, typed transfer, or under one",
-          tc is not None and "c.type === 'transfer'" in tc.group(0) and "p.type === 'transfer'" in tc.group(0)
-          and 'return !_isTransferCat(t.category);' in app)
+          'txns.reduce((s,t)=>s+_spendAmt(t),0)' in mon and 'txns.filter(_isEarn)' in mon and "type==='debit').reduce((s,t)=>s+t.amount,0);\n  const net" not in mon
+          and '_movedWords(movedBy)' in mon
+          and '_isEarn(t)&&' in inc and '_spendAmt(t)' in inc and 'txns.filter(_isEarn)' in prev and '_spendAmt(t)' in prev)
+    kd = re.search(r'^function _kind\(t\) \{.*?^\}', app, re.M | re.S)
+    check("s221 2 one transfer test on the page, as the server's: item 111's kind, read from the server (core/money_kind.py)",
+          kd is not None and "return (t && t.kind) || 'unknown';" in kd.group(0) and '_isTransferCat' not in app
+          and "_kind(t) === 'spending'" in app and "_kind(t) === 'income'" in app)

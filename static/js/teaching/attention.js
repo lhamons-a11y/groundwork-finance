@@ -18,7 +18,8 @@
                'fsa_deadline',                                                     // item 86 F5, ruled 2026-10-14
                'bill_due',                                                         // item 94 L6, ruled 2026-10-19
                'two_accounts',                                                     // item 107 D6 (a), ruled 2026-10-21
-               'backup_due'];                                                      // the backup reminder, Rob 2026-10-22
+               'backup_due',                                                       // the backup reminder, Rob 2026-10-22
+               'own_move'];                                                        // item 111 X3, ruled 2026-10-26
   var DUE_WITHIN_DAYS = 7;                                  // ruling 4
 
   function _iso(d) {
@@ -140,6 +141,16 @@
     });
   }
 
+  /* Kind 9 (item 111 X3): the same amount left one of the person's accounts and reached another within three days.
+   * Asked once per pair; until answered it is counted as a move (X3 (a)). `rows` - the server's /api/own-moves
+   * `attention` list, in the server's fixed words. */
+  function ownMoves(rows) {
+    return (rows || []).map(function (r) {
+      return { kind: 'own_move', subject: String(r.pair), pair: r.pair, title: r.title, sentence: r.sentence,
+               source: r.source, label: r.label, fact: r.fact };
+    });
+  }
+
   function fingerprint(item) {
     return item.kind + '|' + item.subject + '|' + item.fact;
   }
@@ -150,7 +161,8 @@
     var gone = {};
     (dismissed || []).forEach(function (f) { gone[f] = true; });
     var items = [].concat(parts.payments || [], parts.imports || [], parts.blocked || [], parts.dates || [],
-                          parts.fsa || [], parts.bills || [], parts.twoAccounts || [], parts.backup || []);
+                          parts.fsa || [], parts.bills || [], parts.twoAccounts || [], parts.backup || [],
+                          parts.ownMoves || []);
     items.forEach(function (i) {
       if (KINDS.indexOf(i.kind) < 0) throw new Error('attention: "' + i.kind + '" is not a ruled kind');
     });
@@ -165,7 +177,7 @@
 
   var api = { KINDS: KINDS, DUE_WITHIN_DAYS: DUE_WITHIN_DAYS, paymentsDue: paymentsDue, datesEnding: datesEnding,
               importsStale: importsStale, blockedConclusions: blockedConclusions, fsaDeadlines: fsaDeadlines, billsDue: billsDue,
-              twoAccounts: twoAccounts, backupDue: backupDue,
+              twoAccounts: twoAccounts, backupDue: backupDue, ownMoves: ownMoves,
               fingerprint: fingerprint, build: build };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root && root.GWTeaching) root.GWTeaching.register('attention', api);

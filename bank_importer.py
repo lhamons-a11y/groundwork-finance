@@ -268,10 +268,8 @@ _CATEGORY_PATTERNS = [
                  r''
                  r'\btransactor:\b'),
 
-    # ── REFUND (often paired with merchant name — match when reversal/refund/credit memo). M4: Transfer, so it
-    # counts in neither income nor spending; it does not reduce the original category's spending (named limit).
-    ('Transfer', r'\brefund\b|\breversal\b|\bchargeback\b|\bcredit memo\b|'
-               r'\breturn.{0,10}(credit|merch)|\bmerchandise return\b'),
+    # ── REFUND: item 111 X5 (TRANSFERS.md) - no longer filed under Transfer. A refund is filed by its merchant like
+    # the purchase it reverses, and core/money_kind.py nets it against that purchase's category.
 
     # ── TRANSFER (between own accounts)
     ('Transfer', r'\btransfer (to|from)\b|\bach transfer\b|'

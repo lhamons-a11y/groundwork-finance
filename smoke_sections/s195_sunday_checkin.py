@@ -63,7 +63,7 @@ def run(ctx):
     out = None
     if node:
         fn = lambda name: re.search(r'\nfunction ' + name + r'\(.*?\n\}\n', app, re.S).group(0)
-        js = ('const fmt = n => "$" + Number(n).toFixed(2);\n' + fn('_checkinWho') + fn('_checkinLines') +
+        js = ('const fmt = n => "$" + Number(n).toFixed(2);\n' + fn('_checkinWho') + fn('_movedWords') + fn('_checkinLines') +
               'console.log(JSON.stringify(_checkinLines(' + json.dumps(f) + ')));')
         fd, p = tempfile.mkstemp(suffix='.js')
         with os.fdopen(fd, 'w', encoding='utf-8') as fh:

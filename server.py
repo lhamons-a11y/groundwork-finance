@@ -78,6 +78,7 @@ from core.database import ( db_session, DATA_DIR, TripBooking,
 )
 from core.consequence import simulate_payoff, MAX_MONTHS
 from core.solution import MIN_MONTHS_OBSERVED
+from core import money_kind                       # item 111: the one kind of every row
 from migrate import run_migration_if_needed
 
 
@@ -232,6 +233,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(yearly_steps_bp,   url_prefix='/api/yearly-steps')
     app.register_blueprint(voice_bp,          url_prefix='/api/voice')          # item 113
     app.register_blueprint(two_accounts_bp,   url_prefix='/api/two-accounts')   # item 107
+    app.register_blueprint(own_moves_bp,      url_prefix='/api/own-moves')      # item 111 X3
     app.register_blueprint(first_import_bp,   url_prefix='/api/first-import')
     app.register_blueprint(year_end_bp,       url_prefix='/api/year-end')
     app.register_blueprint(historian_bp,      url_prefix='/api/historian')
@@ -786,13 +788,28 @@ def list_transactions():
         from core import bank_versions as _bv
         corrected = _bv.corrected_ids(session, txn_ids)
         was_pending = _bv.paired_ids(session, txn_ids)
+        kinds = money_kind.kinds(session) if txns else {}          # item 111 X1: the one kind, read by the page
         out = []
         for t in txns:
             d = serialize_transaction(t, linked_map.get(t.id))
             d['corrected'] = t.id in corrected
             d['was_pending'] = was_pending.get(t.id)
+            d.update(_kind_fields(kinds.get(t.id)))
             out.append(d)
         return ok(out, total=total, page=page, per_page=per_page)
+
+
+def _kind_fields(k):
+    """Item 111: what a row carries to the page - its kind, the category it counts in, and its pair."""
+    k = k or {'kind': 'unknown', 'category': None, 'pair': None, 'confirmed': None}
+    return {'kind': k['kind'], 'kind_category': k['category'], 'pair_id': k['pair'], 'pair_confirmed': k['confirmed']}
+
+
+@transactions_bp.route('/kinds', methods=['GET'])
+def transaction_kinds():
+    """Item 111 X1: every row's kind, for the page to refresh after a change (a pair turns on both its rows)."""
+    with db_session() as session:
+        return ok({str(i): _kind_fields(k) for i, k in money_kind.kinds(session).items()})
 
 
 @transactions_bp.route('', methods=['DELETE'])
@@ -2193,9 +2210,12 @@ def _recurring_pattern_groups(session, months: int = 6, min_occurrences: int = 3
     from core import recurring_groups as rg
     cutoff = date.today() - timedelta(days=30 * months)
     rows = session.query(Transaction.merchant, Transaction.account_id, Transaction.date, Transaction.amount,
-                         Category.name).outerjoin(Category, Transaction.category_id == Category.id).filter(
+                         Category.name, Transaction.id).outerjoin(Category, Transaction.category_id == Category.id).filter(
         Transaction.type == 'debit', Transaction.date >= cutoff, Transaction.merchant != ''
     ).order_by(Transaction.id).all()
+    # Item 111: a transfer to savings or a card payment is never offered as a bill to budget - only spending recurs
+    kinds = money_kind.kinds(session)
+    rows = [r[:5] for r in rows if (kinds.get(r[5]) or {}).get('kind') == 'spending']
     names = {a.id: a.name for a in session.query(Account).all()}
 
     existing_budgeted = {
@@ -3427,6 +3447,56 @@ def price_changes_undo():
         return ok({'restored': amount})
 
 
+# ── Item 111 X3 (TRANSFERS.md): a found move between the person's own accounts, confirmed once ─────────────────
+own_moves_bp = Blueprint('own_moves', __name__)
+
+
+@own_moves_bp.route('', methods=['GET'])
+def own_moves_get():
+    """Needs attention's items (every found pair not yet answered) and the standing statements, for Settings."""
+    with db_session() as session:
+        return ok({'attention': money_kind.asking(session), 'standing': money_kind.standing(money_kind._said(session))})
+
+
+@own_moves_bp.route('/answer', methods=['POST'])
+@require_json
+def own_moves_answer():
+    """X3: yes (this pair), always (this pair of accounts and this payee, from now on) or no (not a move). Appended
+    as the person's statement, never written over. A no unpairs the two rows; they count as filed."""
+    b = request.get_json() or {}
+    answer = b.get('answer')
+    if answer not in money_kind.ANSWERS:
+        return err('That is not one of the answers.', 400)
+    with db_session() as session:
+        both = money_kind.rows_of(session, b.get('pair'))
+        if not both:
+            return err('Groundwork is not asking about that pair now.', 404)
+        accounts = {a.id: a.name for a in session.query(Account).all()}
+        said = money_kind.append(money_kind._said(session), both[0], both[1], answer, accounts)
+        _set_setting(session, money_kind.SETTING, json.dumps(said))
+        log_historian_event(session, 'own_move_answered',
+                            context={'accounts': [both[0].account_id, both[1].account_id], 'answer': answer})
+        session.commit()
+        return ok({'said': said[-1]})
+
+
+@own_moves_bp.route('/undo', methods=['POST'])
+@require_json
+def own_moves_undo():
+    """Undo adds a withdrawal of one statement; it removes nothing."""
+    n = (request.get_json() or {}).get('n')
+    with db_session() as session:
+        said = money_kind._said(session)
+        out = money_kind.withdraw(said, n) if isinstance(n, int) else None
+        if out is None:
+            return err('There is no such answer to undo.', 404)
+        gone = next(x for x in said if x.get('n') == n)
+        _set_setting(session, money_kind.SETTING, json.dumps(out))
+        log_historian_event(session, 'own_move_answered', context={'answer': 'withdrawn', 'withdraws': gone.get('answer')})
+        session.commit()
+        return ok({'withdrawn': n})
+
+
 # ── Item 107 (SAME_CHARGE_TWO_ACCOUNTS.md): the same charge paid from two accounts in the same month ─────────────
 two_accounts_bp = Blueprint('two_accounts', __name__)
 
@@ -3756,7 +3826,7 @@ def _first_import_findings(session):
     from core import first_import as fi
     from core import recurring_groups as rg
     rows = session.query(Transaction.merchant, Transaction.date, Transaction.amount, Transaction.category_id,
-                         Category.name, Transaction.account_id).outerjoin(
+                         Category.name, Transaction.account_id, Transaction.id).outerjoin(
         Category, Category.id == Transaction.category_id).filter(Transaction.type == 'debit').all()
     dates = [r[1] for r in rows if r[1]]
     months = fi.complete_months(dates)
@@ -3769,7 +3839,7 @@ def _first_import_findings(session):
     # item 108: a renewal is one payee from one account, named by its label; the answer is the payee's (R5)
     names = {a.id: a.name for a in session.query(Account).all()}
     by, cat, of = {}, {}, {}
-    for grp in rg.groups([(m, acct, d, a, c) for m, d, a, _, c, acct in rows], names):
+    for grp in rg.groups([(m, acct, d, a, c) for m, d, a, _, c, acct, _id in rows], names):
         by[grp['label']] = [(d, a) for d, a, _ in grp['rows']]
         cat[grp['label']] = grp['rows'][-1][2] or ''
         of[grp['label']] = grp
@@ -3781,13 +3851,14 @@ def _first_import_findings(session):
         f['label'], f['payee'], f['account'] = f['payee'], grp['payee'], grp['account']
         f['answer'] = answered.get(_norm_payee(f['payee']))
         ren.append(f)
-    # heavy months: spending by complete month (transfers are not spending), and each category's usual month
-    tr = ck._transfer_ids(session)
+    # heavy months: spending by complete month (item 111: spending is the one kind - no move, payment or cash),
+    # and each category's usual month
+    kinds = money_kind.kinds(session)
     keep = set(months)
     totals, cats = {k: 0.0 for k in months}, {}
-    for _, d, a, cid, c, _acct in rows:
+    for _, d, a, cid, c, _acct, tid in rows:
         k = d.strftime('%Y-%m') if d else None
-        if k in keep and cid not in tr:
+        if k in keep and (kinds.get(tid) or {}).get('kind') == 'spending':
             totals[k] += abs(float(a or 0))
             cats.setdefault(k, {}).setdefault(c or 'Uncategorized', 0.0)
             cats[k][c or 'Uncategorized'] += abs(float(a or 0))
@@ -3928,7 +3999,7 @@ def _year_end(session, year, include_health=False):
     txns = session.query(Transaction).filter(Transaction.date >= y0, Transaction.date <= y1).all()
     cats = {c.id: c for c in session.query(Category).all()}
     cname = lambda t: (cats[t.category_id].name if t.category_id in cats else 'Uncategorized')
-    tr, inc_ids = ck._transfer_ids(session), set(income_category_ids(session))
+    kinds = money_kind.kinds(session)                        # item 111: moves, payments and cash are neither side
     is_health = health_boundary.health_rows(session)       # by category, or an HSA / FSA account's row (item 86 F6)
     health_left_out = 0 if include_health else sum(1 for t in txns if is_health(t))
     if not include_health:
@@ -3936,13 +4007,15 @@ def _year_end(session, year, include_health=False):
     income, spend, interest, donations = {}, {}, {}, {}
     for t in txns:
         amt = abs(float(t.amount or 0))
-        if t.category_id in tr:
-            continue
-        if t.type == 'credit' and t.category_id in inc_ids:
+        kd = kinds.get(t.id) or {}
+        if kd.get('kind') == 'income':
             k = (t.merchant or t.description or 'Unnamed').strip()
             income.setdefault(k, [0.0, 0])
             income[k][0] += amt; income[k][1] += 1
-        elif t.type == 'debit':
+        elif kd.get('kind') == 'refund':                         # X5: nets in the category of what it reverses
+            n = kd.get('category') or cname(t)
+            spend[n] = spend.get(n, 0.0) - amt
+        elif t.type == 'debit' and kd.get('kind') in ('spending', 'interest_fees'):
             n = cname(t)
             spend[n] = spend.get(n, 0.0) + amt
             low = n.strip().lower()
@@ -4090,9 +4163,6 @@ def year_end_export():
 
 
 # ── The dashboard projection's levers (found in the AI-off audit, 2026-10-12; fixed 2026-10-13) ────────────────
-NOT_SPENDING_WORDS = ('transfer', 'savings', 'interest', 'fees', 'refund', 'atm', 'income', 'paycheck', 'salary')
-
-
 def not_levers(names, income_names=()):
     """The categories never offered as spending to cut: the necessity floor (`is_protected`, the one list), payments
     set by a contract (a loan, lease, debt or insurance payment - `contracts.CONTRACT_WORDS`), and money that is not
@@ -4104,8 +4174,7 @@ def not_levers(names, income_names=()):
         low = (n or '').strip().lower()
         if not low:
             continue
-        words = set(low.replace('/', ' ').replace('&', ' ').split())
-        if (never_lever(n) or CONTRACT_WORDS.search(n) or words & set(NOT_SPENDING_WORDS)     # item 89: + uncertain
+        if (never_lever(n) or CONTRACT_WORDS.search(n) or money_kind.not_spending_category(n)     # item 89: + uncertain
                 or low in {x.strip().lower() for x in income_names}):
             out.add(n)
     return sorted(out)
@@ -4163,8 +4232,8 @@ def _tidy_state(session):
 
 
 def _transfer_category_ids(session):
-    from core import checkin as ck
-    return ck._transfer_ids(session)
+    """The categories filed as a move between the person's own accounts (item 111: money_kind's one word list)."""
+    return money_kind.category_ids({c.id: c for c in session.query(Category).all()}, {'own_move'})
 
 
 def _tidy_said(session, key, answer):
@@ -7025,14 +7094,6 @@ def debt_decision_impact():
     return ok(result)
 
 
-# Money that moved between the user's own pockets is not spending, and
-# pricing it as spending would tell someone their credit-card payment cost
-# them three months. Matched on category name because that is what the ledger
-# records; payments linked to a debt ledger entry are excluded outright, which
-# is the precise version of the same rule.
-_LESSON_EXCLUDED_CATEGORIES = {'transfer', 'transfers', 'income', 'debt',
-                               'debt payment', 'savings', 'investment',
-                               'investments'}
 
 
 # ── Item 112 P2 (PANEL_REVIEW.md; ruled 2026-10-24): no brake on spending a fund saved for, or that the person had to ──
@@ -7110,6 +7171,9 @@ def large_charge_lesson(session, cards, budget, strategy, days: int = 60,
     today = date.today().strftime('%Y-%m')
     priced = 0
     debt_ids = _debt_payment_txn_ids(session, [t.id for t in rows])   # panel I-04: a payment on a debt is not a purchase
+    # Item 111: only spending is ever priced - a move between the person's own accounts, a card payment, cash taken
+    # out or a refund would tell someone their credit-card payment cost them three months
+    kinds = money_kind.kinds(session)
     had_to = _had_to_ids(session)                                    # item 112 P2 (b): the person said they had to
     for t in rows:
         if priced >= consider:
@@ -7118,9 +7182,9 @@ def large_charge_lesson(session, cards, budget, strategy, days: int = 60,
             continue
         if _funded_by(session, t):                                    # item 112 P2 (a): money saved for it
             continue
-        cat = session.query(Category).filter_by(id=t.category_id).first() if t.category_id else None
-        if cat and (cat.name or '').strip().lower() in _LESSON_EXCLUDED_CATEGORIES:
+        if (kinds.get(t.id) or {}).get('kind') != 'spending':
             continue
+        cat = session.query(Category).filter_by(id=t.category_id).first() if t.category_id else None
         # Item 46 (CARE_NOT_PRICED.md C1): necessary care is never the lesson. A
         # charge in a protected category is skipped, and so is an uncategorised
         # one whose merchant or description reads like the necessity floor
@@ -10170,6 +10234,7 @@ def update_settings():
     body.pop('sample_household', None)
     # Item 107 D8: what the person said about a pair of accounts is appended by its own route, never written over
     body.pop('two_accounts_said_json', None)
+    body.pop(money_kind.SETTING, None)        # item 111 X3: the same - a move's answer has its own route
     # Cloud AI is gone (CLOUD_AI_REMOVAL.md): there is no provider to choose and
     # no key to store, so neither setting is ever written.
     body.pop('api_key', None)
@@ -12653,24 +12718,12 @@ def _byb_impact(session, monthly=0.0, one_time=0.0, cards=None, budget=None, str
 
 
 def _debt_payment_txn_ids(session, ids):
-    """Of these transactions, the ones that are payments on a debt Groundwork tracks: linked to a Debt Payoff entry,
-    filed under Debt (or a category under it), or paid to a payee that names one of the person's debts."""
-    from core.database import DebtLedgerEntry
+    """Of these transactions, the ones that pay a card or loan (item 111 X4, money_kind): linked to a debt on record,
+    filed as a debt payment, the leaving side of a card or loan payment, or paid to a payee that names a debt."""
     ids = set(ids)
     if not ids:
         return set()
-    out = {r[0] for r in session.query(DebtLedgerEntry.linked_checking_transaction_id).filter(
-        DebtLedgerEntry.linked_checking_transaction_id.in_(ids)).all() if r[0]}
-    debt_cat = session.query(Category).filter(func.lower(Category.name) == 'debt').first()
-    cat_ids = {debt_cat.id} | {c.id for c in session.query(Category).filter_by(parent_id=debt_cat.id).all()} if debt_cat else set()
-    names = [_norm_payee(d.name) for d in session.query(DebtAccount).filter_by(is_active=True).all()]
-    names = [n for n in names if len(n) >= 4]
-    for tid, cid, m, desc in session.query(Transaction.id, Transaction.category_id, Transaction.merchant,
-                                           Transaction.description).filter(Transaction.id.in_(ids)).all():
-        payee = _norm_payee(m or desc)
-        if cid in cat_ids or any(n in payee for n in names):
-            out.add(tid)
-    return out
+    return {i for i, k in money_kind.kinds(session).items() if i in ids and k['kind'] == 'debt_payment'}
 
 
 @byb_bp.route('/offers', methods=['GET'])

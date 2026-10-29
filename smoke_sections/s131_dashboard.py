@@ -127,9 +127,9 @@ def run(ctx):
     if res is not None:
         check('s131 Da4 unpaid payments due within 7 days - next due date, days to it; paid, far and undated excluded',
               res.get('due') == [['1', '2026-10-02', 4], ['2', '2026-09-30', 2]])
-        check('s131 exactly the ruled kinds - the three of 2026-09-27, item 73 Y2\'s date_ends (ruled 2026-10-10), item 86 F5\'s fsa_deadline (ruled 2026-10-14), item 94 L6\'s bill_due (ruled 2026-10-19) item 107 D6\'s two_accounts (ruled 2026-10-21) and the backup reminder\'s backup_due (Rob 2026-10-22)',
+        check('s131 exactly the ruled kinds - the three of 2026-09-27, item 73 Y2\'s date_ends (ruled 2026-10-10), item 86 F5\'s fsa_deadline (ruled 2026-10-14), item 94 L6\'s bill_due (ruled 2026-10-19) item 107 D6\'s two_accounts (ruled 2026-10-21) the backup reminder\'s backup_due (Rob 2026-10-22) and item 111 X3\'s own_move (ruled 2026-10-26)',
               res.get('kinds') == ['payment_due', 'import_stale', 'blocked_conclusion', 'date_ends', 'fsa_deadline', 'bill_due', 'two_accounts',
-                                   'backup_due'])
+                                   'backup_due', 'own_move'])
         check('s131 Da6 a blocked conclusion names what is missing, in the record\'s own words',
               res.get('blocked') == [['networth', ['Account balances: not verified']]])
         check('s131 completeness first: with no record at all, nothing is called blocked', res.get('blocked_no_record') == 0)
@@ -155,11 +155,11 @@ def run(ctx):
     check('s131 mutation caught: a view counter added to the dashboard',
           bool(re.search(_USAGE, code + '\nlocalStorage.setItem("views", n); viewCount++')))
     apis = set(re.findall(r"API\.(?:get|put|post)\('([^']+)'", code))
-    check("s131 the dashboard calls only its own prefs, layout, dismissal and import-fact endpoints, the person's kept receipt dates (item 73 Y2), their FSA terms (item 86 F5) the bills they typed in (item 94 L6) a payee paid from two accounts with the person's answer (item 107 D6/D8) and the backup reminder with its Remind me later (Rob 2026-10-22)",
+    check("s131 the dashboard calls only its own prefs, layout, dismissal and import-fact endpoints, the person's kept receipt dates (item 73 Y2), their FSA terms (item 86 F5) the bills they typed in (item 94 L6) a payee paid from two accounts with the person's answer (item 107 D6/D8) the backup reminder with its Remind me later (Rob 2026-10-22) and a found move between the person's accounts with their answer (item 111 X3)",
           apis == {'/api/dashboard/prefs', '/api/dashboard/layout', '/api/dashboard/dismiss',
                    '/api/dashboard/attention/imports', '/api/byb/receipt-dates', '/api/byb/receipt-dates/',
                    '/api/accounts/hsa-fsa', '/api/medical-bills', '/api/two-accounts', '/api/two-accounts/answer',
-                   '/api/backup/reminder', '/api/backup/reminder/snooze'})
+                   '/api/backup/reminder', '/api/backup/reminder/snooze', '/api/own-moves', '/api/own-moves/answer'})
     check('s131 Da8 ruling 2: attention reads nothing of Speaking up (no dial, no Appendix A caps)',
           not re.search(r'proactive|speaking|dial', code, re.I))
     check('s131 ruling 5: Current priority is retired in 2.0 (hidden by the teaching layer, not deleted from 1.x)',

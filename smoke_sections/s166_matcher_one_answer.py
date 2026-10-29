@@ -4,7 +4,7 @@
     M1  the page's rules are the server's rules: same words, same leaf, same order
     M2  every rule names a leaf, never a parent; words naming more than one service name Other (no guess)
     M3  the words of both old copies are kept
-    M4  a refund is a Transfer          M5  a tax payment or refund has no tax leaf to go to: Other
+    M4  (item 111 X5) a refund by its merchant         M5  a tax payment or refund has no tax leaf to go to: Other
     M6  rows saved under an old answer are offered with their amounts, and move only on a yes
 The descriptions below are written to look like bank lines; they are not taken from real statements.
 """
@@ -26,7 +26,7 @@ EXPECT = {
     'MILLBROOK VISION CENTER': 'Vision', 'MERCY HOSPITAL': 'Doctor / Co-pays',
     'CHATGPT SUBSCR': 'Software / Apps', 'APPLE.COM/BILL': 'Software / Apps', 'NYTIMES DIGITAL': 'Other Subscriptions',
     'CINEMARK 12': 'Activities / Events', 'OSU TUITION': 'Tuition / Courses', 'MAIN DRY CLEANER': 'Personal Care',
-    'AMAZON REFUND': 'Transfer', 'MERCHANDISE RETURN': 'Transfer',
+    'AMAZON REFUND': 'Shopping', 'MERCHANDISE RETURN': 'Other',   # item 111 X5: by merchant, never Transfer
     'IRS PAYMENT': 'Other', 'IRS TREAS 310 TAX REF': 'Other', 'STATE TAX OH': 'Other',
     'ACME PAYROLL': 'Paycheck / Salary', 'DIRECT DEPOSIT ACME': 'Paycheck / Salary',
     'FINANCE CHARGE': 'Interest / Fees', 'RULER FOODS 12': 'Groceries', 'FLYING FUR PETS': 'Pet Food / Supplies',

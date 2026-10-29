@@ -197,3 +197,123 @@ Tests (s257):
 - **Splitting one transaction** (a paycheck with a reimbursement inside it). Item 72 stage 4 named this as separate
   work. It is still separate.
 - **Joint and shared accounts between two households.**
+
+---
+
+## 5. Ruled (2026-10-26)
+
+Rob: *"build item 111"*. Read as X1-X10 accepted as recommended, with **X3 (a)** (a found pair is counted as a move
+while it waits) and **X6 (a)** (cash said as cash, counted as neither). If that reading is wrong, each choice is one
+place in `core/money_kind.py`.
+
+## 6. Stage 1: Rob's ledger, measured (2026-10-26, on the Windows laptop)
+
+`python scripts/transfer_measure.py` on this computer's own database (1,706 transactions, 2026-01-05 to 2026-10-23,
+8 accounts):
+
+- **7 own-account pairs**, $5,434.89. Six were card payments into a credit account, filed Debt on both sides; one was
+  a move to savings, filed Transfer. Today the leaving side of the six counts as spending ($1,084.89).
+- **142 debits filed under Debt**, $17,559.45, all counted as spending today.
+- **160 rows filed Transfer**: 1 refund ($10.88), 1 cash withdrawal ($42.20), 14 Venmo / Zelle / Cash App / PayPal
+  ($385.29), 3 "transfer to/from" or savings ($12,702.15). 146 Transfer debits have no arriving side in the ledger.
+- **Spending reads $1,600 to $3,000 a month too high**: March $6,701.35 against $5,068.65, April $7,758.76 against
+  $5,146.61, September $7,829.97 against $5,692.31.
+
+## 7. Built (stages 2 and 3)
+
+**One kind per row, in one place.** `core/money_kind.py`:
+
+- `classify()` gives every row one of the eight kinds, with the category it counts in (a refund's is the same
+  payee's purchase category, X5) and its pair.
+- `kinds(session)` reads the record; `spending_of()` is the one spending total.
+- The server sends each row's kind with `/api/transactions`, and `/api/transactions/kinds` answers for every row.
+- The page reads them: `_kind`, `_isSpend`, `_isEarn`, `_spendAmt`, `_spendCat`. It re-asks after any change to a
+  transaction or a debt, because one row can pair or unpair another.
+
+**What was replaced, all reading money_kind now:**
+
+- the page's `_isTransferCat`, and the three hand-written checks (budget prefill, onboarding analysis, *debt paid
+  this month*);
+- every spending sum and per-category total on the page (25 uses), each now through `_spendAmt`, so refunds net
+  everywhere;
+- `core/checkin._transfer_ids`, `NOT_SPENDING_WORDS`, `_LESSON_EXCLUDED_CATEGORIES`, `NOT_PRICES` (price changes,
+  the Calendar's recurring rule, yearly steps), `EVERYDAY`'s not-spending words, `two_accounts.payment_category_ids`;
+- `detect_recurring_patterns` (no transfer or card payment is offered as a bill to budget);
+- the year-end summary and the heavy-months reader;
+- found while building, a tenth: `_debt_payment_txn_ids` (BYB offers and the lesson). It now also counts a payment
+  linked through a Debt Payoff entry, and a payment *in the bank's words for one* to a payee naming a debt. A purchase
+  at a store whose card is on record is no longer read as a payment.
+
+**The null model (X10), measured before it was trusted.** The first pairing rule let a store credit on a card pair with
+an unrelated purchase of the same amount on checking, because "it reached a card" counted as evidence. Now:
+
+- a pair needs evidence beyond the amount: a side filed as a move or payment, or the bank's own words for one;
+- its arriving side must be filed as a move or payment, or not filed at all.
+
+On 300 simulated households with purchases, store credits and paychecks but no moves, it finds 0 pairs, and spending
+is unchanged in every one. On Rob's ledger it still finds the same 7 pairs.
+
+**The check-in (S3 amended).** Card and loan payments are not spending (X4), but the budget holds their line, so the
+month is compared like for like: *left = budget - spending - debt payments*. The check-in carries `debt_paid`.
+
+**What moved is said for what it is.** The check-in and the Monthly Report used to say *"$X moved between your own
+accounts"* of every debit that wasn't spending. Now that figure also holds card payments, cash and interest, so each
+part is named: *"$600.00 paid to cards and loans, $300.00 moved between your own accounts and $60.00 taken out as
+cash - not spending."* The check-in's month reads *"$S spent and $D paid to cards and loans, $T of the $B budgeted"*.
+
+**X3.**
+- Needs attention takes a ninth kind, `own_move`, in the server's fixed words, with three answers: *Yes*, *Yes, every
+  time between these two* (a standing statement for that pair of accounts and that payee) and *No, it isn't* (the
+  pair ends, and both rows count as filed).
+- Answers are appended to `own_moves_said_json`, never written over. The settings route can't write it.
+- Settings lists the standing statements, each with Undo (`teaching/ownmoves.js`).
+- The Ledger names each row that isn't spending or income, and marks a found pair *found, not yet confirmed*.
+
+**X5 in the categoriser.** `bank_importer.auto_category` and `clientAutoCategory` no longer file refunds under
+Transfer. A refund is filed by its merchant (`AMAZON REFUND` -> Shopping), and s166's table follows.
+
+**X9.**
+- The Morgans' card and loan payments are filed under Debt, with the card's *PAYMENT THANK YOU* on the Visa and one
+  ParcelMart refund.
+- On load they show 12 found pairs: 6 card payments and 6 moves to savings. One *every time* answer on the card
+  clears all six card-payment cards (checked in the app).
+
+**Rob's ledger after the build** (read-only, a copy):
+
+| | Count |
+|---|---|
+| spending | 1,285 |
+| debt_payment | 158 |
+| own_move | 136 |
+| income | 63 |
+| refund | 38 |
+| cash_out | 17 |
+| interest_fees | 9 |
+
+| Month | Spending today | Spending by kind |
+|---|---|---|
+| March | $6,701.35 | $4,676.14 |
+| April | $7,758.76 | $5,019.36 |
+| September | $7,829.97 | $5,560.87 |
+| October | $6,578.30 | $5,011.89 |
+
+Income moves by $15-$614 a month. A credit filed under a spending category is now a refund in that category, where
+the page used to count it as income (X5's "the category it was filed in").
+
+**Tests.** `smoke_sections/s257_money_kind.py`, 23 checks:
+- each kind on planted rows;
+- a pair found and the double count gone;
+- one side only;
+- a refund netted;
+- cash said as cash;
+- a friend paid by Zelle;
+- Zelle to the person's own account;
+- the category untouched;
+- the null model;
+- no second definition anywhere (a scan of `server.py`, `core/` and `app.js`);
+- every row's kind on the route;
+- the X3 question, its answers and its standing statements;
+- one spending total from the server, the check-in and the page's own sum (in Node);
+- the Morgans' filing.
+
+s131 (the ninth kind and its endpoints) and s166 (refunds by merchant) were updated.

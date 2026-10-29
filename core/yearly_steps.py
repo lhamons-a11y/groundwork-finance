@@ -16,7 +16,7 @@ record and the household's answers; the only things ever kept are those answers 
 """
 from datetime import date
 
-from core.price_change import (CENTS, MIN_AFTER, MIN_BEFORE, NOT_PRICES, STEADY, SWING_TIMES, USAGE_CATEGORIES,
+from core.price_change import (CENTS, MIN_AFTER, MIN_BEFORE, not_a_price, STEADY, SWING_TIMES, USAGE_CATEGORIES,
                                _median, rhythm)
 
 FLOOR = 0.01          # Y3: a step inside a yearly pattern is at least 1% (and CENTS) ...
@@ -90,7 +90,7 @@ def read(charges, category=''):
     {kind: 'monthly' | 'yearly', level, level_since, pending, steps: [{month, before, after, pct, source}]}.
     `level` is today's price; `pending` is a first charge at what may be a new price, (date, amount) or None."""
     cat = (category or '').strip().lower()
-    if cat in NOT_PRICES or cat in USAGE_CATEGORIES:
+    if not_a_price(cat) or cat in USAGE_CATEGORIES:
         return None
     xs = sorted((d, round(abs(float(a)), 2)) for d, a in charges if d and a)
     if len(xs) < 2:

@@ -120,7 +120,9 @@ def build(c, headers, today=None):
         tx(checking, d + timedelta(days=7), 'RIVERSIDE SCHOOLS PAYROLL', 'Riverside Schools', 1780.00, cat('Paycheck / Salary'), 'credit')
         d += timedelta(days=14)
 
-    debt_pay = cat('Loan Payment', 'Credit Card Payment', 'Debt Payment', 'Transfer')
+    # item 111 X9: filed as a real import files them - card and loan payments under Debt (the importer's own word),
+    # the card's payment thank you on the card, and one refund - so the sample shows the kinds working
+    debt_pay = cat('Debt', 'Loan Payment', 'Credit Card Payment', 'Debt Payment')
     for i, (y, m) in enumerate(months):
         now = (y, m) == (today.year, today.month)
         tx(checking, _day(y, m, 1), 'LAKESIDE PROPERTY MGMT', 'Lakeside Property Management', 1650.00, cat('Rent / Mortgage'))
@@ -133,6 +135,7 @@ def build(c, headers, today=None):
         tx(checking, _day(y, m, 15), 'SAFEHARBOR AUTO INS', 'SafeHarbor Auto Insurance', 138.50, cat('Auto Insurance'))
         tx(checking, _day(y, m, 20), 'STUDENTAID SERVICER', 'StudentAid Servicer', 210.00, debt_pay)
         tx(checking, _day(y, m, 22), 'CASHBACK VISA PAYMENT', 'Cashback Visa payment', 600.00, debt_pay)
+        tx(visa, _day(y, m, 23), 'PAYMENT THANK YOU', 'Payment - thank you', 600.00, debt_pay, 'credit')
         tx(visa, _day(y, m, 4), 'IRONWORKS GYM', 'Ironworks Gym', 45.00, cat('Gym / Fitness'))
         tx(visa, _day(y, m, 9), 'STREAMBOX', 'StreamBox', 15.49, cat('Streaming Video'))
         if i >= len(months) - 3:                     # item 107 D11: StreamBox from checking too, so the review sees one
@@ -163,6 +166,7 @@ def build(c, headers, today=None):
             tx(visa, _day(y, m, 17), 'NORTHSIDE URGENT CARE', 'Northside Urgent Care', 40.00, cat('Doctor / Co-pays'))
         if i == 3:
             tx(visa, _day(y, m, 6), 'GIFTNOOK', 'GiftNook', 64.30, cat('Gifts'))
+            tx(visa, _day(y, m, 11), 'PARCELMART REFUND', 'ParcelMart', 42.18, cat('Household Supplies'), 'credit')
     for t in sorted(txns, key=lambda x: x['date']):
         post('/api/transactions', t)
 

@@ -30,7 +30,6 @@ NOT_NOW_DAYS = 60         # D8: Dismiss is the A.4 cooldown
 AGAIN_MONTHS = 2          # D8 (a): "should stop", and both still pay it two months on
 ANSWERS = ('both_meant', 'should_stop', 'not_same', 'not_now')
 SAID_ANSWERS = ('both_meant', 'should_stop', 'not_same')      # what Settings lists; Dismiss isn't a statement
-PAYMENT_NAMES = {'debt', 'credit card payment', 'loan payment', 'debt payment'}
 # D3: a payment to a card or loan on record under no payment category still says what it is in the bank's own words
 _PAYMENT_WORDS = re.compile(r'\b(payment|pmt|pymt|autopay|auto pay|epay|e-payment)\b', re.I)
 
@@ -47,11 +46,10 @@ def same_payee(a, b):
 
 
 def payment_category_ids(cats):
-    """D3: Transfer-typed categories and the ones under them (core/checkin._transfer_ids), and the debt / card / loan
-    payment categories and the ones under them. `cats` {id: Category}."""
-    top = {cid for cid, c in cats.items() if (c.type or '') == 'transfer'
-           or (c.name or '').strip().lower() in ({'transfer'} | PAYMENT_NAMES)}
-    return top | {cid for cid, c in cats.items() if c.parent_id in top}
+    """D3: the categories filed as a move between the person's own accounts or a card or loan payment, and the ones
+    under them - item 111's one definition (core/money_kind.py). `cats` {id: Category}."""
+    from core.money_kind import category_ids
+    return category_ids(cats, {'own_move', 'debt_payment'})
 
 
 def _month(d):

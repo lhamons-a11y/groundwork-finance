@@ -85,7 +85,7 @@ def run(ctx):
         check('s161 node is available to run the renderer (skip the rest if not)', bool(node))
         if not node:
             return
-        src = ''.join(_fn(app, n) for n in ('_catParentName', '_catByName', '_isTransferCat', '_isSpend', '_isEarn', 'tripOwnSavingsRate', 'tripCardDetailHTML'))
+        src = ''.join(_fn(app, n) for n in ('_catParentName', '_catByName', '_kind', '_isSpend', '_isEarn', '_spendAmt', 'tripOwnSavingsRate', 'tripCardDetailHTML'))
         runner = r'''
 const esc = s => String(s); const fmt = n => '$' + Number(n).toFixed(2);
 const S = {categories: []};
@@ -97,8 +97,8 @@ out.pick = strip(tripCardDetailHTML(p, 400, null, 10, 5000));
 out.none = strip(tripCardDetailHTML(p, 400, null, null, 5000));
 const today = new Date(2026, 9, 8), tx = [];
 for (let i = 1; i <= 6; i++) { const m = `2026-${String(10 - i).padStart(2, '0')}`;
-  tx.push({date: m + '-05', type: 'credit', amount: 4000, category: 'Income'});
-  tx.push({date: m + '-10', type: 'debit', amount: 3000, category: 'Groceries'}); }
+  tx.push({date: m + '-05', type: 'credit', amount: 4000, category: 'Income', kind: 'income'});      // item 111: the server's kind
+  tx.push({date: m + '-10', type: 'debit', amount: 3000, category: 'Groceries', kind: 'spending'}); }
 out.rate = tripOwnSavingsRate(tx, today);
 out.gap = tripOwnSavingsRate(tx.filter(t => !t.date.startsWith('2026-07')), today);
 console.log(JSON.stringify(out));'''

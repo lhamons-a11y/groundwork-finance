@@ -157,14 +157,14 @@ def recurring_charges(session, start, include_budgeted=False):
     each within 5% of their average, in 3+ different months, about a month apart.
     [{merchant, label, account, amount, day, months, budgeted}], biggest first."""
     from core.database import Account, BudgetItem, Category, Transaction
-    from core.price_change import NOT_PRICES       # interest, fees, debt, transfers, savings: not a recurring bill
+    from core.price_change import not_a_price      # interest, fees, debt, transfers, savings: not a recurring bill
     from core import recurring_groups as rg
     cutoff = start - timedelta(days=183)
     rows = session.query(Transaction.merchant, Transaction.account_id, Transaction.date, Transaction.amount,
                          Category.name).outerjoin(Category, Category.id == Transaction.category_id).filter(
         Transaction.type == 'debit', Transaction.date >= cutoff, Transaction.date < start, Transaction.merchant != '').all()
     # a debt's payment is on the calendar already, from its own due day; interest follows a balance
-    rows = [r for r in rows if r[0] and r[2] and (r[4] or '').strip().lower() not in NOT_PRICES]
+    rows = [r for r in rows if r[0] and r[2] and not not_a_price(r[4])]
     names = {a.id: a.name for a in session.query(Account).all()}
     budgeted = {(b.name or '').strip().lower() for b in session.query(BudgetItem).filter_by(is_active=True).all()}
     out = []

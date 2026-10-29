@@ -191,6 +191,17 @@
         + '<button class="btn btn-sm btn-secondary" data-gw-two-answer="not_same" data-gw-two-pair="' + esc(i.pair) + '">These aren\'t the same</button>'
         + '<button class="btn btn-sm btn-secondary" data-gw-two-answer="not_now" data-gw-two-pair="' + esc(i.pair) + '">Dismiss</button>'
         + '</div></div>';
+    } else if (i.kind === 'own_move') {                     // item 111 X3: the server's fixed words, the person's answer
+      return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:var(--fs-sm);color:var(--slate);line-height:1.7"'
+        + ' data-gw-move-item="' + esc(i.pair) + '">'
+        + '<div style="font-size:var(--fs-xs);color:var(--slate-2)">' + esc(i.label) + '</div>'
+        + '<strong>' + esc(i.title) + '</strong>: ' + esc(i.sentence)
+        + '<div style="font-size:var(--fs-xs);color:var(--slate-2)">' + esc(i.source) + '</div>'
+        + '<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px">'
+        + '<button class="btn btn-sm btn-secondary" data-gw-move-answer="yes" data-gw-move-pair="' + esc(i.pair) + '">Yes</button>'
+        + '<button class="btn btn-sm btn-secondary" data-gw-move-answer="always" data-gw-move-pair="' + esc(i.pair) + '">Yes, every time between these two</button>'
+        + '<button class="btn btn-sm btn-secondary" data-gw-move-answer="no" data-gw-move-pair="' + esc(i.pair) + '">No, it isn\'t</button>'
+        + '</div></div>';
     } else if (i.kind === 'backup_due') {                   // the backup reminder (Rob 2026-10-22)
       var n = i.transactions, added = n ? n + ' transaction' + (n === 1 ? '' : 's') + ' added' : 'records added';
       return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:var(--fs-sm);color:var(--slate);line-height:1.7">'
@@ -296,6 +307,8 @@
     try { bills = ((await API.get('/api/medical-bills')) || {}).attention || []; } catch (e) { _gwErr('dashboard bills')(e); }
     var two = [];                                            // item 107 D6 (a): from the second month within three
     try { two = ((await API.get('/api/two-accounts')) || {}).attention || []; } catch (e) { _gwErr('dashboard two accounts')(e); }
+    var moves = [];                                          // item 111 X3: a found move, confirmed once
+    try { moves = ((await API.get('/api/own-moves')) || {}).attention || []; } catch (e) { _gwErr('dashboard own moves')(e); }
     var backup = [];                                         // the backup reminder (Rob 2026-10-22)
     try { backup = ((await API.get('/api/backup/reminder')) || {}).attention || []; } catch (e) { _gwErr('dashboard backup')(e); }
     var items = A.build({
@@ -306,7 +319,8 @@
       fsa: A.fsaDeadlines(fsa),
       bills: A.billsDue(bills),
       twoAccounts: A.twoAccounts(two),
-      backup: A.backupDue(backup)
+      backup: A.backupDue(backup),
+      ownMoves: A.ownMoves(moves)
     }, (_prefs && _prefs.dismissed) || []);
     var head = '<div class="card-label" style="margin-bottom:4px">Needs attention</div>';
     try { _tiles(imports, items, payments); } catch (e) { _gwErr('dashboard tiles')(e); }
@@ -351,6 +365,13 @@
       ev.preventDefault();
       API.post('/api/two-accounts/answer', { pair: ta.getAttribute('data-gw-two-pair'), answer: ta.getAttribute('data-gw-two-answer') })
         .then(_renderAttention).catch(_gwErr('dashboard two accounts answer'));
+      return;
+    }
+    var mv = t.closest('[data-gw-move-answer]');            // item 111 X3: the person's answer, kept as theirs
+    if (mv) {
+      ev.preventDefault();
+      API.post('/api/own-moves/answer', { pair: mv.getAttribute('data-gw-move-pair'), answer: mv.getAttribute('data-gw-move-answer') })
+        .then(_renderAttention).catch(_gwErr('dashboard own move answer'));
       return;
     }
     var rd = t.closest('[data-gw-receipt-done]');            // item 73 Y2: the person handled a trial or return date

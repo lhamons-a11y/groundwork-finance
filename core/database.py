@@ -499,6 +499,8 @@ class HistorianEntry(Base):
       'recurring_pattern_reject'          — a detected recurring merchant dismissed
       'two_accounts_answered'             — item 107 D8: the person's answer about one payee paid from two
                                              accounts (payee key, the two account ids, the answer; no bank text)
+      'own_move_answered'                 — item 111 X3: the person's answer about a found move between two of
+                                             their accounts (the two account ids, the answer; no bank text)
       'proactive_shown'                   — an insight promoted past the A.2 gauntlet and shown
                                              unprompted. Context carries its key and budget class;
                                              this IS the frequency cap's ledger (A.3).

@@ -24,8 +24,9 @@ REGULAR = ((6, 8, 'weekly'), (12, 17, 'every two weeks'), (25, 35, 'monthly'), (
 # metered bills: the amount follows use as well as the price (a level-billing reset reads as a step)
 USAGE_CATEGORIES = {'utilities', 'electric', 'electricity', 'natural gas', 'water / sewer', 'municipal utilities',
                     'propane', 'heating oil'}
-# not prices: interest and fees follow a balance, a debt payment or a transfer or savings is the person's own choice
-NOT_PRICES = {'interest', 'interest / fees', 'fees', 'debt', 'transfer', 'savings', 'refund', 'atm'}
+# not prices: interest and fees follow a balance, a debt payment or a transfer or savings is the person's own choice -
+# item 111: a category that is not spending, by money_kind's one word list
+from core.money_kind import not_spending_category as not_a_price
 
 
 def _median(xs):
@@ -54,7 +55,7 @@ def step(charges, category=''):
     Returns {before, after, last_before, first_after, after_count, kind, records} - the old and new levels (medians),
     the dates either side of the step, and every charge it was read from."""
     xs = sorted((d, round(abs(float(a)), 2)) for d, a in charges if d and a)
-    if len(xs) < MIN_BEFORE + MIN_AFTER or (category or '').strip().lower() in NOT_PRICES:
+    if len(xs) < MIN_BEFORE + MIN_AFTER or not_a_price(category):
         return None
     for k in range(len(xs) - MIN_AFTER, MIN_BEFORE - 1, -1):          # the most recent step first
         before, after = xs[:k][-12:], xs[k:]
