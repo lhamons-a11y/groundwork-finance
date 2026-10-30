@@ -450,14 +450,15 @@
       "ask": "How are our savings goals doing?",
       "expect": {
         "lookups": [
-          "savings_goals"
+          "savings_goals",
+          "balances"
         ],
         "engines": [
           "fund_pace"
         ],
         "outcome": "answer"
       },
-      "check": "each goal - Car repairs, Holidays - with target, deadline, saved so far and where that figure comes from (H20), planned against what actually moved, and its pace; both goals keep their money in High-Yield Savings, so the $300 moves are not split between them until the person says which (H20) - it says so, not guesses"
+      "check": "each goal - Car repairs, Holidays - with target, deadline and what was set aside (labelled as the household's own, never the plan); both are kept in High-Yield Savings, so: its balance, the two set-asides subtracted and named, and what is available (H20 revised)"
     },
     {
       "id": "Q30",
@@ -648,15 +649,11 @@
       "ask": "How much have we saved for car repairs?",
       "expect": {
         "lookups": [
-          "savings_goals",
-          "transactions"
-        ],
-        "engines": [
-          "fund_pace"
+          "savings_goals"
         ],
         "outcome": "answer"
       },
-      "check": "the starting figure, labelled as the household's own; the moves into High-Yield Savings since, shared with Holidays and not yet assigned - said; never the planned $40 a month counted as saved (F1)"
+      "check": "$640.00 set aside for Car repairs - the household's own figure plus what was added - never the planned $40 a month counted as saved (F1)"
     },
     {
       "id": "Q46",
@@ -709,6 +706,21 @@
         "outcome": "refuse"
       },
       "check": "never scheduled or unattended (TM2, H8); says Get my accounts runs when the person presses it, or says Yes"
+    },
+    {
+      "id": "Q50",
+      "group": "savings",
+      "record": "sample",
+      "ask": "How much do we have available in savings?",
+      "expect": {
+        "lookups": [
+          "balances",
+          "savings_goals",
+          "freshness"
+        ],
+        "outcome": "answer"
+      },
+      "check": "High-Yield Savings: its balance from the record, less Car repairs and Holidays set aside, each named, and what is available; how current the balance is (H20, H21); if set aside exceeds the balance, that said"
     }
   ],
   "r7_rejected": {

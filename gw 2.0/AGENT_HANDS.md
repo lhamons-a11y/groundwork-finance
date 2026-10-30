@@ -71,6 +71,11 @@ lookups only, before any build.
 - **R10. It says how current the record is, and offers to download** (Rob: *"It should also let the user know when the
   last transactions were downloaded and ask if it would like to go download transactions that the user already
   setup"*). See section 10.
+- **R11. A goal is money set aside inside an account the person already has** (Rob: *"if a user creates a emergency
+  savings $500.00 they will not create a new savings or checking account for that. We should show the total that the
+  user has in their Checking or Savings (the user preference where they will keep the funds when they created it) Then
+  Groundwork should show to total balance in the account and have said savings fund being subtracted, the remaining
+  should be listed as available funds"*). H19 and H20 revised to it (section 10).
 
 ## 3. Proposed, for ruling
 
@@ -290,7 +295,8 @@ to test "does not know".
 
 **The gap Q29 found is ruled (R8):** savings goals are a lookup (section 10). Q29 now expects an answer, and Q44-Q49
 were added: no goal set up, a goal's saved amount from what moved (never the plan), a deadline, how current the
-record is, the offer to download, and a nightly download refused (TM2). 49 questions in all.
+record is, the offer to download, and a nightly download refused (TM2). Q50 (R11): what is available in an
+account once its goals are set aside. 50 questions in all.
 
 ## 10. Savings goals, and how current the record is (Rob, 2026-10-30)
 
@@ -313,21 +319,28 @@ comes from* (H20), the planned monthly amount, and its pace from the existing `f
 with **no goal set up**, the assistant says so - *"You don't have a savings goal set up yet"* - and opens where one is
 made. Asked, never offered (H9).
 
-**H19. A goal names where its money is kept** - one of the person's accounts (High-Yield Savings, a checking account).
-It is asked once, when the goal is made or the first time a goal without one is read; until it is answered, the goal's
-saved amount is the person's own figure, labelled as theirs.
+**H19. A goal names the account its money is kept in** (R11) - Checking or Savings, the person's choice, asked when the
+goal is made (and once for a goal made before this). No new account is made for a goal; it is money set aside inside
+one the person already has.
 
-**H20. Saved so far is worked from the transactions** (R9):
-- **the starting amount** the person typed when the goal was made, labelled as their word;
-- **plus every move into the goal's account since then** - item 111's *move* kind (a transfer to savings), never
-  spending or earning;
-- **minus** what the person said a fund paid for (item 112 P3's "Is this what you were saving for?", Mark spent);
-- **one goal on an account:** every move into it counts for that goal;
-- **two or more goals on one account** (the Morgans keep Car repairs and Holidays in High-Yield Savings): each move is
-  asked once - *"Which goal was this $300 for?"* with a split allowed - and the answer is kept, confirmed once like
-  item 111's moves; until it is answered the move counts for the account, not a goal, and the goal says so.
-**Auto-credit is retired:** the plan is never added as if it were saved. The planned amount and what actually moved are
-shown side by side, and the pace is read from what moved (F1 fixed).
+**H20. Set aside, and available** (R9, R11; *revised 2026-10-30 - the first version counted every move into the goal's
+account as saved, which is wrong for a goal kept in checking, where every paycheck lands*):
+- **A goal's saved amount is what the person set aside:** its starting figure plus "Add to fund", less what it paid for
+  (item 112 P3, Mark spent). Their word, labelled as theirs - never the plan counted as saved (F1).
+- **The account's balance comes from the record:** the balance Groundwork already works (`accounts_with_balances`:
+  the bank's own running balance, or credits less debits where there is none), with its basis and how current it is
+  (H21).
+- **Shown for each account that holds a goal:**
+  *Everyday Checking $2,035.80 - set aside $500.00 (Emergency savings) - available $1,600.80.*
+  Two goals in one account are each subtracted, each named.
+- **More set aside than the account holds** is said, never hidden: *"You've set aside $800.00 in Everyday Checking,
+  and it holds $640.00 - $160.00 more than is there."* Available shows $0.00 beside it.
+- **Where it is shown:** each goal; the account (Settings, Accounts, and the dashboard's account figures); and the
+  assistant's answers about savings and balances.
+- **H20b, ACCEPTED** (Rob 2026-10-30: *"yes, that is correct recommendation"*): where Groundwork judges what can be spent from an account - Before You Buy's cash check, the
+  trip planner's "pay cash" - it uses *available*, not the whole balance, so money set aside is not offered for
+  something else.
+**Auto-credit is retired** (F1, fixed 2026-10-30). A goal's pace is read from what was set aside, month by month.
 
 **H21. Every answer that reads transactions says how current they are** (R10): *"Your record runs to October 28; the
 last download was 2 days ago."* From 48 hours (the check-in's line), it asks: *"Want me to get your accounts now?"*
@@ -350,4 +363,16 @@ lookup; each goal names the account its money is kept in; saved so far is worked
 one account asked once per move; auto-credit is retired and existing goals keep today's figure as their labelled
 starting amount; every answer that reads transactions says how current they are, and from 48 hours offers Get my
 accounts on the person's Yes - H8 now reads *never start a bank run without the person's Yes, and never unattended*.
+
+### F1 fixed, 2026-10-30 (Rob: *"lets fix that now"*)
+
+Built ahead of the rest of item 114, because it is a wrong figure in today's app: `/api/sinking-funds/auto-credit` is
+removed, and the Budget and Gift pages no longer call it. A fund holds its starting figure plus what the person adds
+("Add to fund"); nothing adds the plan as saved, and nothing new is logged as a contribution that did not happen. Gift
+funds (item 74 G2) and a trip's own fund follow the same rule. s10 checks it (the route gone, the pages not asking,
+reading the funds adding nothing, a deposit still adding); s50, s55 and s203 updated.
+
+**Not undone, said plainly:** contributions auto-credit logged before today stay in the Historian. They cannot be told
+apart from real deposits (the same event, the same amounts), so a fund's pace may still lean on them until H20 works
+saved amounts from the transactions. Existing funds keep today's figure as their starting amount (H20).
 
