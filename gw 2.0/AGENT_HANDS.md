@@ -80,6 +80,11 @@ lookups only, before any build.
   - the model is what uses it - *"OK then lets not do that. I was only thinking that it would assist with smaller
   computers, since that is not the case we will not proceed."*). No count of questions, no "most asked", nothing
   prepared from usage; item 22 D1 and TM4 stand.
+- **R19. The questions asked are not kept and cannot be viewed** (Rob 2026-10-30: *"No lets not do that. It is better
+  that questions that are asked are not viewable and that can become a security issue."*). No recent-questions list,
+  no pinned questions, no question text stored anywhere. **The AI log (item 62)** keeps, for an assistant question,
+  only which lookups ran and when - never the question or the answer (Rob: *"Not the questions"*); H11 is narrowed to
+  that. A confirmed name (R17) keeps the person's word for a debt, not the question it came in.
 - **R6.** The microphone stays on once turned on, so the person can talk with Groundwork (H14), and its button sits in
   the text box (H15). *Rob asked for both; the details below are for ruling.*
 - **R7. "Ignore your rules" is always rejected** (Rob: *"also "ignore your rules" should be text that is always
@@ -233,8 +238,8 @@ app (TM4, TM5). Nothing the model says is stored as a fact (RG3).
 3. **Held to the list.** Even text that slips past both cannot make the model ask for anything outside H2-H3 or write
    anything without the person's Yes (H7, H12).
 A phrase list catches the plain forms, not every rewording; that is why it is the first wall, not the only one. Every
-lookup, engine call, proposal and rejection is written to the AI log (item 62), so the person can see exactly what it
-read and what it held back.
+lookup, engine call, proposal and rejection is written to the AI log (item 62) - which lookups ran and when, never the
+question or the answer (R19) - so the person can see what it read and what it held back.
 
 **H12. The small model is held to the list** (R3). Its request is forced into the list's exact shape (llama.cpp's
 grammar for JSON), so it cannot ask for anything that is not on it. At most four lookups per question, a time cap on
