@@ -75,6 +75,11 @@ lookups only, before any build.
   Yes, said back with Undo, recorded in the Historian as their answer with its date (`assistant_name_confirmed`),
   listed under Settings, *Names you use*, where each can be removed (the build stage); when the debt is paid off,
   renamed or deleted it is no longer used and the question is asked again. Never inferred - only their Yes makes one.
+- **R18. Groundwork does not learn from the questions asked** (Rob 2026-10-30: asked whether past questions should be
+  saved and the most common answered ahead, to help smaller computers; on hearing that a ready answer saves no memory
+  - the model is what uses it - *"OK then lets not do that. I was only thinking that it would assist with smaller
+  computers, since that is not the case we will not proceed."*). No count of questions, no "most asked", nothing
+  prepared from usage; item 22 D1 and TM4 stand.
 - **R6.** The microphone stays on once turned on, so the person can talk with Groundwork (H14), and its button sits in
   the text box (H15). *Rob asked for both; the details below are for ruling.*
 - **R7. "Ignore your rules" is always rejected** (Rob: *"also "ignore your rules" should be text that is always
