@@ -230,7 +230,10 @@ memory returned to 14.7 GB.
    watcher disabled"*: the Downloads auto-import watcher is missing. The Linux spec asks for watchdog's `inotify`
    parts, and PyInstaller reported them not found. Windows builds have the watcher only because watchdog 6.0.0 is
    installed on this laptop. A build made from `requirements.txt` on any clean machine, which includes every CI build
-   on macOS and Linux, ships without it. Fixing it is one line plus a check, and waits for Rob.
+   on macOS and Linux, ships without it. **FIXED 2026-10-29** (Rob: *"Yes, fix it"*, `f45fc79`): `watchdog>=6.0.0,<7` is in `requirements.txt`, and s128
+   checks the requirement plus each spec's backend. A clean clone rebuilt in WSL from the new file has watchdog
+   6.0.0, with no PyInstaller misses. The packaged app logged *"auto-import: watching /root/Downloads"*, then
+   *"queued gw_watch_test.csv"* 9 s after a `.part` download was renamed to its final name.
 2. **On Linux and macOS, SIGTERM skips the explicit engine release.** The process ends in 0.5 s and the operating
    system frees the memory, but `_stop_engine()` and the `atexit` hooks do not run. R-a says the model is released
    *"explicitly, not left to process teardown"*. Closing the window with its own close button takes the normal path.
