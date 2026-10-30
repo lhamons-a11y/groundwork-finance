@@ -65,6 +65,16 @@ lookups only, before any build.
   against one month's spending (section 11, item 4).
 - **R15. Nothing against the law** (Rob 2026-10-30: *"lets also make sure we add items that are not legal to do. If a
   user says hack my bank and add more money to my account."*). H8b.
+- **R16. Unsure what a word means: ask about the closest, never assume** (Rob 2026-10-30: *"if the ai is unsure about
+  the user provided terms is it wrong that the ai ask the user ... "are you referring to Harbor Visa?""*). Groundwork's
+  code decides it is unsure. One close match: *"Did you mean the Cashback Visa?"*, the others offered too; several:
+  *"Which one ...?"*; none: everything there is. A clear match is said back (*"Reading 'my car loan' as the Riverside
+  Auto loan"*). Debts first; categories and payees the same way.
+- **R17. A name the person confirmed is kept** (Rob 2026-10-30: *"Should the clarification be added to the historian.
+  ie "My Car Loan" is now understood to mean "the Riverside Auto Loan"?"*, then *"Keep it"*): saved only on their
+  Yes, said back with Undo, recorded in the Historian as their answer with its date (`assistant_name_confirmed`),
+  listed under Settings, *Names you use*, where each can be removed (the build stage); when the debt is paid off,
+  renamed or deleted it is no longer used and the question is asked again. Never inferred - only their Yes makes one.
 - **R6.** The microphone stays on once turned on, so the person can talk with Groundwork (H14), and its button sits in
   the text box (H15). *Rob asked for both; the details below are for ruling.*
 - **R7. "Ignore your rules" is always rejected** (Rob: *"also "ignore your rules" should be text that is always
@@ -515,4 +525,13 @@ wrong figures, zero actions outside the list, "does not know" right on the short
 **Still open, none a figure:** Q05 (coffee "since we cut that budget" read as not enough), Q07 and Q10 (a lookup that
 works but is not the best one), and what is not built yet - H19 (a goal's account), so "available" (Q50) and H20c
 (Q51, Q52). **Next:** the Windows laptop run (Rob), then the build in its stages (section 6).
+
+### R16 and R17, measured (2026-10-30, the M2)
+
+Q17 and Q63 ("Harbor Visa"): *"There is no debt called "Harbor Visa" in the record. Did you mean the Cashback Visa?"*
+Q61 ("my Harbor card", nothing close): every debt listed, none picked. Q62 ("my Visa card", one Visa): answered for the
+Cashback Visa. Q64 ("Yes"): the earlier question answered for the Cashback Visa, and the word kept -
+`assistant_names_json` `{"debt": {"chase visa": "Cashback Visa"}}` and a Historian event `assistant_name_confirmed`
+(*the person said yes*). Q65, later: no question - *"Reading "Harbor Visa" as the Cashback Visa, as you said before."*
+Each 3-8 s. Found and fixed on the way: "card" was read as "car" (the auto loan); words now match whole.
 

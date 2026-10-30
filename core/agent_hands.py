@@ -446,17 +446,86 @@ def _engine_inputs(reader):
     return cards, budget, strategy
 
 
-def _match_debt(name, cards):
+# -- R16 / R17 (Rob 2026-10-30): ask about the closest match, never assume; keep a name the person confirmed --------
+NAMES_SETTING = 'assistant_names_json'          # {"debt": {"my car loan": "Riverside Auto loan"}} - the person's own words
+
+
+def _norm_said(s):
+    return re.sub(r'\s+', ' ', re.sub(r'[^a-z0-9 ]', ' ', (s or '').lower())).strip()
+
+
+def saved_names(reader):
+    st = reader.get('/api/settings') or {}
+    try:
+        return json.loads(st.get(NAMES_SETTING) or '{}') or {}
+    except (ValueError, TypeError):
+        return {}
+
+
+def confirm_name(reader, kind, said, means):
+    """R17: the person said Yes - keep their word, as theirs. Written only here, only on that Yes, and recorded in the
+    Historian as something they said (with the date). Settings lists and removes these (the build stage)."""
+    from server import _set_setting, log_historian_event
+    from core.database import AppSetting
+    with reader.session_factory() as s:
+        row = s.query(AppSetting).filter_by(key=NAMES_SETTING).first()
+        try:
+            names = json.loads(row.value) if row and row.value else {}
+        except (ValueError, TypeError):
+            names = {}
+        names.setdefault(kind, {})[_norm_said(said)] = means
+        _set_setting(s, NAMES_SETTING, json.dumps(names))
+        log_historian_event(s, 'assistant_name_confirmed', context={'kind': kind, 'said': said, 'means': means,
+                                                                     'source': 'the person said yes'})
+        s.commit()
+
+
+_GENERIC_WORDS = {'my', 'our', 'the', 'a', 'an', 'card', 'loan', 'debt', 'account', 'bill', 'payment'}
+
+
+def _closest(name, options):
+    """The options a person's words most likely mean: those sharing a distinctive word, else the nearest spelling."""
+    import difflib
+    words = [w for w in re.findall(r'[a-z]+', (name or '').lower()) if w not in _GENERIC_WORDS]
+    share = [o for o in options if any(w in re.findall(r'[a-z]+', o.lower()) for w in words)]
+    if share:
+        return share
+    scored = sorted(((difflib.SequenceMatcher(None, (name or '').lower(), o.lower()).ratio(), o) for o in options),
+                    reverse=True)
+    return [o for r, o in scored if r >= 0.6][:2]
+
+
+def _clarify_name(said, options, kind='debt'):
+    """R16: one close match -> "Did you mean ...?"; several -> "Which one ...?"; none -> everything there is."""
+    close = _closest(said, options)
+    rest = [o for o in options if o not in close]
+    if len(close) == 1:
+        return {'clarify': f'There is no {kind} called "{said}" in the record. Did you mean the {close[0]}?',
+                'choices': close + rest, 'offer_name': {'kind': kind, 'said': said, 'means': close[0]}}
+    if len(close) > 1:
+        return {'clarify': f'Which one do you mean by "{said}": ' + ' or '.join(f'the {o}' for o in close) + '?',
+                'choices': close + rest}
+    return {'clarify': f'There is no {kind} called "{said}" in the record. The {kind}s are: ' + ', '.join(options)
+                       + '. Which one do you mean?', 'choices': options}
+
+
+def _match_debt(name, cards, saved=None):
     if not name:
         return None, []
+    kept = (saved or {}).get(_norm_said(name))
+    if kept:
+        hit = [c for c in cards if c.name == kept]
+        if hit:                         # still there: the person's own word is used; gone: asked again (R17)
+            return hit[0], hit
     n = name.lower().replace('the ', '').strip()
     hits = [c for c in cards if n in c.name.lower() or c.name.lower() in n]
     if not hits:
-        words = [w for w in re.findall(r'[a-z]+', n) if w not in ('loan', 'card', 'my', 'visa', 'debt')]
+        # a clear match: every distinctive word the person used is in exactly one debt's name ("my Visa card")
+        words = [w for w in re.findall(r'[a-z]+', n) if w not in _GENERIC_WORDS]
         hits = [c for c in cards if words and all(w in c.name.lower() for w in words)]
-    if not hits and 'student' in n:
+    if not hits and re.search(r'\bstudent\b', n):
         hits = [c for c in cards if 'student' in c.name.lower()]
-    if not hits and ('car' in n or 'auto' in n):
+    if not hits and re.search(r'\b(car|auto|truck|vehicle)\b', n):
         hits = [c for c in cards if 'auto' in c.name.lower() or 'car' in c.name.lower()]
     return (hits[0] if len(hits) == 1 else None), hits
 
@@ -466,12 +535,15 @@ def lk_debt_whatif(reader, a):
     cards, budget, strategy = _engine_inputs(reader)
     if not cards:
         return {'enough': True, 'debts': 'none'}
-    target = None
+    target, read_as = None, None
     if a.get('debt'):
-        target, hits = _match_debt(a['debt'], cards)
+        saved = saved_names(reader).get('debt') or {}
+        target, hits = _match_debt(a['debt'], cards, saved)
         if target is None:
-            return {'enough': True, 'clarify': f'There is no debt called "{a["debt"]}" in the record. The debts are: '
-                                                + ', '.join(c.name for c in cards) + '. Which one do you mean?'}
+            return {'enough': True, **_clarify_name(a['debt'], [c.name for c in (hits or cards)])}
+        if _norm_said(a['debt']) != _norm_said(target.name):
+            read_as = {'said': a['debt'], 'means': target.name,
+                       'from': 'your earlier answer' if _norm_said(a['debt']) in saved else 'the closest name'}
     extra = float(a.get('extra_monthly') or 0)
     tk = reader.today.strftime('%Y-%m')
     plan_first = sorted(cards, key=(lambda c: c.balance) if strategy == 'snowball' else (lambda c: -c.rate))[0].name
@@ -481,7 +553,7 @@ def lk_debt_whatif(reader, a):
     if base is None:
         return {'enough': False, 'why': f'the debt budget of {money(budget)} does not cover the minimums, so there is '
                                          'no payoff date', 'would_know': 'a budget at or above the minimums'}
-    out = {'enough': True, 'debt_budget': money(budget), 'strategy': strategy,
+    out = {'enough': True, 'debt_budget': money(budget), 'strategy': strategy, **({'read_as': read_as} if read_as else {}),
            'now': {'debt_free': months_from_now(reader.today, base['months']), 'months': base['months'],
                    'interest_to_pay': money(base['total_interest'])},
            'assumptions': 'rates stay where they are; nothing new is charged; payments are made every month'}
@@ -1139,6 +1211,10 @@ def render(r, today):
     elif k == 'debt_whatif':
         if r.get('debts') == 'none':
             return ['There are no debts in the record.']
+        if r.get('read_as'):
+            ra = r['read_as']
+            s.append(f"Reading \"{ra['said']}\" as the {ra['means']}"
+                     + (', as you said before.' if ra['from'] == 'your earlier answer' else '.'))
         n = r['now']
         s.append(f"At your {r['debt_budget']} a month debt budget ({r['strategy']}), you are debt-free in "
                  f"{n['debt_free']}, {_plural(n['months'], 'month')} from now, with {n['interest_to_pay']} in interest still to pay.")
@@ -1290,6 +1366,12 @@ def answer(reader, model_call, model_call_text, question, context=None):
         out.update({'outcome': 'refuse', 'r7': True, 'shown': [R7_REFUSAL], 'lookups': []})
         out['timings']['total'] = round(time.time() - t0, 2)
         return out
+    if context and context.get('offer_name') and _YES.match(question.strip()):
+        on = context['offer_name']
+        confirm_name(reader, on['kind'], on['said'], on['means'])          # R17: on the person's Yes, kept as theirs
+        out['confirmed_name'] = on
+        question = context['question']
+        context = None
     kind = read_request(question, context)
     if kind:
         p = {'intent': kind, 'lookups': [], 'read_by': 'groundwork'}
@@ -1311,7 +1393,10 @@ def answer(reader, model_call, model_call_text, question, context=None):
     out['outcome'] = decide(p, results)
     shown = []
     if out['outcome'] == 'clarify':
-        shown = [next((r['clarify'] for r in results if r.get('clarify')), 'Which one do you mean?')]
+        c = next((r for r in results if r.get('clarify')), {})
+        shown = [c.get('clarify', 'Which one do you mean?')]
+        if c.get('offer_name'):
+            out['offer_name'] = c['offer_name']
     elif out['outcome'] == 'refuse':
         shown = ['Groundwork never does that for you. It is yours to do, in the app or at your bank.']
     elif out['outcome'] == 'propose' and context and context.get('offer'):

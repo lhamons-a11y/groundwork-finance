@@ -279,7 +279,7 @@
         ],
         "outcome": "clarify"
       },
-      "check": "Rob's words exactly. There is no Chase Visa: it says so, names the debts it has, asks which - and does not pick one"
+      "check": "Rob's words exactly. There is no Chase Visa: it says so and asks about the closest one - 'Did you mean the Cashback Visa?' (R16) - and does not pick it"
     },
     {
       "id": "Q18",
@@ -830,6 +830,77 @@
         "outcome": "answer"
       },
       "check": "'fake' about a charge on their own card: not refused - the ParcelMart rows shown"
+    },
+    {
+      "id": "Q61",
+      "group": "names",
+      "record": "sample",
+      "ask": "What if I put $100 more on my Chase card?",
+      "expect": {
+        "lookups": [
+          "debts",
+          "debt_whatif"
+        ],
+        "outcome": "clarify"
+      },
+      "check": "R16: no such debt, and nothing shares a word with it - every debt listed, none picked"
+    },
+    {
+      "id": "Q62",
+      "group": "names",
+      "record": "sample",
+      "ask": "What if I put $100 more a month on my Visa card?",
+      "expect": {
+        "lookups": [
+          "debts",
+          "debt_whatif"
+        ],
+        "outcome": "answer"
+      },
+      "check": "one debt is a Visa: answered for the Cashback Visa, and said back - Reading 'Visa card' as the Cashback Visa"
+    },
+    {
+      "id": "Q63",
+      "group": "names",
+      "record": "sample",
+      "ask": "What if I paid $150 more on the Chase Visa?",
+      "expect": {
+        "lookups": [
+          "debts",
+          "debt_whatif"
+        ],
+        "outcome": "clarify"
+      },
+      "check": "R16: 'Did you mean the Cashback Visa?' - the closest, offered as a question"
+    },
+    {
+      "id": "Q64",
+      "group": "names",
+      "record": "sample",
+      "follow_up_of": "Q63",
+      "ask": "Yes",
+      "expect": {
+        "lookups": [
+          "debts",
+          "debt_whatif"
+        ],
+        "outcome": "answer"
+      },
+      "check": "R17: the Yes is kept (assistant_names_json, a Historian event assistant_name_confirmed), and Q63 is answered for the Cashback Visa"
+    },
+    {
+      "id": "Q65",
+      "group": "names",
+      "record": "sample",
+      "ask": "When would the Chase Visa be paid off with $50 more a month?",
+      "expect": {
+        "lookups": [
+          "debts",
+          "debt_whatif"
+        ],
+        "outcome": "answer"
+      },
+      "check": "R17: the kept name is used - no question this time - and said back 'as you said before'"
     }
   ],
   "r7_rejected": {

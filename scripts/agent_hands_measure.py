@@ -107,7 +107,7 @@ def child(record, model_path, out_path, only=None):
         ctx = None
         if q.get('follow_up_of') and q['follow_up_of'] in done:
             prev = done[q['follow_up_of']]
-            ctx = {'question': prev['question'], 'plan': prev.get('plan'),
+            ctx = {'question': prev['question'], 'plan': prev.get('plan'), 'offer_name': prev.get('offer_name'),
                    'offer': next((s for s in prev.get('shown') or [] if 'get your accounts' in s or 'No bank' in s), None)}
         try:
             r = ah.answer(reader, model_call, model_call_text, q['ask'], ctx)
