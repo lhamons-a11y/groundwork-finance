@@ -243,8 +243,7 @@ def run(ctx):
               and data_of(_snap).get('snapshot', {}).get('month_label'))
 
         for _url, _field in (('/api/categories/reclassify-income', 'message'),
-                             ('/api/categories/smart-backfill', 'message'),
-                             ('/api/sinking-funds/auto-credit', 'credited')):
+                             ('/api/categories/smart-backfill', 'message')):
             _resp = c.post(_url, headers=HJ, json={})
             check(f'{_url} runs and reports what it changed',
                   _resp.status_code == 200 and data_of(_resp).get(_field) is not None)

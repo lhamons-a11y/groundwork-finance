@@ -3265,7 +3265,7 @@ def trips_edit(tid):
             if round(sum(x['amount'] for x in clean), 2) > round(float(t.total or 0), 2) + 0.005:
                 return err('The sources add up to more than the trip.')
             t.sources_json = json.dumps(clean)
-            # T2: saving ahead makes (or resizes) the trip's own fund, which fills itself monthly until the trip
+            # T2: saving ahead makes (or resizes) the trip's own fund, which the person adds to monthly until the trip
             ahead = round(sum(x['amount'] for x in clean if x['kind'] == 'save_ahead'), 2)
             if ahead > 0:
                 f = session.get(SinkingFund, t.fund_id) if t.fund_id else None
@@ -9918,15 +9918,15 @@ def get_investment_allocation_confidence(session, asset_class: str, months: int 
 
 def _log_sinking_fund_contribution_variance(session, fund, actual_amount: float):
     """
-    Sinking funds' Historian write-hook, called from POST
-    .../deposit and POST .../auto-credit below. Unlike net worth/
+    Sinking funds' Historian write-hook, called from POST .../deposit below
+    (money the person put in; auto-credit, which logged the plan as if it had
+    moved, is gone - item 114 F1). Unlike net worth/
     investments (which had to derive an "expected" figure from a linear
     projection or a % target), SinkingFund already has monthly_contribution
     — a real, user-set expectation — so this is closer to debt's
     payment_amount_variance: actual contribution vs. the fund's own stated
-    pace. Skipped when monthly_contribution isn't set (auto-credit's
-    deadline-derived fallback isn't a real expectation the user set, so
-    comparing against it would trivially always read "on pace").
+    pace. Skipped when monthly_contribution isn't set (with no expectation of
+    its own there is nothing to compare against).
     """
     expected = float(fund.monthly_contribution or 0)
     if expected <= 0:
@@ -15965,46 +15965,10 @@ def spend_sinking_fund(fund_id):
         return ok(_serialize_sinking_fund(f))
 
 
-@sinking_funds_bp.route('/auto-credit', methods=['POST'])
-def auto_credit_sinking_funds():
-    """
-    Auto-credit monthly contributions for the current month.
-    Called on app boot or from the budget page.
-    Idempotent — only credits once per month per fund.
-    """
-    from datetime import date
-    this_month = date.today().strftime('%Y-%m')
-    credited   = 0
-    with db_session() as session:
-        from core.database import SinkingFund
-        funds = session.query(SinkingFund).filter_by(is_active=True).all()
-        for f in funds:
-            if f.last_contributed_month == this_month:
-                continue  # already credited this month
-            contrib = float(f.monthly_contribution or 0)
-            if contrib <= 0:
-                # Auto-calculate from deadline
-                if f.deadline:
-                    try:
-                        d    = date.fromisoformat(f.deadline)
-                        today = date.today()
-                        months = max(1, (d.year-today.year)*12+(d.month-today.month))
-                        contrib = max(0, (float(f.target_amount or 0) - float(f.current_amount or 0)) / months)
-                    except Exception:
-                        pass
-            if contrib > 0:
-                target = float(f.target_amount or 0)
-                f.current_amount = min(target, float(f.current_amount or 0) + contrib) if target > 0                                    else float(f.current_amount or 0) + contrib
-                f.last_contributed_month = this_month
-                # Only a real logged variance when monthly_contribution was
-                # actually set — _log_sinking_fund_contribution_variance
-                # itself no-ops otherwise, but the deadline-derived fallback
-                # contrib computed above would make expected==actual here by
-                # construction, which isn't a real signal either way.
-                _log_sinking_fund_contribution_variance(session, f, contrib)
-                credited += 1
-        session.commit()
-    return ok({'credited': credited, 'month': this_month})
+# Item 114 F1 (AGENT_HANDS.md section 10, Rob 2026-10-30): /auto-credit is gone. It added each fund's planned monthly
+# amount every time the Budget or Gift page loaded, whether or not any money moved, and logged that as a contribution
+# - so a fund grew by being looked at and its pace measured the plan against itself. A fund now holds what the person
+# put in (its starting figure and "Add to fund"); item 114 H20 works it from the transactions.
 
 
 # ── College funds (Historian logging only — balance itself is managed

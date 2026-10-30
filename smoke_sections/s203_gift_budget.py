@@ -173,20 +173,16 @@ def run(ctx):
     check('s203 G5 the dashboard puts gift occasions beside bills', '_loadDashGiftUpcoming' in app
           and "API.get('/api/gifts/upcoming')" in app and '_dashGiftUpcoming' in app.split('function _renderDashUpcoming()')[1].split('\n}\n')[0])
 
-    # ── G2: gift funds fill themselves; old seasonal funds move on a tap ─────
+    # ── G2: gift funds hold what is put in (item 114 F1 retired auto-credit); old seasonal funds move on a tap ─────
     dl = (today.replace(day=1) + timedelta(days=32 * 5)).replace(day=15)
     f = data(post('/api/gifts/funds', {'name': 's203 Christmas Fund', 'target_amount': 500, 'deadline': dl.isoformat()}))
+    c.get('/api/sinking-funds', headers=H)
+    c.post(f"/api/sinking-funds/{f['id']}/deposit", headers=HJ, data=json.dumps({'amount': 25}))
     with db_session() as s:
-        s.get(SinkingFund, f['id']).last_contributed_month = ''
-        s.commit()
-    c.post('/api/sinking-funds/auto-credit', headers=HJ, data='{}')
-    c.post('/api/sinking-funds/auto-credit', headers=HJ, data='{}')
-    with db_session() as s:
-        fr = s.get(SinkingFund, f['id'])
-        held = fr.current_amount
+        held = s.get(SinkingFund, f['id']).current_amount
     listed = [x for x in data(c.get('/api/sinking-funds', headers=H)) if x['id'] == f['id']]
-    check(f's203 G2 a gift fund adds its monthly amount itself, once a month ({held})',
-          f['purpose'] == 'gift' and held > 0 and abs(held - f['monthly_needed']) < 0.01
+    check(f's203 G2 a gift fund holds what was put in, never its plan added for it ({held})',
+          f['purpose'] == 'gift' and abs(held - 25) < 0.01 and f['monthly_needed'] > 0
           and listed and listed[0]['purpose'] == 'gift')
     with db_session() as s:
         s.query(AppSetting).filter_by(key='gift_seasons_json').delete()

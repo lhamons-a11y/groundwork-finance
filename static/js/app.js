@@ -19312,8 +19312,7 @@ async function loadSinkingFunds() {
     // Use new dedicated sinking fund API
     const res = await API.get('/api/sinking-funds');
     _sinkingFunds = Array.isArray(res) ? res : (res.data || []);
-    // Auto-credit this month's contributions on the server
-    API.post('/api/sinking-funds/auto-credit', {}).catch(_gwErr('loadSinkingFunds'));
+    // Item 114 F1: no auto-credit - a fund holds what was put in, never the plan counted as saved
     if (g('budgetSinkingFundsCard')) _budgetRenderSinkingFundsSection();
     if (g('sinkingFundsList')) _renderSinkingFunds();
     renderEvidence('goal', g('evidenceGoal'));
@@ -19481,7 +19480,7 @@ const GIFT_OCCASION_TYPES = {
 
 // Item 74 (GIFT_BUDGET.md): the page reads /api/gifts, which keeps people, occasions, shared occasions and gift
 // funds in tables. A gift is a yearly cost paid in a few months: the year's total becomes one monthly set-aside
-// (G1), gift funds are sinking funds that fill themselves (G2), "Mark spent" keeps its record (G3), and gift
+// (G1), gift funds are sinking funds (G2; since item 114 F1 they hold what was put in), "Mark spent" keeps its record (G3), and gift
 // charges from the ledger are offered, never assumed (G4).
 let _gift = { people: [], shared: [], funds: [], seasons_to_move: [], plan: {} };
 let _giftFilterRel  = 'all';
@@ -19499,8 +19498,7 @@ async function loadGiftData() {
 }
 
 async function renderGiftBudget() {
-  // G2: the month's contributions first (once a month, server-side), so gift funds are read already filled.
-  await API.post('/api/sinking-funds/auto-credit', {}).catch(_gwErr('renderGiftBudget:auto-credit'));
+  // Item 114 F1: gift funds are no longer filled with their plan on load; they hold what was put in.
   await loadGiftData();
   _renderGiftPage();
 }
@@ -19742,12 +19740,12 @@ function _renderGiftSharedSection() {
     </div>${addForm}${cards || ''}</div>`;
 }
 
-// G2/G3: gift funds are sinking funds marked for gifts. They fill themselves each month like every fund, and
+// G2/G3: gift funds are sinking funds marked for gifts. They hold what is put in, like every fund (item 114 F1), and
 // the Budget page, goals and Ask why see them too. The old seasonal funds are moved over on a tap, listed first.
 function _renderGiftFundsSection() {
   const toMove = _gift.seasons_to_move||[];
   const moveBox = toMove.length ? `<div style="background:var(--mist);border-radius:var(--r-md);padding:12px;margin-bottom:12px">
-      <div style="font-size:var(--fs-sm);color:var(--ink);margin-bottom:6px">${toMove.length===1?'This seasonal fund':'These seasonal funds'} from before can become gift funds, keeping what each holds. A gift fund adds its monthly amount itself, and shows on the Budget page with your other funds.</div>
+      <div style="font-size:var(--fs-sm);color:var(--ink);margin-bottom:6px">${toMove.length===1?'This seasonal fund':'These seasonal funds'} from before can become gift funds, keeping what each holds. A gift fund shows its monthly amount and what you have put in, on the Budget page with your other funds.</div>
       ${toMove.map(s=>`<div style="font-size:var(--fs-sm);color:var(--slate)">${esc(s.name||'')}: ${fmt(parseFloat(s.saved)||0)} of ${fmt(parseFloat(s.target)||0)}${s.deadline?` by ${esc(s.deadline)}`:''}</div>`).join('')}
       <button class="btn btn-secondary btn-sm" style="margin-top:8px" data-action="move-seasons">Move ${toMove.length===1?'it':'them'} to gift funds</button>
     </div>` : '';

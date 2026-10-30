@@ -149,3 +149,8 @@ rule L1.
 - **G9.** s203, 23 checks. The old `/api/gift` routes and their helpers were removed once nothing called them (s50 route reachability); the old settings stay as data, and their Historian entries stay.
 - **Not changed:** the occasion "$" still takes a typed amount. The AI advisor reads the same figures the page
   shows.
+
+**2026-10-30, G2 changed by item 114 F1** (Rob: *"lets fix that now"*, after accepting H18-H21): a gift fund no longer
+fills itself. Auto-credit added every fund's plan each month the Budget or Gift page loaded, whether or not money
+moved. A gift fund now holds what was put in; its monthly amount is shown as the plan, beside it.
+

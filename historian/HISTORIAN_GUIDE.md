@@ -58,7 +58,7 @@ this table fell out of sync before).
 | `categorization_suggestion_confirm` / `_reject` | `suggest_category_feedback` — suggestion kept / changed at ledger save |
 | `net_worth_milestone_variance` | `_log_net_worth_milestone_variance` — snapshot save vs. a milestone's linear pace |
 | `investment_allocation_drift` | price refresh, actual $ vs. target % of portfolio |
-| `sinking_fund_contribution_variance` | deposit/auto-credit vs. the fund's `monthly_contribution` |
+| `sinking_fund_contribution_variance` | a deposit vs. the fund's `monthly_contribution` (auto-credit retired 2026-10-30, item 114 F1) |
 | `college_fund_contribution_variance` | `_log_college_fund_contribution_variance` vs. `monthlyContrib` |
 | `gift_season_contribution_variance` | `_log_gift_season_contribution_variance` vs. a deadline-derived pace |
 | `gift_occasion_variance` | `_log_gift_occasion_variance` — actual spend vs. budget, after the date passes |

@@ -1,9 +1,10 @@
-"""Month-keyed writes: net worth snapshot + sinking fund auto-credit.
+"""Month-keyed writes: net worth snapshot; and sinking fund auto-credit, now retired (item 114 F1).
 
 Both branch on date.today().strftime('%Y-%m'), so what they do depends on what
 month it is. Month-boundary logic only misbehaves on the 1st, which is the day
 nobody is watching.
 """
+from pathlib import Path
 import json
 import re
 from datetime import date as _date, timedelta as _timedelta
@@ -52,43 +53,22 @@ def run(ctx):
         check('force=true overwrites the month in place rather than adding a row',
               len(rows) == 1 and rows[0].net_worth == 10000.0)
 
-    # auto_credit_sinking_funds(): the gate is last_contributed_month == this
-    # month, so it is per-month, not once-ever. A fund last credited in a PRIOR
-    # month must credit again - that is the whole purpose of the field, and the
-    # part a month-boundary bug would silently break.
+    # Item 114 F1 (Rob 2026-10-30): auto-credit is retired. It added each fund's plan every month the Budget or Gift
+    # page loaded, whether or not money moved. A fund now holds what was put in, and nothing adds the plan as saved.
     with _dbs() as session:
-        session.add(_SF2(name='Smoke AutoCredit Stale', target_amount=1000.0,
-                          current_amount=0.0, monthly_contribution=100.0,
-                          is_active=True, last_contributed_month=_prev_month))
-        session.add(_SF2(name='Smoke AutoCredit Capped', target_amount=500.0,
-                          current_amount=480.0, monthly_contribution=100.0,
-                          is_active=True, last_contributed_month=''))
-        session.add(_SF2(name='Smoke AutoCredit Inactive', target_amount=1000.0,
-                          current_amount=0.0, monthly_contribution=100.0,
-                          is_active=False, last_contributed_month=''))
+        session.add(_SF2(name='Smoke F1 Fund', target_amount=1000.0, current_amount=250.0,
+                          monthly_contribution=100.0, is_active=True, last_contributed_month=_prev_month))
         session.commit()
-
     r = c.post('/api/sinking-funds/auto-credit', headers=H)
-    check('POST /api/sinking-funds/auto-credit succeeds and reports the current month',
-          r.status_code == 200
-          and ((r.get_json() or {}).get('data') or {}).get('month') == _this_month)
-
+    check('F1: /api/sinking-funds/auto-credit is gone', r.status_code in (404, 405))
+    _app_js = (Path(BASE) / 'static' / 'js' / 'app.js').read_text(encoding='utf-8')
+    check('F1: neither the Budget page nor the Gift page asks for auto-credit',
+          "/api/sinking-funds/auto-credit" not in _app_js)
+    c.get('/api/sinking-funds', headers=H)
     with _dbs() as session:
-        stale = session.query(_SF2).filter_by(name='Smoke AutoCredit Stale').first()
-        check('a fund last credited in a PRIOR month is credited again '
-              '(the gate is per-month, not once-ever)',
-              stale.current_amount == 100.0
-              and stale.last_contributed_month == _this_month)
-        capped = session.query(_SF2).filter_by(name='Smoke AutoCredit Capped').first()
-        check('a contribution is capped at the fund target, never overshooting it',
-              capped.current_amount == 500.0)
-        inactive = session.query(_SF2).filter_by(name='Smoke AutoCredit Inactive').first()
-        check('an inactive fund is not credited',
-              inactive.current_amount == 0.0 and inactive.last_contributed_month == '')
-
-    c.post('/api/sinking-funds/auto-credit', headers=H)
+        f1 = session.query(_SF2).filter_by(name='Smoke F1 Fund').first()
+        check('F1: reading the funds adds nothing - a fund holds what was put in', f1.current_amount == 250.0)
+    _fid = f1.id
+    r = c.post(f'/api/sinking-funds/{_fid}/deposit', headers=HJ, data='{"amount": 40}')
     with _dbs() as session:
-        stale = session.query(_SF2).filter_by(name='Smoke AutoCredit Stale').first()
-        capped = session.query(_SF2).filter_by(name='Smoke AutoCredit Capped').first()
-        check('a second auto-credit in the same month does not double-credit',
-              stale.current_amount == 100.0 and capped.current_amount == 500.0)
+        check('F1: "Add to fund" still adds what the person put in', session.get(_SF2, _fid).current_amount == 290.0)

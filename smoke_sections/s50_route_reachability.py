@@ -126,7 +126,6 @@ def run(ctx):
         ('POST', '/api/import/commit'),           # commits whatever it is given
         ('POST', '/api/categories/reclassify-income'),  # rewrites rows in bulk
         ('POST', '/api/categories/smart-backfill'),     # rewrites rows in bulk
-        ('POST', '/api/sinking-funds/auto-credit'),     # moves money in bulk
         ('DELETE', '/api/transactions'),          # empties the table
     }
 

@@ -493,7 +493,7 @@ class HistorianEntry(Base):
       'llm_gate_flag'                     — LLM gate miss-log (voice_miss_log.jsonl covers this instead — see below)
       'net_worth_milestone_variance'      — net worth (snapshot save, vs. a milestone's linear pace)
       'investment_allocation_drift'       — investments (price refresh, actual $ vs. target % of portfolio)
-      'sinking_fund_contribution_variance'— sinking funds (deposit/auto-credit, actual $ vs. fund's own monthly_contribution)
+      'sinking_fund_contribution_variance'— sinking funds (deposits, actual $ vs. fund's own monthly_contribution; auto-credit retired, item 114 F1)
       'college_fund_contribution_variance'— college funds (contribution, actual $ vs. fund's own monthlyContrib)
       'recurring_pattern_confirm'         — a detected recurring merchant added to the budget
       'recurring_pattern_reject'          — a detected recurring merchant dismissed
@@ -934,7 +934,7 @@ class SinkingFund(Base):
     monthly_contribution = Column(Float, default=0.0)          # user override; else auto-calculated
     note                 = Column(Text, default='')
     is_active            = Column(Boolean, default=True)
-    last_contributed_month = Column(String(7), default='')     # YYYY-MM — for auto-credit
+    last_contributed_month = Column(String(7), default='')     # YYYY-MM — was for auto-credit (retired, item 114 F1); kept, unused
     created_at           = Column(DateTime, default=datetime.now)
     # 'gift' for a gift fund (GIFT_BUDGET.md G2): the Gift page lists these; every other reader sees an ordinary fund.
     purpose              = Column(String(20), default='')
