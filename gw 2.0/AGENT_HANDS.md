@@ -197,6 +197,15 @@ page lines on the microphone change with it.
 the Ask box is gone (item 102 A1) but voice commands still work ("read this", "next"), so the same button shows in the
 top bar then.
 
+**H17. While it works, it shows that it is working** (Rob 2026-10-30: *"we should have some type of indication that
+the AI is working something that is animated that things are happening in the background"*). An animated indicator
+in the conversation from the moment a question is asked until the answer is shown, with the step it is on in plain
+words, taken from what is actually running - *"Looking at your debts"*, *"Working out the payoff"*, *"Checking your
+budget against what you spent"*, *"Checking the answer"* - never a made-up progress figure. It shows a state and asks
+nothing, so it sits inside TM6 the way the bank agent's recording light does (item 65's ruling note); with reduced
+motion turned on it is steady. If the 20-second bar (section 8) passes, it says so plainly (H12). The microphone
+button's "working" state (H15) is the same indicator.
+
 **H16. With AI off, all of this is gone** except what works without the model today: the A8 phrases, the guide, voice
 commands. Nothing in this item runs without the model's answer being checked.
 
@@ -248,4 +257,6 @@ On Rob's Mac (M2, 8 GB, Metal) and the Windows laptop - not every machine (R3):
 - **The answer-time bar: under 20 seconds** on the 8 GB machine for a question like Rob's Harbor Visa one, with the
   figures shown as soon as the engines finish.
 - **Next:** section 5's measurement, lookups only - no proposals, no voice change - then the three stages, each
-  accepted before the next.
+  accepted before the next.- **H17 added** (Rob: *"we should have some type of indication that the AI is working something that is animated that
+  things are happening in the background"*): an animated working indicator naming the real step, steady with reduced
+  motion.
