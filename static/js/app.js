@@ -13412,7 +13412,7 @@ const HELP_FAQ = [
   {"q": "What does \"Make this my budget\" on the income card do?", "a": "It changes the budget lines shown in that option, and only on your tap. It never cuts the necessity floor, a category you protected, or a payment set by a contract (a loan, lease, debt or insurance payment). \"Undo\" right there puts every line back.", "keys": ["make", "budget", "income", "card", "changed", "lines", "undo", "follows"], "open": {"view": "budget", "el": "budgetIncomeChange"}, "labels": ["Make this my budget"]},
   {"h": "AI and privacy"},
   {"q": "How do I turn the AI features on or off?", "a": "Settings → General → AI features. Everything in Groundwork works with AI off; with it on, reports and some cards add a written explanation. The Ask box at the top is AI help, so it appears only while AI is on; the ? button's guide works either way.", "keys": ["ai", "ask", "assistant", "box", "disable", "enable", "features", "off", "on", "turn"], "open": {"view": "settings", "tab": "general"}, "labels": ["AI features"]},
-  {"q": "Where can I see what was sent to the AI?", "a": "Settings → General → AI log. It lists every request made to the AI on this computer, what came back, and whether the voice check passed it. You can clear it.", "keys": ["ai", "log", "sent", "history", "requests", "what"], "open": {"view": "settings", "tab": "general", "el": "settingsAiLog"}, "labels": ["AI log", "Clear the log"]},
+  {"q": "Where can I see what was sent to the AI?", "a": "Settings → General → AI log. It lists every request made to the AI on this computer, what came back, and whether the voice check passed it. For a question to the assistant it keeps only what was looked up, never the question or the answer. You can clear it.", "keys": ["ai", "log", "sent", "history", "requests", "what"], "open": {"view": "settings", "tab": "general", "el": "settingsAiLog"}, "labels": ["AI log", "Clear the log"]},
   {"h": "Trips"},
   {"q": "How do I bring in a whole trip itinerary?", "a": "In the Trip Planner, the card \"Have a quote, or just want to describe the trip?\" takes a pasted itinerary (\"Read as a whole itinerary\") or a PDF or saved email (\"Choose an itinerary file\", or drop it on the card). It is read on this computer and never kept. Tick the parts you want, then \"Use the ticked parts for this trip\".", "keys": ["itinerary", "expedia", "booking", "confirmation", "trip", "import", "pdf", "email"], "open": {"view": "trip", "el": "tripQuoteCard"}, "labels": ["Read as a whole itinerary", "Have a quote"]},
   {"h": "Health"},
@@ -25320,7 +25320,8 @@ async function saveBankRecipe(key) {
 // Item 62 (AI_LOG.md): Settings -> AI log. Every AI request as it was sent and as it came back, newest first; the
 // voice check's verdict and any rewrite; shortened or stopped; run on this computer. Read by this page alone (G3).
 let _aiLogOpen = null;
-const _AI_SURFACE = s => String(s || 'AI').replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
+const _AI_SURFACE = s => s === 'assistant' ? 'The assistant (what it looked up only - never the question)'
+  : String(s || 'AI').replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
 
 async function renderAiLog() {
   const box = g('settingsAiLog');
@@ -26146,6 +26147,7 @@ async function forgetBankLogin(key) {
 function renderSettings() {
   _settingsShowTab(_settingsActiveTab);
   renderAiLog();   // item 62
+  renderAssistNames();   // item 114 R17
   if (g('settingsSavingsPct')) g('settingsSavingsPct').value = S.dfmSavingsCut || 5;
   if (g('settingsMonthlyBudget')) g('settingsMonthlyBudget').value = g('monthlyBudget')?.value || '';
   if (g('settingsDebtMethod')) g('settingsDebtMethod').value = S.debtMethod || 'avalanche';
@@ -27663,7 +27665,7 @@ function _askBudgetCat(text) {
   const names = [...(S.expenses || []).flatMap(e => [e.name, e.cat]), ...(_categoriesCache || []).map(c => c && (c.name || c))].filter(Boolean);
   return names.find(nm => String(nm).toLowerCase() === t) || null;
 }
-function askIntent(q, p, head) {
+function askIntent(q, p, head, assist = false) {
   const n = _askNorm(q);
   if (!n) return false;
   if (/^(?:hi|hello|hey there|hey|good (?:morning|afternoon|evening)|yo)$/.test(n)) {
@@ -27673,8 +27675,9 @@ function askIntent(q, p, head) {
   if (/^(?:thanks|thank you|thx|ty|cheers|great|perfect|ok thanks)$/.test(n)) { _askSay(p, head, "You're welcome."); return true; }
   if (/^(?:help|\?|what can you do|what can i ask|what can i say|commands)$/.test(n)) {
     _askSay(p, head, `Ask how to do something ("how do I split a transaction?"), ask what a page means ("explain these numbers"), see what's behind a figure ("why is restaurants so high"), or say where to go ("view the calendar", "see my medical bills"),
-      or what to do ("get my accounts", "import a statement", "add a bill", "back up"). Questions about your own numbers
-      ("how much do I owe?") open the page that shows them, with the working.
+      or what to do ("get my accounts", "import a statement", "add a bill", "back up"). ${assist
+        ? 'Questions about your own numbers ("how much do I owe?", "what did we spend on groceries?") are answered here, from your records.'
+        : 'Questions about your own numbers ("how much do I owe?") open the page that shows them, with the working.'}
       <div style="margin-top:8px"><button class="btn btn-secondary btn-sm" onclick="closeAsk(); showHelpOverlay()">The whole guide</button></div>`);
     return true;
   }
@@ -27700,7 +27703,9 @@ function askIntent(q, p, head) {
   const expPlace = exp && ASK_PLACES.find(pl => pl.names.includes(exp[1]));
   if (expPlace) { askGo(expPlace); setTimeout(explainPage, 450); return true; }
   // "explain restaurants", "why is restaurants so high", "what's in groceries": the transactions behind that spending
-  const spentQ = n.match(/^(?:explain|break down|what'?s in|what is in|why is|why are|check) (?:my |the )?(.+?)(?: so high| so much| that much| wrong| this month| spending| spent| budget| line| category)*$/);
+  // Item 114: with the assistant on, a question about the person's own figures is answered in the conversation (the
+  // four branches below open a page instead, as before, with AI off)
+  const spentQ = !assist && n.match(/^(?:explain|break down|what'?s in|what is in|why is|why are|check) (?:my |the )?(.+?)(?: so high| so much| that much| wrong| this month| spending| spent| budget| line| category)*$/);
   const spentCat = spentQ && _askBudgetCat(spentQ[1]);
   if (spentCat) {
     _askDone();
@@ -27718,13 +27723,13 @@ function askIntent(q, p, head) {
   }
   if (askFetch(n)) return true;
   for (const d of ASK_DO) if (d.re.test(n)) { _askDone(d.said); d.run(); return true; }
-  for (const r of ASK_RECORD) if (r.re.test(n)) {
+  if (!assist) for (const r of ASK_RECORD) if (r.re.test(n)) {
     window._askPlace = r.place;
     _askSay(p, head, `${esc(r.say)}<div style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="askGo(window._askPlace)">Show me</button></div>
       <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:8px">Groundwork shows your figures where it works them out, never as a guess.</div>`);
     return true;
   }
-  const spend = _askSpend(n);
+  const spend = !assist && _askSpend(n);
   if (spend) {
     if (spend.kind === 'category') {
       _askDone(`Opened ${spend.cat} in the category report`);
@@ -27734,7 +27739,7 @@ function askIntent(q, p, head) {
     else { _askDone("Opened this month's budget"); showView('budget'); setTimeout(() => _budShowTab('plan'), 60); }
     return true;
   }
-  const term = _askSearchTerm(n);
+  const term = !assist && _askSearchTerm(n);
   if (term) { askLedgerSearch(term); return true; }
   const place = askPlace(n);
   if (place) { askGo(place); return true; }
@@ -28214,16 +28219,16 @@ function careAsk(q, p, head) {
   return true;
 }
 
-async function askGroundwork(question) {
+async function askGroundwork(question, shownAs) {
   const q = String(question || '').trim().slice(0, 300);
   if (!q) return;
   const p = _askPanel();
   const head = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-      <div style="font-size:var(--fs-xs);color:var(--slate-2)">You asked: ${esc(q)}</div>
+      <div style="font-size:var(--fs-xs);color:var(--slate-2)">You asked: ${esc(shownAs || q)}</div>
       <button class="btn btn-ghost btn-sm" onclick="closeAsk()" aria-label="Close">✕</button></div>`;
   window._askHead = head;
   if (careAsk(q, p, head)) return;            // item 104: someone struggling hears this first, from fixed words
-  if (askIntent(q, p, head)) return;         // commands, pages, searches, your own figures - before any guide answer
+  if (askIntent(q, p, head, aiEnabled())) return;   // commands, pages - and with AI off, searches and your own figures
   if (!aiEnabled()) {                         // the box is hidden with AI off; a question already typed gets the guide
     const hit = helpMatch(q);
     p.innerHTML = hit && !hit.choices ? _askEntryHTML(hit, head)
@@ -28248,6 +28253,8 @@ async function askGroundwork(question) {
       return;
     }
   }
+  // Item 114: the assistant reads the record and answers; the guide answers what it sends there ("how do I ...")
+  if (await askAssistant(q, p, head)) return;
   const closest = helpRank(q).filter(x => x.score > 0).slice(0, ASK_GUIDE_SIZE).map(x => x.it);
   window._askClosest = closest;
   if (!closest.length) {
@@ -28311,6 +28318,108 @@ async function openWhyCheck(check) {
   let fixes = [];
   try { fixes = ((await API.get('/api/why/fixes')) || {}).fixes || []; } catch (e) { _gwErr('openWhyCheck fixes')(e); }
   p.innerHTML = _whyHTML(d, fixes);
+}
+
+// ── Item 114 stage 1 (AGENT_HANDS.md; Rob 2026-10-30: "we need to give the AI agent hands") ─────────────────────────
+// The assistant reads the record and works the engines on this computer; every figure is Groundwork's own sentence
+// (H22). The last answer's plan stays in this page's memory for a follow-up (H13) and is never written (R19).
+let _assistCtx = null;
+const ASSIST_FOLLOW = /^(?:what about|how about|and |only |just |the ones|those|yes\b|yeah|yep|sure|ok\b|okay|no\b|same |for )/i;
+
+function _assistWorking(p, head, step) {
+  p.innerHTML = head + `<div class="gw-working" role="status" aria-live="polite"><span class="gw-working-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>${esc(step || 'Working')}…</span></div>`;
+}
+
+async function askAssistant(q, p, head) {
+  const follow = _assistCtx && (ASSIST_FOLLOW.test(q) || q.split(/\s+/).length <= 4);
+  let job;
+  _assistWorking(p, head, 'Starting');
+  try { job = (await API.post('/api/assistant/ask', { question: q, context: follow ? _assistCtx : null })).job; }
+  catch (e) { _gwErr('askAssistant')(e); return false; }
+  let res = null, last = '';
+  for (let i = 0; i < 600 && g('askPanel'); i++) {
+    let d;
+    try { d = await API.get('/api/assistant/job/' + job); } catch (e) { _gwErr('askAssistant job')(e); return false; }
+    if (d.done) { res = d.result; break; }
+    if (d.step && d.step !== last) { last = d.step; _assistWorking(p, head, d.step); }    // H17: the step that is running
+    await new Promise(r => setTimeout(r, 150));
+  }
+  if (!res || !g('askPanel')) return true;                    // closed while it was working
+  if (res.outcome === 'guide') return false;                   // "how do I ..." - the guide answers, below
+  if (res.outcome === 'open_page') {
+    const pl = askPlace(_askNorm(q));
+    if (pl) { askGo(pl); return true; }
+  }
+  _assistCtx = { question: follow && _assistCtx && res.outcome !== 'clarify' ? _assistCtx.question : q, plan: res.plan,
+                 offer: res.offer || null, offer_name: res.offer_name || null };
+  window._assistLast = { q, res };
+  p.innerHTML = head + _assistHTML(res);
+  return true;
+}
+
+function _assistHTML(res) {
+  const lines = (res.shown || []).map(s => `<div style="margin-top:6px">${esc(s)}</div>`).join('');
+  let more = '';
+  if (res.confirmed_name) {
+    more += `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:10px">Saved: "${esc(res.confirmed_name.said)}" means the ${esc(res.confirmed_name.means)}.
+      <button class="btn btn-ghost btn-sm" onclick="assistForget('${esc(res.confirmed_name.said)}')">Undo</button></div>`;
+  }
+  if (res.outcome === 'clarify' && (res.choices || []).length) {
+    window._assistChoices = res.choices;
+    more += `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">`
+      + (res.offer_name ? `<button class="btn btn-primary btn-sm" onclick="assistYes()">Yes</button>` : '')
+      + res.choices.map((c, i) => (res.offer_name && c === res.offer_name.means) ? ''
+        : `<button class="btn btn-secondary btn-sm" onclick="assistPick(${i})">${esc(c)}</button>`).join('') + `</div>`;
+  }
+  if (res.offer) {
+    more += /No bank is set up/.test(res.offer)
+      ? `<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="closeAsk(); showView('automation')">Open the Assistant page</button></div>`
+      : `<div style="margin-top:10px"><button class="btn btn-primary btn-sm" onclick="closeAsk(); startFetchAll()">Yes, get my accounts</button></div>`;
+  }
+  const note = res.r15 || res.r7 || ['refuse', 'propose', 'outside_record', 'unavailable'].includes(res.outcome) ? ''
+    : `<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:10px">Every figure is Groundwork's own, worked from your records on this computer; the AI chose which to show.</div>`;
+  return `<div class="byb-in" style="font-size:var(--fs-base);color:var(--ink);line-height:1.65;margin-top:6px">${lines}</div>${more}${note}`;
+}
+
+// R16 / R17: the person's Yes, or their pick, is kept as their word - then the question is answered for it
+async function assistYes() {
+  const c = _assistCtx;
+  if (!c || !c.offer_name) return;
+  askGroundwork('Yes', c.question);                 // the header keeps the question the Yes answers
+}
+
+async function assistPick(i) {
+  const means = (window._assistChoices || [])[i];
+  const last = window._assistLast;
+  const said = last && last.res && last.res.said;
+  if (!means || !said) return;
+  try { await API.post('/api/assistant/names', { kind: 'debt', said, means }); }
+  catch (e) { _gwErr('assistPick')(e); return; }
+  showToast(`Saved: "${said}" means the ${means}`, '', 'success');
+  _assistCtx = null;
+  askGroundwork(last.q);
+}
+
+async function assistForget(said) {
+  try { await API.post('/api/assistant/names/forget', { kind: 'debt', said }); }
+  catch (e) { _gwErr('assistForget')(e); return; }
+  showToast('Removed', `"${said}" is no longer kept.`, 'info');
+  renderAssistNames();
+}
+
+// Settings: Names you use (R17) - each one the person confirmed, removable
+async function renderAssistNames() {
+  const box = g('settingsNames');
+  if (!box) return;
+  let d;
+  try { d = await API.get('/api/assistant/names'); } catch (e) { return; }
+  const names = d.names || [];
+  box.innerHTML = `<div style="font-size:var(--fs-base);font-weight:500">Names you use</div>
+    <div style="font-size:var(--fs-xs);color:var(--slate-2);margin:2px 0 6px">When the assistant asked what you meant, your answers are kept here so it doesn't ask again. Only your own answers are kept; remove any of them.</div>`
+    + (names.length ? names.map(x => `<div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--steel-2);padding:6px 0;font-size:var(--fs-sm)">
+        <span>"${esc(x.said.replace(/\b\w/g, c => c.toUpperCase()))}" means the ${esc(x.means)}</span>
+        <button class="btn btn-ghost btn-sm" onclick="assistForget('${esc(x.said)}')">Remove</button></div>`).join('')
+      : `<div style="font-size:var(--fs-sm);color:var(--slate)">None yet.</div>`);
 }
 
 function askGroundworkPick(i) {

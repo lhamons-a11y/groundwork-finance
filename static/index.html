@@ -120,6 +120,13 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 #gwAskBox:focus{width:28.75rem;height:2.25rem;font-size:var(--fs-md);outline:none;box-shadow:0 6px 24px rgba(13,17,23,.16)}
 @media (max-width:900px){#gwAskBox:focus{width:18.75rem}}
 @media (prefers-reduced-motion:reduce){#gwAskBox{transition:none}}
+/* Item 114 H17: the assistant is working - a state, not a nudge (TM6); steady with reduced motion */
+.gw-working{display:flex;align-items:center;gap:10px;font-size:var(--fs-base);color:var(--slate);margin-top:10px}
+.gw-working-dots{display:inline-flex;gap:4px}
+.gw-working-dots i{width:7px;height:7px;border-radius:50%;background:var(--sky);opacity:.35;animation:gwWork 1.2s ease-in-out infinite}
+.gw-working-dots i:nth-child(2){animation-delay:.2s}.gw-working-dots i:nth-child(3){animation-delay:.4s}
+@keyframes gwWork{0%,100%{opacity:.35;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){.gw-working-dots i{animation:none;opacity:.8}}
 /* Trip Planner — Phase 10 */
 .trip-mode-btn.active{background:var(--sky);color:#fff;border-color:var(--sky)}
 .trip-fund-btn.active{background:var(--pine-text);color:#fff;border-color:var(--pine)}
@@ -2949,6 +2956,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6;margin:-6px 0 14px">With AI off, every report still shows its full summary: its charts and its figures. AI adds an explanation of what they mean. If AI is slow on this computer, turning it off loses no figures.</div>
             <!-- Item 62 (AI_LOG.md): every AI request, as sent and as it came back -->
             <div id="settingsAiLog" style="margin:0 0 16px"></div>
+            <!-- Item 114 R17: the names the person confirmed to the assistant - each removable -->
+            <div id="settingsNames" style="margin:0 0 16px"></div>
             <div id="aiLocalPanel">
               <div id="aiLocalStatus" style="font-size:var(--fs-sm);margin-bottom:12px">Checking…</div>
               <div class="text-xs text-muted mt-4">Runs inside Groundwork, on this computer — nothing else to install, and nothing leaves your machine. Uses about 3–4 GB of memory while Groundwork is open with AI on; with AI off, nothing is loaded.</div>

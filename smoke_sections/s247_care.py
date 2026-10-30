@@ -52,15 +52,15 @@ def run(ctx):
     wrong = [q for q in NEITHER if _level(danger, strain, q)]
     check(f's247 K3 everyday money questions bring neither ({wrong})', not wrong)
 
-    ask = app[app.index('async function askGroundwork(question) {'):app.index('\nfunction _askWhyChoicesHTML() {')]
+    ask = app[app.index('async function askGroundwork(question, shownAs) {'):app.index('\nfunction _askWhyChoicesHTML() {')]
     first = ask.index('if (careAsk(q, p, head)) return;')
     check('s247 K1 it is checked first in the Ask box - before commands, the guide, the AI, or the unanswered list',
-          first < ask.index('askIntent(q, p, head)') < ask.index('callAI(') and first < ask.index('/api/help/unanswered'))
+          first < ask.index('askIntent(q, p, head, aiEnabled())') < ask.index('callAI(') and first < ask.index('/api/help/unanswered'))
     faq = app[app.index('function _renderHelpFaq(filter) {'):app.index('function closeHelpOverlay()')]
     check("s247 K1 the guide's search shows it too, before any entry (the guide is there with AI off)",
           'const care = careLevel(f);' in faq and faq.index('careHTML(care)') < faq.index('for (const item of HELP_FAQ)'))
 
-    care = app[app.index('const CARE_DANGER = '):app.index('async function askGroundwork(question) {')]
+    care = app[app.index('const CARE_DANGER = '):app.index('async function askGroundwork(question, shownAs) {')]
     check('s247 K2 the calm words: it will be okay, money trouble is temporary and can be fixed, not alone',
           care.count('It will be okay.') == 2 and care.count('Money trouble is temporary, and it can be fixed') == 2
           and "You're not alone in this." in care and "You don't have to carry this alone." in care

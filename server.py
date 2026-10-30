@@ -207,6 +207,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(categories_bp,    url_prefix='/api/categories')
     app.register_blueprint(investments_bp,   url_prefix='/api/investments')
     app.register_blueprint(networth_bp,      url_prefix='/api/net-worth')
+    app.register_blueprint(assistant_bp,     url_prefix='/api/assistant')     # item 114: the assistant's hands
     app.register_blueprint(byb_bp,           url_prefix='/api/byb')
     app.register_blueprint(trip_bp,          url_prefix='/api/trip')
     app.register_blueprint(utility_bp,       url_prefix='/api/utility')
@@ -4919,6 +4920,153 @@ help_bp = Blueprint('help', __name__)
 
 # ── Item 72 stage 2 C7/C11: the questions the Ask box could not answer - the person's own words, kept only to be shown
 # back to them and cleared. The three routes below are the only code that touches them (s193).
+# ── Item 114 (gw 2.0/AGENT_HANDS.md; Rob 2026-10-30: "we need to give the AI agent hands") - stage 1, read ─────────────
+# The question runs as a short job so the page can show the step that is running (H17). It lives in memory only while
+# it is answered: never written, never logged (R19). The AI log keeps which lookups ran and when, nothing else.
+assistant_bp = Blueprint('assistant', __name__)
+_ASSIST_JOBS = {}
+_ASSIST_LOCK = threading.Lock()
+ASSIST_JOB_SECONDS = 600
+
+
+class _EngineNotReady(Exception):
+    pass
+
+
+def _assistant_ai_on(session):
+    s = _get_setting(session, 'ai_enabled')
+    return not (s and (s.value or '').lower() in ('false', '0', 'off'))
+
+
+def _assistant_job(app, job_id, question, context):
+    from core import agent_hands as ah
+    from core import engine
+
+    def progress(step):
+        with _ASSIST_LOCK:
+            if job_id in _ASSIST_JOBS:
+                _ASSIST_JOBS[job_id]['step'] = step
+
+    def model_call(system, user, schema):
+        r = engine.complete_json(system, user, schema, max_tokens=300)
+        if not r.get('ok'):
+            raise _EngineNotReady(r.get('message') or 'The AI is not ready.')
+        return r['text']
+
+    result = {'outcome': 'unavailable', 'shown': []}
+    with app.app_context():
+        c = app.test_client()
+        hdr = {'X-GW-Token': _GW_TOKEN}
+
+        def get(path):
+            d = c.get(path, headers=hdr).get_json(silent=True)
+            return d.get('data', d) if isinstance(d, dict) and 'data' in d else d
+        try:
+            out = ah.answer(ah.Reader(get, db_session), model_call, None, question, context, progress)
+            found = out.get('results') or []
+            clar = next((r for r in found if r.get('clarify')), {})
+            result = {'outcome': out.get('outcome'), 'shown': out.get('shown') or [],
+                      'choices': clar.get('choices') or [], 'offer_name': out.get('offer_name'),
+                      'offer': next((s for s in out.get('shown') or [] if 'get your accounts' in s or 'No bank is set up' in s), None),
+                      'page': (out.get('plan') or {}).get('page'), 'confirmed_name': out.get('confirmed_name'),
+                      'said': next((x.get('debt') for x in (out.get('plan') or {}).get('lookups') or [] if x.get('debt')), None),
+                      'plan': {'lookups': (out.get('plan') or {}).get('lookups') or []},
+                      'r7': bool(out.get('r7')), 'r15': bool(out.get('r15'))}
+            looked = out.get('lookups') or []
+        except _EngineNotReady as e:
+            result = {'outcome': 'unavailable', 'shown': [str(e)]}
+            looked = []
+        except Exception:                                      # noqa: BLE001 - said plainly, never guessed around
+            logging.getLogger('groundwork').exception('assistant: the answer failed')
+            result = {'outcome': 'unavailable', 'shown': ['Something went wrong working that out. Nothing was changed.']}
+            looked = []
+        # R19: which lookups ran and when - never the question, never the answer
+        _ai_log_write({'surface': 'assistant', 'system': '', 'messages': [{'lookups': looked, 'outcome': result['outcome']}]})
+    with _ASSIST_LOCK:
+        if job_id in _ASSIST_JOBS:
+            _ASSIST_JOBS[job_id].update(done=True, result=result, step='')
+
+
+@assistant_bp.route('/ask', methods=['POST'])
+@require_json
+def assistant_ask():
+    """Item 114: {question, context} -> {job}. context is the last answer's plan, offer and name question, held by the
+    page in memory for a follow-up (H13) - the server keeps none of it."""
+    b = request.get_json() or {}
+    q = str(b.get('question') or '').strip()[:300]
+    if not q:
+        return err('Ask a question.')
+    with db_session() as session:
+        if not _assistant_ai_on(session):
+            return err('The assistant is AI help, and AI is off.', 409)
+    from flask import current_app
+    ctx = b.get('context') if isinstance(b.get('context'), dict) else None
+    job_id = secrets.token_hex(8)
+    now = time.time()
+    with _ASSIST_LOCK:
+        for k in [k for k, v in _ASSIST_JOBS.items() if now - v['t'] > ASSIST_JOB_SECONDS]:
+            _ASSIST_JOBS.pop(k, None)
+        _ASSIST_JOBS[job_id] = {'t': now, 'step': 'Starting', 'done': False, 'result': None}
+    threading.Thread(target=_assistant_job, args=(current_app._get_current_object(), job_id, q, ctx), daemon=True,
+                     name='groundwork-assistant').start()
+    return ok({'job': job_id})
+
+
+@assistant_bp.route('/job/<job_id>', methods=['GET'])
+def assistant_job(job_id):
+    """The step running now (H17), or the answer - handed over once, then forgotten (R19)."""
+    with _ASSIST_LOCK:
+        j = _ASSIST_JOBS.get(job_id)
+        if not j:
+            return err('That answer is no longer here.', 404)
+        if j['done']:
+            _ASSIST_JOBS.pop(job_id, None)
+            return ok({'done': True, 'result': j['result']})
+        return ok({'done': False, 'step': j['step']})
+
+
+@assistant_bp.route('/names', methods=['GET'])
+def assistant_names():
+    """R17: the names the person confirmed - Settings, Names you use."""
+    with db_session() as session:
+        names = _setting_json(session, 'assistant_names_json', {}) or {}
+    return ok({'names': [{'kind': k, 'said': s, 'means': m} for k, d in names.items() for s, m in sorted(d.items())]})
+
+
+@assistant_bp.route('/names', methods=['POST'])
+@require_json
+def assistant_name_keep():
+    """R17: the person picked or said Yes - {kind, said, means}. Only a debt that exists can be meant."""
+    from core import agent_hands as ah
+    b = request.get_json() or {}
+    kind, said, means = str(b.get('kind') or 'debt'), str(b.get('said') or '').strip()[:80], str(b.get('means') or '')
+    if kind != 'debt' or not said or not means:
+        return err('A name and what it means are needed.')
+    with db_session() as session:
+        if not session.query(DebtAccount).filter_by(name=means, is_active=True).first():
+            return err('There is no debt by that name.', 404)
+    ah.confirm_name(ah.Reader(None, db_session), kind, said, means)
+    return ok({'kind': kind, 'said': said, 'means': means})
+
+
+@assistant_bp.route('/names/forget', methods=['POST'])
+@require_json
+def assistant_name_forget():
+    """R17: Undo, or removed from Settings - recorded in the Historian as the person's own change."""
+    from core import agent_hands as ah
+    b = request.get_json() or {}
+    kind, said = str(b.get('kind') or 'debt'), ah._norm_said(b.get('said'))
+    with db_session() as session:
+        names = _setting_json(session, 'assistant_names_json', {}) or {}
+        if said not in (names.get(kind) or {}):
+            return err('That name is not kept.', 404)
+        means = names[kind].pop(said)
+        _set_setting(session, 'assistant_names_json', json.dumps(names))
+        log_historian_event(session, 'assistant_name_removed', context={'kind': kind, 'said': said, 'means': means})
+        session.commit()
+    return ok({'removed': said})
+
+
 @help_bp.route('/unanswered', methods=['GET'])
 def help_unanswered_list():
     with db_session() as session:
@@ -14309,6 +14457,9 @@ def _ai_chat_stream(body: dict):
 AI_LOG_DAYS = 90
 
 
+ASK_SURFACES_NO_TEXT = ('ask_howto',)     # item 114 R19: the Ask box's guide answers - the assistant logs lookups only
+
+
 def _ai_log_write(body, response='', stop_reason='', model='', stopped=False):
     """G1/G7: one row per attempt, written here only. Off when the person turned the log off (G4); entries older
     than 90 days go each time one is written. Never read by anything but the log's own routes (G3)."""
@@ -14319,6 +14470,9 @@ def _ai_log_write(body, response='', stop_reason='', model='', stopped=False):
             session.query(AiLog).filter(AiLog.created_at < datetime.now() - timedelta(days=AI_LOG_DAYS)) \
                 .delete(synchronize_session=False)
             from core import health_boundary as _hb      # item 45 H6 P6: scrubbed again, whoever called
+            if str(body.get('surface') or '') in ASK_SURFACES_NO_TEXT:     # item 114 R19: never the question or answer
+                body = {**body, 'messages': [{'kept': 'the question is not kept (R19)'}]}
+                response = ''
             row = AiLog(call_id=str(body.get('log_call') or '')[:64], attempt=int(body.get('log_attempt') or 1),
                         surface=str(body.get('surface') or '')[:80], system=_hb.scrub(str(body.get('system') or ''))[:40000],
                         messages=json.dumps(_hb.scrub_obj(body.get('messages') or []))[:80000],

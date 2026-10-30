@@ -24,7 +24,7 @@ def run(ctx):
     check('s248 E1 the Explain button is AI help, in the top bar beside the guide',
           'class="btn btn-sm btn-secondary ai-feature" onclick="explainPage()"' in html
           and 'aria-label="Explain this page">Explain</button>' in html)
-    intent = app[app.index('function askIntent(q, p, head) {'):]
+    intent = app[app.index('function askIntent(q, p, head, assist = false) {'):]
     intent = intent[:intent.index('if (askFetch(n)) return true;')]
     check('s248 E1 the Ask box: "explain this page", "what am I looking at", "explain my budget" (the page, then explained)',
           'explainPage(); return true;' in intent and 'what am i looking at' in intent

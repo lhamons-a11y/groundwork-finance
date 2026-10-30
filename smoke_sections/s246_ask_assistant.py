@@ -16,7 +16,7 @@ import re
 
 def run(ctx):
     check, app, html = ctx.check, ctx.app_src, ctx.html_src
-    ask = app[app.index('async function askGroundwork(question) {'):app.index('\nfunction _askWhyChoicesHTML() {')]
+    ask = app[app.index('async function askGroundwork(question, shownAs) {'):app.index('\nfunction _askWhyChoicesHTML() {')]
     check('s246 A1 the Ask box is AI help, shown only with AI on and able to run, named for what it does (Rob 2026-10-20: '
           '"lets change the phrase ask how to ... to something else since the text window can do more")',
           'id="gwAskBox" class="ai-feature"' in html and 'placeholder="Ask or tell Groundwork…"' in html and "document.querySelectorAll('.ai-feature')" in app
@@ -58,8 +58,8 @@ def run(ctx):
     import shutil, subprocess, tempfile, os
     nav = app[app.index('const ASK_PLACES = ['):app.index('function askGo(')]
     check('s246 A6 "view", "see", "show me", "open", "go to", "take me to" a page or tab goes straight there; "show me how" is a question',
-          'if (askIntent(q, p, head)) return;' in ask and 'picture' not in nav
-          and ask.index('askIntent(q, p, head)') < ask.index('callAI(') and 'show me how to... is a question' in nav.replace('"', '')
+          'if (askIntent(q, p, head, aiEnabled())) return;' in ask and 'picture' not in nav
+          and ask.index('askIntent(q, p, head, aiEnabled())') < ask.index('callAI(') and 'show me how to... is a question' in nav.replace('"', '')
           or ("show me how to..." in nav and 'askGo(place)' in ask))
     node = shutil.which('node')
     if node:
@@ -89,7 +89,7 @@ def run(ctx):
           and "showView('automation');" in fetch)
 
     # Rob 2026-10-19: "add those four and anything else that you can think of" - what people actually type
-    layer = app[app.index('const _ASK_SHORT = '):app.index('async function askGroundwork(question) {')]
+    layer = app[app.index('const _ASK_SHORT = '):app.index('async function askGroundwork(question, shownAs) {')]
     check('s246 A8 shorthand and lead-ins are tidied first ("acct", "txn", "cc"; "I need to", "can you", "please")',
           "acct: 'account'" in layer and "txn: 'transaction'" in layer and "cc: 'credit card'" in layer
           and 'i need to' in layer and 'can you' in layer)

@@ -216,6 +216,8 @@ HEALTH_SINKS.update({
     ('server.py', '_ai_chat_local', 'ai_log'): 'the AI log: scrubbed in _ai_log_write (P6), prompt scrubbed first (P5)',
     ('server.py', '_ai_chat_stream', 'ai_log'): 'the AI log: scrubbed in _ai_log_write (P6), prompt scrubbed first (P5)',
     ('server.py', 'why_route', 'ai_log'): 'the AI log: scrubbed in _ai_log_write (P6)',
+    ('server.py', '_assistant_job', 'ai_log'): 'the AI log: which lookups ran and the outcome only - never the question or '
+                                               'the answer (item 114 R19); scrubbed in _ai_log_write (P6)',
 })
 
 

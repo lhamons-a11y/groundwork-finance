@@ -543,7 +543,8 @@ def lk_debt_whatif(reader, a):
             return {'enough': True, **_clarify_name(a['debt'], [c.name for c in (hits or cards)])}
         if _norm_said(a['debt']) != _norm_said(target.name):
             read_as = {'said': a['debt'], 'means': target.name,
-                       'from': 'your earlier answer' if _norm_said(a['debt']) in saved else 'the closest name'}
+                       'from': ('your answer' if a.get('_just_confirmed') else 'your earlier answer')
+                       if _norm_said(a['debt']) in saved else 'the closest name'}
     extra = float(a.get('extra_monthly') or 0)
     tk = reader.today.strftime('%Y-%m')
     plan_first = sorted(cards, key=(lambda c: c.balance) if strategy == 'snowball' else (lambda c: -c.rate))[0].name
@@ -1067,10 +1068,24 @@ def repair(question, p, reader):
     return p
 
 
-def run_lookups(reader, p):
+# H17 (Rob 2026-10-30): the working indicator names the step that is actually running, in plain words
+STEP_WORDS = {
+    'transactions': 'Looking at your transactions', 'category_by_month': 'Adding up a category, month by month',
+    'budget_lines': 'Reading your budget', 'budget_vs_spent': 'Checking your budget against what you spent',
+    'income_lines': 'Reading your income', 'debts': 'Looking at your debts', 'balances': 'Reading your account balances',
+    'net_worth': 'Reading your net worth', 'recurring': 'Finding charges that repeat', 'price_changes': 'Looking for price changes',
+    'bills_due': 'Reading your calendar and bills', 'savings_goals': 'Reading your savings goals',
+    'freshness': 'Checking how current your record is', 'debt_whatif': 'Working out the payoff',
+    'budget_headroom': 'Finding room in your budget', 'minimums_only': 'Working out minimums only', 'guide': 'Opening the guide',
+}
+
+
+def run_lookups(reader, p, progress=None):
     results = []
     for x in p['lookups']:
         args = {k: v for k, v in x.items() if k != 'name'}
+        if progress:
+            progress(STEP_WORDS.get(x['name'], 'Reading your record'))
         t0 = time.time()
         try:
             r = FUNCS[x['name']](reader, args)
@@ -1214,7 +1229,7 @@ def render(r, today):
         if r.get('read_as'):
             ra = r['read_as']
             s.append(f"Reading \"{ra['said']}\" as the {ra['means']}"
-                     + (', as you said before.' if ra['from'] == 'your earlier answer' else '.'))
+                     + ({'your earlier answer': ', as you said before.', 'your answer': ', as you said.'}.get(ra['from'], '.')))
         n = r['now']
         s.append(f"At your {r['debt_budget']} a month debt budget ({r['strategy']}), you are debt-free in "
                  f"{n['debt_free']}, {_plural(n['months'], 'month')} from now, with {n['interest_to_pay']} in interest still to pay.")
@@ -1354,9 +1369,12 @@ def write(model_call, question, sentences, not_enough):
     return shown, {'raw': raw, 'chosen': [i + 1 for i in chosen], 'held': held}
 
 
-def answer(reader, model_call, model_call_text, question, context=None):
-    """R7 first, then the plan, the lookups, the outcome, the words and the check. Returns everything measured."""
+def answer(reader, model_call, model_call_text, question, context=None, progress=None):
+    """R7 first, then the plan, the lookups, the outcome, the words and the check. Returns everything measured.
+    `progress(step)` hears each step as it starts (H17)."""
+    progress = progress or (lambda step: None)
     out = {'question': question, 'timings': {}}
+    just_confirmed = False
     t0 = time.time()
     if illegal(question):
         out.update({'outcome': 'refuse', 'r15': True, 'shown': [ILLEGAL_REFUSAL], 'lookups': []})
@@ -1372,10 +1390,12 @@ def answer(reader, model_call, model_call_text, question, context=None):
         out['confirmed_name'] = on
         question = context['question']
         context = None
+        just_confirmed = True
     kind = read_request(question, context)
     if kind:
         p = {'intent': kind, 'lookups': [], 'read_by': 'groundwork'}
     else:
+        progress('Reading your question')
         p = plan(model_call, question, reader.today, context)
         # a question is answered from the record: the model may not turn it into a refusal, a change, a page or "outside"
         # - Groundwork's own reading (read_request) already decided those
@@ -1386,7 +1406,11 @@ def answer(reader, model_call, model_call_text, question, context=None):
     out['raw_plan'] = json.loads(json.dumps(p))
     p = repair(question, p, reader)
     out['plan'] = p
-    results = run_lookups(reader, p)
+    if just_confirmed:
+        for x in p['lookups']:
+            if x.get('debt'):
+                x['_just_confirmed'] = True
+    results = run_lookups(reader, p, progress)
     out['timings']['lookups'] = round(time.time() - t0 - out['timings']['plan'], 2)
     out['lookups'] = [r['_lookup'] for r in results]
     out['results'] = results
@@ -1410,6 +1434,7 @@ def answer(reader, model_call, model_call_text, question, context=None):
         shown = ["Your record can't answer that, and Groundwork doesn't look outside it."]
     else:
         t1 = time.time()
+        progress('Checking the answer')
         sentences = [x for r in results for x in render(r, reader.today)]
         out['facts'] = sentences
         if sentences:

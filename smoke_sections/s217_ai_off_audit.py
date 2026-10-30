@@ -67,7 +67,7 @@ def run(ctx):
     check('s217 F2 "AI reads this" is said only when AI is on',
           "${aiEnabled() ? '(AI reads this)' : '(kept with this report)'}" in app
           and '<span class="ai-feature" style="font-size:var(--fs-xs);color:rgba(255,255,255,.62)">AI reads this</span>' in html)
-    ask = app.split('async function askGroundwork(question) {')[1].split('\nfunction ')[0]
+    ask = app.split('async function askGroundwork(question, shownAs) {')[1].split('\nfunction ')[0]
     # Item 102 (Rob 2026-10-19: "if the user selects no AI it goes away") supersedes F6's Ask box: the box is AI help, hidden
     # with AI off or unable to run; the record checks stay reachable without AI from "Check my records" (Assistant page).
     check('s217 F6 (item 102) with AI off the Ask box is gone, and the record checks are still one tap away without AI',

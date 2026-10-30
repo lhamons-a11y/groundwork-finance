@@ -545,3 +545,35 @@ Cashback Visa. Q64 ("Yes"): the earlier question answered for the Cashback Visa,
 (*the person said yes*). Q65, later: no question - *"Reading "Harbor Visa" as the Cashback Visa, as you said before."*
 Each 3-8 s. Found and fixed on the way: "card" was read as "car" (the auto loan); words now match whole.
 
+## 12. Stage 1a built: the assistant, live in the Ask box (2026-10-30)
+
+Rob: *"lets not wait on the windows machine. Start stage 1"*. Stage 1 is built in two parts; this is the first.
+
+- **The route** (`server.py`, `/api/assistant/ask` and `/job/<id>`): a question runs as a short job on the engine
+  (`core/engine.py` `complete_json`, H12's grammar, the stop tokens, no tools - provision 2 holds), through
+  Groundwork's own routes for every lookup. The answer is handed to the page once, then forgotten (R19).
+- **The Ask box** (`app.js` `askAssistant`): with AI on, a question about the person's own figures is answered in
+  the panel - the four A8 branches that opened a page for one (a figure, "how much did I spend on", a store search,
+  "why is X so high") now step aside for the assistant; with AI off they work as before (H16). Greetings, help,
+  "what's new", undo, Explain, Get my accounts, commands and page names are unchanged, and "how do I" still goes to
+  the guide. Care (item 104) is still first.
+- **H17:** the working indicator - three dots and the step that is running ("Reading your question", "Checking your
+  budget against what you spent", "Checking the answer"); steady with reduced motion.
+- **R16/R17:** "Did you mean the Cashback Visa?" with **Yes** and the other debts as buttons; a Yes or a pick is kept
+  ("Saved: ... Undo"), in the Historian; **Settings, General, Names you use** lists them, each removable.
+- **H21:** an answer that read transactions says how current they are; from 48 hours it offers Get my accounts -
+  **Yes, get my accounts** presses the same button the page has (the person signs in; nothing unattended), or, with
+  no bank set up, opens the Assistant page.
+- **R19:** the AI log keeps, for the assistant, which lookups ran and the outcome only; the guide's answers in the Ask
+  box (`ask_howto`) are logged without the question or the answer; the page keeps the last answer's plan in memory
+  for a follow-up (H13) and stores nothing.
+- **Checked in the app** (a throwaway database with the sample household, the real engine on Metal): Rob's Harbor Visa
+  question asked "Did you mean the Cashback Visa?"; Yes answered it in full and kept the name; "Are we on budget this
+  month?" listed every line; Settings showed and removed the name; the AI log held `budget_vs_spent` and nothing of
+  the question.
+- **The gate:** s263 (13 checks, the model stood in so it runs anywhere); s208, s217, s246-s248 updated to the new
+  signatures. 3996 passed, 0 failed. `dev_server.py` gained `GROUNDWORK_DEV_ENGINE=1` to load the model in a preview.
+
+**Next, stage 1b:** H19 (a goal names its account - a schema change), H20 (set aside and available), H20b (spending
+checks use available), H20c (paid from a goal first).
+

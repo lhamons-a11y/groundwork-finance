@@ -16,6 +16,7 @@ What this module guarantees:
   - one call at a time (a lock); Ollama used to queue calls for us
   - stop() releases the model; the launcher calls it when the window closes
 """
+import json
 import gc
 import hashlib
 import logging
@@ -494,6 +495,36 @@ def choose(system, question, options):
     if raw not in options:
         return {'ok': False, 'reason': 'refused', 'message': 'The answer was not one of the choices.', 'raw': raw}
     return {'ok': True, 'choice': raw, 'raw': raw}
+
+
+_json_grammars = {}
+
+
+def complete_json(system, user, schema, max_tokens=300):
+    """Item 114 H12: one answer as JSON, forced into `schema` by a grammar - the model cannot ask for a lookup that is
+    not on the list, or write a field the schema does not have. No tools are passed (provision 2): the grammar only
+    shapes the text. {'ok': True, 'text'} or {'ok': False, 'reason', 'message'}."""
+    from llama_cpp import LlamaGrammar
+    key = json.dumps(schema, sort_keys=True)
+    if key not in _json_grammars:
+        _json_grammars[key] = LlamaGrammar.from_json_schema(key, verbose=False)
+    if _state['state'] in ('loading', 'fitting'):
+        _ready.wait(LOADING_WAIT_SECONDS)
+    with _lock:
+        if _model is None:
+            st = _state['state']
+            reason = _state['reason'] if st == 'unavailable' else st
+            return {'ok': False, 'reason': reason, 'message': MESSAGES.get(reason, MESSAGES['off'])}
+        msgs = [{'role': 'system', 'content': system}, {'role': 'user', 'content': user}]
+        try:
+            out = _model.create_chat_completion(messages=msgs, max_tokens=int(max_tokens), temperature=0.0,
+                                                grammar=_json_grammars[key], stop=STOP)
+        except ValueError as e:                 # the prompt does not fit the context window
+            if 'context' in str(e).lower() or 'exceed' in str(e).lower():
+                return {'ok': False, 'reason': 'too_long', 'message': MESSAGES['too_long']}
+            raise
+    raw = (((out.get('choices') or [{}])[0].get('message') or {}).get('content') or '').strip()
+    return {'ok': True, 'text': raw}
 
 
 def chat(system, messages, max_tokens=1000, temperature=0.3):

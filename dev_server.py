@@ -24,6 +24,9 @@ if __name__ == '__main__':
     from server import create_app, serve
     app = create_app()
     print(f'Groundwork dev server — temp DB at {_tmp}', flush=True)
+    if os.environ.get('GROUNDWORK_DEV_ENGINE') == '1':     # opt in: load the model as the launcher does (AI on only)
+        from server import engine_launch
+        engine_launch()
     # The same server the packaged app uses. A dev server on different
     # machinery measures the wrong thing, and latency was measured here.
     serve(app, host='127.0.0.1', port=8766)
