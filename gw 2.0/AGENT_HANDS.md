@@ -61,6 +61,8 @@ lookups only, before any build.
   where the money could come from.
 - **R13. No limit on the length of an answer** (Rob 2026-10-30: *"Groundwork should not have a limit on the length or
   amount of sentences that it would need to answer the user."*). H22.
+- **R14. `budget_vs_spent` joins the lookups** (Rob 2026-10-30: *"add budget_vs_spent lookup"*): every budget line
+  against one month's spending (section 11, item 4).
 - **R6.** The microphone stays on once turned on, so the person can talk with Groundwork (H14), and its button sits in
   the text box (H15). *Rob asked for both; the details below are for ruling.*
 - **R7. "Ignore your rules" is always rejected** (Rob: *"also "ignore your rules" should be text that is always
@@ -446,8 +448,9 @@ protected.
    on budget" read the headroom engine; "when will we be debt free" invented a debt name ("named_debt_here").
    *Fix:* a debt name not in the question is dropped (Groundwork's repair, recorded).
 4. **A lookup the list does not have (Q11, Q12).** "Are we on budget" and "which categories went over" need every
-   budget line against what was spent in one month; `category_by_month` reads one category. **For ruling (H2 says
-   adding a lookup is a ruling): add `budget_vs_spent`, every line against the month's spending.**
+   budget line against what was spent in one month; `category_by_month` reads one category. **Ruled 2026-10-30 (Rob:
+   *"add budget_vs_spent lookup"*): `budget_vs_spent` joins H2's list** - every expense line against one month's
+   spending, what is over, what is left, and spending with no line. Q11 and Q12 now expect it.
 5. **Not built yet, as expected (Q29, Q50, Q51, Q52):** goals do not name their account (H19), so "available" cannot
    be worked; H20c (paid from a goal first, then available funds or credit) is not built; the sample's Visa has no
    credit limit on file.

@@ -84,6 +84,7 @@ LOOKUPS = {
     'transactions': 'rows from the record: payee, category, month, amount range, kind (spending, income, refund, move)',
     'category_by_month': 'one category\'s spending, month by month, against its budget line',
     'budget_lines': 'the budget\'s expense lines',
+    'budget_vs_spent': 'every budget line against what was spent in one month: over, left, and spending with no line',
     'income_lines': 'the budget\'s income lines and the paychecks in the record',
     'debts': 'each debt: balance, rate, minimum, due day, this month\'s interest, available credit',
     'balances': 'each account\'s balance, how it is known, and what is set aside in it',
@@ -151,6 +152,8 @@ Q: Show me the Corner Market charges over $50
 {"lookups": [{"name": "transactions", "payee": "Corner Market", "min_amount": 50}], "kind": "about_my_record"}
 Q: If I paid $150 more a month on my car loan, when would I be done, and what could I cut to pay for it?
 {"lookups": [{"name": "debts"}, {"name": "debt_whatif", "debt": "car loan", "extra_monthly": 150}, {"name": "budget_headroom", "amount": 150}], "kind": "about_my_record"}
+Q: Did we stay on budget in July?
+{"lookups": [{"name": "budget_vs_spent", "month": "2026-07"}], "kind": "about_my_record"}
 Q: Is my phone bill going up every year?
 {"lookups": [{"name": "price_changes"}], "kind": "about_my_record"}
 Q: How much is in my emergency fund?
@@ -356,6 +359,40 @@ def _by_month(rows, names, today):
             by[k][1] += 1
     return [{'month_key': k, 'month': month_label(k), 'spent': money(round(v[0], 2)), 'visits': v[1],
              'partial': k == this} for k, v in sorted(by.items())]
+
+
+def lk_budget_vs_spent(reader, a):
+    """Item 114 (Rob 2026-10-30: "add budget_vs_spent lookup"): every expense line against one month's spending."""
+    rows, _ = _rows(reader)
+    first, last = _span(rows)
+    this = reader.today.strftime('%Y-%m')
+    month = _resolve_month(a.get('month'), reader.today) or this
+    if month > this:
+        return {'enough': False, 'why': f'{month_label(month)} has not happened', 'would_know': 'nothing yet - it is in the future'}
+    if first and month < first[:7]:
+        return {'enough': False, 'why': f'the record starts on {first}; {month_label(month)} is before it',
+                'would_know': 'importing statements from that month'}
+    spent = {}
+    for r in rows:
+        if _spend(r) and r['date'].startswith(month):
+            spent[r['category']] = spent.get(r['category'], 0.0) + _signed(r)
+    lines, over, used = [], [], set()
+    for i in _budget_items(reader):
+        if i.get('type') != 'expense':
+            continue
+        cat, amt = i.get('category') or i['name'], float(i['amount'])
+        s = round(spent.get(cat, 0.0), 2)
+        used.add(cat)
+        x = {'line': i['name'], 'category': cat, 'budgeted': money(amt), 'spent': money(s),
+             'over': money(s - amt) if s > amt + 0.005 else None, 'left': money(amt - s) if s <= amt + 0.005 else None}
+        lines.append(x)
+        if x['over']:
+            over.append(x['line'])
+    unbudgeted = {c: round(v, 2) for c, v in spent.items() if c not in used and c and v > 0.005}
+    return {'enough': True, 'month': month_label(month), 'partial_month': month == this, 'lines': lines,
+            'over_budget': over,
+            'spent_with_no_budget_line': [{'category': c, 'spent': money(v)} for c, v in sorted(unbudgeted.items())],
+            'reads_transactions': True}
 
 
 def lk_budget_lines(reader, a):
@@ -618,7 +655,7 @@ def lk_guide(reader, a):
 
 
 FUNCS = {'transactions': lk_transactions, 'category_by_month': lk_category_by_month, 'budget_lines': lk_budget_lines,
-         'income_lines': lk_income_lines, 'debts': lk_debts, 'balances': lk_balances, 'net_worth': lk_net_worth,
+         'income_lines': lk_income_lines, 'budget_vs_spent': lk_budget_vs_spent, 'debts': lk_debts, 'balances': lk_balances, 'net_worth': lk_net_worth,
          'recurring': lk_recurring, 'price_changes': lk_price_changes, 'bills_due': lk_bills_due,
          'savings_goals': lk_savings_goals, 'freshness': lk_freshness, 'debt_whatif': lk_debt_whatif,
          'budget_headroom': lk_budget_headroom, 'minimums_only': lk_minimums_only, 'guide': lk_guide}
@@ -975,6 +1012,17 @@ def render(r, today):
                      f"highest {r['highest']}.")
             if r.get('budget_line') and r['budget_line'] != 'no budget line':
                 s.append(f"The {r['category']} budget line is {r['budget_line']} a month.")
+    elif k == 'budget_vs_spent':
+        when = r['month'] + (' so far' if r.get('partial_month') else '')
+        s.append(f"Your budget against what you spent in {when}:")
+        for x in r['lines']:
+            s.append(f"{x['line']}: {x['spent']} spent of {x['budgeted']}"
+                     + (f", {x['over']} over." if x.get('over') else f", {x['left']} left."))
+        s.append(('Over budget in ' + when + ': ' + ', '.join(r['over_budget']) + '.') if r['over_budget']
+                 else f"No line is over budget in {when}.")
+        if r.get('spent_with_no_budget_line'):
+            s.append('Spending with no budget line: ' + '; '.join(f"{x['category']} {x['spent']}"
+                                                                   for x in r['spent_with_no_budget_line']) + '.')
     elif k == 'budget_lines':
         s.append('Your budget lines: ' + '; '.join(f"{x['name']} {x['amount']}" for x in r['lines']) + '.')
         s.append(f"Together they come to {r['total']} a month.")

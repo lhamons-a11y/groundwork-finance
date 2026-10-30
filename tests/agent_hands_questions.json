@@ -29,7 +29,8 @@
     "bills_due",
     "guide",
     "savings_goals",
-    "freshness"
+    "freshness",
+    "budget_vs_spent"
   ],
   "engines": [
     "debt_whatif",
@@ -190,12 +191,11 @@
       "ask": "Are we on budget this month?",
       "expect": {
         "lookups": [
-          "category_by_month",
-          "budget_lines"
+          "budget_vs_spent"
         ],
         "outcome": "answer"
       },
-      "check": "each budgeted category, spent against its line; Restaurants over by $200.00; no verdict word"
+      "check": "every budget line against this month's spending so far (budget_vs_spent, Rob 2026-10-30); Restaurants over by $200.00; no verdict word"
     },
     {
       "id": "Q12",
@@ -204,12 +204,11 @@
       "ask": "Which categories went over budget last month?",
       "expect": {
         "lookups": [
-          "category_by_month",
-          "budget_lines"
+          "budget_vs_spent"
         ],
         "outcome": "answer"
       },
-      "check": "exactly the categories whose last-month total exceeds their line, each with both figures"
+      "check": "exactly the lines whose last-month spending exceeds them, each with both figures (budget_vs_spent)"
     },
     {
       "id": "Q13",
