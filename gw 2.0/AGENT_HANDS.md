@@ -64,6 +64,14 @@ lookups only, before any build.
 - **R7. "Ignore your rules" is always rejected** (Rob: *"also "ignore your rules" should be text that is always
   rejected."*; *"and verbal"*) - typed, spoken, or found in the record. See H11.
 
+- **R8. Savings goals join the lookups** (Rob: *"lets add savings rules"*), closing the gap Q29 found. If none is set
+  up, the assistant tells the person none has been created.
+- **R9. A goal's saved amount comes from the transactions** (Rob: *"if their is one the calculation engine should have
+  that amount already calculated from the last transactions"*). See section 10.
+- **R10. It says how current the record is, and offers to download** (Rob: *"It should also let the user know when the
+  last transactions were downloaded and ask if it would like to go download transactions that the user already
+  setup"*). See section 10.
+
 ## 3. Proposed, for ruling
 
 ### The hands
@@ -280,6 +288,58 @@ to test "does not know".
 | Guide | Q42-Q43 | item 102's guide and page opening, unchanged |
 | R7 | 9 phrases | typed, spoken (Rob's voice and a recording, with near misses), and planted in a memo, a payee, a statement line and a document; plus three rewordings not on the list, to see walls 2 and 3 hold |
 
-**A gap the set already shows (Q29):** savings goals (sinking funds) are not on H2's list of lookups. The question is
-there so the measurement records what happens; adding the lookup is a ruling.
+**The gap Q29 found is ruled (R8):** savings goals are a lookup (section 10). Q29 now expects an answer, and Q44-Q49
+were added: no goal set up, a goal's saved amount from what moved (never the plan), a deadline, how current the
+record is, the offer to download, and a nightly download refused (TM2). 49 questions in all.
+
+## 10. Savings goals, and how current the record is (Rob, 2026-10-30)
+
+### What is true today (measured on master `ef0e683`)
+
+- **A goal's "saved so far" is not read from the transactions.** `SinkingFund.current_amount` is what the person typed,
+  plus "Add to fund" deposits, plus **auto-credit**: `/api/sinking-funds/auto-credit`, called every time the Budget page
+  or the Gift page loads (`app.js` `loadSinkingFunds`, `renderGiftBudget`), adds the planned monthly contribution to
+  every active goal once a month **whether or not any money moved**.
+- **F1, a wrong figure:** auto-credit also logs that credit as a contribution (`_log_sinking_fund_contribution_variance`),
+  and the goal's pace (`fund_observed_monthly`, the `/pace` route) is read from those logged contributions - so the pace
+  is the plan measured against itself. The Morgans' Car repairs shows $640 and grows $40 a month by being looked at.
+- **How current the record is, is already known:** `_last_import_state` (the newest import, stale at 48 hours - the
+  check-in's rule) and `_last_fetches` (each bank account's last download through Get my accounts, item 67).
+
+### Proposed
+
+**H18. Savings goals are a lookup** (R8): each active goal's name, target, deadline, saved so far *and where that figure
+comes from* (H20), the planned monthly amount, and its pace from the existing `fund_pace` engine. Asked about savings
+with **no goal set up**, the assistant says so - *"You don't have a savings goal set up yet"* - and opens where one is
+made. Asked, never offered (H9).
+
+**H19. A goal names where its money is kept** - one of the person's accounts (High-Yield Savings, a checking account).
+It is asked once, when the goal is made or the first time a goal without one is read; until it is answered, the goal's
+saved amount is the person's own figure, labelled as theirs.
+
+**H20. Saved so far is worked from the transactions** (R9):
+- **the starting amount** the person typed when the goal was made, labelled as their word;
+- **plus every move into the goal's account since then** - item 111's *move* kind (a transfer to savings), never
+  spending or earning;
+- **minus** what the person said a fund paid for (item 112 P3's "Is this what you were saving for?", Mark spent);
+- **one goal on an account:** every move into it counts for that goal;
+- **two or more goals on one account** (the Morgans keep Car repairs and Holidays in High-Yield Savings): each move is
+  asked once - *"Which goal was this $300 for?"* with a split allowed - and the answer is kept, confirmed once like
+  item 111's moves; until it is answered the move counts for the account, not a goal, and the goal says so.
+**Auto-credit is retired:** the plan is never added as if it were saved. The planned amount and what actually moved are
+shown side by side, and the pace is read from what moved (F1 fixed).
+
+**H21. Every answer that reads transactions says how current they are** (R10): *"Your record runs to October 28; the
+last download was 2 days ago."* From 48 hours (the check-in's line), it asks: *"Want me to get your accounts now?"*
+- **Yes:** the assistant presses Get my accounts exactly as its button does (item 67) - the bank window visible, the
+  person signing in themselves, nothing scheduled or unattended (TM2 holds). The answer is worked again when the
+  download finishes.
+- **No bank set up for Get my accounts:** it says so and opens the Assistant page, where one is set up once (item 102
+  A7).
+- **H8 changes by one line:** *never start a bank run* becomes *never start one without the person's Yes, and never
+  unattended*. Every other line of H8 stands.
+
+**For ruling:** H18-H21, and F1's fix as part of H20 (it changes an accepted feature: the Budget and Gift pages stop
+adding the plan as saved). Existing goals keep their current figure as the starting amount, labelled, so nothing a
+household sees drops on the day it ships.
 
