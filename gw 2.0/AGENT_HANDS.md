@@ -20,7 +20,7 @@ Opened 2026-10-30. Rob, after trying voice (item 113):
 > budget could I make that happen?" The AI should be able to use groundwork to do the Harbor Visa math, and the previous
 > spending against the budget should answer the other question."*
 
-**ACCEPTED 2026-10-30 (Rob: "I accept 114"), no code yet.** H1-H17 ruled as written (H17 accepted the same day); H4a ruled - extra aimed at the
+**ACCEPTED 2026-10-30 (Rob: "I accept 114"), no code yet.** H1-H21 ruled as written (H17, and H18-H21 with F1's fix, accepted the same day); H4a ruled - extra aimed at the
 named card; the answer-time bar is 20 seconds on the 8 GB machine (section 8). Next: the measurement (section 5),
 lookups only, before any build.
 
@@ -342,4 +342,12 @@ last download was 2 days ago."* From 48 hours (the check-in's line), it asks: *"
 **For ruling:** H18-H21, and F1's fix as part of H20 (it changes an accepted feature: the Budget and Gift pages stop
 adding the plan as saved). Existing goals keep their current figure as the starting amount, labelled, so nothing a
 household sees drops on the day it ships.
+
+### Ruling: Rob, 2026-10-30
+
+**H18-H21 accepted, with F1's fix as part of H20** (Rob: *"I rule to accept these changes."*): savings goals are a
+lookup; each goal names the account its money is kept in; saved so far is worked from the transactions, two goals on
+one account asked once per move; auto-credit is retired and existing goals keep today's figure as their labelled
+starting amount; every answer that reads transactions says how current they are, and from 48 hours offers Get my
+accounts on the person's Yes - H8 now reads *never start a bank run without the person's Yes, and never unattended*.
 
