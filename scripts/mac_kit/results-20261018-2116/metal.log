@@ -1,0 +1,38 @@
+ggml_metal_device_init: tensor API disabled for pre-M5 and pre-A19 devices
+ggml_metal_library_init: using embedded metal library
+ggml_metal_library_init: loaded in 0.035 sec
+ggml_metal_rsets_init: creating a residency set collection (keep_alive = 180 s)
+ggml_metal_device_init: GPU name:   MTL0 (Apple M2)
+ggml_metal_device_init: GPU family: MTLGPUFamilyApple8  (1008)
+ggml_metal_device_init: GPU family: MTLGPUFamilyCommon3 (3003)
+ggml_metal_device_init: GPU family: MTLGPUFamilyMetal4  (5002)
+ggml_metal_device_init: simdgroup reduction   = true
+ggml_metal_device_init: simdgroup matrix mul. = true
+ggml_metal_device_init: has unified memory    = true
+ggml_metal_device_init: has bfloat            = true
+ggml_metal_device_init: has tensor            = false
+ggml_metal_device_init: use residency sets    = true
+ggml_metal_device_init: use shared buffers    = true
+ggml_metal_device_init: recommendedMaxWorkingSetSize  =  5726.63 MB
+metal: loaded in 1.9 s, first word 2.63 s, whole test answer 13.73 s; free memory 3.34 -> 1.64 GB
+  seed 1/20: gate 3, R8 0, 19 s
+  seed 2/20: gate 5, R8 0, 39 s
+  seed 3/20: gate 6, R8 0, 60 s
+  seed 4/20: gate 7, R8 0, 82 s
+  seed 5/20: gate 9, R8 0, 102 s
+  seed 6/20: gate 10, R8 0, 125 s
+  seed 7/20: gate 11, R8 0, 146 s
+  seed 8/20: gate 13, R8 0, 165 s
+  seed 9/20: gate 13, R8 0, 186 s
+  seed 10/20: gate 14, R8 0, 206 s
+  seed 11/20: gate 16, R8 0, 227 s
+  seed 12/20: gate 19, R8 0, 249 s
+  seed 13/20: gate 21, R8 0, 268 s
+  seed 14/20: gate 23, R8 0, 288 s
+  seed 15/20: gate 25, R8 0, 308 s
+  seed 16/20: gate 27, R8 0, 327 s
+  seed 17/20: gate 30, R8 0, 349 s
+  seed 18/20: gate 30, R8 0, 368 s
+  seed 19/20: gate 31, R8 0, 389 s
+  seed 20/20: gate 32, R8 0, 408 s
+SUMMARY {"summary": true, "mode": "metal", "n": 120, "gate": 32, "r8": 0, "to_the_cap": 0, "secs": 408, "peak_rss_gb": 3.0, "first_word_s": 2.63, "answer_s": 13.73, "load_s": 1.9, "free_gb_before": 3.34, "free_gb_loaded": 1.64}

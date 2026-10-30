@@ -1,0 +1,11 @@
+Groundwork Mac engine measurement (item 96 / item 33 Q6) - Sun Oct 18 21:56:16 EDT 2026
+Mac: Apple M2, 8 GB, macOS 27.0.1
+This report holds no financial data: the voice cases are made-up test figures.
+
+[cpu]
+engine 0.3.35 | gpu offload True | libs libggml-base.0.20.0.dylib libggml-base.0.dylib libggml-base.dylib libggml-blas.0.20.0.dylib libggml-blas.0.dylib libggml-blas.dylib libggml-cpu.0.20.0.dylib libggml-cpu.0.dylib libggml-cpu.dylib libggml-metal.0.20.0.dylib libggml-metal.0.dylib libggml-metal.dylib libggml.0.20.0.dylib libggml.0.dylib libggml.dylib libllama.0.1.0.dylib libllama.0.dylib libllama.dylib libmtmd.SOVERSION.dylib libmtmd.dylib
+{"summary": true, "mode": "cpu", "n": 120, "gate": 34, "r8": 0, "to_the_cap": 0, "secs": 1900, "peak_rss_gb": 2.85, "first_word_s": 12.16, "answer_s": 62.15, "load_s": 2.5, "free_gb_before": 1.67, "free_gb_loaded": 0.66}
+
+[metal]
+engine 0.3.35 | gpu offload True | libs libggml-base.0.20.0.dylib libggml-base.0.dylib libggml-base.dylib libggml-blas.0.20.0.dylib libggml-blas.0.dylib libggml-blas.dylib libggml-cpu.0.20.0.dylib libggml-cpu.0.dylib libggml-cpu.dylib libggml-metal.0.20.0.dylib libggml-metal.0.dylib libggml-metal.dylib libggml.0.20.0.dylib libggml.0.dylib libggml.dylib libllama.0.1.0.dylib libllama.0.dylib libllama.dylib libmtmd.SOVERSION.dylib libmtmd.dylib
+{"summary": true, "mode": "metal", "n": 120, "gate": 32, "r8": 0, "to_the_cap": 0, "secs": 408, "peak_rss_gb": 3.0, "first_word_s": 2.63, "answer_s": 13.73, "load_s": 1.9, "free_gb_before": 3.34, "free_gb_loaded": 1.64}
