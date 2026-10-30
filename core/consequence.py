@@ -95,7 +95,8 @@ def _prepare(cards):
 
 
 def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
-                    today_key=None, start_month=None, one_time_extra=0.0, path=None, extra_schedule=None):
+                    today_key=None, start_month=None, one_time_extra=0.0, path=None, extra_schedule=None,
+                    target=None):
     """Months until every balance clears, or None if the budget cannot cover
     the minimums or never clears the balances within MAX_MONTHS — the JS
     returns null there and so do we, rather than a fabricated large number.
@@ -120,6 +121,10 @@ def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
     month's budget (month 1 is the first entry); months past its end add
     nothing. It is how a trip's payback order is priced (TRIP_FUNDING_COACH.md
     T5) without a second engine.
+
+    target, a debt's name, sends the money above the minimums to that debt
+    first and only then by the strategy (item 114 H4a: "$200 more on the Visa"
+    answered as asked). None, or a name no debt has, leaves the strategy alone.
     """
     data = _prepare(cards)
     if today_key is not None:
@@ -145,6 +150,8 @@ def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
     order = sorted(
         [c for c in data if not c.is_lease and not c.is_pslf],
         key=(lambda c: c.balance) if strategy == 'snowball' else (lambda c: -c.rate))
+    if target:
+        order = [c for c in order if c.name == target] + [c for c in order if c.name != target]
 
     bals = [c.balance for c in data]
     # forgive_after_months <= 0 means the qualifying payments are already made:
@@ -282,7 +289,7 @@ def _month_key(start_month, offset):
 
 
 def decision_impact(cards, budget, monthly_delta=0.0, one_time_cost=0.0,
-                    strategy='avalanche', today_key=None, start_month=None):
+                    strategy='avalanche', today_key=None, start_month=None, target=None):
     """The blueprint's Pillar 1 signature. Returns the base and the decided
     case side by side, plus the delta — never a delta alone, so a caller can
     always show its work (Appendix B).
@@ -294,7 +301,7 @@ def decision_impact(cards, budget, monthly_delta=0.0, one_time_cost=0.0,
                            today_key=today_key, start_month=start_month)
     after = simulate_payoff(cards, budget + float(monthly_delta or 0), strategy,
                             one_time_cost=one_time_cost,
-                            today_key=today_key, start_month=start_month)
+                            today_key=today_key, start_month=start_month, target=target)
     if base is None or after is None:
         return {'base': base, 'after': after, 'months_delta': None,
                 'interest_delta': None}

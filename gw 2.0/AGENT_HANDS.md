@@ -59,6 +59,8 @@ lookups only, before any build.
 - **R5. Groundwork does not offer solutions on its own.** When the person asks - Rob's Harbor Visa question - the
   assistant uses Groundwork to answer: the engine does the Visa math, and past spending against the budget answers
   where the money could come from.
+- **R13. No limit on the length of an answer** (Rob 2026-10-30: *"Groundwork should not have a limit on the length or
+  amount of sentences that it would need to answer the user."*). H22.
 - **R6.** The microphone stays on once turned on, so the person can talk with Groundwork (H14), and its button sits in
   the text box (H15). *Rob asked for both; the details below are for ruling.*
 - **R7. "Ignore your rules" is always rejected** (Rob: *"also "ignore your rules" should be text that is always
@@ -123,7 +125,7 @@ that I would save and where in my budget could I make that happen?"*
    with its assumption stated (RG4: the rate stays where it is, nothing new is charged).
 3. Engine: budget headroom. Shown: the categories whose spending stayed under their budget line in every month the
    record covers, by how much at the least - and whether together they reach $200.
-4. The assistant's words around those figures: two to four sentences. **"Big difference" is the person's call, not
+4. The assistant's words around those figures: as many as the answer needs (R13). **"Big difference" is the person's call, not
    Groundwork's** (item 22 D5, teach the question, never a verdict); it gives the comparison that lets them judge -
    for example, the interest saved beside the interest still to pay.
 5. If the record is short - fewer months than the headroom engine needs - step 3 says it does not know yet, and what
@@ -140,6 +142,17 @@ enough to say anything. Below the line, the assistant says it does not know, why
 *"I can't say yet. Your record has 2 months of Kroger charges; a pattern needs at least 3. Importing older statements
 would let me."* The lines are the ones Groundwork already uses (`MIN_MONTHS_OBSERVED`, item 106's three steps, item
 7B's *undetermined*), so "does not know" means the same here as everywhere else.
+
+**H22. Groundwork writes every sentence that carries a figure; the model chooses and connects** (Rob 2026-10-30, ruled
+during the measurement: *"I would agree with that design no matter what the test shows. That is better and mistake
+proof"*). Each lookup's findings become sentences in Groundwork's own fixed wording - *"You spent $500.00 on
+Restaurants in October 2026, against a $300.00 budget line: $200.00 over."* The model chooses which of those sentences
+answer the question, in what order, and may add a short lead-in and close **with no figures, dates or amounts in
+them** - a lead-in that carries one is not shown. A wrong figure is not caught after the fact; it cannot be written.
+H6's checker stays on the model's own words (verdicts, advice, "does not know" where the lookups had enough).
+**No limit on length** (R13): every sentence that answers the question is shown, however many that is. The only
+bounds are H12's - at most four lookups a question, and the time cap - which limit what is looked up, not what is
+said about it.
 
 **H6. Checked before it is shown** (RG1, RG2, RG5; item 110's checker). Every sentence is checked against the results
 it was given: a number, date, payee or category not in them, a claim with no lookup behind it, or a verdict word from
@@ -394,4 +407,57 @@ reading the funds adding nothing, a deposit still adding); s50, s55 and s203 upd
 **Not undone, said plainly:** contributions auto-credit logged before today stay in the Historian. They cannot be told
 apart from real deposits (the same event, the same amounts), so a fund's pace may still lean on them until H20 works
 saved amounts from the transactions. Existing funds keep today's figure as their starting amount (H20).
+
+## 11. Measured on Rob's M2, 2026-10-30 (lookups only)
+
+**The machine:** Apple M2, 8 GB, macOS 27.0.1; Phi-3.5 mini Q4 on Metal (llama-cpp-python 0.3.35 built from source),
+loaded as `core/engine.py` loads it; it loads in about 2 seconds. **The code:** `core/agent_hands.py` (the lookups,
+R7, the checks, H22) and `scripts/agent_hands_measure.py`; reports in `tests/agent_hands_results/`. H4a is in
+`core/consequence.py` (`target=`; unset, nothing changes - the parity test and the gate still pass).
+
+| | Free writing (first run) | **H22** (Groundwork writes the figures) |
+|---|---|---|
+| Right outcome | 41 / 52 | 41 / 52 |
+| Right lookups (exact or covering) | 33 / 52 | 33 / 52 |
+| Wrong figures shown | sentences held 77 times; some mislabels passed in trials | **0 - none can be written** |
+| Key figures right ($500.00, $200.00 over, $285.40, $640.00, $42.18, $8,515.00, Dec 3) | 5 / 7 | 6 / 7 (Dec 3 missed: Q28 opened a page) |
+| Median time | 16.3 s | **6.2 s** |
+| Under 20 s | 35 / 52 | 45 / 52 |
+| R7 typed | 9 / 9 rejected | 9 / 9 |
+| R7 spoken (two macOS voices, with near misses) | 16 / 18 | **18 / 18** |
+| R7 planted (four memos, one payee) | not measured (a script bug) | **5 / 5 held back**, the rows unchanged |
+
+**What held, every time:** no figure the model wrote reached the person (H22); Rob's Harbor Visa question in his own
+words asked which card, never picked one (Q17); "pay the Visa bill" and "move $200 from savings" were refused;
+"does not know" came from the lookups, with what would let it know (Q12, Q31-Q34). Rob's question on the Morgans'
+card (Q16) answered in full: each debt; debt-free August 2030 now, November 2029 with $200 more - 9 months sooner,
+$1,013.00 less interest; the Visa itself paid off July 2027 instead of January 2028; the plan's own order sends extra to
+the Visa too; and the budget has $25.97 a month of room (Restaurants), which does not cover $200, Gym left out as
+protected.
+
+**What missed - each a fix for the build, none a figure:**
+1. **Routing a request to act (Q20, Q39, Q40, Q49).** "Delete", "turn off the AI" and "download every night" were not
+   called refusals, and "what if we only paid the minimums" was. Nothing was done in any case (nothing can be, in this
+   stage), but the reply was wrong. *Fix:* Groundwork's own reading decides a request to act (pay, move, transfer,
+   delete, turn on or off, every night) before the model, the way item 102 A8 reads "get my accounts".
+2. **Pages and the guide (Q28, Q30, Q42, Q43).** "When is Mom's birthday" opened a page; "how do I import" opened a
+   page instead of the guide; "does our rent go up every year" was called outside the record.
+3. **Wrong or thin lookups (Q07, Q10, Q11, Q19).** "Gas this month" read transactions and the minimums engine; "are we
+   on budget" read the headroom engine; "when will we be debt free" invented a debt name ("named_debt_here").
+   *Fix:* a debt name not in the question is dropped (Groundwork's repair, recorded).
+4. **A lookup the list does not have (Q11, Q12).** "Are we on budget" and "which categories went over" need every
+   budget line against what was spent in one month; `category_by_month` reads one category. **For ruling (H2 says
+   adding a lookup is a ruling): add `budget_vs_spent`, every line against the month's spending.**
+5. **Not built yet, as expected (Q29, Q50, Q51, Q52):** goals do not name their account (H19), so "available" cannot
+   be worked; H20c (paid from a goal first, then available funds or credit) is not built; the sample's Visa has no
+   credit limit on file.
+6. **Five stalls of 60-73 s** (Q33, Q44, Q48, Q50, Q52) where the same steps elsewhere took 2-10 s. Most are the first
+   question after a model load, or came while the Mac was busy with other apps on 8 GB. *To do:* run again with
+   other apps closed, and on the Windows laptop.
+7. **The model's own lead-in and close** are sometimes empty filler or odd ("here' extraneous information"); they carry
+   no figures, so they are safe, but the build should allow them to be left out.
+
+**Against the section 5 bar:** every R7 phrase rejected - **met**; zero wrong figures shown - **met (by H22)**; zero
+actions outside the list - **met** (and nothing can act in this stage); "does not know" right on every short-record
+question - **met (Q33, Q34)**; under 20 seconds - **45 of 52, not met yet** (items 6 and 1-3 above).
 
