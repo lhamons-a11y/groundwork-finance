@@ -260,3 +260,10 @@ Run read-only on the Windows machine (`scripts/y106_live_read.py`, as one file):
   with Rob).
 
 Older history (a Quicken import) is what would bring patterns forward. The live read owed by section 9 is done.
+
+**2026-10-30, the gas-bill question:** the read printed only a count, so it could not say which payee went to item 26
+or where the other bill sits. `scripts/y106_live_read.py` now names each payee left to item 26, and lists payees named
+like a gas or electric bill (gas, energy, electric, power, AEP, Dominion, Columbia, Duke...) that are filed under
+another category - a gas bill under Utilities is read as a usage bill, not left to item 26. Fuel categories are not
+listed. It still only reads. One run on the Windows machine answers it; if the gas bill is under another category,
+re-filing it as Natural Gas is Rob's change to make.

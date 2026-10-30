@@ -23,6 +23,10 @@ from core import yearly_steps as ys                        # noqa: E402
 from core.price_change import USAGE_CATEGORIES            # noqa: E402
 
 ITEM26 = {'electric', 'electricity', 'natural gas', 'propane', 'heating oil'}   # left to item 26 (Rob 2026-10-21)
+# A payee whose name reads like a gas or electric bill but is filed under another category. The 2026-10-23 read found
+# one item-26 payee where a household has two; these are listed so the other can be found, never moved.
+ENERGY_WORDS = ('gas', 'energy', 'electric', 'power', 'propane', 'aep', 'dominion', 'columbia', 'duke', 'firstenergy')
+FUEL_CATEGORIES = {'gasoline / diesel', 'gas / fuel', 'ev charging'}
 
 
 def default_db():
@@ -72,12 +76,14 @@ def main():
           f'a yearly pattern needs that.\n')
 
     found = {'pattern3': [], 'pattern2': [], 'one': [], 'range': []}
-    usage, left = [], 0
+    usage, left, energy_elsewhere = [], [], []
     for payee, xs in sorted(by.items(), key=lambda kv: kv[0].lower()):
         c = cat[payee].strip().lower()
+        if c not in ITEM26 and c not in FUEL_CATEGORIES and any(w in payee.lower() for w in ENERGY_WORDS):
+            energy_elsewhere.append(f'{payee} (filed under {cat[payee] or "no category"}, {len(xs)} charges)')
         if c in USAGE_CATEGORIES:
             if c in ITEM26:
-                left += 1
+                left.append(f'{payee} ({cat[payee]})')
                 continue
             sm = ys.same_month(xs, today)
             if sm:
@@ -116,7 +122,12 @@ def main():
     for payee, c, sm in usage:
         print(f"    {payee} ({c}): {sm['month']} ${sm['this']:,.2f} against ${sm['last_year']:,.2f} a year earlier "
               f"({sm['pct'] * 100:+.1f}%)")
-    print(f'\nGas, electric, propane and heating oil payees left to item 26: {left}')
+    print(f'\nGas, electric, propane and heating oil payees left to item 26: {len(left)}')
+    for x in left:
+        print('   ', x)
+    print(f'\nNamed like a gas or electric bill but filed under another category: {len(energy_elsewhere)}')
+    for x in energy_elsewhere:
+        print('   ', x)
 
 
 if __name__ == '__main__':
