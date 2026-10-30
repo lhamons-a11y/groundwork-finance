@@ -257,6 +257,7 @@ On Rob's Mac (M2, 8 GB, Metal) and the Windows laptop - not every machine (R3):
 - **The answer-time bar: under 20 seconds** on the 8 GB machine for a question like Rob's Harbor Visa one, with the
   figures shown as soon as the engines finish.
 - **Next:** section 5's measurement, lookups only - no proposals, no voice change - then the three stages, each
-  accepted before the next.- **H17 added** (Rob: *"we should have some type of indication that the AI is working something that is animated that
+  accepted before the next.
+- **H17 added** (Rob: *"we should have some type of indication that the AI is working something that is animated that
   things are happening in the background"*): an animated working indicator naming the real step, steady with reduced
   motion.
