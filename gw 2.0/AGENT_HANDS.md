@@ -20,8 +20,9 @@ Opened 2026-10-30. Rob, after trying voice (item 113):
 > budget could I make that happen?" The AI should be able to use groundwork to do the Harbor Visa math, and the previous
 > spending against the budget should answer the other question."*
 
-**OPENED 2026-10-30, no code.** Section 2 records what Rob has already ruled. Section 3 is the proposal, H1-H16, for
-ruling. Section 5 is what is measured before any build.
+**ACCEPTED 2026-10-30 (Rob: "I accept 114"), no code yet.** H1-H16 ruled as written; H4a ruled - extra aimed at the
+named card; the answer-time bar is 20 seconds on the 8 GB machine (section 8). Next: the measurement (section 5),
+lookups only, before any build.
 
 ---
 
@@ -238,3 +239,13 @@ On Rob's Mac (M2, 8 GB, Metal) and the Windows laptop - not every machine (R3):
 - H1-H16 as written, or with changes;
 - H4a: aim extra at one named card (new engine option), or say where the plan would send it;
 - the section 5 bar, including the answer time.
+
+## 8. Ruling: Rob, 2026-10-30
+
+- **Item 114 accepted** (Rob: *"I accept 114"*): H1-H16 as written, and section 6's order.
+- **H4a: aim it at the card.** The payoff engine gets an option that puts extra money on one named card, so "$200
+  more on Harbor Visa" is answered as asked; the reply also shows where the plan's own strategy would have sent it.
+- **The answer-time bar: under 20 seconds** on the 8 GB machine for a question like Rob's Harbor Visa one, with the
+  figures shown as soon as the engines finish.
+- **Next:** section 5's measurement, lookups only - no proposals, no voice change - then the three stages, each
+  accepted before the next.
