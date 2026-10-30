@@ -721,6 +721,36 @@
         "outcome": "answer"
       },
       "check": "High-Yield Savings: its balance from the record, less Car repairs and Holidays set aside, each named, and what is available; how current the balance is (H20, H21); if set aside exceeds the balance, that said"
+    },
+    {
+      "id": "Q51",
+      "group": "savings",
+      "record": "sample",
+      "ask": "Can we afford a $600 holiday gift budget?",
+      "expect": {
+        "lookups": [
+          "savings_goals",
+          "balances",
+          "debts"
+        ],
+        "outcome": "answer"
+      },
+      "check": "asks whether money is set aside for it, Holidays listed first, never chosen for them (H20c); with Holidays: its set-aside covers part, the rest shown against Everyday Checking's available funds and the Cashback Visa's available credit, each figure named; on the card, the added debt shown; no verdict"
+    },
+    {
+      "id": "Q52",
+      "group": "savings",
+      "record": "sample",
+      "follow_up_of": "Q51",
+      "ask": "No, nothing set aside for that",
+      "expect": {
+        "lookups": [
+          "balances",
+          "debts"
+        ],
+        "outcome": "answer"
+      },
+      "check": "the whole $600 against available funds (balance less Car repairs and Holidays set aside, H20b) and available credit; the goals' money is not offered"
     }
   ],
   "r7_rejected": {

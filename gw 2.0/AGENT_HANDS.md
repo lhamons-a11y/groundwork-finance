@@ -76,6 +76,10 @@ lookups only, before any build.
   user has in their Checking or Savings (the user preference where they will keep the funds when they created it) Then
   Groundwork should show to total balance in the account and have said savings fund being subtracted, the remaining
   should be listed as available funds"*). H19 and H20 revised to it (section 10).
+- **R12. A purchase can be paid from a goal already set aside for it** (Rob: *"will it also ask if the user already has
+  an account that they would like to use? ie if the user set a side a travel-vacation savings that they already have.
+  It could use that balance and if the user is over the amount that was saved it can show that remaining balance would
+  have to be subtracted from available funds or available credit."*). H20c (section 10).
 
 ## 3. Proposed, for ruling
 
@@ -340,6 +344,20 @@ account as saved, which is wrong for a goal kept in checking, where every payche
 - **H20b, ACCEPTED** (Rob 2026-10-30: *"yes, that is correct recommendation"*): where Groundwork judges what can be spent from an account - Before You Buy's cash check, the
   trip planner's "pay cash" - it uses *available*, not the whole balance, so money set aside is not offered for
   something else.
+- **H20c. Paid from a goal first** (R12). When Before You Buy or the trip planner checks how something would be paid,
+  and the person has goals set aside, it asks once: *"Have you set money aside for this?"* - listing their goals, the
+  one whose name fits (a Vacation goal for a trip) shown first but never chosen for them; *"No"* is always there.
+  - **The goal covers it:** *"Vacation has $1,200.00 set aside; this trip is $950.00 - $250.00 stays in Vacation."*
+  - **The cost is more than the goal holds:** the goal's amount first, then the rest from where the person picks -
+    **available funds** in an account (H20: balance less what is set aside) or **available credit** on a card (its
+    limit less its balance): *"Vacation covers $1,200.00. The other $400.00 would come from Everyday Checking's
+    available $1,600.80 (leaving $1,252.80), or the Cashback Visa's available credit of $2,749.20."*
+  - **On a card, the remainder is new debt,** and it is shown as Before You Buy already shows it (item 59's trip on
+    credit, s161): what it adds to the payoff date and the interest.
+  - **Neither covers it:** said plainly, with each figure - never a verdict (D5).
+  - Nothing moves and the goal is not touched by the check. When the purchase happens, the goal is reduced the way it
+    is today: item 112 P3's *"Is this what you were saving for?"* on the charge, or Mark spent.
+
 **Auto-credit is retired** (F1, fixed 2026-10-30). A goal's pace is read from what was set aside, month by month.
 
 **H21. Every answer that reads transactions says how current they are** (R10): *"Your record runs to October 28; the
