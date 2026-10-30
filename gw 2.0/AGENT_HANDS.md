@@ -20,7 +20,7 @@ Opened 2026-10-30. Rob, after trying voice (item 113):
 > budget could I make that happen?" The AI should be able to use groundwork to do the Harbor Visa math, and the previous
 > spending against the budget should answer the other question."*
 
-**ACCEPTED 2026-10-30 (Rob: "I accept 114"), no code yet.** H1-H16 ruled as written; H4a ruled - extra aimed at the
+**ACCEPTED 2026-10-30 (Rob: "I accept 114"), no code yet.** H1-H17 ruled as written (H17 accepted the same day); H4a ruled - extra aimed at the
 named card; the answer-time bar is 20 seconds on the 8 GB machine (section 8). Next: the measurement (section 5),
 lookups only, before any build.
 
@@ -260,4 +260,4 @@ On Rob's Mac (M2, 8 GB, Metal) and the Windows laptop - not every machine (R3):
   accepted before the next.
 - **H17 added** (Rob: *"we should have some type of indication that the AI is working something that is animated that
   things are happening in the background"*): an animated working indicator naming the real step, steady with reduced
-  motion.
+  motion. **H17 accepted** (Rob: *"I accept h17"*).
