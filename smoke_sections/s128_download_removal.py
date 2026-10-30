@@ -227,3 +227,12 @@ def run(ctx):
     check('s128 the route is left as found',
           c.application.view_functions['auto_import.auto_import_remove_download'] is server.auto_import_remove_download
           and all(_cases(c, HJ, dbs, tmp).values()))
+
+    # Item 33 Q6 (ENGINE_OTHER_PLATFORMS.md section 7): the watcher's library is a requirement, so a build from
+    # requirements.txt on a clean machine has it; each spec bundles its own platform's backend
+    req = ctx.BASE.joinpath('requirements.txt').read_text(encoding='utf-8')
+    backends = {'groundwork.spec': 'watchdog.observers.read_directory_changes',
+                'groundwork_linux.spec': 'watchdog.observers.inotify', 'groundwork_macos.spec': 'watchdog.observers.fsevents'}
+    check('s128 the Downloads watcher is a requirement, and all three builds carry its backend',
+          re.search(r'^watchdog>=', req, re.M) is not None
+          and all(f"'{b}'," in ctx.BASE.joinpath(s).read_text(encoding='utf-8') for s, b in backends.items()))

@@ -69,6 +69,10 @@ pywhispercpp==1.5.1
 # error dialogs and a folder picker; those now use ctypes/osascript/zenity and
 # pywebview respectively, and the PyInstaller specs exclude tkinter outright
 # (it was ~10MB of tcl/tk per bundle). pywebview imports tkinter nowhere.
+# The Downloads auto-import watcher (launch.py _start_downloads_watcher). Without it Groundwork runs and the watcher
+# is off; every spec bundles its platform backend. Named here because it was missing: Windows builds had it only from
+# the build machine, and the Linux build from this file shipped without it (ENGINE_OTHER_PLATFORMS.md section 7).
+watchdog>=6.0.0,<7
 # Item 57 (BANK_AGENT.md A4): bank logins live in the operating system's vault, never in Groundwork's files
 keyring>=25.6.0,<26
 # Item 81 (PERFECT_BACKUP.md): backups sealed with AES-256-GCM, keys stretched with scrypt. Already installed alongside
