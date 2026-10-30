@@ -206,6 +206,8 @@ Rob: *"build item 111"*. Read as X1-X10 accepted as recommended, with **X3 (a)**
 while it waits) and **X6 (a)** (cash said as cash, counted as neither). If that reading is wrong, each choice is one
 place in `core/money_kind.py`.
 
+Rob 2026-10-29: *"I accept item 111"* - the reading above, X3 (a) and X6 (a) included, stands.
+
 ## 6. Stage 1: Rob's ledger, measured (2026-10-26, on the Windows laptop)
 
 `python scripts/transfer_measure.py` on this computer's own database (1,706 transactions, 2026-01-05 to 2026-10-23,
@@ -317,3 +319,7 @@ the page used to count it as income (X5's "the category it was filed in").
 - the Morgans' filing.
 
 s131 (the ninth kind and its endpoints) and s166 (refunds by merchant) were updated.
+
+## 8. Accepted (2026-10-29)
+
+Rob: *"I accept item 111"*. Built at `374c623` (gate 3987/0), accepted as built. **Item 111 CLOSED.**
