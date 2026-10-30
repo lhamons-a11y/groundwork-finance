@@ -66,9 +66,9 @@ def run(ctx):
               and 'At that rate' not in o['gap']['body'])
         check('s132 St2 T2 this month as arithmetic: spent, days, a straight-line projection labelled as one, the budget',
               o['under']['body'] == 'Spent $1240.00 in 12 of 30 days. At that rate - a straight line, not a forecast - '
-                                    'the month ends near $3100.00 against $4000.00 budgeted.')
+                                    'the month ends near $3100.00 against $4000.00 of budgeted income.')
         check('s132 St3 T2 the same sentence above budget - no verdict, just the numbers',
-              'ends near $7500.00 against $4000.00 budgeted' in o['over']['body'])
+              'ends near $7500.00 against $4000.00 of budgeted income' in o['over']['body'])
         check('s132 no budgeted income: the spending is stated, and the absence of a comparison said plainly',
               'no budgeted income yet' in o['nobudget']['body'])
         check('s132 St7 T4 the ratio and the question it answers',

@@ -285,6 +285,8 @@ def _options(cards, budget, strategy, gap, monthly=None, today=None):
         return {'available': False, 'why': 'The debt budget doesn\'t cover the minimum payments, so no plan can be dated.'}
 
     def row(key, sim, full_month, note):
+        if sim is None:                          # the debt never clears with this much going to the reserve
+            return {'key': key, 'unavailable': 'With this much going to the reserve, the payments never clear the debt.'}
         return {'key': key, 'debt_free': month_label(sim['months'], today), 'debt_months': sim['months'],
                 'interest': sim['total_interest'], 'reserve_full': (month_label(full_month, today) if full_month else 'already full'),
                 'note': note}

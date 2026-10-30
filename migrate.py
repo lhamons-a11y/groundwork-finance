@@ -12,7 +12,8 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20261018-household-statements'   # item 93 stages 3-4 (BANK_SIDE_RECORDS.md B2-B4, B8, B11): account_banks, standing_statements, ledger_line_records, earlier_answers, reversal_answers (create_all)
+SCHEMA_VERSION = '20261021-companion-account-types'   # a loan/mortgage/lease debt's companion Account typed 'loan', not 'credit' (_companion_account_types_v1; data only, models unchanged)
+# Before it, '20261018-household-statements'   # item 93 stages 3-4 (BANK_SIDE_RECORDS.md B2-B4, B8, B11): account_banks, standing_statements, ledger_line_records, earlier_answers, reversal_answers (create_all)
 # Before it, '20261017-named-people'   # item 92: the care_for table (create_all) + health_plan_readings.person_id
 # Before it, '20261016-care-answers' (item 89: the care_answers table, through init_db's create_all).
 # Before it, '20261015-plan-year' (item 87: health_plan_readings + health_plan_term_versions.tier).
@@ -43,7 +44,7 @@ SCHEMA_VERSION = '20261018-household-statements'   # item 93 stages 3-4 (BANK_SI
 # The fingerprint of this file's code at this SCHEMA_VERSION (smoke section s51). Change anything the
 # migration does and s51 fails until BOTH lines above and below are updated - the version first, then
 # the fingerprint s51 prints. A change without a bump is skipped on every existing database.
-SCHEMA_SPEC_SHA256 = '24769963e965d47667173b4d13aaad556671736b980665eddd7bad9b2b58740c'
+SCHEMA_SPEC_SHA256 = '365d3acee34bd61b8c9e659cdb71b35c1316ae9f0c1770ecc064cb4959427efe'
 # The models' fingerprint (item 24, SCHEMA_PIN_MODELS.md P1): every table and column in core/database.py. A model
 # change - a new table, a new column - moves it, and s51 fails until SCHEMA_VERSION is bumped, any new column on an
 # existing table is listed in its _NEW_*_COLUMNS list, this pin is updated, and `python schema_fixture.py` has saved
@@ -363,6 +364,27 @@ def _backfill_party_anchors(session):
     _mark_migration_done(session, flag)
 
 
+def _companion_account_types_v1(session):
+    """A loan, mortgage or lease's companion Account was created with type 'credit' - create_debt typed every
+    companion as a credit card - so Settings listed a car loan or a mortgage as a "Credit card". create_debt now types
+    them 'loan' (and a debt-type change carries over); this corrects the ones made before. Only an account still at the
+    'credit' create_debt gave it is changed: a type the user chose is theirs. Flagged, so it runs once."""
+    from core.database import Account, DebtAccount
+    flag = 'migration_companion_account_types_20261021'
+    if _migration_done(session, flag):
+        return
+    n = 0
+    for d in session.query(DebtAccount).filter(DebtAccount.linked_account_id.isnot(None)).all():
+        if (d.debt_type or 'credit') == 'credit':
+            continue
+        acct = session.get(Account, d.linked_account_id)
+        if acct and (acct.type or 'credit') == 'credit':
+            acct.type = 'loan'
+            n += 1
+    logger.info('Companion accounts retyped as loan: %d', n)
+    _mark_migration_done(session, flag)
+
+
 def _carry_over_household_facts(session):
     """Answers given before household_facts existed (home_state, pay_frequency, surplus_goal) get one history row each,
     source 'carried_over', answered_at NULL - when they were said is not known, so it is not invented. After this the
@@ -614,6 +636,7 @@ def run_migration_if_needed():
             _migrate_old_category_names(session)
             _backfill_party_anchors(session)
             _carry_over_household_facts(session)
+            _companion_account_types_v1(session)
             for name, ctype, color in [
                 ('Interest / Fees', 'expense', '#dc2626'),
                 ('Other', 'expense', '#6b7280'),

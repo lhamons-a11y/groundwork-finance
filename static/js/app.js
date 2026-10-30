@@ -105,7 +105,18 @@ function fmtDate(s) {
   const d = new Date(s + 'T00:00:00');
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
-function today() { return new Date().toISOString().slice(0, 10); }
+// Dates are the user's calendar, not UTC: toISOString() names tomorrow after
+// 8pm in US time zones (and yesterday before dawn east of Greenwich).
+function _isoLocal(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+// A stored 'YYYY-MM-DD' as a local date. new Date('YYYY-MM-DD') is UTC midnight,
+// which is the previous evening in the Americas ("matures Dec 2052" for Jan 1).
+function _parseLocalDate(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || '');
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(s);
+}
+function today() { return _isoLocal(); }
 function g(id) { return document.getElementById(id); }
 function setText(id, v) { const e = g(id); if (e) e.textContent = v; }
 
@@ -325,29 +336,41 @@ function _catTree(type = 'expense') {
 // If the category is a PARENT, sums all its children.
 // If it's a CHILD, sums only that child's transactions.
 // This is the core budget spent-so-far function.
-function _catSpentInMonth(catName, monthKey) {
-  if (!catName || !monthKey) return 0;
-  if (!S.transactions || !S.transactions.length) return 0;
-  const txns = S.transactions.filter(t =>
-    t.type === 'debit' && (t.date || '').startsWith(monthKey)
-  );
-
+// The debits a category (parent rolls up its children) holds in a month, up
+// to today: a future-dated line (scheduled or pending) is not spent yet. The
+// dashboard already left those out, so the Budget page counted the same
+// month's Food as $598.78 where the dashboard said $542.06.
+function _catTxnsInMonth(catName, monthKey) {
+  if (!catName || !monthKey) return [];
+  if (!S.transactions || !S.transactions.length) return [];
   const cat = _catByName(catName);
-  if (!cat) return 0;
+  if (!cat) return [];
+  const todayKey = _isoLocal();
+  const ids = _catIsParent(catName) ? [cat.id, ..._catChildIds(catName)] : [cat.id];
+  return S.transactions.filter(t =>
+    t.type === 'debit' && (t.date || '').startsWith(monthKey)
+    && (t.date || '') <= todayKey && ids.includes(t.category_id)
+  );
+}
 
-  if (_catIsParent(catName)) {
-    // Roll up all children
-    const childIds = _catChildIds(catName);
-    // Also include transactions directly on the parent (legacy)
-    return txns
-      .filter(t => t.category_id === cat.id || childIds.includes(t.category_id))
-      .reduce((s, t) => s + t.amount, 0);
-  } else {
-    // Child category — exact match
-    return txns
-      .filter(t => t.category_id === cat.id)
-      .reduce((s, t) => s + t.amount, 0);
+function _catSpentInMonth(catName, monthKey) {
+  return _catTxnsInMonth(catName, monthKey).reduce((s, t) => s + t.amount, 0);
+}
+
+// A category that is one bill a month (mortgage, internet, a subscription):
+// in each of the last three complete months it has any spending in, it has a
+// single charge, and it has at least two such months. Such a category is not
+// spent at a daily pace, so it is never projected as if it were.
+function _catIsMonthlyBill(catName) {
+  const now = new Date();
+  let seen = 0;
+  for (let i = 1; i <= 3; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const n = _catTxnsInMonth(catName, `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`).length;
+    if (n > 1) return false;
+    if (n === 1) seen++;
   }
+  return seen >= 2;
 }
 
 // 6-month average for a category (parent or child)
@@ -398,6 +421,7 @@ function _calcSeasonalPatterns() {
 
   const nextMonth = (() => {
     const d = new Date();
+    d.setDate(1);
     d.setMonth(d.getMonth() + 1);
     return String(d.getMonth() + 1).padStart(2, '0'); // '01' through '12'
   })();
@@ -1004,6 +1028,7 @@ function _calcNetWorthTrajectory(snapshots) {
   const projectionLine = [];
   for (let i = 1; i <= 24; i++) {
     const d = new Date();
+    d.setDate(1);
     d.setMonth(d.getMonth() + i);
     projectionLine.push({
       month: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,
@@ -2151,11 +2176,11 @@ function getPeriodDates(period) {
   const p   = period || S.period;
   const now = new Date();
   if (p === 'mtd') {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+    const start = _isoLocal(new Date(now.getFullYear(), now.getMonth(), 1));
     return { start, end: today() };
   } else {
     const end   = today();
-    const start = new Date(now.getTime() - 29*86400000).toISOString().slice(0,10);
+    const start = _isoLocal(new Date(now.getTime() - 29*86400000));
     return { start, end };
   }
 }
@@ -2192,7 +2217,7 @@ function getTxnsForPeriod() {
   if (_quarterlyMode) {
     // Last 3 complete months + current month-to-date
     const now   = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth() - 2, 1).toISOString().slice(0,10);
+    const start = _isoLocal(new Date(now.getFullYear(), now.getMonth() - 2, 1));
     return S.transactions.filter(t => t.date >= start && t.date <= today());
   }
   // Respects S.period ('mtd' default, or '30d' rolling window — set via setLedgerPeriod)
@@ -2539,7 +2564,7 @@ function _renderDashHeroCard(totalDebt) {
     const paceIcon       = pd.paceStatus === 'ahead' ? '↑' : pd.paceStatus === 'behind' ? '↓' : '';
     const paceColor      = pd.paceStatus === 'ahead' ? 'var(--pine-text)' : pd.paceStatus === 'behind' ? 'var(--gold-text)' : '';
     const paceNote       = payoffImpossible
-      ? `<span style="color:var(--ember-text)">⚠ Budget doesn't cover minimum payments — <span onclick="showView('debt')" style="cursor:pointer;text-decoration:underline;text-underline-offset:2px">review your plan</span></span>`
+      ? `<span style="color:var(--ember-text)">⚠ ${_payoffNullReason()} — <span onclick="showView('debt')" style="cursor:pointer;text-decoration:underline;text-underline-offset:2px">review your plan</span></span>`
       : pd.paceStatus && pd.paceStatus !== 'on_track' && pd.paceStatus !== 'unknown' && Math.abs(pd.paceMonths||0) >= 1
       ? `<span style="color:${paceColor}">${paceIcon} ${Math.abs(pd.paceMonths||0)} mo ${pd.paceStatus === 'ahead' ? 'ahead of' : 'behind'} schedule</span>` : '';
 
@@ -2580,7 +2605,7 @@ function _renderDashHeroCard(totalDebt) {
       html = `
         <div style="font-family:var(--font-mono);font-size:32px;font-weight:600;color:var(--ember-text);line-height:1">⚠</div>
         <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:14px;color:var(--ink);margin:4px 0 12px">
-          Your budget doesn't cover your minimum payments
+          ${_payoffNullReason(true)}
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--slate);margin-bottom:12px">
           ${nwDeltaHTML}
@@ -2826,10 +2851,10 @@ async function renderCalendar() {
   for (const e of items) {
     const dt = new Date(e.date + 'T12:00:00');
     let key, label, folded = false;
-    if (dt < fourWeeks) { const w = weekStart(dt); key = 'w' + w.toISOString().slice(0, 10); label = 'Week of ' + w.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
+    if (dt < fourWeeks) { const w = weekStart(dt); key = 'w' + _isoLocal(w); label = 'Week of ' + w.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
     else {
       key = 'm' + e.date.slice(0, 7); folded = true;
-      label = (e.date.slice(0, 7) === fourWeeks.toISOString().slice(0, 7) ? 'Rest of ' : '') + dt.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      label = (e.date.slice(0, 7) === _isoLocal(fourWeeks).slice(0, 7) ? 'Rest of ' : '') + dt.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     }
     if (!byKey[key]) { byKey[key] = { label, rows: [], folded }; groups.push(byKey[key]); }
     byKey[key].rows.push(e);
@@ -2961,7 +2986,7 @@ function _dashRenderFreedMinimums() {
   const content = g('dashFreedMinimumsContent');
   if (!card || !content) return;
 
-  const _dashToday = new Date().toISOString().slice(0, 10);
+  const _dashToday = _isoLocal();
   const activeDebts = S.debtCards.filter(c => !c.paidInFull && !(c.endDate && c.endDate < _dashToday));
   if (!activeDebts.length) { card.style.display = 'none'; return; }
 
@@ -3043,9 +3068,17 @@ function _renderNextAchCard() {
   if (!card || !content) return;
 
   // Find the in-progress achievement closest to completion
-  const candidates = ACHIEVEMENTS
+  const progress = ACHIEVEMENTS
     .filter(a => !S.achievements.has(a.id))
-    .map(a => ({ a, pct: _getAchProgress(a) }))
+    .map(a => ({ a, pct: _getAchProgress(a) }));
+  // A goal already met is earned, not "99%": the progress trophies used to be
+  // awarded only when the Debt page rendered, so the dashboard showed a met
+  // goal as nearly done until then.
+  const met = progress.filter(({ a, pct }) => pct !== null && pct >= 100
+                                              && ['chipping_away', 'halfway'].includes(a.id));
+  met.forEach(({ a }) => awardAchievement(a.id));
+  const candidates = progress
+    .filter(({ a }) => !S.achievements.has(a.id))
     .filter(({ pct }) => pct !== null && pct > 0)
     .sort((x, y) => y.pct - x.pct);
 
@@ -7318,7 +7351,7 @@ async function _syncDebtToDb(card) {
       // and every restart silently un-retired paid cards. Date doubles as the
       // flag (null = not paid) and the "paid · March 2026" label.
       paid_off_at:        card.paidInFull
-                            ? (card.paidOffAt || new Date().toISOString().slice(0,10))
+                            ? (card.paidOffAt || _isoLocal())
                             : null,
     };
     if (card._dbId) {
@@ -7909,12 +7942,10 @@ function renderBudget() {
 
   const totalIncome = S.incomes.reduce((s,i) => s + i.amount, 0);
   const totalExpenses = S.expenses.reduce((s,e) => s + _rowMonth(e), 0);
-  const _today = new Date().toISOString().slice(0, 10);
+  const _today = _isoLocal();
   const activeDebts = S.debtCards.filter(c => !c.paidInFull && !(c.endDate && c.endDate < _today));
-  const totalDebt = activeDebts.reduce((s,c) => {
-    const pmt = parseFloat(c.minimum) || 0;
-    return s + pmt;
-  }, 0);
+  const _debt = _budgetDebtTotal(activeDebts);
+  const totalDebt = _debt.counted;
   // totalSinking must be defined here — it's referenced in the template literal below
   const totalSinking = (_sinkingFunds || []).reduce((s,f) => s + (parseFloat(f.monthlyContrib)||0), 0);
   const totalOut = totalExpenses + totalDebt + totalSinking;
@@ -8015,6 +8046,7 @@ function renderBudget() {
           <span style="color:var(--slate)">Debt payments</span>
           <span style="font-family:var(--font-mono);color:var(--ember-text)" id="wl-debt">− ${fmt(totalDebt)}</span>
         </div>
+        <div id="wl-debt-note" style="font-size:11px;color:var(--slate);margin-top:-6px;${_debt.overlap > 0 ? '' : 'display:none'}">${esc(_budgetDebtNoteText(_debt))}</div>
         ${totalSinking > 0 ? `
         <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px">
           <span style="color:var(--slate)">Sinking funds</span>
@@ -8146,7 +8178,7 @@ function _budgetCheckShortfall(activeDebts) {
   if (totalIncome <= 0) return;
 
   const totalExpenses = S.expenses.reduce((s,e) => s + _rowMonth(e), 0);
-  const totalMins     = activeDebts.reduce((s,c) => s + (parseFloat(c.minimum)||0), 0);
+  const totalMins     = _budgetDebtTotal(activeDebts).counted;   // a minimum already in Expenses is not owed twice
   const projExpenses  = S.expenses.reduce((sum, exp) => {
     const p = _budgetProjection(exp.cat || exp.name || 'Other', _rowMonth(exp));
     return sum + (p ? p.projected : _rowMonth(exp));
@@ -8197,7 +8229,7 @@ function _budgetUpdateRealismSentence(left, totalIncome) {
   if (!el) return;
   // Recalculate if called without arguments (e.g. from renderBudget directly)
   if (left === undefined) {
-    const _tod = new Date().toISOString().slice(0, 10);
+    const _tod = _isoLocal();
     totalIncome = S.incomes.reduce((s,i) => s + i.amount, 0);
     const activeDebts = S.debtCards.filter(c => !c.paidInFull && !(c.endDate && c.endDate < _tod));
     const totalDebt   = activeDebts.reduce((s,c) => s + (parseFloat(c.minimum)||0), 0);
@@ -8242,12 +8274,48 @@ function _budgetUpdateLedgerIncomeNote() {
 // Blueprint §10: two numbers — planned (what the budget says) and projected
 // (what imports suggest will actually happen). Planned in ink. Projected in
 // pine when under, ember when over.
+// Debt minimums for the month, counted once. A payment the user also budgets
+// as an expense line - a "Mortgage" line in Rent / Mortgage beside a Mortgage
+// debt, or a line named for the debt - was subtracted twice: once in Expenses
+// and again in Debt payments, which alone put this household $1,650 "short".
+// Such a minimum is left out of the debt total (up to the line's amount).
+function _budgetDebtTotal(activeDebts) {
+  const total = activeDebts.reduce((s, c) => s + (parseFloat(c.minimum) || 0), 0);
+  const lines = (S.expenses || []).map(e => ({
+    name: (e.name || '').trim().toLowerCase(),
+    cat:  (e.cat || '').trim().toLowerCase(),
+    amt:  _rowMonth(e),
+  }));
+  const used = new Set();
+  let overlap = 0;
+  const names = [];
+  for (const c of activeDebts) {
+    const dn = (c.name || '').trim().toLowerCase();
+    const isMortgage = (c.debtType || 'credit') === 'mortgage';
+    const i = lines.findIndex((l, idx) => !used.has(idx) && l.amt > 0 && (
+      (dn && l.name === dn) ||
+      (isMortgage && (l.cat === 'rent / mortgage' || /\bmortgage\b/.test(l.name)))));
+    if (i < 0) continue;
+    used.add(i);
+    overlap += Math.min(lines[i].amt, parseFloat(c.minimum) || 0);
+    names.push(c.name || 'Debt');
+  }
+  return { total, overlap, counted: total - overlap, names };
+}
+
+function _budgetDebtNoteText(debt) {
+  return debt.overlap > 0
+    ? `${debt.names.join(', ')} ${debt.names.length === 1 ? 'is' : 'are'} already in Expenses — counted once (${fmt(debt.overlap)} not repeated here).`
+    : '';
+}
+
 function _budgetUpdateWhatsLeft() {
   const totalIncome   = S.incomes.reduce((s,i) => s + i.amount, 0);
   const totalExpenses = S.expenses.reduce((s,e) => s + _rowMonth(e), 0);
-  const today         = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const today         = _isoLocal(); // YYYY-MM-DD
   const activeDebts   = S.debtCards.filter(c => !c.paidInFull && !(c.endDate && c.endDate < today));
-  const totalDebt     = activeDebts.reduce((s,c) => s + (parseFloat(c.minimum)||0), 0);
+  const debt          = _budgetDebtTotal(activeDebts);
+  const totalDebt     = debt.counted;
   // Sinking fund monthly contributions count as committed spending
   const totalSinking  = (_sinkingFunds || []).reduce((s,f) => s + (parseFloat(f.monthlyContrib)||0), 0);
   const totalOut      = totalExpenses + totalDebt + totalSinking;
@@ -8276,6 +8344,11 @@ function _budgetUpdateWhatsLeft() {
   setText('wl-income',   fmt(totalIncome));
   setText('wl-expenses', `− ${fmt(totalExpenses)}`);
   setText('wl-debt',     `− ${fmt(totalDebt)}`);
+  const wlDebtNote = g('wl-debt-note');
+  if (wlDebtNote) {
+    wlDebtNote.textContent = _budgetDebtNoteText(debt);
+    wlDebtNote.style.display = debt.overlap > 0 ? '' : 'none';
+  }
   // Update sinking funds row visibility (re-render writes it in the template;
   // _budgetUpdateWhatsLeft is also called in place, so update it directly)
   const wlSinking = g('wl-sinking');
@@ -8328,7 +8401,7 @@ function _budgetUpdateWhatsLeft() {
   // B0d: two-scenario comparison (current payments vs. minimums-only)
   const twoScenEl = g('budgetTwoScenario');
   if (twoScenEl) {
-    const _tod2 = new Date().toISOString().slice(0, 10);
+    const _tod2 = _isoLocal();
     const activeDebts = S.debtCards.filter(c => !c.paidInFull && !(c.endDate && c.endDate < _tod2));
     twoScenEl.innerHTML = _budgetTwoScenarioComparison(activeDebts);
   }
@@ -8477,6 +8550,7 @@ function _budgetSpentForCat(catName) {
   return S.transactions
     .filter(t => t.type === 'debit'
               && (t.date || '').startsWith(_budgetMonthKey)
+              && (t.date || '') <= _isoLocal()          // not yet spent if dated ahead
               && matchNames.includes(t.category))
     .reduce((sum, t) => sum + t.amount, 0);
 }
@@ -8493,11 +8567,19 @@ function _budgetProjection(catName, budgetedAmt) {
   if (daysElapsed < 5) return null;
 
   const spent     = _budgetSpentForCat(catName);
-  const projected = (spent / daysElapsed) * daysInMonth;
+  // Nothing spent yet: there is no pace to project from, so no projection
+  // (totals fall back to the budgeted amount rather than to a $0 "forecast").
+  if (!(spent > 0)) return null;
+  // A once-a-month bill is not spent at a daily pace: the $1,650 mortgage paid
+  // on the 1st is $1,650 for the month, not $2,436. Its projection is what it
+  // has cost so far.
+  const isBill    = _catIsMonthlyBill(catName);
+  const projected = isBill ? spent : (spent / daysElapsed) * daysInMonth;
 
   return {
     spent:     Math.round(spent * 100) / 100,
-    projected: Math.round(projected),
+    // A bill's projection is its actual charge, to the cent; a pace is an estimate, to the dollar.
+    projected: isBill ? Math.round(projected * 100) / 100 : Math.round(projected),
     pct:       budgetedAmt > 0 ? projected / budgetedAmt : 0,
     spentPct:  budgetedAmt > 0 ? spent / budgetedAmt : 0,
     trending:  projected > budgetedAmt        ? 'over'
@@ -8884,7 +8966,7 @@ function _budgetConsequenceSentence() {
   if (!worstCat || worstOverage < 5) return '';
 
   // Find the highest-APR active non-lease debt to compute payoff delay against
-  const today2 = new Date().toISOString().slice(0, 10);
+  const today2 = _isoLocal();
   const activeDebts = S.debtCards.filter(c =>
     !c.paidInFull &&
     parseFloat(c.rate) > 0 &&
@@ -8959,6 +9041,7 @@ function _calcMinPayment(balance, aprPct) {
 function _payoffDateLabel(monthsFromNow) {
   if (monthsFromNow <= 0) return 'Already paid off';
   const d = new Date();
+  d.setDate(1);
   d.setMonth(d.getMonth() + monthsFromNow);
   return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }
@@ -9067,13 +9150,13 @@ function _budgetRenderDebtRow(card) {
   const limit     = card.creditLimit ? parseFloat(card.creditLimit) : null;
   const isLease   = (card.debtType || 'credit') === 'lease';
   const isLoan    = (card.debtType || 'credit') === 'loan';
-  const today     = new Date().toISOString().slice(0, 10);
+  const today     = _isoLocal();
 
   // End date countdown for leases and loans
   let endDateBadge = '';
   if (card.endDate && card.endDate >= today) {
-    const moLeft = Math.round((new Date(card.endDate) - new Date()) / (1000*60*60*24*30.4));
-    const endLbl = new Date(card.endDate).toLocaleDateString('en-US',{month:'short',year:'numeric'});
+    const moLeft = Math.round((_parseLocalDate(card.endDate) - new Date()) / (1000*60*60*24*30.4));
+    const endLbl = _parseLocalDate(card.endDate).toLocaleDateString('en-US',{month:'short',year:'numeric'});
     const badgeColor = moLeft <= 3 ? 'var(--gold-text)' : 'var(--slate-2)';
     endDateBadge = `<span style="font-size:10px;color:${badgeColor};font-family:var(--font-mono)">${isLease ? 'ends' : 'matures'} ${endLbl}</span>`;
   }
@@ -9084,8 +9167,7 @@ function _budgetRenderDebtRow(card) {
   if (card.dueDay) {
     const today   = new Date();
     const moKey2  = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
-    const dueDate = new Date(today.getFullYear(), today.getMonth(), parseInt(card.dueDay));
-    const diff    = Math.round((dueDate - today) / 86400000);
+    const diff    = _daysUntilDueDay(parseInt(card.dueDay), today);
 
     // Only show urgency alerts within ±30 days of due
     if (diff >= -30 && diff <= 14) {
@@ -9222,7 +9304,9 @@ function _runScheduler(activeDebts) {
     const p = _budgetProjection(exp.cat || exp.name || 'Other', _rowMonth(exp));
     return sum + (p ? p.projected : _rowMonth(exp));
   }, 0);
-  const available = Math.max(0, totalIncome - projExpenses);
+  // What a minimum already budgeted as an expense took out of projExpenses
+  // comes back here, so every minimum is paid from `available` exactly once.
+  const available = Math.max(0, totalIncome - projExpenses + _budgetDebtTotal(activeDebts).overlap);
 
   const totalMins = activeDebts.reduce((s,c) => s + (parseFloat(c.minimum)||0), 0);
   if (available < totalMins) return null;  // shortfall handled by CFPB banner
@@ -10028,7 +10112,7 @@ function setCardPaidInFull(id, checked) {
   // Stamp the payoff date (kept on uncheck-recheck within a day; cleared on
   // uncheck). _syncDebtToDb sends it as paid_off_at — the persistence half
   // of the paid flag, which was missing entirely until d21.
-  card.paidOffAt  = checked ? (card.paidOffAt || new Date().toISOString().slice(0,10)) : null;
+  card.paidOffAt  = checked ? (card.paidOffAt || _isoLocal()) : null;
   setCardField(id, 'paidInFull', checked);
   calculate();
 
@@ -10214,7 +10298,7 @@ function _showCardPaidOffCelebration(cardName) {
 
 function calcDailyInterest() {
   // Exclude paid-in-full cards and expired leases/loans
-  const today = new Date().toISOString().slice(0, 10);
+  const today = _isoLocal();
   return S.debtCards
     .filter(c => !c.paidInFull && !(c.endDate && c.endDate < today))
     .reduce((sum, c) => {
@@ -10584,6 +10668,7 @@ function _joinNames(items) {
 // _simulatePayoff has always rendered its own free date.
 function _monthsFromNowLabel(months) {
   const d = new Date();
+  d.setDate(1);
   d.setMonth(d.getMonth() + (parseInt(months, 10) || 0));
   return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
@@ -10765,8 +10850,8 @@ function renderTripPlanner() {
   const mon  = new Date(sat);
   mon.setDate(sat.getDate() + 2);
   if (!g('tripDepart')?.value) {
-    if (g('tripDepart')) g('tripDepart').value = sat.toISOString().slice(0,10);
-    if (g('tripReturn')) g('tripReturn').value = mon.toISOString().slice(0,10);
+    if (g('tripDepart')) g('tripDepart').value = _isoLocal(sat);
+    if (g('tripReturn')) g('tripReturn').value = _isoLocal(mon);
   }
 
   // Check oil change history
@@ -11615,7 +11700,7 @@ async function _applyTripItinerary() {
     if (!label) { unbooked++; continue; }
     try {
       await API.post('/api/trip/bookings', { trip_label: label, airline: b.airline, amount: b.amount,
-        booked_on: new Date().toISOString().slice(0, 10), paid_with_kind: 'other', confirmation: b.confirmation });
+        booked_on: _isoLocal(), paid_with_kind: 'other', confirmation: b.confirmation });
       booked++;
     } catch (e) { _gwErr('_applyTripItinerary')(e); }
   }
@@ -12765,7 +12850,7 @@ async function writeSundayCheckin(show) {
 async function closeSundayCard() {
   const card = g('dashSundayCard');
   if (card) card.style.display = 'none';
-  try { await API.post('/api/checkin/close', { date: (_checkinFacts && _checkinFacts.date) || new Date().toISOString().slice(0, 10) }); }
+  try { await API.post('/api/checkin/close', { date: (_checkinFacts && _checkinFacts.date) || _isoLocal() }); }
   catch (e) { _gwErr('closeSundayCard')(e); }
 }
 
@@ -12780,7 +12865,7 @@ let _nightRunDate = null;
 async function _nightNarration() {
   const now = new Date();
   if (now.getHours() < 1 || now.getHours() > 4) return;
-  const key = now.toISOString().slice(0, 10);
+  const key = _isoLocal(now);
   if (_nightRunDate === key) return;
   let due;
   try { due = await API.get('/api/checkin/narration-due'); } catch (e) { _gwErr('_nightNarration')(e); return; }
@@ -13662,7 +13747,7 @@ function _obRenderExpenseAnalysis() {
   cont.innerHTML = '';
 
   const now = new Date();
-  const sixMoAgo = new Date(now.getFullYear(), now.getMonth()-6, 1).toISOString().slice(0,10);
+  const sixMoAgo = _isoLocal(new Date(now.getFullYear(), now.getMonth()-6, 1));
   const txns = S.transactions.filter(t => t.type==='debit' && t.date>=sixMoAgo
     && t.category!=='Income' && t.category!=='Transfer' && t.category!=='Debt');
 
@@ -13757,8 +13842,9 @@ function _obPrepareScenariosStep() {
 // over the engine's answer rather than an answer of its own.
 //
 // **Three states, and they are not two.** An object is an answer. `null` means
-// what it has always meant here — the budget does not cover the minimums, which
-// is a fact and not an absence. `undefined` means the engine has not answered
+// no payoff date exists — the budget does not cover the minimums, or covers them
+// but never clears the balances (_payoffNullReason says which) — which is a fact
+// and not an absence. `undefined` means the engine has not answered
 // yet. Callers that test `=== null` keep working, and a pending answer renders
 // as no date rather than as a false one; conflating the two is the bug that has
 // now been fixed twice in this file.
@@ -13772,7 +13858,7 @@ let _engineSims = {};
 let _engineSimsInFlight = {};
 
 function _simCards() {
-  const todayKey = new Date().toISOString().slice(0, 7);
+  const todayKey = _isoLocal().slice(0, 7);
   return S.debtCards
     .filter(c => !c.paidInFull)
     .map(c => ({
@@ -13816,10 +13902,12 @@ function _simAsk(cards, budget, extra, strategy, key) {
         // would have quietly restyled every payoff date in the app on the way
         // past.
         freeDate:      (() => { const d = new Date();
+                                d.setDate(1);
                                 d.setMonth(d.getMonth() + res.months);
                                 return d.toLocaleDateString('en-US',
                                   { month: 'short', year: 'numeric' }); })(),
         freeDateFull:  (() => { const d = new Date();
+                                d.setDate(1);
                                 d.setMonth(d.getMonth() + res.months); return d; })(),
         clearedAt:     res.clearedAt || {},
         undatedForgiveness: res.undatedForgiveness || [],
@@ -13873,6 +13961,18 @@ function _rerenderAfterEngine() {
   }, 16);
 }
 
+// Why _simulatePayoff answered null: below the minimums, or never clears.
+function _payoffBelowMinimums() {
+  const totalMin = getCardData().reduce((s, c) => s + c.minimum, 0);
+  // Escrow comes out of the budget before the engine sees it (_simAsk), as here.
+  const escrow = _activeDebtCards().reduce((s, c) => s + (_nonPrincipalPart(c) || 0), 0);
+  return _getMonthlyBudget() - escrow < totalMin;
+}
+function _payoffNullReason(sentence) {
+  if (_payoffBelowMinimums()) return sentence ? 'Your budget doesn\'t cover your minimum payments' : 'Budget doesn\'t cover minimum payments';
+  return sentence ? 'At this budget your debt is never paid off' : 'Budget never pays the debt off';
+}
+
 function _simulatePayoff(extraPerMonth = 0) {
   const cards = _simCards();
   if (!cards.length) return null;
@@ -13885,7 +13985,7 @@ function _simulatePayoff(extraPerMonth = 0) {
 }
 
 function _simulatePayoffStrategy(cardList, budget, strategy) {
-  const todayKey = new Date().toISOString().slice(0, 7);
+  const todayKey = _isoLocal().slice(0, 7);
   const cards = (cardList || [])
     .filter(c => !c.paidInFull)
     .map(c => ({
@@ -13962,7 +14062,7 @@ function obCalcDebt() {
     } else {
       const month = minSim.months;
       const yr = Math.floor(month / 12), mo = month % 12;
-      const d = new Date(); d.setMonth(d.getMonth() + month);
+      const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + month);
       setText('obMinDebtFree',
         `At minimums: debt-free in ${yr>0?yr+'y ':''}${mo}mo · ${d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`);
     }
@@ -14088,7 +14188,7 @@ async function obNext(step) {
       } else {
         card = {id:S.debtIdCounter++,name,beginBal:String(balance),
                 currentBal:String(balance),rate:String(rate),
-                minimum:String(minimum),startDate:new Date().toISOString().slice(0,10),
+                minimum:String(minimum),startDate:_isoLocal(),
                 dueDay:'',_dbId:null,paidInFull:false,context:'',debtType:'credit'};
         S.debtCards.push(card);
         _obDebtRowCards[rowId] = card;
@@ -14687,7 +14787,7 @@ function dismissGettingStarted() {
 // Use this everywhere instead of S.debtCards.filter(c => !c.paidInFull).
 // Leases whose endDate is in the past have no remaining payment obligation.
 function _activeDebtCards() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = _isoLocal();
   return S.debtCards.filter(c =>
     !c.paidInFull && !(c.endDate && c.endDate < today)
   );
@@ -14719,7 +14819,7 @@ function calcHasEmergencyBuffer() {
 }
 
 function calcDTI() {
-  const today    = new Date().toISOString().slice(0, 10);
+  const today    = _isoLocal();
   const totalMin = S.debtCards
     .filter(c => !c.paidInFull)
     .filter(c => {
@@ -14729,7 +14829,7 @@ function calcDTI() {
       return true;
     })
     .reduce((s,c) => s + (parseFloat(c.minimum) || 0), 0);
-  const income   = S.incomes.reduce((s,i) => s + i.amount, 0);
+  const income   = (S.incomes || []).reduce((s,i) => s + (parseFloat(i.amount) || 0), 0);
   if (!income) return null;
   return (totalMin / income) * 100;
 }
@@ -14786,7 +14886,7 @@ function _cardBal(c) {
 // the avalanche/snowball strategy and cascading to the next card if the
 // current target's balance is smaller than the extra available.
 function _thisMonthPaymentPlan() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = _isoLocal();
   const data = S.debtCards
     .filter(c => !c.paidInFull)
     .filter(c => !(c.endDate && c.endDate < today)) // exclude expired leases
@@ -15168,12 +15268,12 @@ function _debtCardRowHTML(c, opts={}) {
         // Lease / loan end date countdown
         if (c.paidInFull) return '';   // paid card: no countdown chip
         if (!c.endDate) return '';
-        const today = new Date().toISOString().slice(0,10);
+        const today = _isoLocal();
         if (c.endDate < today) {
           return `<span style="font-size:10px;font-family:var(--font-mono);color:var(--slate-2);flex-shrink:0" title="Ended — excluded from DTI">ended ${c.endDate}</span>`;
         }
-        const moLeft = Math.round((new Date(c.endDate) - new Date()) / (1000*60*60*24*30.4));
-        const endLbl = new Date(c.endDate).toLocaleDateString('en-US',{month:'short',year:'numeric'});
+        const moLeft = Math.round((_parseLocalDate(c.endDate) - new Date()) / (1000*60*60*24*30.4));
+        const endLbl = _parseLocalDate(c.endDate).toLocaleDateString('en-US',{month:'short',year:'numeric'});
         const color  = moLeft <= 3 ? 'var(--gold-text)' : 'var(--slate-2)';
         const label  = _debtType(c._dbId||c.id) === 'lease' ? `lease ends ${endLbl}` : `matures ${endLbl}`;
         return `<span style="font-size:10px;font-family:var(--font-mono);color:${color};flex-shrink:0" title="${moLeft} months remaining">${label}</span>`;
@@ -15201,7 +15301,7 @@ function _debtCardRowHTML(c, opts={}) {
           : '';
         const payoffMo = _planClearedMonth(c, plan);
         if (payoffMo == null) return lowChip;
-        const d2 = new Date(); d2.setMonth(d2.getMonth() + payoffMo);
+        const d2 = new Date(); d2.setDate(1); d2.setMonth(d2.getMonth() + payoffMo);
         const label = d2.toLocaleDateString('en-US',{month:'short',year:'numeric'});
         const color = isTarget ? 'var(--gold-text)' : 'var(--slate-2)';
         // V6: a date built on a missing figure says so.
@@ -15942,7 +16042,7 @@ function _debtCalcEndDate(cardId) {
   if (!term || term < 1) return;
   const s = new Date(start + 'T00:00:00');
   s.setMonth(s.getMonth() + term);
-  const iso = s.toISOString().slice(0, 10);
+  const iso = _isoLocal(s);
   endEl.value = iso;
   setCardField(cardId, 'endDate', iso);
 }
@@ -16076,7 +16176,7 @@ function _pslfDetailsHTML(key) {
   const remain = Math.max(0, total - made);
   const pct   = Math.min(100, Math.round((made / total) * 100));
   const forgiveDate = remain > 0
-    ? (() => { const d = new Date(); d.setMonth(d.getMonth() + remain); return d.toLocaleDateString('en-US',{month:'long',year:'numeric'}); })()
+    ? (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + remain); return d.toLocaleDateString('en-US',{month:'long',year:'numeric'}); })()
     : 'Eligible now';
 
   return `
@@ -16247,16 +16347,13 @@ function _debtWriteHero(result, data, budget, totalMin, intSaved) {
 }
 
 function _debtCalcDTI() {
-  const today  = new Date().toISOString().slice(0, 10);
-  const income = S.incomes ? S.incomes.reduce((s,i) => s + (parseFloat(i.amount)||0), 0) : 0;
-  if (!income) return null;
-  const data     = getCardData();
-  const totalMin = data
-    .filter(c => !c.endDate || c.endDate >= today)
-    .reduce((s,c) => s + c.minimum, 0);
-  // S.incomes amounts are monthly. DTI = monthly debt payments / monthly income.
-  // Use one decimal to match calcDTI() shown in the Advisor tab.
-  return Math.round((totalMin / income) * 1000) / 10; // one decimal, e.g. 12.3
+  // One DTI everywhere: calcDTI's, rounded to one decimal. This used to sum
+  // getCardData's minimums, which are a mortgage's principal & interest only
+  // (V3, for the payoff engine) - so the Debt page said 36.9% while the
+  // dashboard, Advisor and DTI trophy said 47%. Lenders count the whole
+  // housing payment, escrow included, which is what calcDTI uses.
+  const dti = calcDTI();
+  return dti == null ? null : Math.round(dti * 10) / 10; // one decimal, e.g. 12.3
 }
 
 // CP-D0: What-if expander toggle
@@ -16310,7 +16407,7 @@ function _debtMaybeSuggestCommitment() {
 
   const income = S.incomes ? S.incomes.reduce((s,i) => s + (parseFloat(i.amount)||0), 0) : 0;
   const bills  = S.expenses ? S.expenses.reduce((s,e) => s + _rowMonth(e), 0) : 0;
-  const today_sug = new Date().toISOString().slice(0, 10);
+  const today_sug = _isoLocal();
   const mins   = S.debtCards ? S.debtCards.filter(c => !c.paidInFull && !(c.endDate && c.endDate < today_sug)).reduce((s,c) => s + (parseFloat(c.minimum)||0), 0) : 0;
   if (!income) return;
 
@@ -16653,10 +16750,26 @@ function calculate() {
   const result    = _simulatePayoff(0);
   const daily     = calcDailyInterest();
 
+  // Progress trophies come from balances alone, not the plan, so they are
+  // awarded whether or not a plan can be dated.
+  const pctPaid = data.reduce((s,c)=>s+(c.beginBal-c.balance),0) / Math.max(1,data.reduce((s,c)=>s+c.beginBal,0));
+  if (pctPaid >= 0.10) awardAchievement('chipping_away');
+  if (pctPaid >= 0.50) awardAchievement('halfway');
+
+  // undefined = asked, not yet answered. Leave the last render up; the engine's
+  // answer re-runs calculate(). Treating it as null flashed "below minimum
+  // payments" on every keystroke while the request was in flight.
+  if (result === undefined) return;
+
   if (!result) {
     _debtWriteHero(null, data, budget, totalMin);
+    // null has two causes: the budget is below the minimums, or it covers them
+    // but interest outruns the payments and nothing ever clears.
+    const why = _payoffBelowMinimums()
+      ? `Monthly budget (${fmt(budget)}) is below minimum payments (${fmt(totalMin)}). Increase your budget to see a full payoff plan.`
+      : `At ${fmt(budget)} a month the balances are never paid off — interest grows faster than the payments reduce it. Increase your budget to see a payoff date.`;
     if (results) results.innerHTML = `
-      <div style="color:var(--ember-text);font-size:13px;padding:12px;margin-bottom:12px">Monthly budget (${fmt(budget)}) is below minimum payments (${fmt(totalMin)}). Increase your budget to see a full payoff plan.</div>
+      <div style="color:var(--ember-text);font-size:13px;padding:12px;margin-bottom:12px">${why}</div>
       ${_paymentPlanHTML()}`;
     return;
   }
@@ -16671,10 +16784,7 @@ function calculate() {
   // Write hero band
   _debtWriteHero(result, data, budget, totalMin, intSaved);
 
-  // Achievement checks
-  const pctPaid = data.reduce((s,c)=>s+(c.beginBal-c.balance),0) / Math.max(1,data.reduce((s,c)=>s+c.beginBal,0));
-  if (pctPaid >= 0.10) awardAchievement('chipping_away');
-  if (pctPaid >= 0.50) awardAchievement('halfway');
+  // Achievement checks (chipping_away / halfway are awarded above)
   // `above_minimum` is NOT awarded here any more. This fired on the budget
   // NUMBER exceeding the minimums — a figure someone typed, not money that
   // moved — so the trophy could be earned by editing a field and never paying
@@ -16943,12 +17053,22 @@ function removeCard(id) {
 
 // Returns {label, color} for a card's due-date status, or null if not urgent.
 // Used inline in _debtCardRowHTML — alerts appear on the card row itself.
+// Whole calendar days from today to this month's due day (negative = past).
+// Midnight to midnight: measuring from the current time made every due date
+// a day early after noon ("due today" for tomorrow, "7d overdue" for six).
+// A due day past the month's end (31 in a 30-day month) is the month's last day.
+function _daysUntilDueDay(day, now = new Date()) {
+  const last  = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const due   = new Date(now.getFullYear(), now.getMonth(), Math.min(day, last));
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((due - today) / 86400000);
+}
+
 function _debtDueDateStatus(c) {
   const day = parseInt(c.dueDay);
   if (!day || c.paidInFull) return null;
   const now  = new Date();
-  const due  = new Date(now.getFullYear(), now.getMonth(), day);
-  const diff = Math.round((due - now) / 86400000);
+  const diff = _daysUntilDueDay(day, now);
 
   // Only fire alerts within the 7-day urgency window
   if (diff > 7 || diff < -30) return null;
@@ -18016,7 +18136,7 @@ async function addHolding() {
     }
     await API.post('/api/investments/transactions', {
       ticker, shares, price_per_share: cost, type: 'buy',
-      date: new Date().toISOString().slice(0,10), account_id: acctId,
+      date: _isoLocal(), account_id: acctId,
     });
     closeAddHoldingModal();
     await _loadInvPositions();
@@ -18086,15 +18206,10 @@ function renderNetWorth() {
 
 function updateNetWorth() {
   // Auto-pull checking/savings balances from linked accounts
-  const linkedCheckingSavings = (S.accounts||[]).filter(a =>
-    (a.type==='checking'||a.type==='savings') && a.is_active!==false
-  );
-  if (linkedCheckingSavings.length > 0) {
-    const savingsEl = g('nwSavings');
-    if (savingsEl && (!savingsEl.value || savingsEl.value === '0')) {
-      const total = linkedCheckingSavings.reduce((s,a) => s + (parseFloat(a.balance)||0), 0);
-      if (total > 0) savingsEl.value = total.toFixed(2);
-    }
+  const linkedEl = g('nwSavings');
+  if (linkedEl && (!linkedEl.value || linkedEl.value === '0')) {
+    const total = _nwLinkedCashTotal();
+    if (total > 0) linkedEl.value = total.toFixed(2);
   }
   // BUG FIX (July 6): this function is called from several places outside
   // the Net Worth page itself — debt card add/edit/delete (lines marked
@@ -18265,10 +18380,25 @@ function _nwMortgageFieldState(m) {
   }
 }
 
+// Checking + savings balances from the user's accounts - what the Net Worth
+// page puts in its Savings & checking field when nothing has been typed there.
+function _nwLinkedCashTotal() {
+  return (S.accounts || [])
+    .filter(a => (a.type === 'checking' || a.type === 'savings') && a.is_active !== false)
+    .reduce((s, a) => s + (parseFloat(a.balance) || 0), 0);
+}
+
 async function autoSnapshotNetWorthIfDue(extraNote) {
   try {
     const nw              = S.netWorth || {};
-    const savings         = parseFloat(nw.savings)||0;
+    // The same savings figure the Net Worth page shows: the typed field, or
+    // when it is empty the accounts' balances (updateNetWorth's rule). Reading
+    // only the typed field recorded $0 of assets for a ledger user at boot -
+    // the field is filled only once the Net Worth page has been opened - and
+    // that snapshot then held the month.
+    const typedSavings    = parseFloat(nw.savings)||0;
+    const linkedCash      = _nwLinkedCashTotal();
+    const savings         = typedSavings || (linkedCash > 0 ? linkedCash : 0);
     const investments     = parseFloat(nw.investments)||0;  // raw, pre-updateNetWorth()
     const retirement401k  = parseFloat(nw.retirement401k)||0;
     const retirementIRA   = parseFloat(nw.retirementIRA)||0;
@@ -20761,7 +20891,7 @@ function _mortgageOnSliderChange(val) {
   const cmp = _mortgageInvestComparison(balance, apr, months, _mortgageWhatIfExtra, assumedReturn);
 
   const payoffDateLabel = (m) => {
-    const d = new Date(); d.setMonth(d.getMonth() + m);
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + m);
     return d.toLocaleDateString('en-US', { month:'short', year:'numeric' });
   };
 
@@ -21041,7 +21171,7 @@ async function saveNWGoal() {
   // after this, so the pace line stays anchored to when the goal was set.
   goals.push({
     id: Date.now(), name, amount, date,
-    startAmount: _nwCurrentTotal(), startDate: new Date().toISOString().slice(0,10),
+    startAmount: _nwCurrentTotal(), startDate: _isoLocal(),
   });
 
   await API.patch('/api/settings', { nw_goals_json: JSON.stringify(goals) }).catch(_gwErr('saveNWGoal'));
@@ -21243,7 +21373,9 @@ function _getAchProgressLabel(a) {
     case 'chipping_away':
     case 'halfway': { const b=S.debtCards.filter(c=>!c.paidInFull).reduce((s,c)=>s+(parseFloat(c.beginBal)||0),0);
       const c=S.debtCards.filter(c2=>!c2.paidInFull).reduce((s,c2)=>s+(_cardBal(c2)),0);
-      return `${fmt(b-c)} of ${fmt(b)} paid`; }
+      // Name the goal, so the % shown beside this reads as progress toward it -
+      // "$X of $Y paid · 80%" read as 80% of the whole debt being paid.
+      return `${fmt(b-c)} paid toward a goal of ${fmt(b*(a.id==='halfway'?0.5:0.1))}`; }
     case 'interest_slayer': return `${fmt(S._interestSaved||0)} of $1,000 saved`;
     case 'safety_net': return `${fmt(Math.min(parseFloat(S.netWorth?.savings)||0,500))} of $500 saved`;
     case 'honest_count': return `${Math.min(S.expenses.length,5)} of 5 expense categories`;
@@ -22186,11 +22318,11 @@ async function _bybCommit(decision) {
       };
       if (f.needed) {
         const start = new Date();
-        newCard.start_date = start.toISOString().slice(0, 10);
+        newCard.start_date = _isoLocal(start);
         if (f.term) {
           const end = new Date(start);
           end.setMonth(end.getMonth() + f.term);
-          newCard.end_date = end.toISOString().slice(0, 10);
+          newCard.end_date = _isoLocal(end);
         }
       }
       API.post('/api/debt', newCard).then(res => {
@@ -22391,6 +22523,8 @@ const ACCOUNT_TYPES = {
   checking:    'Checking',
   savings:     'Savings',
   credit_card: 'Credit card',
+  credit:      'Credit card',   // a card's companion account (create_debt)
+  loan:        'Loan',          // a loan, mortgage or lease's companion account
   cash:        'Cash',
   hsa:         'HSA',      // item 86 F1: HSA and FSA are kinds of account (HSA_FSA.md)
   fsa:         'FSA',
@@ -22624,7 +22758,7 @@ function showHealthPlanForm(kind, id) {
   } else if (kind === 'reading') {
     fields = (p.tier === 'family' ? row('Whose figures', `<select id="hp-person_id" style="font-size:12px;padding:3px 6px"><option value="">The plan's own</option>${(_hpPeople || []).map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>`) : '')
       + row('Deductible met so far', num('deductible_met')) + row('Out-of-pocket so far', num('oop_met'))
-      + row('As of', dt('as_of', new Date().toISOString().slice(0, 10)));
+      + row('As of', dt('as_of', _isoLocal()));
     note = 'From your insurer\'s website or your latest statement. Earlier readings are kept.';
   } else {
     fields = `<div style="margin-top:6px">Did it change from a date, or was it always this?</div>
@@ -24610,7 +24744,7 @@ function _monthName(m) {
 
 function _debtWhen(months) {
   if (months == null) return "doesn't clear at this rate";
-  const d = new Date(); d.setMonth(d.getMonth() + months);
+  const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + months);
   return `${months} months (${d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })})`;
 }
 
@@ -25084,7 +25218,7 @@ function budgetBillsHtml(bills, checks) {
   const ck = id => ((checks && checks.bills) || []).find(x => x.id === id);
   const accts = (checks && checks.accounts) || [];
   if (!withSite.length) return '';
-  const thisMonth = new Date().toISOString().slice(0, 7);
+  const thisMonth = _isoLocal().slice(0, 7);
   const rows = withSite.map(b => {
     const p = b.pending, c = b.confirmed;
     if (p) {
@@ -25613,7 +25747,7 @@ function updateReportPreview() {
   if (!month) return;
   const [yr,mo] = month.split('-').map(Number);
   const start   = `${month}-01`;
-  const end     = new Date(yr,mo,0).toISOString().slice(0,10);
+  const end     = _isoLocal(new Date(yr,mo,0));
   const txns    = S.transactions.filter(t => t.date>=start && t.date<=end);
   const income  = txns.filter(_isEarn).reduce((s,t)=>s+t.amount,0);    // transfers on neither side (2026-10-13)
   const spent   = txns.filter(_isSpend).reduce((s,t)=>s+t.amount,0);
@@ -26685,7 +26819,7 @@ let _monthlyReviewBusy = false;
 function _rcMonthFacts(month) {
   const [yr, mo] = month.split('-').map(Number);
   const start = `${yr}-${String(mo).padStart(2, '0')}-01`;
-  const end = new Date(yr, mo, 0).toISOString().slice(0, 10);
+  const end = _isoLocal(new Date(yr, mo, 0));
   const txns = S.transactions.filter(t => t.date >= start && t.date <= end);
   const monthName = new Date(yr, mo - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   const spent = txns.filter(_isSpend).reduce((s, t) => s + t.amount, 0);
@@ -27207,7 +27341,7 @@ async function _loadNotLevers() {
 }
 function _findHighLeverageCategory(txns) {
   if (!_notLevers) return null;            // the one list is not loaded: offer nothing rather than guess
-  const now=new Date(), thisMonth=now.toISOString().slice(0,7);
+  const now=new Date(), thisMonth=_isoLocal(now).slice(0, 7);
   const lever = cat => cat !== 'Other' && !_notLevers.has(String(cat).trim().toLowerCase());
   const currentMonth={};
   S.transactions.filter(t=>t.type==='debit'&&(t.date||'').slice(0,7)===thisMonth).forEach(t=>{const cat=t.category||'Other';currentMonth[cat]=(currentMonth[cat]||0)+t.amount;});
@@ -28026,7 +28160,7 @@ function _rcMonthlyRefreshPreview() {
   if (!month) return;
   const [yr, mo] = month.split('-').map(Number);
   const start = `${yr}-${String(mo).padStart(2,'0')}-01`;
-  const end   = new Date(yr, mo, 0).toISOString().slice(0,10);
+  const end   = _isoLocal(new Date(yr, mo, 0));
   const txns  = S.transactions.filter(t => t.date >= start && t.date <= end);
   // Transfers are money moving between the person's own accounts, never spending or earning (_isSpend / _isEarn, as
   // the dashboard and Annual Summary count them; fixed 2026-10-13 - September 2026's top "spending" was a transfer)
@@ -28131,7 +28265,7 @@ async function _rcMonthlyGenerate() {
   cont.innerHTML=`<div class="card" style="padding:32px;text-align:center"><div style="display:inline-flex;align-items:center;gap:12px;color:var(--slate);font-size:13px"><div class="spinner"></div>Writing your report…</div></div>`;
   const [yr,mo]=month.split('-').map(Number);
   const start=`${yr}-${String(mo).padStart(2,'0')}-01`;
-  const end=new Date(yr,mo,0).toISOString().slice(0,10);
+  const end=_isoLocal(new Date(yr,mo,0));
   const txns=S.transactions.filter(t=>t.date>=start&&t.date<=end);
   const monthName=new Date(yr,mo-1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
   // _isSpend, not a raw debit filter — see generateReport(); this is the same
@@ -28173,7 +28307,7 @@ async function _rcMonthlyGenerate() {
     if (!result.ok || !result.text) throw new Error('empty');
     // Item 75 M3/M4: a month in progress is shown, labelled, and never saved; a past month is saved as its review
     // (the earlier one kept), even when it is still waiting for an account - the review then names it.
-    const inProgress = month >= new Date().toISOString().slice(0, 7);
+    const inProgress = month >= _isoLocal().slice(0, 7);
     if (stillCurrent()) _rcMonthlyDisplayNarrative(result.text, monthName, false, inProgress ? 'Month in progress - not saved as its review' : '');
     if (!inProgress) {
       await API.post('/api/reports/review', { month, text: result.text, kind: 'written' }).catch(_gwErr('_rcMonthlyGenerate'));
@@ -30168,8 +30302,8 @@ async function _rcRenderDistanceTraveled() {
     const withRedirect = _simulatePayoff(d.freedMonthly);
     if (base && withRedirect && withRedirect.months < base.months) {
       const sooner = base.months - withRedirect.months;
-      const dNow = new Date(); dNow.setMonth(dNow.getMonth() + base.months);
-      const dRed = new Date(); dRed.setMonth(dRed.getMonth() + withRedirect.months);
+      const dNow = new Date(); dNow.setDate(1); dNow.setMonth(dNow.getMonth() + base.months);
+      const dRed = new Date(); dRed.setDate(1); dRed.setMonth(dRed.getMonth() + withRedirect.months);
       unlockSection = `<div class="card" style="padding:16px;margin-bottom:24px;border-color:var(--pine-border)">
         <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--pine-text);margin-bottom:8px">What the freed ${fmt(d.freedMonthly)}/mo unlocks</div>
         <div style="font-size:13px;color:var(--ink);line-height:1.7">Routed at your remaining debt, it pulls your debt-free date <strong style="color:var(--pine-text)">${sooner} month${sooner!==1?'s':''} closer</strong> — ${_dtDateShort(dRed)} instead of ${_dtDateShort(dNow)}.</div>
@@ -31112,7 +31246,7 @@ function openRecordTransactionModal() {
   g('recordTxnModal')?.classList.remove('hidden');
   setInvTxnType('buy');
   _ensureInvAccountsLoaded(); // the dropdown was never populated on open
-  const d = g('invTxnDate'); if (d && !d.value) d.value = new Date().toISOString().slice(0,10);
+  const d = g('invTxnDate'); if (d && !d.value) d.value = _isoLocal();
 }
 function closeRecordTransactionModal() { g('recordTxnModal')?.classList.add('hidden'); }
 let _invTxnType = 'buy';
@@ -31151,7 +31285,7 @@ async function saveInvTransaction() {
   const total   = parseFloat(g('invTxnTotal')?.value)  || 0;
   const fees    = parseFloat(g('invTxnFees')?.value)   || 0;
   const note    = g('invTxnNote')?.value?.trim() || '';
-  const date    = g('invTxnDate')?.value || new Date().toISOString().slice(0,10);
+  const date    = g('invTxnDate')?.value || _isoLocal();
   const type    = _invTxnType;
 
   if (!ticker) { showToast('Missing ticker', 'Enter the ticker symbol', 'error'); return; }
