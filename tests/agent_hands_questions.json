@@ -30,7 +30,8 @@
     "guide",
     "savings_goals",
     "freshness",
-    "budget_vs_spent"
+    "budget_vs_spent",
+    "goal_plan"
   ],
   "engines": [
     "debt_whatif",
@@ -716,13 +717,11 @@
       "ask": "Can we afford a $600 holiday gift budget?",
       "expect": {
         "lookups": [
-          "savings_goals",
-          "balances",
-          "debts"
+          "goal_plan"
         ],
-        "outcome": "answer"
+        "outcome": "clarify"
       },
-      "check": "asks whether money is set aside for it, Holidays listed first, never chosen for them (H20c); with Holidays: its set-aside covers part, the rest shown against Everyday Checking's available funds and the Cashback Visa's available credit, each figure named; on the card, the added debt shown; no verdict"
+      "check": "R20/H20c: 'Have you set money aside for this?' - Holidays first, never chosen, and No"
     },
     {
       "id": "Q52",
@@ -732,12 +731,11 @@
       "ask": "No, nothing set aside for that",
       "expect": {
         "lookups": [
-          "balances",
-          "debts"
+          "goal_plan"
         ],
         "outcome": "answer"
       },
-      "check": "the whole $600 against available funds (balance less Car repairs and Holidays set aside, H20b) and available credit; the goals' money is not offered"
+      "check": "the whole $600.00 against each account's available funds (every goal's money left out) and each card's available credit; nothing moves"
     },
     {
       "id": "Q53",
@@ -901,6 +899,20 @@
         "outcome": "answer"
       },
       "check": "R17: the kept name is used - no question this time - and said back 'as you said before'"
+    },
+    {
+      "id": "Q66",
+      "group": "savings",
+      "record": "sample",
+      "follow_up_of": "Q51",
+      "ask": "Holidays",
+      "expect": {
+        "lookups": [
+          "goal_plan"
+        ],
+        "outcome": "answer"
+      },
+      "check": "Holidays covers $420.00; the other $180.00 from available funds or credit, each named; nothing moves"
     }
   ],
   "r7_rejected": {

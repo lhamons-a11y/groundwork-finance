@@ -87,6 +87,8 @@ lookups only, before any build.
   that. A confirmed name (R17) keeps the person's word for a debt, not the question it came in.
   **One exception, ruled 2026-10-30** (Rob: *"Keep it, as an exception"*): the help guide's list of questions it
   could not answer (item 102 A3, *Your unanswered questions*) stays as item 102 ruled it. R19 covers the assistant.
+- **R20. The goal plan is an assistant lookup** (Rob 2026-10-30: *"yes"*): "can we afford a $600 holiday gift
+  budget?" in the Ask box asks *"Have you set money aside for this?"* and answers as H20c does (section 13).
 - **R6.** The microphone stays on once turned on, so the person can talk with Groundwork (H14), and its button sits in
   the text box (H15). *Rob asked for both; the details below are for ruling.*
 - **R7. "Ignore your rules" is always rejected** (Rob: *"also "ignore your rules" should be text that is always
@@ -608,6 +610,10 @@ Rob: *"start 1b"*.
 - **The gate:** s264 (7 checks); the route is `/goal-plan`, not `/pay-plan`, so s207's TM1 guard (no `/pay` in the
   trip code) holds unchanged. 4003 passed, 0 failed.
 
-**Open:** Q51/Q52 in the Ask box ("can we afford a $600 holiday gift budget?") need the goal plan as an assistant
-lookup; H2 says adding a lookup is a ruling.
+**R20 built the same day** (Rob: *"yes"*): `goal_plan` joins the lookups. "Can we afford a $600 holiday gift budget?"
+asks *"Have you set money aside for this?"* (Holidays first, and No); *"Holidays"* - *"Holidays covers $420.00. The
+other $180.00 would come from: ..."*; *"No, nothing set aside"* - the whole $600.00 against available funds (High-Yield
+Savings $740.00 available: the goals' money not offered) and credit. The reply to the question is read by Groundwork,
+with no model call. `/goal-plan` also answers a read (GET) and the no-goal case. Q51 now expects the question, Q52 and
+Q66 the answers; s264 two more checks. Gate: 4005 passed, 0 failed.
 

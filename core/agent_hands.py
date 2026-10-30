@@ -94,6 +94,7 @@ LOOKUPS = {
     'bills_due': 'bills, paydays and occasions in the calendar, and medical bills',
     'savings_goals': 'savings goals: target, deadline, what is set aside, pace',
     'freshness': 'how current the record is, and the last download',
+    'goal_plan': 'ENGINE: paying for something - from a savings goal first, then available funds or credit (give amount)',
     'debt_whatif': 'ENGINE: the payoff with more (or less) a month, aimed at one named debt if asked',
     'budget_headroom': 'ENGINE: categories that stayed under budget in every month the record covers',
     'minimums_only': 'ENGINE: paying only the minimums',
@@ -731,6 +732,47 @@ def lk_freshness(reader, a):
     return out
 
 
+def lk_goal_plan(reader, a):
+    """R20 (Rob 2026-10-30: "yes" to the goal plan as a lookup; H20c in the Ask box). With goals and none chosen, the
+    question first: "Have you set money aside for this?" - the fitting goal first, never chosen, and No."""
+    from urllib.parse import urlencode
+    try:
+        amount = round(float(a.get('amount') or 0), 2)
+    except (TypeError, ValueError):
+        amount = 0
+    if amount <= 0:
+        return {'enough': False, 'why': 'the question gives no amount to pay', 'would_know': 'what it costs'}
+    label = str(a.get('label') or '')
+    q = {'amount': amount, 'label': label}
+    base = reader.get('/api/sinking-funds/goal-plan?' + urlencode(q)) or {}
+    goals = base.get('goals') or []
+    if goals and not a.get('goal_id') and not a.get('no_goal'):
+        return {'enough': True, 'clarify': 'Have you set money aside for this?',
+                'choices': [g['name'] for g in goals] + ['No'],
+                'offer_goal': {'amount': amount, 'label': label, 'goals': [{'id': g['id'], 'name': g['name']} for g in goals]}}
+    if a.get('goal_id'):
+        q['fund_id'] = a['goal_id']
+    else:
+        q['no_goal'] = 1
+    r = reader.get('/api/sinking-funds/goal-plan?' + urlencode(q)) or {}
+    out = {'enough': True, 'amount': money(amount), 'covers': money(r.get('covers') or 0), 'rest': money(r.get('rest') or 0),
+           'goal': fence((r.get('goal') or {}).get('name')) if r.get('goal') else None,
+           'goal_set_aside': money((r.get('goal') or {}).get('set_aside')) if r.get('goal') else None,
+           'goal_left': money(r['goal_left']) if r.get('goal_left') is not None else None,
+           'accounts': [{'name': x['name'], 'available': money(x['available']),
+                         'after': money(x['after']) if x['after'] >= 0 else None, 'short': money(-x['after']) if x['after'] < 0 else None}
+                        for x in r.get('from_accounts') or []],
+           'cards': [{'name': x['name'], 'available_credit': money(x['available_credit']) if x.get('available_credit') is not None else None,
+                      'after': money(x['after']) if x.get('after') is not None and x['after'] >= 0 else None,
+                      'payoff': [{'months': p['months'], 'payment': money(p['payment']), 'interest': money(p['interest'])}
+                                 for p in x.get('payoff') or []]}
+                     for x in r.get('from_cards') or []],
+           'rest_amount': r.get('rest') or 0}
+    out['anything_covers'] = bool(r.get('rest') == 0 or any(x['after'] is not None for x in out['accounts'])
+                                  or any(c['after'] is not None for c in out['cards']))
+    return out
+
+
 def lk_guide(reader, a):
     return {'enough': True, 'route': 'guide'}
 
@@ -739,7 +781,8 @@ FUNCS = {'transactions': lk_transactions, 'category_by_month': lk_category_by_mo
          'income_lines': lk_income_lines, 'budget_vs_spent': lk_budget_vs_spent, 'debts': lk_debts, 'balances': lk_balances, 'net_worth': lk_net_worth,
          'recurring': lk_recurring, 'price_changes': lk_price_changes, 'bills_due': lk_bills_due,
          'savings_goals': lk_savings_goals, 'freshness': lk_freshness, 'debt_whatif': lk_debt_whatif,
-         'budget_headroom': lk_budget_headroom, 'minimums_only': lk_minimums_only, 'guide': lk_guide}
+         'budget_headroom': lk_budget_headroom, 'minimums_only': lk_minimums_only, 'guide': lk_guide,
+         'goal_plan': lk_goal_plan}
 
 
 # ── H6: every sentence checked against the facts it was given ────────────────────────────────────────────────────────
@@ -1055,6 +1098,15 @@ def repair(question, p, reader):
             and not any(x['name'] == 'balances' for x in lk):
         lk.insert(0, {'name': 'balances'})
         rep_.append('balances added: the question asks what is available, or what an account holds')
+    if re.search(r'\b(afford|pay for|buy|cover)\b', ql) and _AMOUNT.search(question) \
+            and not any(x['name'] in ('goal_plan', 'debt_whatif') for x in lk):
+        lk = [x for x in lk if x['name'] not in ('budget_lines', 'net_worth', 'category_by_month')]
+        lk.insert(0, {'name': 'goal_plan', 'amount': float(_AMOUNT.search(question).group(1).replace(',', '')),
+                      'label': question})
+        rep_.append('goal_plan added: the question asks about paying for something with an amount')
+    for x in lk:
+        if x['name'] == 'goal_plan' and not x.get('label'):
+            x['label'] = question
     if 'minimum' not in ql and any(x['name'] == 'minimums_only' for x in lk):
         lk = [x for x in lk if x['name'] != 'minimums_only']
         rep_.append('minimums_only dropped: the question does not ask about minimums')
@@ -1086,7 +1138,7 @@ STEP_WORDS = {
     'budget_lines': 'Reading your budget', 'budget_vs_spent': 'Checking your budget against what you spent',
     'income_lines': 'Reading your income', 'debts': 'Looking at your debts', 'balances': 'Reading your account balances',
     'net_worth': 'Reading your net worth', 'recurring': 'Finding charges that repeat', 'price_changes': 'Looking for price changes',
-    'bills_due': 'Reading your calendar and bills', 'savings_goals': 'Reading your savings goals',
+    'bills_due': 'Reading your calendar and bills', 'savings_goals': 'Reading your savings goals', 'goal_plan': 'Working out how it could be paid for',
     'freshness': 'Checking how current your record is', 'debt_whatif': 'Working out the payoff',
     'budget_headroom': 'Finding room in your budget', 'minimums_only': 'Working out minimums only', 'guide': 'Opening the guide',
 }
@@ -1316,6 +1368,25 @@ def render(r, today):
         for g in r['goals']:
             s.append(f"{g['name']} is kept in {g['kept_in']}." if g.get('kept_in')
                      else f"{g['name']} doesn't name the account its money is kept in yet.")
+    elif k == 'goal_plan':
+        if r.get('goal') and r.get('rest_amount') == 0:
+            s.append(f"{r['goal']} has {r['goal_set_aside']} set aside; this is {r['amount']}, so {r['goal_left']} stays in {r['goal']}.")
+        else:
+            s.append(f"{r['goal']} covers {r['covers']}. The other {r['rest']} would come from:" if r.get('goal')
+                     else f"With nothing set aside for it, the whole {r['amount']} would come from:")
+            for x in r['accounts']:
+                s.append(f"{x['name']}: {x['available']} available, " + (f"{x['after']} left after." if x['after'] else f"{x['short']} short."))
+            for c in r['cards']:
+                line = (f"{c['name']}: its limit isn't entered" if not c['available_credit']
+                        else f"{c['name']}: {c['available_credit']} of available credit" + (f", {c['after']} left after" if c['after'] else ', not enough'))
+                if c['payoff']:
+                    line += '; on it, it is new debt: ' + ' or '.join(f"{p['months']} months at {p['payment']} a month ({p['interest']} interest)" for p in c['payoff'])
+                s.append(line + '.')
+            if not r.get('anything_covers'):
+                s.append(f"None of these covers the {r['rest']}.")
+        if not r.get('goal'):
+            s.append('Money set aside in your goals is not counted here.')
+        s.append('Nothing moves; a goal is reduced only when the purchase happens.')
     elif k == 'freshness':
         s.append(f"Your record runs to {_day(r['record_runs_to'])}" + (
             f"; the last download was {r['hours_since']:.0f} hours ago." if r.get('hours_since') is not None else '.'))
@@ -1404,6 +1475,23 @@ def answer(reader, model_call, model_call_text, question, context=None, progress
         out.update({'outcome': 'refuse', 'r7': True, 'shown': [R7_REFUSAL], 'lookups': []})
         out['timings']['total'] = round(time.time() - t0, 2)
         return out
+    if context and context.get('offer_goal'):
+        og, said = context['offer_goal'], question.strip().lower()
+        pick = next((x for x in og['goals'] if x['name'].lower() in said or said in x['name'].lower()), None)
+        no = re.match(r'^(no|nope|nothing|none)\b', said)
+        if pick or no:
+            p = {'intent': 'answer', 'read_by': 'groundwork',
+                 'lookups': [{'name': 'goal_plan', 'amount': og['amount'], 'label': og['label'],
+                              **({'goal_id': pick['id']} if pick else {'no_goal': True})}]}
+            out['plan'] = p
+            out['raw_plan'] = p
+            results = run_lookups(reader, p, progress)
+            out['lookups'] = [r['_lookup'] for r in results]
+            out['results'] = results
+            out['outcome'] = decide(p, results)
+            out['shown'] = [x for r in results for x in render(r, reader.today)]
+            out['timings']['total'] = round(time.time() - t0, 2)
+            return out
     if context and context.get('offer_name') and _YES.match(question.strip()):
         on = context['offer_name']
         confirm_name(reader, on['kind'], on['said'], on['means'])          # R17: on the person's Yes, kept as theirs
@@ -1441,6 +1529,8 @@ def answer(reader, model_call, model_call_text, question, context=None, progress
         shown = [c.get('clarify', 'Which one do you mean?')]
         if c.get('offer_name'):
             out['offer_name'] = c['offer_name']
+        if c.get('offer_goal'):
+            out['offer_goal'] = c['offer_goal']
     elif out['outcome'] == 'refuse':
         shown = ['Groundwork never does that for you. It is yours to do, in the app or at your bank.']
     elif out['outcome'] == 'propose' and context and context.get('offer'):

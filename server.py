@@ -4994,6 +4994,7 @@ def _assistant_job(app, job_id, question, context):
             clar = next((r for r in found if r.get('clarify')), {})
             result = {'outcome': out.get('outcome'), 'shown': out.get('shown') or [],
                       'choices': clar.get('choices') or [], 'offer_name': out.get('offer_name'),
+                      'offer_goal': out.get('offer_goal'),
                       'offer': next((s for s in out.get('shown') or [] if 'get your accounts' in s or 'No bank is set up' in s), None),
                       'page': (out.get('plan') or {}).get('page'), 'confirmed_name': out.get('confirmed_name'),
                       'said': next((x.get('debt') for x in (out.get('plan') or {}).get('lookups') or [] if x.get('debt')), None),
@@ -15999,16 +16000,17 @@ def _goal_account(session, f, body):
     return None
 
 
-@sinking_funds_bp.route('/goal-plan', methods=['POST'])
-@require_json
+@sinking_funds_bp.route('/goal-plan', methods=['GET', 'POST'])
 def sinking_fund_pay_plan():
-    """Item 114 H20c (Rob 2026-10-30, R12): {amount, label?, fund_id?}. The goals there are (the one whose name fits the
+    """Item 114 H20c (Rob 2026-10-30, R12): {amount, label?, fund_id? | no_goal?} - posted by a page, or read by the
+    assistant's goal_plan lookup (R20). no_goal: nothing set aside for it - the whole amount against available funds
+    (every goal's money left out) and credit. The goals there are (the one whose name fits the
     label first - never chosen for the person); with fund_id, what that goal covers and where the rest could come
     from: each account's available funds, each card's available credit, and on a card what the rest adds to the debt
     plan. Nothing moves and no goal is touched - the goal is reduced only when the purchase happens (item 112 P3)."""
     from core.database import SinkingFund
     from core.trip_card import plan as card_plan
-    b = request.get_json() or {}
+    b = (request.get_json(silent=True) or {}) if request.method == 'POST' else request.args.to_dict()
     try:
         amount = round(float(b.get('amount') or 0), 2)
     except (TypeError, ValueError):
@@ -16029,11 +16031,12 @@ def sinking_fund_pay_plan():
                           'account_id': f.account_id, 'fits': bool(name_words & near)})
         goals.sort(key=lambda g_: (not g_['fits'], g_['id']))
         out = {'amount': amount, 'goals': goals}
-        if b.get('fund_id'):
-            g_ = next((x for x in goals if x['id'] == int(b['fund_id'])), None)
-            if not g_:
+        no_goal = str(b.get('no_goal') or '').lower() in ('1', 'true', 'yes')
+        if b.get('fund_id') or no_goal:
+            g_ = None if no_goal else next((x for x in goals if x['id'] == int(b['fund_id'])), None)
+            if not g_ and not no_goal:
                 return err('That goal is not on record.', 404)
-            covers = round(min(amount, g_['set_aside']), 2)
+            covers = 0.0 if no_goal else round(min(amount, g_['set_aside']), 2)
             rest = round(amount - covers, 2)
             aside = _set_aside_by_account(session)
             accts = []
@@ -16041,7 +16044,7 @@ def sinking_fund_pay_plan():
                                                    Account.type.in_(('checking', 'savings', 'cash'))).all():
                 bal = _account_balance_facts(session, a.id)[0]
                 # the goal paying now is not counted as set aside in its own account: its money is the part being used
-                held = [(n, v) for n, v in aside.get(a.id, []) if not (a.id == g_['account_id'] and n == g_['name'])]
+                held = [(n, v) for n, v in aside.get(a.id, []) if not (g_ and a.id == g_['account_id'] and n == g_['name'])]
                 av = _available(bal, held)
                 if av['available'] is not None:
                     accts.append({'id': a.id, 'name': a.name, 'available': av['available'],
@@ -16055,7 +16058,8 @@ def sinking_fund_pay_plan():
                 if rest:
                     row['payoff'] = card_plan(rest, c, cards, budget, strategy, c['index'])['rows']
                 cards_out.append(row)
-            out.update({'goal': g_, 'covers': covers, 'rest': rest, 'goal_left': round(g_['set_aside'] - covers, 2),
+            out.update({'goal': g_, 'covers': covers, 'rest': rest,
+                        'goal_left': round(g_['set_aside'] - covers, 2) if g_ else None,
                         'from_accounts': accts, 'from_cards': cards_out})
         return ok(out)
 

@@ -71,6 +71,17 @@ def run(ctx):
           and pp['goal_left'] == 0 and mine.get('available') == 1000 and mine.get('after') == 800
           and isinstance(pp.get('from_cards'), list) and after['current_amount'] == 300)
 
+    # R20: the assistant's goal_plan reads the same answer; nothing set aside - every goal's money left out
+    ng = data(c.get('/api/sinking-funds/goal-plan?amount=500&no_goal=1', headers=H))
+    mine = next((a for a in ng.get('from_accounts') or [] if a['id'] == aid), {})
+    check('s264 R20 nothing set aside: the whole amount against available funds - the goals\' money is not offered',
+          ng.get('covers') == 0 and ng.get('rest') == 500 and ng.get('goal') is None and mine.get('available') == 700
+          and mine.get('after') == 200)
+    from core import agent_hands as ah
+    check('s264 R20 the assistant has the goal plan as a lookup, and asks before it picks a goal',
+          'goal_plan' in ah.FUNCS and 'goal_plan' in ah.LOOKUPS
+          and "'clarify': 'Have you set money aside for this?'" in (ctx.BASE / 'core' / 'agent_hands.py').read_text(encoding='utf-8'))
+
     # The page
     js = ctx.app_src
     check('s264 the page: the goal form and each goal name the account; each account shows set aside and available; the '

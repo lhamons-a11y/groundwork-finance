@@ -28464,7 +28464,7 @@ async function askAssistant(q, p, head) {
     if (pl) { askGo(pl); return true; }
   }
   _assistCtx = { question: follow && _assistCtx && res.outcome !== 'clarify' ? _assistCtx.question : q, plan: res.plan,
-                 offer: res.offer || null, offer_name: res.offer_name || null };
+                 offer: res.offer || null, offer_name: res.offer_name || null, offer_goal: res.offer_goal || null };
   window._assistLast = { q, res };
   p.innerHTML = head + _assistHTML(res);
   return true;
@@ -28504,6 +28504,10 @@ async function assistYes() {
 async function assistPick(i) {
   const means = (window._assistChoices || [])[i];
   const last = window._assistLast;
+  if (_assistCtx && _assistCtx.offer_goal) {                   // R20: "Have you set money aside for this?" - a goal, or No
+    if (means) askGroundwork(means, _assistCtx.question);
+    return;
+  }
   const said = last && last.res && last.res.said;
   if (!means || !said) return;
   try { await API.post('/api/assistant/names', { kind: 'debt', said, means }); }
