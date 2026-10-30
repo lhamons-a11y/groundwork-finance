@@ -344,7 +344,8 @@ account as saved, which is wrong for a goal kept in checking, where every payche
 - **H20b, ACCEPTED** (Rob 2026-10-30: *"yes, that is correct recommendation"*): where Groundwork judges what can be spent from an account - Before You Buy's cash check, the
   trip planner's "pay cash" - it uses *available*, not the whole balance, so money set aside is not offered for
   something else.
-- **H20c. Paid from a goal first** (R12). When Before You Buy or the trip planner checks how something would be paid,
+- **H20c. Paid from a goal first** (R12; ACCEPTED 2026-10-30, Rob: *"I accept h20c, q51 - yes, Q52-yes"*, with questions
+  Q51 and Q52). When Before You Buy or the trip planner checks how something would be paid,
   and the person has goals set aside, it asks once: *"Have you set money aside for this?"* - listing their goals, the
   one whose name fits (a Vacation goal for a trip) shown first but never chosen for them; *"No"* is always there.
   - **The goal covers it:** *"Vacation has $1,200.00 set aside; this trip is $950.00 - $250.00 stays in Vacation."*
