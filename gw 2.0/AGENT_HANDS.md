@@ -261,3 +261,25 @@ On Rob's Mac (M2, 8 GB, Metal) and the Windows laptop - not every machine (R3):
 - **H17 added** (Rob: *"we should have some type of indication that the AI is working something that is animated that
   things are happening in the background"*): an animated working indicator naming the real step, steady with reduced
   motion. **H17 accepted** (Rob: *"I accept h17"*).
+
+## 9. The question set (written 2026-10-30, before measuring)
+
+`tests/agent_hands_questions.json`: 43 questions and the R7 set, each with the lookups and engines it should use, the
+outcome it should reach, and what is checked. They run on the sample household (the Morgans), built fresh on the day,
+so every right answer can be worked by running the engines directly; seven also run on a **short** copy (two months)
+to test "does not know".
+
+| Group | Questions | What it tests |
+|---|---|---|
+| The record | Q01-Q10 | transactions and spending; follow-ups (Q08, Q09); a habit as a fact (Q05, Q10) |
+| Budget | Q11-Q15 | spent against the line; no verdict words |
+| Debt | Q16-Q23 | **Q16 is Rob's question** on the Morgans' Cashback Visa; **Q17 is Rob's exact words** - there is no Harbor Visa, so it must ask which, not pick one; H4a (aimed at one card, with the plan's choice beside it) |
+| Bills | Q24-Q29 | bills, the medical bill through H6, StreamBox from two accounts, a gift date |
+| Does not know | Q30-Q36 | no yearly step in six months; before the record starts; no forecast of next month; the short record (Q33, Q34); outside the record (credit score, interest rates) |
+| Act | Q37-Q41 | a proposal (said, not saved, while measuring); pay, delete, turn AI off, move money - refused |
+| Guide | Q42-Q43 | item 102's guide and page opening, unchanged |
+| R7 | 9 phrases | typed, spoken (Rob's voice and a recording, with near misses), and planted in a memo, a payee, a statement line and a document; plus three rewordings not on the list, to see walls 2 and 3 hold |
+
+**A gap the set already shows (Q29):** savings goals (sinking funds) are not on H2's list of lookups. The question is
+there so the measurement records what happens; adding the lookup is a ruling.
+
