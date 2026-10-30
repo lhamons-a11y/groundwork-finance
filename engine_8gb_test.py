@@ -8,6 +8,8 @@ packaged Groundwork, with the machine in its ordinary state (antivirus, updates,
 runs). It never touches the machine's own Groundwork data: it starts Groundwork with a throwaway data folder.
 
     python engine_8gb_test.py "C:\\path\\to\\Groundwork"        (the folder holding Groundwork.exe and models\\)
+    python3 engine_8gb_test.py ~/Groundwork                    (Linux: the unpacked folder holding Groundwork)
+    python3 engine_8gb_test.py /Applications/Groundwork.app    (macOS)
 
 What it establishes, one line each (the ruling's six points):
   1. the model loads reliably          load time, and the engine's state - never a crash of the app
@@ -28,7 +30,9 @@ turn ordinary use into disk-bound behaviour - not "zero paging".
 
 It prints a report and writes it beside itself (engine_8gb_report.json). It passes or fails nothing on its own:
 the figures go to Rob, who rules on them.
-Needs: Python 3 with psutil (pip install psutil). Windows only (the packaged app is Windows).
+Needs: Python 3 with psutil (pip install psutil). Windows, Linux and macOS (item 33 Q6: "A macOS/Linux version is
+part of this item") - the same six points and the same report; only how the app is started and closed and where the
+paging figure is read differ by platform.
 """
 import json
 import os
@@ -62,6 +66,26 @@ def system_memory():
 
 def hard_faults():
     """System-wide hard page faults per second over one second (pages read back from disk): the paging cliff."""
+    if sys.platform.startswith('linux'):                     # major faults: a page that had to come from disk
+        try:
+            def majflt():
+                with open('/proc/vmstat') as fh:
+                    return next(int(l.split()[1]) for l in fh if l.startswith('pgmajfault '))
+            a = majflt()
+            time.sleep(1)
+            return float(majflt() - a)
+        except Exception:
+            return None
+    if sys.platform == 'darwin':                             # vm_stat's Pageins, the count of pages read from disk
+        try:
+            def pageins():
+                out = subprocess.run(['vm_stat'], capture_output=True, text=True, timeout=10).stdout
+                return int(re.search(r'Pageins:\s+(\d+)', out).group(1))
+            a = pageins()
+            time.sleep(1)
+            return float(pageins() - a)
+        except Exception:
+            return None
     try:
         out = subprocess.run(['typeperf', r'\Memory\Pages Input/sec', '-sc', '2'], capture_output=True, text=True,
                              timeout=15).stdout
@@ -127,9 +151,46 @@ CONFIGS = [
 ]
 
 
+def app_executable(app_dir):
+    """The packaged app's program inside the folder the user named, by platform."""
+    if sys.platform == 'win32':
+        return os.path.join(app_dir, 'Groundwork.exe')
+    if sys.platform == 'darwin':
+        return os.path.join(app_dir, 'Contents', 'MacOS', 'Groundwork')
+    return os.path.join(app_dir, 'Groundwork')
+
+
+def close_like_a_user(proc):
+    """A close message, never a kill: WM_CLOSE through taskkill on Windows, SIGTERM elsewhere (what a desktop's
+    close and log-out send)."""
+    if sys.platform == 'win32':
+        subprocess.run(['taskkill', '/PID', str(proc.pid)], capture_output=True)
+    else:
+        proc.terminate()
+
+
+def machine():
+    cpu = os.environ.get('PROCESSOR_IDENTIFIER', '')
+    if sys.platform.startswith('linux'):
+        try:
+            with open('/proc/cpuinfo') as fh:
+                cpu = next(l.split(':', 1)[1].strip() for l in fh if l.startswith('model name'))
+        except Exception:
+            pass
+        try:
+            with open('/proc/version') as fh:
+                cpu += ' | ' + fh.read().strip()[:120]
+        except Exception:
+            pass
+    elif sys.platform == 'darwin':
+        cpu = subprocess.run(['sysctl', '-n', 'machdep.cpu.brand_string'], capture_output=True, text=True).stdout.strip()
+    return {'platform': sys.platform, 'cpu': cpu, 'cores': psutil.cpu_count(logical=False),
+            'threads': psutil.cpu_count(), **system_memory()}
+
+
 def one_run(app_dir, data_dir, n, label='shipping', extra=None):
     run = {'run': n, 'configuration': label}
-    exe = os.path.join(app_dir, 'Groundwork.exe')
+    exe = app_executable(app_dir)
     env = dict(os.environ, GROUNDWORK_DATA_DIR=data_dir, **(extra or {}))
     run['memory_before'] = system_memory()
     t0 = time.time()
@@ -183,7 +244,7 @@ def one_run(app_dir, data_dir, n, label='shipping', extra=None):
                      'words': len(text.split()), 'error': box.get('err') or (out.get('message') if not text else None),
                      'sample': text[:200]}
     # Close the window the way a user does (a close message, not a kill), and watch the memory come back.
-    subprocess.run(['taskkill', '/PID', str(proc.pid)], capture_output=True)
+    close_like_a_user(proc)
     released, exited = None, None
     for i in range(60):
         time.sleep(0.5)
@@ -202,12 +263,12 @@ def one_run(app_dir, data_dir, n, label='shipping', extra=None):
 
 
 def main():
-    if sys.platform != 'win32' or (len(sys.argv) < 2 and not getattr(sys, 'frozen', False)):
+    if len(sys.argv) < 2 and not getattr(sys, 'frozen', False):
         print(__doc__)
         return 2
-    app_dir = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(sys.executable), 'Groundwork')
-    if not os.path.exists(os.path.join(app_dir, 'Groundwork.exe')):
-        print('No Groundwork.exe in', app_dir)
+    app_dir = os.path.expanduser(sys.argv[1]) if len(sys.argv) > 1 else os.path.join(os.path.dirname(sys.executable), 'Groundwork')
+    if not os.path.exists(app_executable(app_dir)):
+        print('No Groundwork program at', app_executable(app_dir))
         return 2
     try:
         urllib.request.urlopen(BASE + '/', timeout=2)
@@ -215,10 +276,8 @@ def main():
         return 2
     except Exception:
         pass
-    report = {'when': time.strftime('%Y-%m-%d %H:%M'), 'machine': {
-        'cpu': os.environ.get('PROCESSOR_IDENTIFIER', ''), 'cores': psutil.cpu_count(logical=False),
-        'threads': psutil.cpu_count(), **system_memory()},
-        'running_processes': len(psutil.pids())}
+    report = {'when': time.strftime('%Y-%m-%d %H:%M'), 'machine': machine(),
+              'running_processes': len(psutil.pids())}
     data_dir = tempfile.mkdtemp(prefix='gw_8gb_test_')
     report['runs'] = []
     for n, (label, extra) in enumerate(CONFIGS, 1):              # the second shipping run is point 6

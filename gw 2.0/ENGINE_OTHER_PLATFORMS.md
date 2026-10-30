@@ -180,3 +180,58 @@ Q1–Q5 and Q7 ACCEPTED. **Item 33 stays open** for two things:
   the licence gate (ruling 8). Until then both build workflows stop at *Fetch and verify*, by design;
 - **Q6, real hardware:** an Apple Silicon Mac (ideally 8 GB) and a Linux desktop, to prove state 5. Apple Silicon and
   Linux AI are not called available before then.
+
+## 7. Q6 on Linux: WSL, 2026-10-29
+
+Rob: *"lets test linux using WSL"*. WSL Ubuntu 24.04 (kernel 6.18 WSL2) on this laptop (i7-12800H, 20 threads), with
+15.5 GB given to Linux. This is a real x86_64 Linux kernel, but **not a Linux desktop computer**. Whether it counts as
+Q6's Linux box is Rob's call.
+
+**The build.** A fresh clone of master `43f9129`, built as `linux-build.yml` builds it: `requirements.txt`, then
+PyInstaller and `groundwork_linux.spec`. Ubuntu's own `python3-gi` provided the GTK bindings. `GW_MODEL_PATH` pointed
+at the pinned model, because the release asset does not exist yet. Result: exit 0, 2.5 GB, containing the model,
+`libllama.so` and the voice engine.
+
+**The kit.** `engine_8gb_test.py` now runs on Windows, Linux and macOS. Its six points and its report are unchanged.
+What differs by platform:
+
+| | Windows | Linux | macOS |
+|---|---|---|---|
+| Program it starts | `Groundwork.exe` | `Groundwork` | `Contents/MacOS/Groundwork` |
+| How it closes the app | `taskkill` (WM_CLOSE) | SIGTERM | SIGTERM |
+| Paging figure | `typeperf` Pages Input/sec | `/proc/vmstat` pgmajfault per second | `vm_stat` Pageins per second |
+| CPU name | `PROCESSOR_IDENTIFIER` | `/proc/cpuinfo` | `sysctl` |
+
+**The packaged app, run three times by the kit** (two shipping runs, then the R8-disqualified q8 cache for comparison):
+
+| Run | Window up | Engine | Loaded (app / with window) | Free memory | Paging | Busy page while generating (p95 / worst) | Answer | Close |
+|---|---|---|---|---|---|---|---|---|
+| 1 shipping | 3.2 s | ready, load 2.3 s (8.1 s observed) | 3.10 / 3.48 GB | 11.6 GB | 0 /s | 0.048 / 0.061 s, 0 errors | 98 words in 15.3 s, `end_turn` | 0.5 s |
+| 2 shipping | 1.0 s | ready, load 2.1 s | 3.10 / 3.48 GB | 11.6 GB | 0 /s | 0.047 / 0.164 s, 0 errors | 98 words in 11.1 s | 0.5 s |
+| 3 q8 cache | 1.0 s | ready, load 1.7 s | 2.75 / 3.13 GB | 12.0 GB | 0 /s | 0.039 / 0.056 s, 0 errors | 107 words in 10.9 s | 0.5 s |
+
+While the model loaded, 102 ordinary requests were answered with 0 errors (median 6 ms). After every close, free
+memory returned to 14.7 GB.
+
+**Rob's five states on this box.**
+- The platform is supported, the app packages, the AI engine is available, and the model loads.
+- Inference works in the packaged app: a narration-shaped answer from the Linux build, timed. On the 2026-10-03 WSL run
+  the engine had answered only outside the package.
+
+**Not shown here:**
+- **The window as a person sees it.** The app's GTK window, its WebKit page process and the page's connection to the
+  app's server all exist in Linux. But WSLg drew no window on this laptop's screen, not even for a plain GTK test
+  window. So looking at the window, and using it, still needs a Linux desktop or Rob's eyes.
+- **8 GB.** Linux had 15.5 GB here. The kit's figures show about 3.5 GB in use with the model loaded. A run at 8 GB
+  needs WSL's memory set to 8 GB in `.wslconfig`, a setting on Rob's machine, or a real 8 GB computer.
+
+**Found:**
+1. **`watchdog` is not in `requirements.txt`.** The Linux build logged *"auto-import: watchdog not installed -
+   watcher disabled"*: the Downloads auto-import watcher is missing. The Linux spec asks for watchdog's `inotify`
+   parts, and PyInstaller reported them not found. Windows builds have the watcher only because watchdog 6.0.0 is
+   installed on this laptop. A build made from `requirements.txt` on any clean machine, which includes every CI build
+   on macOS and Linux, ships without it. Fixing it is one line plus a check, and waits for Rob.
+2. **On Linux and macOS, SIGTERM skips the explicit engine release.** The process ends in 0.5 s and the operating
+   system frees the memory, but `_stop_engine()` and the `atexit` hooks do not run. R-a says the model is released
+   *"explicitly, not left to process teardown"*. Closing the window with its own close button takes the normal path.
+   SIGTERM is what a desktop sends at log-out, and what the kit uses. Not fixed; Rob's call.
