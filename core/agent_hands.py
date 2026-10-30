@@ -622,18 +622,25 @@ def lk_budget_headroom(reader, a):
 
 
 def lk_balances(reader, a):
+    """H20 (R11): each account's balance, the goals set aside in it, and what is available."""
     accts = reader.get('/api/accounts/with-balances') or []
     funds = reader.get('/api/sinking-funds') or []
     out = []
     for x in accts:
         if x.get('type') in ('checking', 'savings', 'cash'):
-            out.append({'account': x['name'], 'balance': money(x['balance']), 'known_from':
-                        {'bank': "the bank's running balance", 'activity': 'credits less debits in the record'}
-                        .get(x.get('balance_basis'), x.get('balance_basis')), 'as_of': x.get('balance_as_of') or x.get('last_date')})
+            row = {'account': x['name'], 'balance': money(x['balance']), 'known_from':
+                   {'bank': "the bank's running balance", 'activity': 'credits less debits in the record'}
+                   .get(x.get('balance_basis'), x.get('balance_basis')), 'as_of': x.get('balance_as_of') or x.get('last_date')}
+            if x.get('set_aside'):
+                row.update({'set_aside': money(x['set_aside']), 'available': money(x.get('available')),
+                            'goals_in_it': [{'name': fence(gl['name']) or '(text held back)', 'amount': money(gl['amount'])}
+                                            for gl in x.get('goals_set_aside') or []],
+                            'short': money(x['short']) if x.get('short') else None})
+            out.append(row)
     res = {'enough': True, 'accounts': out, 'reads_transactions': True}
-    if funds:
-        res['set_aside'] = 'not yet tied to accounts: the goals do not name the account their money is kept in (H19 is not built)'
-        res['goals'] = [{'name': f['name'], 'set_aside': money(f['current_amount'])} for f in funds]
+    loose = [f['name'] for f in funds if not f.get('account_id')]
+    if loose:
+        res['goals_without_an_account'] = loose
     return res
 
 
@@ -693,13 +700,14 @@ def lk_savings_goals(reader, a):
     if not funds:
         return {'enough': True, 'goals': 'none', 'note': "no savings goal is set up yet"}
     pace = {p['id']: p['pace'] for p in ((reader.get('/api/sinking-funds/pace') or {}).get('funds') or [])}
+    names = {x['id']: x['name'] for x in (reader.get('/api/accounts/with-balances') or []) if isinstance(x, dict)}
     out = []
     for f in funds:
         p = pace.get(f['id']) or {}
         x = {'name': f['name'], 'target': money(f['target_amount']), 'deadline': f.get('deadline'),
              'set_aside': money(f['current_amount']), 'set_aside_is': "the household's own figure and what they added",
              'planned_monthly': money(f.get('monthly_contribution') or f.get('monthly_needed') or 0),
-             'kept_in': 'no account named yet (H19 is not built)'}
+             'kept_in': names.get(f.get('account_id'))}
         if p.get('finish_months') is not None:
             x['lands_at_that_pace'] = months_from_now(reader.today, p['finish_months'])
             x['deadline_in_months'] = p.get('deadline_months')
@@ -1043,6 +1051,10 @@ def repair(question, p, reader):
         own = [w for w in re.findall(r'[a-z]{3,}', x['debt'].lower()) if w not in _GENERIC_DEBT] if x.get('debt') else []
         if x.get('debt') and (not own or not all(w in ql for w in own)):
             rep_.append(f'debt "{x.pop("debt")}" dropped: not in the question')
+    if re.search(r'\bavailable\b|how much (money )?(do|have) (we|i) (have|got)|in (my|our) (checking|savings)', ql) \
+            and not any(x['name'] == 'balances' for x in lk):
+        lk.insert(0, {'name': 'balances'})
+        rep_.append('balances added: the question asks what is available, or what an account holds')
     if 'minimum' not in ql and any(x['name'] == 'minimums_only' for x in lk):
         lk = [x for x in lk if x['name'] != 'minimums_only']
         rep_.append('minimums_only dropped: the question does not ask about minimums')
@@ -1266,10 +1278,14 @@ def render(r, today):
     elif k == 'balances':
         for a in r['accounts']:
             s.append(f"{a['account']}: {a['balance']}, from {a['known_from']}" + (f", as of {_day(a['as_of'])}." if a.get('as_of') else '.'))
-        if r.get('goals'):
-            s.append('Set aside in goals: ' + '; '.join(f"{g['name']} {g['set_aside']}" for g in r['goals'])
-                     + '. The goals do not yet name the account their money is kept in, so what is available in each '
-                     'account cannot be worked out yet.')
+            if a.get('set_aside'):
+                s.append(f"In {a['account']}, {a['set_aside']} is set aside ("
+                         + ', '.join(f"{g['name']} {g['amount']}" for g in a['goals_in_it']) + f"), so {a['available']} is available.")
+                if a.get('short'):
+                    s.append(f"That is {a['short']} more set aside than {a['account']} holds.")
+        if r.get('goals_without_an_account'):
+            s.append("These goals don't name the account their money is kept in yet, so they aren't counted in any "
+                     'account: ' + ', '.join(r['goals_without_an_account']) + '.')
     elif k == 'net_worth':
         s.append('Net worth by month: ' + '; '.join(f"{m['month']} {m['net_worth']}" for m in r['months']) + '.')
     elif k == 'recurring':
@@ -1296,8 +1312,10 @@ def render(r, today):
             if g.get('lands_at_that_pace'):
                 line += f" At the pace of what has been put in, it is reached in {g['lands_at_that_pace']}."
             s.append(line)
-        s.append("The amounts set aside are your own figures and what you added. The goals don't name the account "
-                 'their money is kept in yet.')
+        s.append('The amounts set aside are your own figures and what you added.')
+        for g in r['goals']:
+            s.append(f"{g['name']} is kept in {g['kept_in']}." if g.get('kept_in')
+                     else f"{g['name']} doesn't name the account its money is kept in yet.")
     elif k == 'freshness':
         s.append(f"Your record runs to {_day(r['record_runs_to'])}" + (
             f"; the last download was {r['hours_since']:.0f} hours ago." if r.get('hours_since') is not None else '.'))
@@ -1335,6 +1353,8 @@ def check_words(s, not_enough):
         why.append('does not know, where the lookups had enough')
     if re.search(r'\bfacts?\b|groundwork (knows|would|can confirm|could)', low):
         why.append('talks about the facts')
+    if re.search(r"\b(does not|doesn't|do not|don't|cannot|can't|is not|isn't)\s+(specify|show|include|say|provide|list|mention|cover)", low):
+        why.append('says the record lacks something - that is Groundwork\'s to say (H5)')
     return why
 
 

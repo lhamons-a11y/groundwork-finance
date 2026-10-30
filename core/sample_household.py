@@ -178,10 +178,11 @@ def build(c, headers, today=None):
         post('/api/investments/price', {'ticker': ticker, 'price': price}, 'patch')
 
     # savings goals, gifts
+    # item 114 H19: both goals' money is kept in High-Yield Savings - set aside there, not a new account
     post('/api/sinking-funds', {'name': 'Car repairs', 'target_amount': 1200, 'monthly_contribution': 40, 'current_amount': 640,
-                                'deadline': f'{today.year + 1}-06-30'})
+                                'deadline': f'{today.year + 1}-06-30', 'account_id': savings})
     post('/api/sinking-funds', {'name': 'Holidays', 'target_amount': 800, 'monthly_contribution': 60, 'current_amount': 420,
-                                'deadline': f'{today.year}-12-15'})
+                                'deadline': f'{today.year}-12-15', 'account_id': savings})
     mom = post('/api/gifts/people', {'name': 'Mom', 'relationship': 'family'})['id']
     post('/api/gifts/occasions', {'person_id': mom, 'type': 'birthday', 'date': f'{today.year}-12-03'})
     ava = post('/api/gifts/people', {'name': 'Ava (niece)', 'relationship': 'family'})['id']

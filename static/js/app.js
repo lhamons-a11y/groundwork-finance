@@ -12737,10 +12737,12 @@ function _tripCardHTML(t) {
     const left = (p.left || [])[i] || {};
     let after = '';
     if (s.kind === 'card') after = left.available_after == null ? "its limit isn't entered, so Groundwork can't say what's left" : `${fmt(left.available_after)} of credit left after`;
+    else if ((s.kind === 'checking' || s.kind === 'savings') && left.set_aside > 0 && left.available_after != null)
+      after = `${fmt(left.available_after)} available after (its balance less the ${fmt(left.set_aside)} set aside in goals)`;
     else if (s.kind === 'checking' || s.kind === 'savings') after = left.balance_after == null ? 'its balance is not known'
       : left.floor == null ? `${fmt(left.balance_after)} left after; no "always leave" amount is set for it` : `${fmt(left.above_floor_after)} above your "always leave" amount after`;
     else if (s.kind === 'fund') after = left.fund_after == null ? '' : `${fmt(left.fund_after)} left in it after`;
-    else after = 'set aside before the trip, filling itself each month';
+    else after = 'set aside before the trip, as you put money in';
     return `<div style="display:flex;justify-content:space-between;gap:8px;font-size:var(--fs-sm);padding:4px 0;border-bottom:0.5px solid var(--steel-2)">
         <span><b>${esc(_TRIP_KIND_WORDS[s.kind])}</b>: ${esc(_tripSourceName(s))} <span style="color:var(--slate)">· ${esc(after)}</span></span>
         <span style="white-space:nowrap"><span style="font-family:var(--font-mono)">${fmt(s.amount)}</span>
@@ -12770,6 +12772,7 @@ function _tripCardHTML(t) {
   const after = t.ret && new Date(t.ret + 'T23:59:59') < new Date()
     ? `<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" style="font-size:var(--fs-xs)" onclick="tripAfter(${t.id})">The trip's over: what did it cost?</button></div>` : '';
   return `<div style="border:1px solid var(--steel);border-radius:var(--r-md);padding:12px;margin-bottom:8px">${head}
+    ${_tripGoalAsk(t)}
     <div style="font-size:var(--fs-sm);font-weight:600;margin-top:12px">Where the money comes from</div>
     ${srcRows || '<div style="font-size:var(--fs-sm);color:var(--slate)">Not said yet. Add checking, savings, a fund, one or more cards, or saving ahead.</div>'}
     <div style="font-size:var(--fs-xs);margin-top:4px">${leftNote}</div>${addRow}
@@ -12788,6 +12791,79 @@ function _tripCardHTML(t) {
     ${after}
     <div style="margin-top:10px"><button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="tripSetStatus(${t.id},'cancelled')">Not going after all</button></div>
   </div>`;
+}
+
+// ── Item 114 H20c (R12): money already set aside for it is offered first - never chosen for the person ─────────────
+const _GOAL_FITS = /\b(trip|travel|vacation|holidays?|getaway)\b/i;
+const _tripNoGoal = {};
+function _goalsFirst(label) {
+  const words = new Set(String(label || '').toLowerCase().match(/[a-z]{3,}/g) || []);
+  return (_sinkingFunds || []).filter(f => f.id != null).map(f => ({ f, fits: _GOAL_FITS.test(f.name)
+    || (String(f.name).toLowerCase().match(/[a-z]{3,}/g) || []).some(w => words.has(w)) }))
+    .sort((x, y) => (y.fits - x.fits) || (x.f.id - y.f.id)).map(x => x.f);
+}
+function _tripGoalAsk(t) {
+  if (_tripNoGoal[t.id] || !(t.left_to_assign > 0.004) || (t.sources || []).some(s => s.kind === 'fund')) return '';
+  const goals = _goalsFirst(t.label);
+  if (!goals.length) return '';
+  return `<div style="font-size:var(--fs-sm);color:var(--ink);margin-top:12px">Have you set money aside for this?</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${goals.map(f => `<button class="btn btn-secondary btn-sm" style="font-size:var(--fs-xs)" onclick="tripUseGoal(${t.id},${f.id})">${esc(f.name)} · ${fmt(f.current_amount || 0)}</button>`).join('')}
+      <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="_tripNoGoal[${t.id}]=true;renderTrips()">No</button></div>
+    <div id="tripGoalPlan-${t.id}"></div>`;
+}
+async function tripUseGoal(id, fundId) {
+  const t = (_trips || []).find(x => x.id === id); if (!t) return;
+  let r;
+  try { r = await API.post('/api/sinking-funds/goal-plan', { amount: t.left_to_assign, fund_id: fundId, label: t.label }); }
+  catch (e) { showToast('Could not work that out', e?.message || '', 'warning'); return; }
+  if (r.covers > 0) await _tripPatch(id, { sources: [...t.sources, { kind: 'fund', ref_id: fundId, amount: r.covers }] });
+  const box = g(`tripGoalPlan-${id}`);
+  if (box) box.innerHTML = _payPlanHTML(r);
+  else showToast(r.rest > 0 ? `${r.goal.name} covers ${fmt(r.covers)}` : `${r.goal.name} covers it`,
+    r.rest > 0 ? `${fmt(r.rest)} is left to assign: from an account's available funds or a card.` : '', 'info');
+}
+
+// What a goal covers, and where the rest could come from - Groundwork's own sentences, every figure from the record
+function _payPlanHTML(r) {
+  if (!r || !r.goal) return '';
+  const g_ = r.goal;
+  let h = r.rest <= 0
+    ? `<div>${esc(g_.name)} has ${fmt(g_.set_aside)} set aside; this is ${fmt(r.amount)} - ${fmt(r.goal_left)} stays in ${esc(g_.name)}.</div>`
+    : `<div>${esc(g_.name)} covers ${fmt(r.covers)}. The other ${fmt(r.rest)} would come from:</div>`;
+  if (r.rest > 0) {
+    const rows = [];
+    (r.from_accounts || []).forEach(a => rows.push(`<li>${esc(a.name)}: ${fmt(a.available)} available, ${a.after >= 0 ? `${fmt(a.after)} left after` : `${fmt(-a.after)} short`}</li>`));
+    (r.from_cards || []).forEach(c => rows.push(`<li>${esc(c.name)}: ${c.available_credit == null ? "its limit isn't entered" : `${fmt(c.available_credit)} of available credit, ${c.after >= 0 ? `${fmt(c.after)} left after` : `${fmt(-c.after)} short`}`}`
+      + ((c.payoff || []).length ? `<div style="color:var(--slate)">On it, it is new debt: ${c.payoff.map(p => `${p.months} months at ${fmt(p.payment)}/mo (${fmt(p.interest)} interest)`).join(' · ')}</div>` : '') + `</li>`));
+    h += rows.length ? `<ul style="margin:4px 0 0 16px">${rows.join('')}</ul>` : '';
+    const anyCovers = (r.from_accounts || []).some(a => a.after >= 0) || (r.from_cards || []).some(c => c.after != null && c.after >= 0);
+    if (!anyCovers) h += `<div style="margin-top:4px">None of these covers the other ${fmt(r.rest)}.</div>`;
+  }
+  return `<div style="font-size:var(--fs-sm);color:var(--ink);line-height:1.6;margin-top:6px;padding:8px 10px;background:var(--mist);border-radius:var(--r-sm)">${h}
+    <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:4px">Nothing moves. The goal is reduced when the purchase happens.</div></div>`;
+}
+
+// Before You Buy: a credit purchase - money already set aside for it is offered first (H20c)
+async function _bybGoalAsk() {
+  const box = g('bybGoalAsk');
+  if (!box) return;
+  const amount = parseFloat(g('bybCreditAmount')?.value) || 0;
+  if (!(amount > 0)) { box.innerHTML = ''; return; }
+  if (!(_sinkingFunds || []).length) { try { await loadSinkingFunds(); } catch (e) { /* none */ } }
+  const goals = _goalsFirst(g('bybItemName')?.value);
+  if (!goals.length) { box.innerHTML = ''; return; }
+  if (box.dataset.amount === String(amount) && box.innerHTML) return;
+  box.dataset.amount = String(amount);
+  box.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--ink)">Have you set money aside for this?</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${goals.map(f => `<button class="btn btn-secondary btn-sm" style="font-size:var(--fs-xs)" onclick="bybUseGoal(${f.id})">${esc(f.name)} · ${fmt(f.current_amount || 0)}</button>`).join('')}
+      <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="g('bybGoalAsk').innerHTML=''">No</button></div><div id="bybGoalPlan"></div>`;
+}
+async function bybUseGoal(fundId) {
+  const amount = parseFloat(g('bybCreditAmount')?.value) || 0;
+  let r;
+  try { r = await API.post('/api/sinking-funds/goal-plan', { amount, fund_id: fundId, label: g('bybItemName')?.value || '' }); }
+  catch (e) { showToast('Could not work that out', e?.message || '', 'warning'); return; }
+  if (g('bybGoalPlan')) g('bybGoalPlan').innerHTML = _payPlanHTML(r);
 }
 
 function _tripRefOptions(kind) {
@@ -19349,14 +19425,21 @@ function _renderSinkingFunds() {
       ? Math.ceil(Math.max(0, fund.target_amount || fund.target - (fund.current_amount || fund.balance || 0)) / fund.monthly_contribution || fund.monthlyContrib)
       : null;
 
-    return `<div style="padding:12px 0;border-bottom:0.5px solid var(--steel-2)" data-sf-idx="${idx}">
+    // Item 114 H19: where its money is kept - asked once for a goal made before goals named an account
+    const keptIn = fund.account_id ? (S.accounts || []).find(a => a.id === fund.account_id) : null;
+    const kept = fund.id == null ? '' : keptIn
+      ? `<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">Kept in ${esc(keptIn.name)}</div>`
+      : `<div style="font-size:var(--fs-xs);color:var(--ink);margin-top:4px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">Which account is this money kept in?
+          <select id="sfAcct-${fund.id}" style="font-size:var(--fs-xs);padding:2px 4px">${_goalAccountOptions(null)}</select>
+          <button class="btn btn-ghost btn-sm" onclick="sfSetAccount(${fund.id})">Save</button></div>`;
+    return `<div style="padding:12px 0;border-bottom:0.5px solid var(--steel-2)" data-sf-idx="${idx}">${kept}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
         <div>
           <span style="font-size:var(--fs-base);font-weight:500">${esc(fund.name)}</span>
           <span style="font-size:var(--fs-xs);color:var(--slate);margin-left:8px">${fmt(fund.monthly_contribution || fund.monthlyContrib)}/mo</span>
         </div>
         <div style="display:flex;align-items:center;gap:10px">
-          <span class="text-mono" style="font-size:var(--fs-md);font-weight:500;color:${col}">${fmt(fund.current_amount || fund.balance || 0)}</span>
+          <span class="text-mono" style="font-size:var(--fs-md);font-weight:500;color:${col}">${fmt(fund.current_amount || fund.balance || 0)}</span><span style="font-size:var(--fs-xs);color:var(--slate)">set aside</span>
           ${fund.target_amount || fund.target ? `<span style="font-size:var(--fs-xs);color:var(--slate)">of ${fmt(fund.target_amount || fund.target)}</span>` : ''}
           <button onclick="sfWithdraw(${idx})" style="font-size:var(--fs-xs);padding:2px 8px;border-radius:20px;
                   background:var(--mist);border:0.5px solid var(--steel);cursor:pointer">
@@ -19377,11 +19460,29 @@ function _renderSinkingFunds() {
   }).join('');
 }
 
+// Item 114 H19: the accounts a goal's money can be kept in - the person's own checking, savings or cash
+function _goalAccountOptions(selected) {
+  const accts = (S.accounts || []).filter(a => ['checking', 'savings', 'cash', 'other'].includes(a.type));
+  return `<option value="">Not said yet</option>` + accts.map(a => `<option value="${a.id}"${a.id === selected ? ' selected' : ''}>${esc(a.name)}</option>`).join('');
+}
+
 function showAddSinkingFund() {
   const form = g('sinkingFundForm');
   if (!form) return;
+  if (g('sfAccount')) g('sfAccount').innerHTML = _goalAccountOptions(null);
   form.style.display = form.style.display === 'none' ? '' : 'none';
   if (form.style.display !== 'none') g('sfName')?.focus();
+}
+
+async function sfSetAccount(id) {
+  const v = parseInt(g(`sfAcct-${id}`)?.value);
+  if (!v) { showToast('Pick an account', '', 'warning'); return; }
+  try { await API.patch(`/api/sinking-funds/${id}`, { account_id: v }); }
+  catch (e) { showToast('Not saved', e?.message || '', 'warning'); return; }
+  await loadAccounts();
+  await loadSinkingFunds();
+  _renderSinkingFunds();
+  if (g('budgetSinkingFundsCard')) _budgetRenderSinkingFundsSection();
 }
 
 function saveSinkingFund() {
@@ -19399,6 +19500,7 @@ function saveSinkingFund() {
     target_amount:  target || 0,
     deadline: g('sfDeadline')?.value || '',
     note: g('sfNote')?.value?.trim() || '',
+    account_id: parseInt(g('sfAccount')?.value) || null,          // item 114 H19
   }).then(() => {
     loadSinkingFunds().then(() => {
       _renderSinkingFunds();
@@ -22167,6 +22269,7 @@ function _bybRefreshCommitGate() {
 // ── Credit purchase payment calculator ───────────────────────────────────────
 
 function _bybComputeCreditPayment() {
+  _bybGoalAsk();                                     // item 114 H20c
   _bybRefreshCommitGate();
   const amt  = parseFloat(g('bybCreditAmount')?.value) || 0;
   const apr  = parseFloat(g('bybCreditAPR')?.value)  || 0;
@@ -23005,6 +23108,15 @@ function _drawAccountManager() {
   // Item 100 HP4: people (item 92), the plan (87), the reserve (88) and medical bills (94) live on the Health page now
 }
 
+// Item 114 H20 (R11): the balance, the goals set aside in it (each named), and what is available. More set aside
+// than the account holds is said, never hidden.
+function _setAsideLine(a) {
+  if (!(a.set_aside > 0)) return '';
+  const goals = (a.goals_set_aside || []).map(x => `${esc(x.name)} ${fmt(x.amount)}`).join(', ');
+  const short = a.short > 0 ? `<div style="font-size:var(--fs-xs);color:var(--ember-text);margin-top:2px">You've set aside ${fmt(a.set_aside)} in ${esc(a.name)}, and it holds ${fmt(a.balance)} - ${fmt(a.short)} more than is there.</div>` : '';
+  return `<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">Set aside ${fmt(a.set_aside)} (${goals}) · available <span style="font-family:var(--font-mono);color:var(--ink)">${fmt(a.available)}</span></div>${short}`;
+}
+
 function _accountRowHTML(a) {
   const typeLabel = ACCOUNT_TYPES[a.type] || 'Other';
   const meta = [typeLabel, a.institution, `${a.transaction_count} txn${a.transaction_count!==1?'s':''}`]
@@ -23017,6 +23129,7 @@ function _accountRowHTML(a) {
       <div style="flex:1;min-width:0">
         <div style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">${esc(a.name)}</div>
         <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${esc(meta)}</div>
+        ${_setAsideLine(a)}
       </div>
       <div style="font-family:var(--font-mono);font-size:var(--fs-base);color:${bal == null ? 'var(--slate)' : bal>=0?'var(--pine-text)':'var(--ember-text)'};text-align:right;flex-shrink:0">
         ${bal == null ? 'no balance yet' : fmt(bal)}

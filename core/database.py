@@ -938,6 +938,9 @@ class SinkingFund(Base):
     created_at           = Column(DateTime, default=datetime.now)
     # 'gift' for a gift fund (GIFT_BUDGET.md G2): the Gift page lists these; every other reader sees an ordinary fund.
     purpose              = Column(String(20), default='')
+    # Item 114 H19 (Rob 2026-10-30): the account its money is kept in - a goal is money set aside inside an account the
+    # person already has (R11). None until they say; then that account's available is its balance less what is set aside.
+    account_id           = Column(Integer, ForeignKey('accounts.id'), nullable=True)
 
 
 class FundSpend(Base):

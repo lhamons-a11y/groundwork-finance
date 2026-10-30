@@ -12,7 +12,8 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20261030-companion-account-types'   # a loan/mortgage/lease debt's companion Account typed 'loan', not 'credit' (_companion_account_types_v1; data only, models unchanged)
+SCHEMA_VERSION = '20261030-goal-accounts'   # item 114 H19: sinking_funds.account_id - the account a goal's money is kept in
+# Before it, '20261030-companion-account-types'   # a loan/mortgage/lease debt's companion Account typed 'loan', not 'credit' (_companion_account_types_v1; data only, models unchanged)
 # Before it, '20261022-local-clock'   # item 109 (LOCAL_CLOCK.md T3): stored UTC moments converted once to local time
 # Before it, '20261019-collections'   # item 101 (COLLECTIONS.md): medical_collections (create_all)
 # Before it, '20261019-medical-bills'   # item 94 (BILL_THAT_LANDS.md): medical_providers, medical_bill_accounts, medical_bill_statements (create_all)
@@ -49,12 +50,12 @@ SCHEMA_VERSION = '20261030-companion-account-types'   # a loan/mortgage/lease de
 # the fingerprint s51 prints. A change without a bump is skipped on every existing database.
 # (Re-pinned 2026-10-24 without a bump: the migration did not change, the fingerprint's method did - panel I-08, so
 # the same file reads the same on Python 3.12, 3.13 and 3.15.)
-SCHEMA_SPEC_SHA256 = 'b800b485c4011d65c2045d17f4b4826911b807df36e6b861c14e82b98045d218'
+SCHEMA_SPEC_SHA256 = '966abaafcbe8cc3e8c815df9699b82ec4eacfde55aa130f9f9da2935602b6e14'
 # The models' fingerprint (item 24, SCHEMA_PIN_MODELS.md P1): every table and column in core/database.py. A model
 # change - a new table, a new column - moves it, and s51 fails until SCHEMA_VERSION is bumped, any new column on an
 # existing table is listed in its _NEW_*_COLUMNS list, this pin is updated, and `python schema_fixture.py` has saved
 # the new version's schema (s67 upgrades every saved schema).
-SCHEMA_MODELS_SHA256 = '7f299fc648b203b2642bc71fec1c9a21ee38f1d6aa6bce235e54a90528792e1e'
+SCHEMA_MODELS_SHA256 = '8c0d24048aecaab20d75f4dfbf8220b4a39f799f996cf9417aba6986d7252904'
 
 
 def _stored_schema_version():
@@ -231,6 +232,8 @@ _NEW_PLAN_TERM_COLUMNS = [
 _NEW_SINKING_FUND_COLUMNS = [
     # GIFT_BUDGET.md G2: 'gift' marks a gift fund. Existing funds stay '' - ordinary funds.
     ('purpose', "VARCHAR(20) DEFAULT ''"),
+    # Item 114 H19: the account a goal's money is kept in. Existing goals stay NULL until the person says (asked once).
+    ('account_id', 'INTEGER'),
 ]
 
 

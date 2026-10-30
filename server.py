@@ -1928,6 +1928,25 @@ def _resolve_bank_anchor(txns):
     return max(day_rows, key=lambda t: t.id), False
 
 
+def _set_aside_by_account(session):
+    """Item 114 H19/H20 (R11): {account_id: [(goal name, amount set aside)]} - the active goals that name an account."""
+    from core.database import SinkingFund
+    out = {}
+    for f in session.query(SinkingFund).filter(SinkingFund.is_active.is_(True), SinkingFund.account_id.isnot(None)).all():
+        out.setdefault(f.account_id, []).append((f.name, round(float(f.current_amount or 0), 2)))
+    return out
+
+
+def _available(balance, goals):
+    """H20: the balance, less every goal set aside in it. More set aside than the account holds is said, never hidden:
+    available is then $0.00 and `short` says by how much."""
+    aside = round(sum(a for _, a in goals), 2)
+    if balance is None:
+        return {'set_aside': aside, 'available': None, 'short': None}
+    avail = round(balance - aside, 2)
+    return {'set_aside': aside, 'available': max(0.0, avail), 'short': round(-avail, 2) if avail < 0 else 0.0}
+
+
 @accounts_bp.route('/with-balances', methods=['GET'])
 def accounts_with_balances():
     """
@@ -1967,6 +1986,7 @@ def accounts_with_balances():
 
             accounts = session.query(Account).filter_by(is_active=True) \
                               .order_by(Account.sort_order, Account.name).all()
+            aside_by = _set_aside_by_account(session)
             result = []
             for a in accounts:
                 try:
@@ -1995,6 +2015,9 @@ def accounts_with_balances():
                         'last_date':         dates[-1].isoformat() if dates else None,
                         'total_credits':     round(credits, 2),
                         'total_debits':      round(debits, 2),
+                        # item 114 H20: what is set aside in it (each goal named) and what is available
+                        'goals_set_aside':   [{'name': n, 'amount': v} for n, v in aside_by.get(a.id, [])],
+                        **_available(balance, aside_by.get(a.id, [])),
                     })
                 except Exception as e:
                     # Surface per-account errors instead of silently dropping
@@ -3148,6 +3171,10 @@ def _trip_plan(session, t):
             bal = _account_balance_facts(session, a.id)[0] if a else None
             floor = ((_setting_json(session, f'bank_buffer:account:{a.id}') or {}).get('amount') if a else None)
             row['balance_after'] = None if bal is None else round(bal - amt, 2)
+            # item 114 H20b: money set aside in a goal is not offered for the trip - available, not the whole balance
+            av = _available(bal, _set_aside_by_account(session).get(a.id, []) if a else [])
+            row['set_aside'] = av['set_aside']
+            row['available_after'] = None if av['available'] is None else round(av['available'] - amt, 2)
             row['floor'] = floor
             row['above_floor_after'] = None if bal is None or floor is None else round(bal - amt - float(floor), 2)
         elif s['kind'] in ('fund', 'save_ahead'):
@@ -15795,6 +15822,7 @@ def _serialize_sinking_fund(f) -> dict:
         'is_active':            f.is_active,
         'last_contributed_month': f.last_contributed_month or '',
         'purpose':              f.purpose or '',
+        'account_id':           f.account_id,                                      # item 114 H19
         'pct_funded':           round((saved / target * 100) if target > 0 else 0, 1),
         # Legacy aliases for old JS code paths
         'balance':              saved,
@@ -15945,10 +15973,91 @@ def create_sinking_fund():
         )
         if not f.name:
             return err('Name is required')
+        bad = _goal_account(session, f, body)                  # item 114 H19
+        if bad:
+            return bad
         session.add(f)
         session.flush()
         session.commit()
         return ok(_serialize_sinking_fund(f))
+
+
+def _goal_account(session, f, body):
+    """Item 114 H19: {"account_id": id | null} - one of the person's own accounts that holds money, or none yet."""
+    if 'account_id' not in body:
+        return None
+    if body['account_id'] in (None, '', 0):
+        f.account_id = None
+        return None
+    try:
+        a = session.get(Account, int(body['account_id']))
+    except (TypeError, ValueError):
+        a = None
+    if not a or not a.is_active or (a.type or '') not in ('checking', 'savings', 'cash', 'other'):
+        return err('That account cannot hold a goal: pick a checking, savings or cash account.')
+    f.account_id = a.id
+    return None
+
+
+@sinking_funds_bp.route('/goal-plan', methods=['POST'])
+@require_json
+def sinking_fund_pay_plan():
+    """Item 114 H20c (Rob 2026-10-30, R12): {amount, label?, fund_id?}. The goals there are (the one whose name fits the
+    label first - never chosen for the person); with fund_id, what that goal covers and where the rest could come
+    from: each account's available funds, each card's available credit, and on a card what the rest adds to the debt
+    plan. Nothing moves and no goal is touched - the goal is reduced only when the purchase happens (item 112 P3)."""
+    from core.database import SinkingFund
+    from core.trip_card import plan as card_plan
+    b = request.get_json() or {}
+    try:
+        amount = round(float(b.get('amount') or 0), 2)
+    except (TypeError, ValueError):
+        return err('The amount must be a number.')
+    if amount <= 0:
+        return err('Give what it costs.')
+    words = {w for w in re.findall(r'[a-z]+', str(b.get('label') or '').lower()) if len(w) > 2}
+    fits = {'trip': {'trip', 'travel', 'vacation', 'holiday', 'holidays'}, 'vacation': {'trip', 'travel', 'vacation'},
+            'gift': {'gift', 'gifts', 'holiday', 'holidays', 'christmas', 'birthday'}}
+    near = set(words)
+    for w in words:
+        near |= fits.get(w, set())
+    with db_session() as session:
+        goals = []
+        for f in session.query(SinkingFund).filter_by(is_active=True).order_by(SinkingFund.id).all():
+            name_words = set(re.findall(r'[a-z]+', (f.name or '').lower()))
+            goals.append({'id': f.id, 'name': f.name, 'set_aside': round(float(f.current_amount or 0), 2),
+                          'account_id': f.account_id, 'fits': bool(name_words & near)})
+        goals.sort(key=lambda g_: (not g_['fits'], g_['id']))
+        out = {'amount': amount, 'goals': goals}
+        if b.get('fund_id'):
+            g_ = next((x for x in goals if x['id'] == int(b['fund_id'])), None)
+            if not g_:
+                return err('That goal is not on record.', 404)
+            covers = round(min(amount, g_['set_aside']), 2)
+            rest = round(amount - covers, 2)
+            aside = _set_aside_by_account(session)
+            accts = []
+            for a in session.query(Account).filter(Account.is_active.is_(True),
+                                                   Account.type.in_(('checking', 'savings', 'cash'))).all():
+                bal = _account_balance_facts(session, a.id)[0]
+                # the goal paying now is not counted as set aside in its own account: its money is the part being used
+                held = [(n, v) for n, v in aside.get(a.id, []) if not (a.id == g_['account_id'] and n == g_['name'])]
+                av = _available(bal, held)
+                if av['available'] is not None:
+                    accts.append({'id': a.id, 'name': a.name, 'available': av['available'],
+                                  'after': round(av['available'] - rest, 2) if rest else av['available']})
+            cards, budget, strategy, _u = _consequence_inputs(session)
+            cards_out = []
+            for c in _trip_credit_cards(session):
+                row = {'id': c['id'], 'name': c['name'], 'available_credit': c.get('available')}
+                if rest and c.get('available') is not None:
+                    row['after'] = round(c['available'] - rest, 2)
+                if rest:
+                    row['payoff'] = card_plan(rest, c, cards, budget, strategy, c['index'])['rows']
+                cards_out.append(row)
+            out.update({'goal': g_, 'covers': covers, 'rest': rest, 'goal_left': round(g_['set_aside'] - covers, 2),
+                        'from_accounts': accts, 'from_cards': cards_out})
+        return ok(out)
 
 
 @sinking_funds_bp.route('/<int:fund_id>', methods=['PATCH'])
@@ -15968,6 +16077,9 @@ def update_sinking_fund(fund_id):
         if 'note' in body:               f.note = body['note']
         if 'is_active' in body:          f.is_active = bool(body['is_active'])
         if 'last_contributed_month' in body: f.last_contributed_month = body['last_contributed_month']
+        bad = _goal_account(session, f, body)              # item 114 H19
+        if bad:
+            return bad
         session.commit()
         return ok(_serialize_sinking_fund(f))
 

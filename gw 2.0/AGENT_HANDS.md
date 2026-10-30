@@ -579,3 +579,35 @@ Rob: *"lets not wait on the windows machine. Start stage 1"*. Stage 1 is built i
 **Next, stage 1b:** H19 (a goal names its account - a schema change), H20 (set aside and available), H20b (spending
 checks use available), H20c (paid from a goal first).
 
+## 13. Stage 1b built: set aside, and available (2026-10-30)
+
+Rob: *"start 1b"*.
+
+- **H19:** `sinking_funds.account_id` (SCHEMA `20261030-goal-accounts`; migration column, both fingerprints re-pinned,
+  fixture saved). The goal form asks *"Where is this money kept?"*; a goal made before asks once, on its row:
+  *"Which account is this money kept in?"*. Only a checking, savings or cash account can hold a goal. The sample
+  household's Car repairs and Holidays are kept in High-Yield Savings.
+- **H20:** `accounts/with-balances` carries, for each account, the goals set aside in it, the total and what is
+  available (balance less set aside; more set aside than it holds says by how much, available $0.00). Settings,
+  Accounts shows it - *"Set aside $1,060.00 (Car repairs $640.00, Holidays $420.00) · available $740.00"*. Rob's
+  example: an Emergency savings goal of $500.00 kept in Everyday Checking leaves $27,232.52 of $27,667.52 available.
+- **H20b:** the trip planner's checking and savings sources say *"$X available after (its balance less the $Y set
+  aside in goals)"*. Before You Buy reads no account balance (its "cash" is the debt plan's monthly room), so there is
+  nothing there to change.
+- **H20c:** `/api/sinking-funds/goal-plan` - the goals, the one whose name fits first (never chosen); for a chosen
+  goal, what it covers and where the rest could come from: each account's available funds (the paying goal's own
+  money not counted twice), each card's available credit, and on a card the new debt (3, 6 or 12 months with the
+  interest). The trip planner asks *"Have you set money aside for this?"* and adds the goal as a source; Before You
+  Buy's credit purchase asks the same and shows the answer. Nothing moves; the goal is reduced when the purchase
+  happens (item 112 P3).
+- **The assistant:** `balances` reads set aside and available per account; `savings_goals` says where each goal is
+  kept; a question about what is "available" reads the balances (a recorded repair); a lead-in or close that says the
+  record "does not specify" something is held (H5 - not the model's to say).
+- **Checked in the app** on the sample household: the figures above, the goal ask in Before You Buy (*Holidays
+  covers $420.00; the other $180.00 ...*), the one-time account question, the trip planner's goal question.
+- **The gate:** s264 (7 checks); the route is `/goal-plan`, not `/pay-plan`, so s207's TM1 guard (no `/pay` in the
+  trip code) holds unchanged. 4003 passed, 0 failed.
+
+**Open:** Q51/Q52 in the Ask box ("can we afford a $600 holiday gift budget?") need the goal plan as an assistant
+lookup; H2 says adding a lookup is a ruling.
+
