@@ -85,6 +85,8 @@ lookups only, before any build.
   no pinned questions, no question text stored anywhere. **The AI log (item 62)** keeps, for an assistant question,
   only which lookups ran and when - never the question or the answer (Rob: *"Not the questions"*); H11 is narrowed to
   that. A confirmed name (R17) keeps the person's word for a debt, not the question it came in.
+  **One exception, ruled 2026-10-30** (Rob: *"Keep it, as an exception"*): the help guide's list of questions it
+  could not answer (item 102 A3, *Your unanswered questions*) stays as item 102 ruled it. R19 covers the assistant.
 - **R6.** The microphone stays on once turned on, so the person can talk with Groundwork (H14), and its button sits in
   the text box (H15). *Rob asked for both; the details below are for ruling.*
 - **R7. "Ignore your rules" is always rejected** (Rob: *"also "ignore your rules" should be text that is always
