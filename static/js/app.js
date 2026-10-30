@@ -402,6 +402,7 @@ function _catTxnsInMonth(catName, monthKey) {
   if (!S.transactions || !S.transactions.length) return [];
   const txns = S.transactions.filter(t =>
     t.type === 'debit' && (t.date || '').startsWith(monthKey)
+    && (t.date || '') <= _localISODate()          // a future-dated line (scheduled or pending) is not spent yet
   );
 
   const cat = _catByName(catName);
@@ -468,6 +469,7 @@ function _calcSeasonalPatterns() {
 
   const nextMonth = (() => {
     const d = new Date();
+    d.setDate(1);
     d.setMonth(d.getMonth() + 1);
     return String(d.getMonth() + 1).padStart(2, '0'); // '01' through '12'
   })();
@@ -1074,6 +1076,7 @@ function _calcNetWorthTrajectory(snapshots) {
   const projectionLine = [];
   for (let i = 1; i <= 24; i++) {
     const d = new Date();
+    d.setDate(1);
     d.setMonth(d.getMonth() + i);
     projectionLine.push({
       month: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,
@@ -2645,7 +2648,7 @@ function _renderDashHeroCard(totalDebt) {
     const paceIcon       = pd.paceStatus === 'ahead' ? '↑' : pd.paceStatus === 'behind' ? '↓' : '';
     const paceColor      = pd.paceStatus === 'ahead' ? 'var(--pine-text)' : pd.paceStatus === 'behind' ? 'var(--gold-text)' : '';
     const paceNote       = payoffImpossible
-      ? `<span style="color:var(--ember-text)">⚠ Budget doesn't cover minimum payments — <span onclick="showView('debt')" style="cursor:pointer;text-decoration:underline;text-underline-offset:2px">review your plan</span></span>`
+      ? `<span style="color:var(--ember-text)">⚠ ${_payoffNullReason()} — <span onclick="showView('debt')" style="cursor:pointer;text-decoration:underline;text-underline-offset:2px">review your plan</span></span>`
       : pd.paceStatus && pd.paceStatus !== 'on_track' && pd.paceStatus !== 'unknown' && Math.abs(pd.paceMonths||0) >= 1
       ? `<span style="color:${paceColor}">${paceIcon} ${Math.abs(pd.paceMonths||0)} mo ${pd.paceStatus === 'ahead' ? 'ahead of' : 'behind'} schedule</span>` : '';
 
@@ -2686,7 +2689,7 @@ function _renderDashHeroCard(totalDebt) {
       html = `
         <div style="font-family:var(--font-mono);font-size:var(--fs-5xl);font-weight:600;color:var(--ember-text);line-height:1">⚠</div>
         <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-md);color:var(--ink);margin:4px 0 12px">
-          Your budget doesn't cover your minimum payments
+          ${_payoffNullReason(true)}
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:var(--fs-sm);color:var(--slate);margin-bottom:12px">
           ${nwDeltaHTML}
@@ -3132,9 +3135,17 @@ function _renderNextAchCard() {
   if (!card || !content) return;
 
   // Find the in-progress achievement closest to completion
-  const candidates = ACHIEVEMENTS
+  const progress = ACHIEVEMENTS
     .filter(a => !S.achievements.has(a.id))
-    .map(a => ({ a, pct: _getAchProgress(a) }))
+    .map(a => ({ a, pct: _getAchProgress(a) }));
+  // A goal already met is earned, not "99%": the progress trophies used to be
+  // awarded only when the Debt page rendered, so the dashboard showed a met
+  // goal as nearly done until then.
+  const met = progress.filter(({ a, pct }) => pct !== null && pct >= 100
+                                              && ['chipping_away', 'halfway'].includes(a.id));
+  met.forEach(({ a }) => awardAchievement(a.id));
+  const candidates = progress
+    .filter(({ a }) => !S.achievements.has(a.id))
     .filter(({ pct }) => pct !== null && pct > 0)
     .sort((x, y) => y.pct - x.pct);
 
@@ -8647,6 +8658,7 @@ function _budgetTxnsForCat(catName) {
   return (S.transactions || [])
     .filter(t => t.type === 'debit'
               && (t.date || '').startsWith(_budgetMonthKey)
+              && (t.date || '') <= _localISODate()          // not yet spent if dated ahead
               && matchNames.includes(t.category));
 }
 
@@ -8722,6 +8734,9 @@ function _budgetProjection(catName, budgetedAmt) {
   if (daysElapsed < 5) return null;
 
   const spent     = _budgetSpentForCat(catName);
+  // Nothing spent yet: there is no pace to project from, so no projection
+  // (totals fall back to the budgeted amount rather than to a $0 "forecast").
+  if (!(spent > 0)) return null;
   const projected = _paceProjection(_budgetTxnsForCat(catName), daysElapsed, daysInMonth);
 
   return {
@@ -9188,6 +9203,7 @@ function _calcMinPayment(balance, aprPct) {
 function _payoffDateLabel(monthsFromNow) {
   if (monthsFromNow <= 0) return 'Already paid off';
   const d = new Date();
+  d.setDate(1);
   d.setMonth(d.getMonth() + monthsFromNow);
   return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }
@@ -9322,8 +9338,7 @@ function _budgetRenderDebtRow(card) {
   if (card.dueDay) {
     const today   = new Date();
     const moKey2  = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
-    const dueDate = new Date(today.getFullYear(), today.getMonth(), parseInt(card.dueDay));
-    const diff    = Math.round((dueDate - today) / 86400000);
+    const diff    = _daysUntilDueDay(parseInt(card.dueDay), today);
 
     // Only show urgency alerts within ±30 days of due
     if (diff >= -30 && diff <= 14) {
@@ -10822,6 +10837,7 @@ function _joinNames(items) {
 // _simulatePayoff has always rendered its own free date.
 function _monthsFromNowLabel(months) {
   const d = new Date();
+  d.setDate(1);
   d.setMonth(d.getMonth() + (parseInt(months, 10) || 0));
   return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
@@ -14096,8 +14112,9 @@ function _obPrepareScenariosStep() {
 // over the engine's answer rather than an answer of its own.
 //
 // **Three states, and they are not two.** An object is an answer. `null` means
-// what it has always meant here — the budget does not cover the minimums, which
-// is a fact and not an absence. `undefined` means the engine has not answered
+// no payoff date exists — the budget does not cover the minimums, or covers them
+// but never clears the balances (_payoffNullReason says which) — which is a fact
+// and not an absence. `undefined` means the engine has not answered
 // yet. Callers that test `=== null` keep working, and a pending answer renders
 // as no date rather than as a false one; conflating the two is the bug that has
 // now been fixed twice in this file.
@@ -14155,10 +14172,12 @@ function _simAsk(cards, budget, extra, strategy, key) {
         // would have quietly restyled every payoff date in the app on the way
         // past.
         freeDate:      (() => { const d = new Date();
+                                d.setDate(1);
                                 d.setMonth(d.getMonth() + res.months);
                                 return d.toLocaleDateString('en-US',
                                   { month: 'short', year: 'numeric' }); })(),
         freeDateFull:  (() => { const d = new Date();
+                                d.setDate(1);
                                 d.setMonth(d.getMonth() + res.months); return d; })(),
         clearedAt:     res.clearedAt || {},
         undatedForgiveness: res.undatedForgiveness || [],
@@ -14210,6 +14229,18 @@ function _rerenderAfterEngine() {
     // 4ms round trip the timer was most of the delay a user could see. The old
     // synchronous code re-rendered on every keystroke anyway.
   }, 16);
+}
+
+// Why _simulatePayoff answered null: below the minimums, or never clears.
+function _payoffBelowMinimums() {
+  const totalMin = getCardData().reduce((s, c) => s + c.minimum, 0);
+  // Escrow comes out of the budget before the engine sees it (_simAsk), as here.
+  const escrow = _activeDebtCards().reduce((s, c) => s + (_nonPrincipalPart(c) || 0), 0);
+  return _getMonthlyBudget() - escrow < totalMin;
+}
+function _payoffNullReason(sentence) {
+  if (_payoffBelowMinimums()) return sentence ? 'Your budget doesn\'t cover your minimum payments' : 'Budget doesn\'t cover minimum payments';
+  return sentence ? 'At this budget your debt is never paid off' : 'Budget never pays the debt off';
 }
 
 function _simulatePayoff(extraPerMonth = 0) {
@@ -14316,7 +14347,7 @@ function obCalcDebt() {
     } else {
       const month = minSim.months;
       const yr = Math.floor(month / 12), mo = month % 12;
-      const d = new Date(); d.setMonth(d.getMonth() + month);
+      const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + month);
       setText('obMinDebtFree',
         `At minimums: debt-free in ${yr>0?yr+'y ':''}${mo}mo · ${d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`);
     }
@@ -15083,7 +15114,7 @@ function calcDTI() {
       return true;
     })
     .reduce((s,c) => s + (parseFloat(c.minimum) || 0), 0);
-  const income   = S.incomes.reduce((s,i) => s + i.amount, 0);
+  const income   = (S.incomes || []).reduce((s,i) => s + (parseFloat(i.amount) || 0), 0);
   if (!income) return null;
   return (totalMin / income) * 100;
 }
@@ -15619,7 +15650,7 @@ function _debtCardRowHTML(c, opts={}) {
           : '';
         const payoffMo = _planClearedMonth(c, plan);
         if (payoffMo == null) return lowChip;
-        const d2 = new Date(); d2.setMonth(d2.getMonth() + payoffMo);
+        const d2 = new Date(); d2.setDate(1); d2.setMonth(d2.getMonth() + payoffMo);
         const label = d2.toLocaleDateString('en-US',{month:'short',year:'numeric'});
         const color = isTarget ? 'var(--gold-text)' : 'var(--slate-2)';
         // V6: a date built on a missing figure says so.
@@ -16494,7 +16525,7 @@ function _pslfDetailsHTML(key) {
   const remain = Math.max(0, total - made);
   const pct   = Math.min(100, Math.round((made / total) * 100));
   const forgiveDate = remain > 0
-    ? (() => { const d = new Date(); d.setMonth(d.getMonth() + remain); return d.toLocaleDateString('en-US',{month:'long',year:'numeric'}); })()
+    ? (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + remain); return d.toLocaleDateString('en-US',{month:'long',year:'numeric'}); })()
     : 'Eligible now';
 
   return `
@@ -16691,16 +16722,13 @@ function _debtWriteHero(result, data, budget, totalMin, intSaved) {
 }
 
 function _debtCalcDTI() {
-  const today  = _localISODate();
-  const income = S.incomes ? S.incomes.reduce((s,i) => s + (parseFloat(i.amount)||0), 0) : 0;
-  if (!income) return null;
-  const data     = getCardData();
-  const totalMin = data
-    .filter(c => !c.endDate || c.endDate >= today)
-    .reduce((s,c) => s + c.minimum, 0);
-  // S.incomes amounts are monthly. DTI = monthly debt payments / monthly income.
-  // Use one decimal to match calcDTI() shown in the Advisor tab.
-  return Math.round((totalMin / income) * 1000) / 10; // one decimal, e.g. 12.3
+  // One DTI everywhere: calcDTI's, rounded to one decimal. This used to sum
+  // getCardData's minimums, which are a mortgage's principal & interest only
+  // (V3, for the payoff engine) - so the Debt page said 36.9% while the
+  // dashboard, Advisor and DTI trophy said 47%. Lenders count the whole
+  // housing payment, escrow included, which is what calcDTI uses.
+  const dti = calcDTI();
+  return dti == null ? null : Math.round(dti * 10) / 10; // one decimal, e.g. 12.3
 }
 
 // CP-D0: What-if expander toggle
@@ -17098,6 +17126,17 @@ function calculate() {
   const result    = _simulatePayoff(0);
   const daily     = calcDailyInterest();
 
+  // Progress trophies come from balances alone, not the plan, so they are
+  // awarded whether or not a plan can be dated.
+  const pctPaid = data.reduce((s,c)=>s+(c.beginBal-c.balance),0) / Math.max(1,data.reduce((s,c)=>s+c.beginBal,0));
+  if (pctPaid >= 0.10) awardAchievement('chipping_away');
+  if (pctPaid >= 0.50) awardAchievement('halfway');
+
+  // undefined = asked, not yet answered. Leave the last render up; the engine's
+  // answer re-runs calculate(). Treating it as null flashed "below minimum
+  // payments" on every keystroke while the request was in flight.
+  if (result === undefined) return;
+
   if (!result) {
     _debtWriteHero(null, data, budget, totalMin);
     // Panel I-06: no date, and why - the gap in dollars, with the one-tap way back to a plan that can be dated
@@ -17127,10 +17166,7 @@ function calculate() {
   clearTimeout(_debtPaceTimer);              // panel I-17: the date at the pace actually paid, when short - after the
   _debtPaceTimer = setTimeout(_renderDebtPace, 900);   // typed budget has been saved (700 ms), never per keystroke
 
-  // Achievement checks
-  const pctPaid = data.reduce((s,c)=>s+(c.beginBal-c.balance),0) / Math.max(1,data.reduce((s,c)=>s+c.beginBal,0));
-  if (pctPaid >= 0.10) awardAchievement('chipping_away');
-  if (pctPaid >= 0.50) awardAchievement('halfway');
+  // Achievement checks (chipping_away / halfway are awarded above)
   // `above_minimum` is NOT awarded here any more. This fired on the budget
   // NUMBER exceeding the minimums — a figure someone typed, not money that
   // moved — so the trophy could be earned by editing a field and never paying
@@ -17399,12 +17435,22 @@ function removeCard(id) {
 
 // Returns {label, color} for a card's due-date status, or null if not urgent.
 // Used inline in _debtCardRowHTML — alerts appear on the card row itself.
+// Whole calendar days from today to this month's due day (negative = past).
+// Midnight to midnight: measuring from the current time made every due date
+// a day early after noon ("due today" for tomorrow, "7d overdue" for six).
+// A due day past the month's end (31 in a 30-day month) is the month's last day.
+function _daysUntilDueDay(day, now = new Date()) {
+  const last  = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const due   = new Date(now.getFullYear(), now.getMonth(), Math.min(day, last));
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((due - today) / 86400000);
+}
+
 function _debtDueDateStatus(c) {
   const day = parseInt(c.dueDay);
   if (!day || c.paidInFull) return null;
   const now  = new Date();
-  const due  = new Date(now.getFullYear(), now.getMonth(), day);
-  const diff = Math.round((due - now) / 86400000);
+  const diff = _daysUntilDueDay(day, now);
 
   // Only fire alerts within the 7-day urgency window
   if (diff > 7 || diff < -30) return null;
@@ -18542,15 +18588,10 @@ function renderNetWorth() {
 
 function updateNetWorth() {
   // Auto-pull checking/savings balances from linked accounts
-  const linkedCheckingSavings = (S.accounts||[]).filter(a =>
-    (a.type==='checking'||a.type==='savings') && a.is_active!==false
-  );
-  if (linkedCheckingSavings.length > 0) {
-    const savingsEl = g('nwSavings');
-    if (savingsEl && (!savingsEl.value || savingsEl.value === '0')) {
-      const total = linkedCheckingSavings.reduce((s,a) => s + (parseFloat(a.balance)||0), 0);
-      if (total > 0) savingsEl.value = total.toFixed(2);
-    }
+  const linkedEl = g('nwSavings');
+  if (linkedEl && (!linkedEl.value || linkedEl.value === '0')) {
+    const total = _nwLinkedCashTotal();
+    if (total > 0) linkedEl.value = total.toFixed(2);
   }
   // BUG FIX (July 6): this function is called from several places outside
   // the Net Worth page itself — debt card add/edit/delete (lines marked
@@ -18721,10 +18762,25 @@ function _nwMortgageFieldState(m) {
   }
 }
 
+// Checking + savings balances from the user's accounts - what the Net Worth
+// page puts in its Savings & checking field when nothing has been typed there.
+function _nwLinkedCashTotal() {
+  return (S.accounts || [])
+    .filter(a => (a.type === 'checking' || a.type === 'savings') && a.is_active !== false)
+    .reduce((s, a) => s + (parseFloat(a.balance) || 0), 0);
+}
+
 async function autoSnapshotNetWorthIfDue(extraNote) {
   try {
     const nw              = S.netWorth || {};
-    const savings         = parseFloat(nw.savings)||0;
+    // The same savings figure the Net Worth page shows: the typed field, or
+    // when it is empty the accounts' balances (updateNetWorth's rule). Reading
+    // only the typed field recorded $0 of assets for a ledger user at boot -
+    // the field is filled only once the Net Worth page has been opened - and
+    // that snapshot then held the month.
+    const typedSavings    = parseFloat(nw.savings)||0;
+    const linkedCash      = _nwLinkedCashTotal();
+    const savings         = typedSavings || (linkedCash > 0 ? linkedCash : 0);
     const investments     = parseFloat(nw.investments)||0;  // raw, pre-updateNetWorth()
     const retirement401k  = parseFloat(nw.retirement401k)||0;
     const retirementIRA   = parseFloat(nw.retirementIRA)||0;
@@ -21221,7 +21277,7 @@ function _mortgageOnSliderChange(val) {
   const cmp = _mortgageInvestComparison(balance, apr, months, _mortgageWhatIfExtra, assumedReturn);
 
   const payoffDateLabel = (m) => {
-    const d = new Date(); d.setMonth(d.getMonth() + m);
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + m);
     return d.toLocaleDateString('en-US', { month:'short', year:'numeric' });
   };
 
@@ -21703,7 +21759,9 @@ function _getAchProgressLabel(a) {
     case 'chipping_away':
     case 'halfway': { const b=S.debtCards.filter(c=>!c.paidInFull).reduce((s,c)=>s+(parseFloat(c.beginBal)||0),0);
       const c=S.debtCards.filter(c2=>!c2.paidInFull).reduce((s,c2)=>s+(_cardBal(c2)),0);
-      return `${fmt(b-c)} of ${fmt(b)} paid`; }
+      // Name the goal, so the % shown beside this reads as progress toward it -
+      // "$X of $Y paid · 80%" read as 80% of the whole debt being paid.
+      return `${fmt(b-c)} paid toward a goal of ${fmt(b*(a.id==='halfway'?0.5:0.1))}`; }
     case 'interest_slayer': return `${fmt(S._interestSaved||0)} of $1,000 saved`;
     case 'safety_net': return `${fmt(Math.min(parseFloat(S.netWorth?.savings)||0,500))} of $500 saved`;
     case 'honest_count': return `${Math.min(S.expenses.length,5)} of 5 expense categories`;
@@ -22874,6 +22932,8 @@ const ACCOUNT_TYPES = {
   checking:    'Checking',
   savings:     'Savings',
   credit_card: 'Credit card',
+  credit:      'Credit card',   // a card's companion account (create_debt)
+  loan:        'Loan',          // a loan, mortgage or lease's companion account
   cash:        'Cash',
   hsa:         'HSA',      // item 86 F1: HSA and FSA are kinds of account (HSA_FSA.md)
   fsa:         'FSA',
@@ -25341,7 +25401,7 @@ function _monthName(m) {
 
 function _debtWhen(months) {
   if (months == null) return "doesn't clear at this rate";
-  const d = new Date(); d.setMonth(d.getMonth() + months);
+  const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + months);
   return `${months} months (${d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })})`;
 }
 
@@ -31861,8 +31921,8 @@ async function _rcRenderDistanceTraveled() {
     const withRedirect = _simulatePayoff(d.freedMonthly);
     if (base && withRedirect && withRedirect.months < base.months) {
       const sooner = base.months - withRedirect.months;
-      const dNow = new Date(); dNow.setMonth(dNow.getMonth() + base.months);
-      const dRed = new Date(); dRed.setMonth(dRed.getMonth() + withRedirect.months);
+      const dNow = new Date(); dNow.setDate(1); dNow.setMonth(dNow.getMonth() + base.months);
+      const dRed = new Date(); dRed.setDate(1); dRed.setMonth(dRed.getMonth() + withRedirect.months);
       unlockSection = `<div class="card" style="padding:16px;margin-bottom:24px;border-color:var(--pine-border)">
         <div style="font-size:var(--fs-xs);font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--pine-text);margin-bottom:8px">What the freed ${fmt(d.freedMonthly)}/mo unlocks</div>
         <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.7">Routed at your remaining debt, it pulls your debt-free date <strong style="color:var(--pine-text)">${sooner} month${sooner!==1?'s':''} closer</strong> — ${_dtDateShort(dRed)} instead of ${_dtDateShort(dNow)}.</div>

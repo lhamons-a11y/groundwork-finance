@@ -903,31 +903,39 @@ def update_transaction(txn_id):
         if not txn:
             return err('Transaction not found', 404)
 
+        try:
+            new_amount = abs(float(body['amount'])) if 'amount' in body else None
+            new_date = date.fromisoformat(body['date']) if 'date' in body else None
+            new_account = int(body['account_id']) if 'account_id' in body else None
+        except (ValueError, TypeError):
+            return err('date, account_id, and amount must be valid')
+
         if 'cleared' in body:
             txn.cleared = bool(body['cleared'])
         if 'category' in body:
             cat = session.query(Category).filter(
-                func.lower(Category.name) == body['category'].lower()
+                func.lower(Category.name) == str(body['category'] or '').lower()
             ).first()
             if not cat:
-                cat = Category(name=body['category'])
-                session.add(cat)
-                session.flush()
+                # Resolve-never-create, as create_transaction does: an unknown
+                # name here made a parentless ghost category outside the
+                # budget hierarchy.
+                return err(f'Unknown category: {body["category"]}')
             txn.category_id = cat.id
         if 'description' in body:
             txn.description = body['description']
-        if 'amount' in body:
-            txn.amount = abs(float(body['amount']))
+        if new_amount is not None:
+            txn.amount = new_amount
         if 'memo' in body:
             txn.memo = body['memo']
         if 'check_number' in body:
             txn.check_number = body.get('check_number', '')
-        if 'date' in body:
-            txn.date = date.fromisoformat(body['date'])
+        if new_date is not None:
+            txn.date = new_date
         if 'type' in body and body['type'] in ('debit', 'credit'):
             txn.type = body['type']
-        if 'account_id' in body:
-            txn.account_id = int(body['account_id'])
+        if new_account is not None:
+            txn.account_id = new_account
         if 'merchant' in body:
             txn.merchant = body['merchant']
 
@@ -1056,6 +1064,9 @@ def create_account():
                 existing.is_active  = True
                 existing.type       = body.get('type', existing.type)
                 existing.institution= body.get('institution', existing.institution)
+                archived = set(_dashboard_json(session, 'archived_account_ids', []))
+                archived.discard(existing.id)
+                _dashboard_store(session, 'archived_account_ids', sorted(archived))
                 session.commit()
                 return ok(_serialize_account(existing, session))
             return err(f'Account "{name}" already exists')
@@ -1104,6 +1115,11 @@ def archive_account(account_id):
             return err('Account not found', 404)
         txn_count = session.query(Transaction).filter_by(account_id=account_id).count()
         acct.is_active = False
+        # Remembered as the user's choice, so the with-balances auto-heal
+        # (which revives inactive accounts that have transactions) skips it.
+        archived = set(_dashboard_json(session, 'archived_account_ids', []))
+        archived.add(account_id)
+        _dashboard_store(session, 'archived_account_ids', sorted(archived))
         session.commit()
     # An archived account's bank window closes (F2).
     import bank_window
@@ -1933,10 +1949,14 @@ def accounts_with_balances():
             # Auto-heal accounts that were broken during data recovery —
             # accounts with is_active=False that HAVE transactions are
             # clearly real accounts that got their flag corrupted, not
-            # intentionally archived accounts. Fix only those.
+            # intentionally archived accounts. Fix only those. An account the
+            # user archived is remembered by archive_account and left alone:
+            # healing it too undid every archive of an account with history.
+            archived = set(_dashboard_json(session, 'archived_account_ids', []))
             broken = session.query(Account).filter(
                 Account.is_active == False
             ).all()
+            broken = [a for a in broken if a.id not in archived]
             for a in broken:
                 txn_count = session.query(Transaction).filter_by(account_id=a.id).count()
                 if txn_count > 0:
@@ -2204,7 +2224,8 @@ def budget_pressure_route():
     return ok(result)
 
 
-def _recurring_pattern_groups(session, months: int = 6, min_occurrences: int = 3, tolerance_pct: float = 5.0):
+def _recurring_pattern_groups(session, months: int = 6, min_occurrences: int = 3, tolerance_pct: float = 5.0,
+                              skip_budgeted: bool = True):
     """The patterns and the rows behind each: [(pattern, [(date, amount, category)])]. Item 108 R1: one payee from
     one account (core/recurring_groups.py), a card switch read as one charge (R4)."""
     from core import recurring_groups as rg
@@ -2218,14 +2239,21 @@ def _recurring_pattern_groups(session, months: int = 6, min_occurrences: int = 3
     rows = [r[:5] for r in rows if (kinds.get(r[5]) or {}).get('kind') == 'spending']
     names = {a.id: a.name for a in session.query(Account).all()}
 
-    existing_budgeted = {
-        b[0] for b in session.query(BudgetItem.name).filter_by(is_active=True).all()
-    }
+    existing_budgeted, budgeted_cats = set(), set()
+    if skip_budgeted:
+        # Matched without case, and by category too: a "Netflix" line in
+        # Streaming Video already budgets the NETFLIX charge, and a "Mortgage"
+        # line in Rent / Mortgage already budgets MORTGAGE CO.
+        for name, cat in session.query(BudgetItem.name, BudgetItem.category).filter_by(is_active=True).all():
+            existing_budgeted.add((name or '').strip().lower())
+            if cat:
+                budgeted_cats.add(cat.strip().lower())
 
     patterns = []
     for grp in rg.groups(rows, names):
         amounts = [a for _, a, _ in grp['rows']]
-        if len(amounts) < min_occurrences or grp['payee'] in existing_budgeted:
+        if len(amounts) < min_occurrences or (grp['payee'] or '').strip().lower() in existing_budgeted \
+                or any((c or '').strip().lower() in budgeted_cats for _, _, c in grp['rows']):
             continue
         avg = sum(amounts) / len(amounts)
         if avg <= 0:
@@ -2241,7 +2269,8 @@ def _recurring_pattern_groups(session, months: int = 6, min_occurrences: int = 3
     return patterns
 
 
-def detect_recurring_patterns(session, months: int = 6, min_occurrences: int = 3, tolerance_pct: float = 5.0) -> list:
+def detect_recurring_patterns(session, months: int = 6, min_occurrences: int = 3, tolerance_pct: float = 5.0,
+                              skip_budgeted: bool = True) -> list:
     """
     Phase H2 Feature 4 (adaptive learning — recurring transaction
     auto-detection). Merchants with 3+ transactions of consistent amount
@@ -2253,7 +2282,7 @@ def detect_recurring_patterns(session, months: int = 6, min_occurrences: int = 3
     Item 108: read per account. `merchant` is the payee (what a budget line and an answer match, R5); `label` names
     the account when the payee recurs from more than one (R3).
     """
-    return [p for p, _ in _recurring_pattern_groups(session, months, min_occurrences, tolerance_pct)]
+    return [p for p, _ in _recurring_pattern_groups(session, months, min_occurrences, tolerance_pct, skip_budgeted)]
 
 
 def reallocation_candidates(session, months: int = 6) -> list:
@@ -2354,7 +2383,8 @@ def trim_candidates(session, months: int = 6, limit: int = 12) -> list:
     today = date.today()
     out = []
     # Item 108 R6: each account's charge is its own candidate, at its own monthly cost
-    for pattern, rows in _recurring_pattern_groups(session, months=months)[:limit]:
+    # A budgeted recurring cost can still be cut, so budgeted ones stay in (skip_budgeted is for "add to budget").
+    for pattern, rows in _recurring_pattern_groups(session, months=months, skip_budgeted=False)[:limit]:
         if not rows:
             continue
         dates = [r[0] for r in rows if r[0]]
@@ -4026,9 +4056,10 @@ def _year_end(session, year, include_health=False):
                 k = (t.merchant or t.description or n).strip()
                 donations[k] = donations.get(k, 0.0) + amt
     rows = lambda d: [{'name': k, 'total': round(v, 2)} for k, v in sorted(d.items(), key=lambda x: -x[1])]
-    lots = [l for l in session.query(InvestmentLot).filter_by(is_closed=True).all() if l.closed_date and l.closed_date.year == year]
-    st = round(sum(l.realized_gain or 0 for l in lots if (l.holding_period_days or 0) < 366), 2)
-    lt = round(sum(l.realized_gain or 0 for l in lots if (l.holding_period_days or 0) >= 366), 2)
+    lots = [l for l in session.query(InvestmentLot).filter_by(is_closed=True).all()
+            if _is_sale_record(l) and l.closed_date and l.closed_date.year == year]
+    st = round(sum(l.realized_gain or 0 for l in lots if not _is_long_term(l)), 2)
+    lt = round(sum(l.realized_gain or 0 for l in lots if _is_long_term(l)), 2)
     docs = [{'id': a.id, 'as_of': a.as_of} for a in session.query(Artefact).filter(Artefact.held.is_(True)).all()
             if (a.as_of or '').startswith(str(year))]
     # W9-c: every month and every account the record should speak for
@@ -5555,16 +5586,15 @@ def investments_tile(session, today=None):
 
     realized = {'total': 0.0, 'short': 0.0, 'long': 0.0, 'unstated': 0, 'lots': 0}
     for lot in session.query(InvestmentLot).filter_by(is_closed=True).all():
-        if not lot.closed_date or lot.closed_date.year != today.year:
+        if not _is_sale_record(lot) or not lot.closed_date or lot.closed_date.year != today.year:
             continue
         realized['lots'] += 1
         if lot.realized_gain is None:
             realized['unstated'] += 1
             continue
         realized['total'] += lot.realized_gain
-        days = getattr(lot, 'holding_period_days', None)
-        if days is not None:
-            realized['long' if days >= 365 else 'short'] += lot.realized_gain
+        if getattr(lot, 'holding_period_days', None) is not None or lot.purchase_date:
+            realized['long' if _is_long_term(lot) else 'short'] += lot.realized_gain
     realized = {k: (round(v, 2) if isinstance(v, float) else v) for k, v in realized.items()}
 
     allocation = None
@@ -7934,10 +7964,14 @@ def debt_simulate():
     result = simulate_payoff(cards, budget + extra, strategy,
                              today_key=today, start_month=today)
     if result is None:
-        # The honest null the JS has always returned here, and it means one
-        # specific thing: the budget cannot cover the minimums. It is not
-        # "unknown" and it is not zero.
-        return ok({'result': None, 'reason': 'the budget does not cover the minimums'})
+        # The honest null: the budget cannot cover the minimums, or it covers
+        # them but never clears the balances (interest outruns the payments).
+        # It is not "unknown" and it is not zero.
+        prepared = [c for c in cards if c.balance > 0]
+        below = budget + extra < sum(max(1.0, c.minimum or 25) for c in prepared)
+        return ok({'result': None,
+                   'reason': 'the budget does not cover the minimums' if below
+                   else 'the payments never clear the balances'})
     return ok({'result': {
         'months': result['months'],
         'totalInterest': result['total_interest'],
@@ -8278,6 +8312,11 @@ def _debt_figure(body, key):
         return None
 
 
+def _companion_account_type(debt_type):
+    """The Account type for a debt's companion account: a card is 'credit'; a loan, mortgage or lease is 'loan'."""
+    return 'credit' if (debt_type or 'credit') == 'credit' else 'loan'
+
+
 @debt_bp.route('', methods=['POST'])
 @require_json
 def create_debt():
@@ -8336,7 +8375,7 @@ def create_debt():
             else:
                 acct = Account(
                     name=body['name'].strip(),
-                    type='credit',
+                    type=_companion_account_type(debt.debt_type),
                     institution='',
                     is_active=True,
                 )
@@ -8401,6 +8440,11 @@ def update_debt(debt_id):
                             'debt PATCH: invalid %s %r ignored', date_field, raw)
                 else:
                     setattr(debt, date_field, None)
+        if 'debt_type' in body and debt.linked_account_id:
+            acct = session.get(Account, debt.linked_account_id)
+            # Only the companion types this route itself sets - never an account the user typed as checking.
+            if acct and (acct.type or 'credit') in ('credit', 'loan'):
+                acct.type = _companion_account_type(debt.debt_type)
         session.commit()
         return ok(serialize_debt_account(debt, session))
 
@@ -11939,6 +11983,9 @@ def create_inv_transaction():
         # ── Buy / transfer in / reinvested dividend → create a lot ──────────
         if txn_type in ('buy', 'transfer_in', 'reinvested_dividend'):
             cost_per_share = price if price > 0 else (total / shares if shares else 0)
+            # A purchase fee is part of what the shares cost (their tax basis).
+            if shares and fees:
+                cost_per_share += fees / shares
             lot = InvestmentLot(
                 account_id           = account_id,
                 source_transaction_id= txn.id,
@@ -11973,9 +12020,8 @@ def create_inv_transaction():
 
             if specific_lot_ids:
                 # User chose specific lots — apply in the order supplied
-                lots = [session.get(InvestmentLot, lid) for lid in specific_lot_ids
-                        if session.get(InvestmentLot, lid) and
-                           not session.get(InvestmentLot, lid).is_closed]
+                lots = [l for l in (session.get(InvestmentLot, lid) for lid in specific_lot_ids)
+                        if l and not l.is_closed and l.account_id == account_id and l.ticker == ticker]
             elif method == 'lifo':
                 lots = q.order_by(InvestmentLot.purchase_date.desc()).all()
             elif method == 'hifo':
@@ -11993,27 +12039,40 @@ def create_inv_transaction():
                 lot.shares_remaining -= shares_from_lot
                 remaining_to_sell    -= shares_from_lot
 
-                # Record realized gain for the shares sold from this lot
+                # Every sale is its own closed record with its own date, price
+                # and gain - the record the realized-gains and tax views read.
+                # Accumulating onto the source lot lost a partial sale twice:
+                # an open lot is never read as realized, and closing it later
+                # overwrote the earlier gain with the last sale's alone.
                 holding_days = (txn_date - lot.purchase_date).days if txn_date > lot.purchase_date else 0
                 cost         = lot.cost_basis_per_share * shares_from_lot
-                proceeds     = sell_price * shares_from_lot
+                # The sell fee comes off the proceeds, shared across the lots sold.
+                proceeds     = sell_price * shares_from_lot - (fees * shares_from_lot / shares if shares else 0)
                 gain         = proceeds - cost
                 gain_pct     = (gain / cost * 100) if cost else 0
+                session.add(InvestmentLot(
+                    account_id            = lot.account_id,
+                    source_transaction_id = txn.id,       # the sell, so deleting it can restore the shares
+                    ticker                = lot.ticker,
+                    security_type         = lot.security_type,
+                    shares_original       = shares_from_lot,
+                    shares_remaining      = 0.0,
+                    cost_basis_per_share  = lot.cost_basis_per_share,
+                    purchase_date         = lot.purchase_date,
+                    is_closed             = True,
+                    closed_date           = txn_date,
+                    sell_price_per_share  = sell_price,
+                    realized_gain         = round(gain, 4),
+                    realized_gain_pct     = round(gain_pct, 4),
+                    holding_period_days   = holding_days,
+                ))
 
                 if lot.shares_remaining <= 0.00001:
-                    # Lot fully exhausted — close it
-                    lot.is_closed              = True
-                    lot.closed_date            = txn_date
-                    lot.sell_price_per_share   = sell_price
-                    lot.realized_gain          = round(gain, 4)
-                    lot.realized_gain_pct      = round(gain_pct, 4)
-                    lot.holding_period_days    = holding_days
-                    lot.shares_remaining       = 0.0
-                else:
-                    # Partial fill — accumulate realized gain on the lot
-                    # (additional sells from this lot will add to it)
-                    current_gain = lot.realized_gain or 0.0
-                    lot.realized_gain = round(current_gain + gain, 4)
+                    # Lot fully sold. Closed, with no sale figures of its own:
+                    # its sales are the records above (_is_sale_record).
+                    lot.is_closed        = True
+                    lot.closed_date      = txn_date
+                    lot.shares_remaining = 0.0
 
             if remaining_to_sell > 0.001:
                 # Should be unreachable — the oversell guard above rejects
@@ -12045,6 +12104,25 @@ def delete_inv_transaction(txn_id):
             ).first()
             if lot:
                 session.delete(lot)
+        elif txn.type == 'sell':
+            # Put the shares back on the lots they came from. A sale record
+            # carries its source lot's account, ticker, purchase date and basis;
+            # that lot is the one with sold shares (remaining < original).
+            for sale in session.query(InvestmentLot).filter_by(source_transaction_id=txn_id, is_closed=True).all():
+                source = (session.query(InvestmentLot)
+                          .filter(InvestmentLot.account_id == sale.account_id,
+                                  InvestmentLot.ticker == sale.ticker,
+                                  InvestmentLot.purchase_date == sale.purchase_date,
+                                  InvestmentLot.cost_basis_per_share == sale.cost_basis_per_share,
+                                  InvestmentLot.sell_price_per_share.is_(None),
+                                  InvestmentLot.realized_gain.is_(None),
+                                  InvestmentLot.shares_remaining < InvestmentLot.shares_original - 0.00001)
+                          .order_by(InvestmentLot.id).first())
+                if source:
+                    source.shares_remaining = (source.shares_remaining or 0) + sale.shares_original
+                    source.is_closed   = False
+                    source.closed_date = None
+                session.delete(sale)
 
         session.delete(txn)
         session.commit()
@@ -12426,6 +12504,26 @@ def get_cached_prices():
 # ── Cost basis & lot accounting endpoints (Phase 4D) ─────────────────────────
 
 
+def _is_sale_record(lot) -> bool:
+    """A closed lot that records a sale. A lot sold off completely is also closed, but its sales are their own
+    records and it carries no figures; counting it would add a row with no gain. Lots closed before sales got their
+    own records carry their gain themselves and still count."""
+    return bool(lot.is_closed) and (lot.sell_price_per_share is not None or lot.realized_gain is not None)
+
+
+def _is_long_term(lot) -> bool:
+    """Held more than one year: sold after the anniversary of the purchase (a fixed day count is wrong in leap
+    years). Falls back to the stored day count when either date is missing."""
+    bought, sold = lot.purchase_date, lot.closed_date
+    if bought and sold:
+        try:
+            anniversary = bought.replace(year=bought.year + 1)
+        except ValueError:                       # bought Feb 29
+            anniversary = bought.replace(year=bought.year + 1, day=28)
+        return sold > anniversary
+    return (lot.holding_period_days or 0) > 365
+
+
 @investments_bp.route('/realized-gains', methods=['GET'])
 def get_realized_gains():
     """
@@ -12444,12 +12542,12 @@ def get_realized_gains():
         if year:
             from sqlalchemy import extract
             q = q.filter(extract('year', InvestmentLot.closed_date) == int(year))
-        lots = q.order_by(InvestmentLot.closed_date.desc()).all()
+        lots = [l for l in q.order_by(InvestmentLot.closed_date.desc()).all() if _is_sale_record(l)]
 
         result = []
         for lot in lots:
             holding_days = lot.holding_period_days or 0
-            is_long_term = holding_days >= 366
+            is_long_term = _is_long_term(lot)
 
             if term == 'short' and is_long_term:  continue
             if term == 'long'  and not is_long_term: continue
@@ -12497,14 +12595,13 @@ def get_tax_summary():
     with db_session() as session:
         q = session.query(InvestmentLot).filter_by(is_closed=True)
         if account_id: q = q.filter_by(account_id=int(account_id))
-        lots = q.order_by(InvestmentLot.closed_date).all()
+        lots = [l for l in q.order_by(InvestmentLot.closed_date).all() if _is_sale_record(l)]
 
         years = {}
         for lot in lots:
             if not lot.closed_date: continue
             year          = lot.closed_date.year
-            holding_days  = lot.holding_period_days or 0
-            is_long       = holding_days >= 366
+            is_long       = _is_long_term(lot)
             gain          = lot.realized_gain or 0
 
             if year not in years:

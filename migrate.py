@@ -12,7 +12,8 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20261022-local-clock'   # item 109 (LOCAL_CLOCK.md T3): stored UTC moments converted once to local time
+SCHEMA_VERSION = '20261030-companion-account-types'   # a loan/mortgage/lease debt's companion Account typed 'loan', not 'credit' (_companion_account_types_v1; data only, models unchanged)
+# Before it, '20261022-local-clock'   # item 109 (LOCAL_CLOCK.md T3): stored UTC moments converted once to local time
 # Before it, '20261019-collections'   # item 101 (COLLECTIONS.md): medical_collections (create_all)
 # Before it, '20261019-medical-bills'   # item 94 (BILL_THAT_LANDS.md): medical_providers, medical_bill_accounts, medical_bill_statements (create_all)
 # Before it, '20261018-household-statements'   # item 93 stages 3-4 (BANK_SIDE_RECORDS.md B2-B4, B8, B11): account_banks, standing_statements, ledger_line_records, earlier_answers, reversal_answers (create_all)
@@ -48,7 +49,7 @@ SCHEMA_VERSION = '20261022-local-clock'   # item 109 (LOCAL_CLOCK.md T3): stored
 # the fingerprint s51 prints. A change without a bump is skipped on every existing database.
 # (Re-pinned 2026-10-24 without a bump: the migration did not change, the fingerprint's method did - panel I-08, so
 # the same file reads the same on Python 3.12, 3.13 and 3.15.)
-SCHEMA_SPEC_SHA256 = '09aef85e996f9c92a8dc4548f44ee39d5e75c4b7993aa21fcd230bd9fad20306'
+SCHEMA_SPEC_SHA256 = 'b800b485c4011d65c2045d17f4b4826911b807df36e6b861c14e82b98045d218'
 # The models' fingerprint (item 24, SCHEMA_PIN_MODELS.md P1): every table and column in core/database.py. A model
 # change - a new table, a new column - moves it, and s51 fails until SCHEMA_VERSION is bumped, any new column on an
 # existing table is listed in its _NEW_*_COLUMNS list, this pin is updated, and `python schema_fixture.py` has saved
@@ -365,6 +366,27 @@ def _backfill_party_anchors(session):
         return
     created = backfill_party_anchors(session)
     logger.info('Party anchors backfilled: %d person(s) lacked one', created)
+    _mark_migration_done(session, flag)
+
+
+def _companion_account_types_v1(session):
+    """A loan, mortgage or lease's companion Account was created with type 'credit' - create_debt typed every
+    companion as a credit card - so Settings listed a car loan or a mortgage as a "Credit card". create_debt now types
+    them 'loan' (and a debt-type change carries over); this corrects the ones made before. Only an account still at the
+    'credit' create_debt gave it is changed: a type the user chose is theirs. Flagged, so it runs once."""
+    from core.database import Account, DebtAccount
+    flag = 'migration_companion_account_types_20261021'
+    if _migration_done(session, flag):
+        return
+    n = 0
+    for d in session.query(DebtAccount).filter(DebtAccount.linked_account_id.isnot(None)).all():
+        if (d.debt_type or 'credit') == 'credit':
+            continue
+        acct = session.get(Account, d.linked_account_id)
+        if acct and (acct.type or 'credit') == 'credit':
+            acct.type = 'loan'
+            n += 1
+    logger.info('Companion accounts retyped as loan: %d', n)
     _mark_migration_done(session, flag)
 
 
@@ -716,6 +738,7 @@ def run_migration_if_needed():
             _migrate_old_category_names(session)
             _backfill_party_anchors(session)
             _carry_over_household_facts(session)
+            _companion_account_types_v1(session)
             for name, ctype, color in [
                 ('Interest / Fees', 'expense', '#dc2626'),
                 ('Other', 'expense', '#6b7280'),

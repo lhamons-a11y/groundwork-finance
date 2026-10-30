@@ -107,7 +107,7 @@ def run(ctx):
     src = (base / 'migrate.py').read_text(encoding='utf-8')
     check('s256 T3 it runs first in the migration, before anything else that run writes a local time',
           src.index('_clock_local_v109(had_version)') < src.index("_add_missing_columns('transactions'")
-          and "SCHEMA_VERSION = '20261022-local-clock'" in src)
+          and "'20261022-local-clock'" in src)   # its version, or a later one listing it as 'Before it'
 
     # ── T5: the backup reminder compares local with local ────────────────────────────────────────────────────────
     srv = ctx.server_src

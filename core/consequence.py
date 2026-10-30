@@ -97,8 +97,8 @@ def _prepare(cards):
 def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
                     today_key=None, start_month=None, one_time_extra=0.0, path=None, extra_schedule=None):
     """Months until every balance clears, or None if the budget cannot cover
-    the minimums — the JS returns null there and so do we, rather than a
-    fabricated large number.
+    the minimums or never clears the balances within MAX_MONTHS — the JS
+    returns null there and so do we, rather than a fabricated large number.
 
     one_time_cost is money that will NOT reach the debt: it consumes the extra
     above minimums until absorbed. That models paying cash from the same
@@ -216,6 +216,13 @@ def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
         if path is not None:
             path.append(round(sum(bals), 2))
 
+    # Still owing after MAX_MONTHS means the payments never clear the debt
+    # (interest outruns them). Reporting MAX_MONTHS would be a fabricated
+    # payoff date - "debt-free in 30 years" for a balance that only grows -
+    # so this is the same honest null as an unaffordable budget.
+    if any(b > SETTLED for b in bals):
+        return None
+
     undated = [c.name for c in data if c.is_pslf and c.forgive_after_months is None]
     return {
         'months': month,
@@ -261,10 +268,14 @@ def extra_above_minimums(cards, budget):
 
 
 def _month_key(start_month, offset):
+    """The calendar month of simulated month `offset`. Month 1 is the month
+    AFTER start_month, the convention every payoff label uses (today + months,
+    in app.js and health_reserve/trips): counting start_month itself as month 1
+    put the engine's lease end a month away from the dates the user is shown."""
     if not start_month:
         return None
     y, m = int(start_month[:4]), int(start_month[5:7])
-    m += offset - 1
+    m += offset
     y += (m - 1) // 12
     m = (m - 1) % 12 + 1
     return f'{y:04d}-{m:02d}'

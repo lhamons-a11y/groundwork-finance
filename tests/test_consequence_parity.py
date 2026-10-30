@@ -83,11 +83,18 @@ def main():
     js = json.loads(proc.stdout)
     check('js harness extracted and ran _simulatePayoffStrategy', True)
 
+    # The one departure from the frozen JS, on purpose: a debt still owing after MAX_MONTHS never clears, and the
+    # engine says so with None (no payoff date) where the old JS reported the 360-month cap as if it were a date.
+    def never_clears(p, j):
+        return p is None and j is not None and j['months'] >= 360
+
     mismatches, none_mismatch, interest_off = [], 0, []
     for s, j in zip(scenarios, js):
         cards = [Card(balance=c['balance'], rate=c['rate'],
                       minimum=c['minimum'], name=c['name']) for c in s['cards']]
         p = simulate_payoff(cards, s['budget'], s['strategy'])
+        if never_clears(p, j):
+            continue
         if (p is None) != (j is None):
             none_mismatch += 1
             continue
@@ -123,6 +130,8 @@ def main():
             cards = [Card(balance=c['balance'], rate=c['rate'], minimum=c['minimum'],
                           name=c['name'], is_pslf=c['pslf']) for c in s['cards']]
             p = simulate_payoff(cards, s['budget'], s['strategy'])
+            if never_clears(p, j):
+                continue
             pm = p['months'] if p else None
             jm = j['months'] if j else None
             if pm != jm:

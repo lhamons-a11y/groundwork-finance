@@ -46,7 +46,8 @@
     return {
       head: o.monthName + ' so far',
       body: 'Spent ' + f.money(o.spent) + ' in ' + o.daysGone + ' of ' + o.daysInMonth + ' days' + rate + ' - a straight'
-            + ' line, not a forecast - the month ends near ' + f.money(projected) + ' against ' + f.money(o.budget) + ' budgeted.'
+            + ' line, not a forecast - the month ends near ' + f.money(projected) + ' against ' + f.money(o.budget)
+            + ' of budgeted income.'
     };
   }
 
