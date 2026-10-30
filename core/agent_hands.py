@@ -828,13 +828,83 @@ def check_sentences(text, lines, cap=4, not_enough=None):
 
 
 # ── One question, end to end ─────────────────────────────────────────────────────────────────────────────────────────
-def plan(model_call, question, today, context=None):
+# ── Groundwork's own reading, before the model (as item 102 A8 reads "get my accounts") ─────────────────────────────
+_PAGES = ('budget', 'dashboard', 'ledger', 'settings', 'debt payoff', 'debts?', 'reports?', 'calendar', 'health',
+          'net worth', 'investments', 'trophies', 'trophy room', 'assistant', 'trip planner', 'before you buy',
+          'savings goals', 'gifts?', 'accounts')
+_START = r'^\s*(please\s+|can you\s+|could you\s+|would you\s+|go\s+)?'
+_ACT = re.compile(_START + r'(pay|transfer|send|delete|remove|erase|cancel|turn\s+(on|off)|switch\s+(on|off)|disable|'
+                  r'enable|move\s+\$|move\s+(some\s+)?money|withdraw|deposit)\b|\bevery\s+(night|day|morning|week)\b|'
+                  r'\bautomatically\s+(download|import|pay)\b', re.I)
+_CHANGE = re.compile(_START + r'(file|re-?categori[sz]e|categori[sz]e|put|move)\b.*\b(under|into|to)\b|'
+                     + _START + r'(add|create|make|set up)\s+(a\s+|an\s+)?(budget\s+line|rule|import\s+rule|goal|line)\b|'
+                     + _START + r'mark\b', re.I)
+_HOWTO = re.compile(r'^\s*(how\s+(do|can|would|should)\s+(i|we|you)|how\s+to|where\s+(do|can)\s+(i|we)\s+'
+                    r'(find|change|set|add|import))\b', re.I)
+_PAGE = re.compile(r'^\s*(show\s+me|open|take\s+me\s+to|go\s+to|view|see)\s+(the\s+|my\s+|our\s+)?('
+                   + '|'.join(_PAGES) + r')(\s+page|\s+tab)?\s*[.!?]?\s*$', re.I)
+_OUTSIDE = re.compile(r'credit\s+score|interest\s+rates?\s+(will|go|going|next|in\s+the\s+future)|'
+                      r'(will|are)\s+(interest\s+)?rates|the\s+economy|stock\s+market|inflation\s+(next|will)|'
+                      r'mortgage\s+rates', re.I)
+_YES = re.compile(r'^\s*(yes|yeah|yep|sure|ok(ay)?|please\s+do|go\s+ahead)\b', re.I)
+_QUESTION = re.compile(r'^\s*(when|what|how\s+much|how\s+many|is|are|do|does|did|will|which|where|who|can\s+we|'
+                       r'can\s+i|have|has)\b', re.I)
+
+
+# H8b (R15, Rob 2026-10-30): against the law - refused before anything else, typed or spoken
+_ILLEGAL = re.compile(
+    r'\bhack(s|ed|ing)?\s+(into|in\s+to|my|our|the|a|an|his|her|their|someone|somebody|accounts?|banks?)\b|\bbreak\s+into\b|\b(get|log|sign)\s+(in)?to\s+(someone|somebody|my\s+\w+\'?s|his|her|their|\w+\'s)\s'
+    r'|someone\s+else\'?s\s+(bank|account|card|password|money)|'
+    r'\b(help\s+me|how\s+(do|can|could|would)\s+(i|we)|i\s+want\s+to|let\'?s|can\s+you)\s+(steal|skim|launder|forge|'
+    r'counterfeit|clone)\b|'
+    r'\b(make|create|generate|print|write|produce|draw\s+up|edit|alter|change)\s+(me\s+)?(a\s+|an\s+|some\s+)?(fake|forged|false|phony|'
+    r'fraudulent)\b|\bfake\s+(pay\s*stubs?|paystubs?|statements?|receipts?|checks?|cheques?|invoices?|w-?2s?|1099s?|'
+    r'documents?|ids?|bank\s+statements?)\b|'
+    r'\bmoney\s+launder|\blaunder(ing)?\s+(money|cash)|\btax\s+evasion|\bevade\s+(the\s+)?(irs|taxes?)|'
+    r'\bhide\s+(my\s+|our\s+)?(income|money|cash|earnings)\s+from\s+(the\s+)?(irs|tax|taxes|government)|'
+    r'\b(not|never|without)\s+report(ing)?\s+(my\s+|our\s+|the\s+)?(income|cash|tips|earnings)\s+to\s+(the\s+)?irs|'
+    r'\bchange\s+(my|the|our)\s+(bank\s+)?balance\b|\b(chargeback|refund)\s+(scam|fraud)|\bidentity\s+theft\b|'
+    r'\bcommit\s+fraud|\bdefraud\b|\bphish', re.I)
+ILLEGAL_REFUSAL = ("Groundwork won't help with that. It can't reach into a bank or change what a bank holds, and it doesn't "
+                   "help with anything against the law.")
+
+
+def illegal(text):
+    """H8b: True when text asks for something against the law (R15)."""
+    return bool(_ILLEGAL.search(text or ''))
+
+
+def read_request(question, context=None):
+    """The kind of request, read by Groundwork's own code before the model, or None (the model plans it). A command to
+    act must lead the sentence, so "what if we only paid the minimums" stays a question."""
+    q = question.strip()
+    if context and _YES.match(q) and context.get('offer'):
+        return 'propose'
+    if _ACT.search(q) and not _QUESTION.match(q):
+        return 'refuse'
+    if _CHANGE.search(q) and not _QUESTION.match(q):
+        return 'propose'
+    if _HOWTO.match(q):
+        return 'guide'
+    if _PAGE.match(q):
+        return 'open_page'
+    if _OUTSIDE.search(q):
+        return 'outside_record'
+    return None
+
+
+def plan(model_call, question, today, context=None, force_record=False):
     """The model's request, forced into PLAN_SCHEMA by a grammar (H12). context: the last question and its plan (H13)."""
     lk = '\n'.join(f'- {k}: {v}' for k, v in LOOKUPS.items())
     sysmsg = PLANNER_SYSTEM.replace('{lookups}', lk).replace('{today}', today.isoformat())
     user = question if not context else (f'Earlier question: {context["question"]}\nEarlier plan: '
-                                         f'{json.dumps(context["plan"])}\nFollow-up: {question}')
-    raw = model_call(sysmsg, user, PLAN_SCHEMA)
+                                         f'{json.dumps(context.get("plan"))}\nFollow-up: {question}')
+    schema = PLAN_SCHEMA
+    if force_record:            # a question is answered from the record: the plan may only be about_my_record
+        schema = json.loads(json.dumps(PLAN_SCHEMA))
+        schema['properties']['kind']['enum'] = ['about_my_record']
+        user += '\n(This is a question about their own record: choose the lookups that answer it.)'
+    raw = model_call(sysmsg, user, schema)
     p = json.loads(raw)
     p['intent'] = KINDS.get(p.get('kind'), 'answer')
     p['lookups'] = [x for x in (p.get('lookups') or []) if x.get('name') in FUNCS][:MAX_LOOKUPS]
@@ -844,6 +914,9 @@ def plan(model_call, question, today, context=None):
 _ROOM_WORDS = re.compile(r'where in (my|our) budget|where could|what could (i|we) cut|find (the )?(money|room)|'
                          r'make (that|it) happen|pay for (it|that)|free up|in (my|our) budget could', re.I)
 _AMOUNT = re.compile(r'\$\s?([\d,]+(?:\.\d+)?)')
+
+
+_GENERIC_DEBT = {'debt', 'debts', 'loan', 'loans', 'card', 'cards', 'credit', 'the', 'my', 'our', 'here', 'name', 'named', 'any'}
 
 
 def repair(question, p, reader):
@@ -862,9 +935,11 @@ def repair(question, p, reader):
     cats = sorted({r['category'] for r in rows if r['category']})
     for x in lk:
         if x['name'] == 'transactions' and x.get('payee') and not any(x['payee'].lower() in y for y in payees):
-            m = _category_match(x['payee'], cats)
+            m = _category_match(x['payee'], cats) or next(
+                (_category_match(w, cats) for w in re.findall(r'[a-z]+', x['payee'].lower()) if _category_match(w, cats)), [])
             if m:
-                x['category'] = x.pop('payee')
+                x.pop('payee')
+                x['category'] = m[0]
                 rep_.append(f'"{x["category"]}" read as a category, not a payee')
     given = next((x.get('category') for x in lk if x.get('category')), None)
     for x in lk:
@@ -890,6 +965,25 @@ def repair(question, p, reader):
             amt = float(m.group(1).replace(',', '')) if m else None
         lk.append({'name': 'budget_headroom', **({'amount': amt} if amt else {})})
         rep_.append('budget_headroom added: the question asks where in the budget')
+    ql = question.lower()
+    for x in lk:            # a debt name the person did not say, and no debt has, is not theirs ("named_debt_here")
+        own = [w for w in re.findall(r'[a-z]{3,}', x['debt'].lower()) if w not in _GENERIC_DEBT] if x.get('debt') else []
+        if x.get('debt') and (not own or not all(w in ql for w in own)):
+            rep_.append(f'debt "{x.pop("debt")}" dropped: not in the question')
+    if 'minimum' not in ql and any(x['name'] == 'minimums_only' for x in lk):
+        lk = [x for x in lk if x['name'] != 'minimums_only']
+        rep_.append('minimums_only dropped: the question does not ask about minimums')
+    seen, dedup = set(), []
+    for x in lk:
+        key = json.dumps(x, sort_keys=True)
+        if x['name'] == 'debt_whatif' and not x.get('debt') and not x.get('extra_monthly'):
+            key = 'debt_whatif-plain'
+        if key not in seen:
+            seen.add(key)
+            dedup.append(x)
+    if len(dedup) < len(lk):
+        rep_.append('a repeated lookup dropped')
+    lk = dedup
     if 'debt_whatif' in {x['name'] for x in lk}:
         for x in lk:
             if x['name'] == 'debt_whatif' and not x.get('debt'):
@@ -1188,11 +1282,24 @@ def answer(reader, model_call, model_call_text, question, context=None):
     """R7 first, then the plan, the lookups, the outcome, the words and the check. Returns everything measured."""
     out = {'question': question, 'timings': {}}
     t0 = time.time()
+    if illegal(question):
+        out.update({'outcome': 'refuse', 'r15': True, 'shown': [ILLEGAL_REFUSAL], 'lookups': []})
+        out['timings']['total'] = round(time.time() - t0, 2)
+        return out
     if rejected(question):
         out.update({'outcome': 'refuse', 'r7': True, 'shown': [R7_REFUSAL], 'lookups': []})
         out['timings']['total'] = round(time.time() - t0, 2)
         return out
-    p = plan(model_call, question, reader.today, context)
+    kind = read_request(question, context)
+    if kind:
+        p = {'intent': kind, 'lookups': [], 'read_by': 'groundwork'}
+    else:
+        p = plan(model_call, question, reader.today, context)
+        # a question is answered from the record: the model may not turn it into a refusal, a change, a page or "outside"
+        # - Groundwork's own reading (read_request) already decided those
+        if p.get('intent') in ('open_page', 'outside_record', 'guide', 'refuse', 'propose') and _QUESTION.match(question):
+            out['first_plan'] = json.loads(json.dumps(p))
+            p = plan(model_call, question, reader.today, context, force_record=True)
     out['timings']['plan'] = round(time.time() - t0, 2)
     out['raw_plan'] = json.loads(json.dumps(p))
     p = repair(question, p, reader)
@@ -1207,6 +1314,9 @@ def answer(reader, model_call, model_call_text, question, context=None):
         shown = [next((r['clarify'] for r in results if r.get('clarify')), 'Which one do you mean?')]
     elif out['outcome'] == 'refuse':
         shown = ['Groundwork never does that for you. It is yours to do, in the app or at your bank.']
+    elif out['outcome'] == 'propose' and context and context.get('offer'):
+        shown = [context['offer'] if 'No bank' in context['offer'] else
+                 'Groundwork would press Get my accounts now (not in this measurement: nothing is pressed).']
     elif out['outcome'] == 'propose':
         shown = ['Groundwork cannot make changes from here yet; it opens the place where you can.']
     elif out['outcome'] in ('open_page', 'guide'):

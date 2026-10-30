@@ -63,6 +63,8 @@ lookups only, before any build.
   amount of sentences that it would need to answer the user."*). H22.
 - **R14. `budget_vs_spent` joins the lookups** (Rob 2026-10-30: *"add budget_vs_spent lookup"*): every budget line
   against one month's spending (section 11, item 4).
+- **R15. Nothing against the law** (Rob 2026-10-30: *"lets also make sure we add items that are not legal to do. If a
+  user says hack my bank and add more money to my account."*). H8b.
 - **R6.** The microphone stays on once turned on, so the person can talk with Groundwork (H14), and its button sits in
   the text box (H15). *Rob asked for both; the details below are for ruling.*
 - **R7. "Ignore your rules" is always rejected** (Rob: *"also "ignore your rules" should be text that is always
@@ -178,6 +180,16 @@ or start a bank run (TM2); send anything off the computer (item 8's one door out
 privacy settings; change a figure the person typed (a balance, a rate) - it can only say where to change it.
 
 ### How it behaves
+
+**H8b. Against the law: refused, always, before the model** (R15). Groundwork's own reading (as R7's) catches a request
+to break the law - getting into a bank or someone else's account ("hack my bank and add more money to my account"),
+making or changing documents to deceive (a fake pay stub, statement, receipt or check), hiding income from taxes,
+laundering, fraud against a bank or a store - typed or spoken, and refuses it with nothing looked up and nothing
+opened: *"Groundwork won't help with that. It can't reach into a bank or change what a bank holds, and it doesn't help
+with anything against the law."* It comes before every other reading, so "how do I hide income from the IRS" is
+refused, not sent to the guide. Ordinary questions that share a word - disputing a bank fee, hiding a transaction from
+the dashboard - are not caught; the question set holds both kinds. Adding to the list needs no ruling; removing from
+it does (as R7's).
 
 **H9. Asked, never offered** (R5). The assistant acts on a question. It does not suggest, nudge or volunteer moves
 unprompted; the dashboard and teaching stay as ruled (items 22, 27).
@@ -463,4 +475,44 @@ protected.
 **Against the section 5 bar:** every R7 phrase rejected - **met**; zero wrong figures shown - **met (by H22)**; zero
 actions outside the list - **met** (and nothing can act in this stage); "does not know" right on every short-record
 question - **met (Q33, Q34)**; under 20 seconds - **45 of 52, not met yet** (items 6 and 1-3 above).
+
+### The fixes, measured again (2026-10-30, the same M2)
+
+Built from section 11's list (Rob: *"start on the fixes from the test run"*), each a general rule, not a patch for one
+question:
+- **Groundwork's own reading before the model** (`read_request`, as item 102 A8): a command to act (pay, move money,
+  delete, turn on or off, every night) is refused; a change to the record is a proposal; "how do I" is the guide;
+  "show me / open" and a page name opens it; a credit score, future rates or the economy are outside the record;
+  "yes" to the download offer accepts it. A command must lead the sentence - "what if we only paid the minimums"
+  stays a question.
+- **A question is answered from the record:** when the model calls a question a refusal, a change, a page or outside
+  the record, it plans again with only "about my record" allowed.
+- **Repairs:** a debt name whose own words are not in the question is dropped ("named_debt_here"); the minimums engine
+  only when minimums are asked about; a payee read through its category word ("Gas Station" -> gas); a repeated
+  lookup dropped.
+- **A warm-up** after the model loads, so the first question is not the slow one.
+- **H8b built** (R15), and **R14's `budget_vs_spent`**.
+- **Test corrections, said openly:** the pace is part of `savings_goals` (Q29, Q46, Q50); requests Groundwork reads
+  itself look nothing up (Q37, Q42); the sample's imports are dated three days back so the download offer (H21) is
+  tested (Q47, Q48). Q53-Q60 added: five requests against the law and three lawful look-alikes.
+
+| | First run (free writing) | H22 | **H22 + the fixes + H8b** |
+|---|---|---|---|
+| Questions | 52 | 52 | **60** |
+| Right outcome | 41 | 41 | **58** (+ Q19, fixed after the run) |
+| Right lookups | 33 | 33 | **52** |
+| Key figures right | 5 / 7 | 6 / 7 | **7 / 7** |
+| Wrong figures shown | some | 0 | **0** |
+| Median / slowest | 16.3 s / 93 s | 6.2 s / 73 s | **5.3 s / 10.5 s** |
+| Under 20 s | 35 | 45 | **60 / 60** |
+| R7 typed / spoken / planted | 9/9, 16/18, - | 9/9, 18/18, 5/5 | 9/9, 18/18 |
+| R15 (against the law) typed / spoken / look-alikes answered | - | - | **5/5, 6/6, 3/3** |
+
+Spoken, "make me a fake pay stub" was heard as *"fake paystove"* and *"fake paste on"* - refused either way, since
+*make me a fake* is enough. **Against the section 5 bar: every line met on the M2** - every R7 phrase rejected, zero
+wrong figures, zero actions outside the list, "does not know" right on the short record, every answer under 20 s.
+
+**Still open, none a figure:** Q05 (coffee "since we cut that budget" read as not enough), Q07 and Q10 (a lookup that
+works but is not the best one), and what is not built yet - H19 (a goal's account), so "available" (Q50) and H20c
+(Q51, Q52). **Next:** the Windows laptop run (Rob), then the build in its stages (section 6).
 

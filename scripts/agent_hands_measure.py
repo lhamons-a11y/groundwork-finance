@@ -49,6 +49,11 @@ def child(record, model_path, out_path, only=None):
         with db_session() as s:
             s.query(Transaction).filter(Transaction.date < keep_from).delete()
             s.commit()
+    if record == 'sample':            # dated three days back, so the download offer (H21, from 48 hours) is tested
+        with db_session() as s:
+            for tx in s.query(Transaction).all():
+                tx.created_at = tx.created_at - timedelta(days=3)
+            s.commit()
     if record == 'no_goals':
         with db_session() as s:
             s.query(SinkingFund).delete()
@@ -87,6 +92,13 @@ def child(record, model_path, out_path, only=None):
                                        max_tokens=170, temperature=0.2, stop=engine.STOP)
         return (r['choices'][0]['message']['content'] or '').strip()
 
+    # warm-up: the planner's fixed instructions are read once after the load, so the first question is not slower
+    t1 = time.time()
+    try:
+        ah.plan(model_call, 'What did I spend on clothing last month?', today)
+    except Exception:
+        pass
+    warm_s = round(time.time() - t1, 1)
     qs = [q for q in json.loads(QUESTIONS.read_text())['questions'] if q['record'] == record]
     if only:
         qs = [q for q in qs if q['id'] in only]
@@ -95,7 +107,8 @@ def child(record, model_path, out_path, only=None):
         ctx = None
         if q.get('follow_up_of') and q['follow_up_of'] in done:
             prev = done[q['follow_up_of']]
-            ctx = {'question': prev['question'], 'plan': prev.get('plan')}
+            ctx = {'question': prev['question'], 'plan': prev.get('plan'),
+                   'offer': next((s for s in prev.get('shown') or [] if 'get your accounts' in s or 'No bank' in s), None)}
         try:
             r = ah.answer(reader, model_call, model_call_text, q['ask'], ctx)
         except Exception as e:
@@ -104,7 +117,8 @@ def child(record, model_path, out_path, only=None):
         done[q['id']] = r
         results.append({'id': q['id'], 'q': q, 'r': _slim(r)})
         print(f"{q['id']} {r.get('outcome'):<15} {r.get('timings', {}).get('total', '?'):>6}s  {r.get('lookups')}", flush=True)
-    Path(out_path).write_text(json.dumps({'record': record, 'model_load_s': load_s, 'results': results}, indent=1,
+    Path(out_path).write_text(json.dumps({'record': record, 'model_load_s': load_s, 'warm_up_s': warm_s,
+                                          'results': results}, indent=1,
                                          default=str))
 
 
@@ -159,6 +173,14 @@ def r7_checks(out_path):
                     subprocess.run(['afconvert', '-f', 'WAVE', '-d', 'LEI16@16000', '-c', '1', str(aiff), str(wav)], check=True)
                     heard = voice.transcribe(wav.read_bytes())
                 out['spoken'].append({'voice': voice_name, 'said': p, 'heard': heard, 'rejected': ah.rejected(heard)})
+            for p in json.loads(QUESTIONS.read_text()).get('r15_illegal_spoken', []):
+                with tempfile.TemporaryDirectory() as d:
+                    aiff, wav = Path(d) / 'c.aiff', Path(d) / 'c.wav'
+                    subprocess.run(['say', '-v', voice_name, '-o', str(aiff), p], check=True)
+                    subprocess.run(['afconvert', '-f', 'WAVE', '-d', 'LEI16@16000', '-c', '1', str(aiff), str(wav)], check=True)
+                    heard = voice.transcribe(wav.read_bytes())
+                out.setdefault('illegal_spoken', []).append({'voice': voice_name, 'said': p, 'heard': heard,
+                                                             'refused': ah.illegal(heard)})
     except Exception as e:
         out['spoken'].append({'error': f'{type(e).__name__}: {e}'})
     Path(out_path).write_text(json.dumps(out, indent=1))
@@ -238,6 +260,8 @@ def main():
           f'under 20 s: {sum(r["score"]["under_20s"] for r in rows)}')
     print(f'R7 typed rejected: {sum(x["rejected"] for x in parts["r7"]["typed"])}/{len(parts["r7"]["typed"])}; '
           f'spoken rejected: {sum(1 for x in parts["r7"]["spoken"] if x.get("rejected"))}/{len(parts["r7"]["spoken"])}')
+    ils = parts['r7'].get('illegal_spoken') or []
+    print(f'R15 spoken refused: {sum(1 for x in ils if x.get("refused"))}/{len(ils)}')
     print(f'Report: {p}')
 
 
