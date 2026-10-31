@@ -18,6 +18,8 @@ import time
 from datetime import date, timedelta
 from pathlib import Path
 
+from core import periods
+
 MAX_LOOKUPS = 4
 MIN_MONTHS = 3                 # MIN_MONTHS_OBSERVED (core/solution.py): a pattern needs three months
 STALE_HOURS = 48               # the check-in's line (_last_import_state)
@@ -1281,6 +1283,32 @@ def repair(question, p, reader):
         own = [w for w in re.findall(r'[a-z]{3,}', x['debt'].lower()) if w not in _GENERIC_DEBT] if x.get('debt') else []
         if x.get('debt') and (not own or not all(w in ql for w in own)):
             rep_.append(f'debt "{x.pop("debt")}" dropped: not in the question')
+    # Item 115 P5 (Q05, Q07): the period is Groundwork's to read (core/periods.py). A month the person named is the one
+    # read; a month the plan gives that the question does not name, and is not this month, is the model's - dropped
+    said = periods.read_period(question, reader.today)
+    this = reader.today.strftime('%Y-%m')
+    for x in lk:
+        if x['name'] not in ('transactions', 'category_by_month', 'budget_vs_spent'):
+            continue
+        got = _resolve_month(x.get('month'), reader.today) if x.get('month') else None
+        if said and len(said['months']) == 1:
+            if got != said['months'][0]:
+                x['month'] = said['months'][0]
+                rep_.append(f'{x["name"]}: month {x["month"]}, as the question says ("{said["said"]}")')
+        elif got and got != this and not (said and got in said['months']):
+            x.pop('month')
+            rep_.append(f'{x["name"]}: month {got} dropped: not in the question')
+    # Q10: "what day do we usually pay" asks when a charge comes, which the recurring charges know - not what is due next
+    if re.search(r'\b(what|which)\s+day\b|\busually\b|\bnormally\b|\btypically\b', ql) and not re.search(r'\bdue\b', ql) \
+            and any(x['name'] == 'bills_due' for x in lk) and not any(x['name'] == 'recurring' for x in lk):
+        lk = [x if x['name'] != 'bills_due' else {'name': 'recurring'} for x in lk]
+        rep_.append('recurring for bills_due: the question asks when a charge usually comes, not what is due next')
+        # a bill whose amount changes (electric) is not in the recurring charges: its own rows show the days
+        named = next((m[0] for m in (_category_match(w, cats) for w in re.findall(r'[a-z]{4,}', ql))
+                      if len(m) == 1), None)       # one category the person's word names, or none
+        if named and not any(x['name'] == 'transactions' for x in lk):
+            lk.append({'name': 'transactions', 'category': named, 'kind': 'spending'})
+            rep_.append(f'transactions added: the days "{named}" was charged')
     if re.search(r'\bavailable\b|how much (money )?(do|have) (we|i) (have|got)|in (my|our) (checking|savings)', ql) \
             and not any(x['name'] == 'balances' for x in lk):
         lk.insert(0, {'name': 'balances'})

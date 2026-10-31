@@ -675,3 +675,19 @@ Rob: *"yes push and start stage 3"*; *"you have permission to push and start eac
 **Item 114's three stages are built.** Still to do: the Windows laptop run of the question set (Rob), and a real
 microphone try on the Mac and Windows (PANEL_REVIEW.md section 7 asked for one).
 
+
+## 16. Q05, Q07 and Q10 closed (2026-10-31, the M2)
+
+Rob: *"after the gates are done lets build this final piece"* - item 115 C7 puts these first. Dates are now read by
+code (`core/periods.py`, item 115 P5), and `repair` uses it: a month the person named is the one read; a month the
+plan gives that the question does not name, and is not this month, is dropped. "What day do we usually pay" reads
+the recurring charges, and - since a bill whose amount changes is not among them - that bill's own rows.
+
+| | Before | After (`tests/agent_hands_results/20261031-1532-m2-periods-q05-q07-q10.json`) |
+|---|---|---|
+| Q05 coffee "since we cut that budget" | "does not know" - January 2023, made up | each month against the $40.00 line, 8.3 s |
+| Q07 gas "this month" | all 22 charges, $1,148.40 | October's 4, $206.49, 5.5 s |
+| Q10 electric, the usual day | what is due next | Metro Power & Light on the 12th, each month, 8.4 s |
+
+Q07's lookup is `transactions` for October rather than the expected `category_by_month`; the figure is the same, so
+the expectation is the one to widen. s268 (11 checks) holds the reader and the three repairs.
