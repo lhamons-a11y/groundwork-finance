@@ -181,11 +181,16 @@ comparison draws bars side by side; a snapshot draws a figure tile; a list is al
 
 ## 5. Before this builds: item 114's open misses
 
-The index leans on the same routing item 114 still misses. In order:
-1. Requests to act decided by Groundwork before the model (section 11, fix 1).
-2. Pages and the guide (fix 2), wrong lookups (fix 3).
-3. The 60-73 s stalls, measured with other apps closed and on the Windows laptop (fix 6).
-4. H19 / H20c, if goals become a subject.
+The index leans on the same routing as item 114. **Corrected 2026-10-31:** this section was first written from
+section 11's first run; its fixes were already built and measured again the same day (`AGENT_HANDS.md` section 11,
+*The fixes, measured again*): `read_request` decides requests to act, changes, the guide, pages and outside the
+record before the model; 58 / 60 right outcomes; 60 / 60 under 20 s, slowest 10.5 s; H19 and H20c built (section
+13). What is still open:
+1. Q05, Q07, Q10 - a lookup that works but is not the best one, and "since we cut that budget" read as not enough.
+2. The Windows laptop run of the question set (Rob's machine).
+3. A real microphone try on the Mac and Windows (H14, H15).
+
+C7 holds: stage 4 waits for item 1; items 2 and 3 are Rob's runs and do not block it.
 
 ## 6. Measured before any build
 
@@ -285,3 +290,65 @@ Rob: *"lets rule in section 4-9"*, then ruled one by one:
 | C10 | **Accepted:** text and charts on screen; print / PDF when printing |
 | C11 | **Accepted:** one section may differ in style from its report, saved by the person's choice |
 | Section 9 | **MCP dropped** - Groundwork does not attach outside agents |
+
+## 11. C3: which pairings are sections (proposed 2026-10-31, for ruling)
+
+Rows are subjects, columns shapes. **✓** a section; **-** not one (it would say nothing the others do not, or the
+record cannot speak to it). Each ✓ names what it reads.
+
+| Subject | 1 Monthly totals | 2 Trend | 3 List | 4 Snapshot | 5 Comparison | 6 What-if |
+|---|---|---|---|---|---|---|
+| 1 Spending by category | ✓ every category, each month | ✓ all spending, a line | ✓ categories ranked, for the period | ✓ `budget_vs_spent`, one month | ✓ two periods, by category | - |
+| 2 One category | ✓ `category_by_month` | ✓ its line, with the budget line | ✓ its transactions | ✓ this month against its line | ✓ two periods | - |
+| 3 Payees | ✓ one payee, each month | - (the same as 1) | ✓ top payees, for the period | - | ✓ two periods, by payee | - |
+| 4 Income | ✓ each month | ✓ a line | ✓ paychecks and other income | ✓ income lines against what came in | ✓ two periods | - |
+| 5 Debt payments | ✓ each month, by debt | ✓ a line | ✓ the payments | - | ✓ two periods | - |
+| 6 Debt balances | - | ✓ where the record holds snapshots | ✓ each debt: balance, rate, minimum | ✓ owed today, payoff date | ✓ then and now | ✓ `debt_whatif`, `minimums_only` |
+| 7 Net worth and balances | ✓ month-end net worth | ✓ a line | ✓ each account | ✓ today, set aside and available | ✓ then and now | - |
+| 8 Recurring and price steps | - | ✓ a charge's price over time (`price_changes`) | ✓ `recurring` | ✓ the monthly total of what recurs | - | - |
+| 9 Bills due | - | - | ✓ the next 30 days | ✓ what is due, in all | - | - |
+| 10 Budget headroom | - | - | - | ✓ `reallocation_candidates` | - | ✓ "find $X" against it |
+
+**40 sections.** Proposed order of building, so the first batch is useful at once:
+- **Batch A (14):** what the twelve templates and Rob's example need - 1.1, 1.3, 1.4, 2.1, 2.2, 3.3, 4.1, 5.1, 6.3,
+  6.4, 6.6, 7.1, 7.2, 10.4.
+- **Batch B:** the rest of the lists and snapshots.
+- **Batch C:** the comparisons (they need H-c's two periods for free words; by hand they work at once).
+
+**Ruled 2026-10-31 (Rob: *"Accept, all 40 at once build after 3:30pm est"*):** the table as written, all 40 sections
+built together rather than in batches, the build starting after 3:30 pm Eastern that day.
+
+**Two corrections to section 11, said openly (2026-10-31, while building):**
+- **The table ticks 39, not 40.** Payees has three sections (1, 3, 5), and "40" was a miscount when the table was
+  written. All 39 are built, as ruled ("the table as written"). A 40th would be a new pairing, for Rob to name.
+- **Section ids are shape.subject**, Rob's own order (*"Monthly totals catalog is 1-9, Monthly Debt is in Catalog
+  5"*): 1.5 is monthly totals of debt payments, as P1 says. The batch list above wrote subject.shape; with all 40 at
+  once the batches are moot.
+
+## 12. Stages 1-3 built (2026-10-31)
+
+Rob: *"after the gates are done lets build this final piece"*; C3 *"Accept, all 40 at once build after 3:30pm est"*.
+
+- **Stage 1, the catalogue** (`core/report_sections.py`): six shapes, ten subjects, the 39 sections, each run from
+  item 114's lookups and the record's own rows - every figure Groundwork's (H22), no model call. A period is read by
+  `core/periods.py` (P5); one it cannot read is said, not guessed. A section the record cannot speak to says *"Groundwork
+  doesn't know yet"* and what would let it (on the sample: yearly price steps need 13 months). **Ten templates**: the
+  twelve reports less the visit report (health, TM7 - no health sections) and the import audit (about imports, not
+  money); those two stay their own pages. Every report page is unchanged (C2).
+- **Stage 2, the section list page** (Reports → *Build your own* → **Build a report**; `/api/reports/builder/catalog`,
+  `/run`, `/saved`): each section is *Show* (shape) and *Of* (subject) - only the pairings the table ticks - with the
+  period in the person's words and the settings it needs (category, payee, compared with, amount, a debt). Add, move
+  up and down, remove; *Start from…* a template or a saved report. **Save…** keeps the sections and the chosen style
+  (P11), only on the person's press; Delete removes it.
+- **Stage 3, the six styles** (P13-P15): text and grid, text and charts (the default), charts first, text only,
+  print / PDF, compact. A section may carry its own (C11). The shape picks the chart (P14): bars, a line (with the
+  budget line where there is one), side-by-side bars, figure tiles; a list is always a table. **⎙ Print** redraws in
+  the print style and prints only the report.
+- **Checked in the app** (a throwaway database, the sample household): Rob's example - *"Debt payments, June 2026 to
+  September 2026: $4,796.00 in all"*, $1,199.00 each month, as bars; Debt Progress as a template ($39,940.00 owed in
+  May, $36,790.00 now, debt-free August 2030 on the plan, its assumptions stated); each style drawing differently from
+  the same sections; a report saved with its style.
+- **The gate:** s269 (12 checks), s268 (11). Item 114's Q05, Q07 and Q10 closed first (AGENT_HANDS.md section 16).
+
+**Next, stage 4:** the index (P3-P6) - the Ask box reading "monthly totals of debt payments from June to September"
+into section 1.5 and its period, with no model call; then the section 6 question set, written by Rob before measuring.

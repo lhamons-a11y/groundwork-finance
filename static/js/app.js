@@ -13456,6 +13456,9 @@ const HELP_FAQ = [
   {"q": "Can I pay for something from a savings goal?", "a": "Yes - when the trip planner or Before You Buy (or the assistant) works out how to pay for something, it asks \"Have you set money aside for this?\" and lists your goals, the one that fits first. A goal covers what it holds; the rest is shown against each account's available money or a card's available credit, with what it would add to your debt on a card. Nothing moves - the goal is reduced when the purchase happens.", "keys": ["pay", "goal", "goals", "set", "aside", "fund", "trip", "buy", "afford"]},
   {"q": "Does the assistant keep my questions?", "a": "No. A question to the assistant is answered and then forgotten - nothing of it is stored. The AI log (Settings → General) keeps only which parts of your records were looked up, and when. The help guide's own list of questions it couldn't answer is separate, and you can clear it.", "keys": ["keep", "kept", "questions", "history", "privacy", "log", "assistant", "stored"]},
   {"q": "What does the monthly report show?", "a": "Each report shows its summary - every computed figure as a plain line - whether AI is on or off. With AI on, a written part follows that explains what the figures mean; it never lists them again. Add a note before generating and the written part takes it into account.", "keys": ["report", "reports", "monthly", "summary", "narrative"], "open": {"view": "reports"}},
+  {"q": "Can I build my own report?", "a": "Yes. In Reports, open Build a report. A report is a stack of sections: for each one, choose what to show (monthly totals, a trend, a list, a snapshot, a comparison or a what-if), what it is about (spending, one category, payees, income, debt payments, debt balances, net worth, recurring charges, bills due or room in the budget), and the period in your own words - \"June to September\", \"last month\", \"this year\". Add, remove and reorder sections; start from one of the reports, or from nothing. Groundwork works out every figure from your own record, with AI on or off; where the record can't say yet, the section says so and what would let it.", "keys": ["build", "custom", "own", "report", "reports", "section", "sections", "make"], "open": {"view": "reports"}, "labels": ["Build a report"]},
+  {"q": "How do I change how a report looks?", "a": "Build a report has six styles: Text and grid (sentences and tables), Text and charts (the usual), Charts first, Text only (good for having it read aloud), Print / PDF, and Compact summary. Pick one for the whole report, or set one section apart - \"this one as a table\". Each section draws the chart that fits it: bars for monthly totals, a line for a trend, side-by-side bars for a comparison; a list is always a table. Groundwork never changes the style for you.", "keys": ["style", "styles", "look", "chart", "charts", "table", "grid", "text", "compact"], "open": {"view": "reports"}, "labels": ["Build a report"]},
+  {"q": "How do I save or print a report I built?", "a": "Press Save… and give it a name. It keeps its sections and the style you chose, and the period moves on by itself - \"this month\" is always this month. Open it again from \"Start from…\" in Build a report; Delete removes it. ⎙ Print prints just the report in the Print / PDF style; choose Save as PDF in the print window for a file. Nothing leaves your computer unless you print or save it yourself.", "keys": ["save", "saved", "print", "pdf", "report", "keep", "again"], "open": {"view": "reports"}, "labels": ["Build a report"]},
   {"q": "How does the AI know my patterns?", "a": "It doesn't learn on its own. Groundwork's engines work out every figure from your records each time - income, spending by category, debt pace, net worth - and the AI is handed those figures to explain. It never adds a number of its own: a written part with a figure that isn't in what it was given is held back.", "keys": ["ai", "patterns", "profile", "know", "learn"]},
   {"q": "Is my financial data sent to AI servers?", "a": "No. Groundwork's AI runs only on your own computer (inside Groundwork itself), and nothing is ever sent to an AI service. There is no cloud mode. If your computer can't run a local model, AI features are simply off, and everything else works the same.", "keys": ["ai", "data", "sent", "servers", "cloud", "private", "privacy", "online"]},
   {"h": "Tools"},
@@ -29703,6 +29706,14 @@ function _rcRegenerateAI(reportId) {
 
 const _REPORT_CATALOG = [
   {
+    id:        'builder',                          // item 115: a report built from sections, by the person
+    section:   'Build your own',
+    title:     'Build a report',
+    sub:       'Pick what to see - monthly totals, a trend, a list, a snapshot, a comparison or a what-if - for any period. Start from one of the reports below, or from nothing.',
+    icon:      '▦',
+    aiUtility: 'low',
+  },
+  {
     id:        'distance_traveled',
     section:   'Progress',
     title:     'Distance Traveled',
@@ -29980,6 +29991,7 @@ function _rcRenderReport(reportId) {
     case 'income_savings':  _rcRenderIncomeSavings(); break;
     case 'net_worth':       _rcRenderNetWorthTimeline(); break;
     case 'import_audit':    _rcRenderImportAudit(); break;
+    case 'builder':         _rcRenderBuilder(); break;            // item 115
     default:
       g('rcReportBody').innerHTML = `<div style="color:var(--slate)">Report not yet available.</div>`;
   }
@@ -32571,6 +32583,230 @@ async function _rcRenderNetWorthTimeline() {
         <tbody>${[...sorted].reverse().map(s=>`<tr style="border-bottom:1px solid var(--steel)"><td style="padding:6px 8px;color:var(--ink)">${s.month_label||s.date}</td><td style="padding:6px 8px;font-family:var(--font-mono);text-align:right;color:var(--pine-text)">${fmt(s.total_assets)}</td><td style="padding:6px 8px;font-family:var(--font-mono);text-align:right;color:var(--ember-text)">${fmt(s.total_liabilities)}</td><td style="padding:6px 8px;font-family:var(--font-mono);text-align:right;font-weight:600;color:${s.net_worth>=0?'var(--pine-text)':'var(--ember-text)'}">${fmt(s.net_worth)}</td></tr>`).join('')}</tbody>
       </table>
     </div>`;
+}
+
+// ── Item 115 stages 2-3 (ASK_FOR_A_REPORT.md P10-P15; Rob 2026-10-31): build a report from sections ─────────────────
+// Each section is a shape × subject over a period, drawn by Groundwork (/api/reports/builder/run - every figure the
+// record's, H22). The person adds, removes, reorders and changes sections, picks one of six styles (one section may
+// differ, C11) and saves it by pressing Save (P11) - nothing is chosen for them (R4). Works the same with AI off.
+let _rbCatalog = null, _rbSaved = [], _rbStyle = 'text_charts', _rbName = '', _rbId = null;
+let _rbSections = [];
+
+async function _rcRenderBuilder(start) {
+  const body = g('rcReportBody');
+  if (!body) return;
+  try {
+    if (!_rbCatalog) _rbCatalog = await API.get('/api/reports/builder/catalog');
+    _rbSaved = (await API.get('/api/reports/builder/saved')).saved || [];
+  } catch (e) { _gwErr('_rcRenderBuilder')(e); body.innerHTML = `<div style="color:var(--slate)">The report builder could not load.</div>`; return; }
+  if (start && start.sections) {
+    _rbSections = start.sections.map(s => ({ id: s.id, settings: { ...(s.settings || {}) }, ...(s.style ? { style: s.style } : {}) }));
+    _rbStyle = start.style || _rbStyle; _rbName = start.name || ''; _rbId = start.savedId || null;
+  }
+  if (!_rbSections.length) _rbSections = [{ id: '1.5', settings: { period: 'June to September' } }];
+  if (!g('rbPrintCss')) {             // the Print / PDF style: only the report, sections kept whole across pages
+    const css = document.createElement('style');
+    css.id = 'rbPrintCss';
+    css.textContent = '@media print { body.rb-printing .rb-controls, body.rb-printing #reportCenterContent > div:first-child,'
+      + ' body.rb-printing nav, body.rb-printing header, body.rb-printing .sidebar, body.rb-printing #topbar { display:none !important }'
+      + ' body.rb-printing .rb-section { break-inside: avoid; border: 1px solid #999 !important; box-shadow: none !important }'
+      + ' body.rb-printing * { color: #000 !important } }';
+    document.head.appendChild(css);
+  }
+  _rbDraw();
+}
+
+function _rbSec(id) { return (_rbCatalog.sections || []).find(s => s.id === id); }
+
+function _rbDraw() {
+  const body = g('rcReportBody');
+  if (!body || !_rbCatalog) return;
+  const sel = 'font-size:var(--fs-sm);padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper);color:var(--ink)';
+  const btn = 'background:none;border:1px solid var(--steel);border-radius:var(--r-sm);padding:4px 10px;font-size:var(--fs-sm);cursor:pointer;color:var(--ink)';
+  const styleOpts = (cur, withReport) => (withReport ? `<option value="">Same as the report</option>` : '') +
+    _rbCatalog.styles.map(s => `<option value="${s.key}" ${cur === s.key ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
+  const row = (s, i) => {
+    const sec = _rbSec(s.id) || {};
+    const [shape, subj] = s.id.split('.').map(Number);
+    const subjects = _rbCatalog.subjects.filter(su => _rbCatalog.sections.some(x => x.id === `${shape}.${su.n}`));
+    const field = (k, label, ph) => `<label style="font-size:var(--fs-xs);color:var(--slate);display:flex;flex-direction:column;gap:2px">${label}
+        <input value="${esc(typeof s.settings[k] === 'object' ? '' : (s.settings[k] ?? ''))}" placeholder="${esc(ph)}" style="${sel};width:150px"
+          onchange="_rbSet(${i}, '${k}', this.value)"></label>`;
+    return `<div class="card" style="padding:12px 14px;margin-bottom:8px">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
+        <label style="font-size:var(--fs-xs);color:var(--slate);display:flex;flex-direction:column;gap:2px">Show
+          <select style="${sel}" onchange="_rbShape(${i}, +this.value)">${_rbCatalog.shapes.map(sh =>
+            `<option value="${sh.n}" ${sh.n === shape ? 'selected' : ''}>${esc(sh.name)}</option>`).join('')}</select></label>
+        <label style="font-size:var(--fs-xs);color:var(--slate);display:flex;flex-direction:column;gap:2px">Of
+          <select style="${sel}" onchange="_rbSubject(${i}, +this.value)">${subjects.map(su =>
+            `<option value="${su.n}" ${su.n === subj ? 'selected' : ''}>${esc(su.name)}</option>`).join('')}</select></label>
+        ${['2.6', '5.6', '3.6', '4.6', '6.6', '3.7', '4.7', '3.8', '4.8', '3.9', '4.9', '4.10', '6.10', '2.8'].includes(s.id) ? ''
+          : field('period', 'Period', 'e.g. June to September')}
+        ${(sec.needs || []).includes('period_b') ? field('period_b', 'Compared with', 'e.g. last month') : ''}
+        ${(sec.needs || []).includes('category') ? field('category', 'Category', 'e.g. Groceries') : ''}
+        ${(sec.needs || []).includes('payee') ? field('payee', 'Payee', 'e.g. QuickFuel') : ''}
+        ${(sec.needs || []).includes('amount') ? field('amount', s.id === '6.6' ? 'More a month' : 'Amount', 'e.g. 200') : ''}
+        ${s.id === '6.6' ? field('debt', 'Aimed at (optional)', 'a debt’s name') : ''}
+        <label style="font-size:var(--fs-xs);color:var(--slate);display:flex;flex-direction:column;gap:2px">Style
+          <select style="${sel}" onchange="_rbSectionStyle(${i}, this.value)">${styleOpts(s.style || '', true)}</select></label>
+        <span style="flex:1"></span>
+        <button style="${btn}" title="Move up" aria-label="Move section up" onclick="_rbMove(${i}, -1)" ${i === 0 ? 'disabled' : ''}>↑</button>
+        <button style="${btn}" title="Move down" aria-label="Move section down" onclick="_rbMove(${i}, 1)" ${i === _rbSections.length - 1 ? 'disabled' : ''}>↓</button>
+        <button style="${btn}" title="Remove" aria-label="Remove section" onclick="_rbRemove(${i})">✕</button>
+      </div></div>`;
+  };
+  body.innerHTML = `
+    <div class="rb-controls">
+      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-3xl);font-weight:600;color:var(--ink);margin-bottom:4px">Build a report</h2>
+      <div style="font-size:var(--fs-base);color:var(--slate);margin-bottom:16px;line-height:1.6">Stack the sections you want to see. Groundwork works out every figure from your own record.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:16px">
+        <select style="${sel}" onchange="_rbStart(this.value);this.value=''">
+          <option value="">Start from…</option>
+          <optgroup label="Reports">${_rbCatalog.templates.map(t => `<option value="t:${t.id}">${esc(t.name)}</option>`).join('')}</optgroup>
+          ${_rbSaved.length ? `<optgroup label="Your saved reports">${_rbSaved.map(r => `<option value="s:${esc(r.id)}">${esc(r.name)}</option>`).join('')}</optgroup>` : ''}
+        </select>
+        <label style="font-size:var(--fs-sm);color:var(--slate)">Style
+          <select id="rbStyle" style="${sel}" onchange="_rbStyle=this.value;_rbRun()">${styleOpts(_rbStyle, false)}</select></label>
+      </div>
+      <div id="rbList">${_rbSections.map(row).join('')}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 24px">
+        <button style="${btn}" onclick="_rbAdd()" ${_rbSections.length >= 20 ? 'disabled' : ''}>+ Add a section</button>
+        <button style="${btn}" onclick="_rbSave()">Save…</button>
+        ${_rbId ? `<button style="${btn}" onclick="_rbDelete()">Delete this saved report</button>` : ''}
+        <button style="${btn}" onclick="_rbPrint()">⎙ Print</button>
+      </div>
+    </div>
+    <div id="rbOut"><div style="color:var(--slate);font-size:var(--fs-sm)">Working it out…</div></div>`;
+  _rbRun();
+}
+
+function _rbShape(i, shape) {
+  const subj = +_rbSections[i].id.split('.')[1];
+  const ok = _rbCatalog.sections.find(x => x.id === `${shape}.${subj}`)
+          || _rbCatalog.sections.find(x => x.id.startsWith(`${shape}.`));
+  _rbSections[i].id = ok.id; _rbDraw();
+}
+function _rbSubject(i, subj) { const shape = _rbSections[i].id.split('.')[0]; _rbSections[i].id = `${shape}.${subj}`; _rbDraw(); }
+function _rbSet(i, k, v) { if (v === '') delete _rbSections[i].settings[k]; else _rbSections[i].settings[k] = k === 'amount' ? (parseFloat(String(v).replace(/[$,]/g, '')) || '') : v; _rbRun(); }
+function _rbSectionStyle(i, v) { if (v) _rbSections[i].style = v; else delete _rbSections[i].style; _rbRun(); }
+function _rbMove(i, d) { const j = i + d; if (j < 0 || j >= _rbSections.length) return; [_rbSections[i], _rbSections[j]] = [_rbSections[j], _rbSections[i]]; _rbDraw(); }
+function _rbRemove(i) { _rbSections.splice(i, 1); _rbDraw(); }
+function _rbAdd() { _rbSections.push({ id: '4.1', settings: {} }); _rbDraw(); }
+function _rbStart(v) {
+  if (!v) return;
+  const [k, id] = [v.slice(0, 1), v.slice(2)];
+  const src = k === 't' ? _rbCatalog.templates.find(t => t.id === id) : _rbSaved.find(r => r.id === id);
+  if (!src) return;
+  _rbSections = src.sections.map(s => ({ id: s.id, settings: { ...(s.settings || {}) }, ...(s.style ? { style: s.style } : {}) }));
+  if (k === 's') { _rbStyle = src.style || 'text_charts'; _rbName = src.name; _rbId = src.id; } else { _rbName = src.name; _rbId = null; }
+  _rbDraw();
+}
+
+let _rbRunSeq = 0;
+async function _rbRun(styleOverride) {
+  const out = g('rbOut');
+  if (!out) return;
+  const seq = ++_rbRunSeq;
+  let res;
+  try { res = await API.post('/api/reports/builder/run', { sections: _rbSections }); }
+  catch (e) { _gwErr('_rbRun')(e); out.innerHTML = `<div style="color:var(--ember-text)">The report could not be worked out.</div>`; return; }
+  if (seq !== _rbRunSeq) return;
+  const styles = Object.fromEntries(_rbCatalog.styles.map(s => [s.key, s]));
+  out.innerHTML = (res.sections || []).map((s, i) => _rbSection(s, styles[styleOverride || _rbSections[i]?.style || _rbStyle] || styles.text_charts)).join('')
+    || `<div style="color:var(--slate)">Add a section to see it here.</div>`;
+}
+
+// P14: the section's shape picks its chart; the style only says whether charts and tables are shown
+function _rbChart(c) {
+  if (!c || !c.points || !c.points.length) return '';
+  const W = 560, H = 150, P = 10, money = v => c.unit === 'months' ? `${v} months` : fmt(v);
+  const aria = esc(c.points.slice(0, 12).map(p => `${p.label} ${money(p.value)}${p.value_b != null ? ' / ' + money(p.value_b) : ''}`).join('; '));
+  if (c.kind === 'tile') {
+    return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:10px 0">${c.points.map(p =>
+      `<div class="card" style="padding:12px"><div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">${esc(p.label)}</div>
+       <div style="font-family:var(--font-mono);font-size:var(--fs-2xl);font-weight:600;color:var(--ink)">${money(p.value)}</div></div>`).join('')}</div>`;
+  }
+  const vals = c.points.flatMap(p => [p.value, p.value_b ?? 0]).concat(c.reference ? [c.reference.value] : []);
+  const max = (Math.max(...vals, 0) || 1) * 1.12;           // room above the tallest bar for its figure
+  const y = v => P + (H - 2 * P) * (1 - Math.max(0, v) / max);
+  const n = c.points.length, slot = (W - 2 * P) / n;
+  let marks = '';
+  if (c.kind === 'line') {
+    const xs = i => P + (n === 1 ? (W - 2 * P) / 2 : i * (W - 2 * P) / (n - 1));
+    marks = `<polyline points="${c.points.map((p, i) => `${xs(i)},${y(p.value)}`).join(' ')}" fill="none" stroke="var(--pine-text)" stroke-width="2" stroke-linejoin="round"/>`
+          + c.points.map((p, i) => `<circle cx="${xs(i)}" cy="${y(p.value)}" r="3" fill="var(--pine-text)"/>`).join('');
+  } else if (c.kind === 'paired') {
+    const bw = Math.max(3, slot / 2 - 4);
+    marks = c.points.map((p, i) => `<rect x="${P + i * slot + 2}" y="${y(p.value)}" width="${bw}" height="${H - P - y(p.value)}" fill="var(--slate-2)"/>
+      <rect x="${P + i * slot + 2 + bw}" y="${y(p.value_b || 0)}" width="${bw}" height="${H - P - y(p.value_b || 0)}" fill="var(--pine-text)"/>`).join('');
+  } else {
+    const bw = Math.min(48, Math.max(3, slot - 10));
+    marks = c.points.map((p, i) => {
+      const x = P + i * slot + (slot - bw) / 2;
+      const tag = n <= 12 ? `<text x="${x + bw / 2}" y="${Math.max(9, y(p.value) - 3)}" text-anchor="middle" font-size="10" fill="var(--slate)">${esc(money(Math.round(p.value)))}</text>` : '';
+      return `<rect x="${x}" y="${y(p.value)}" width="${bw}" height="${H - P - y(p.value)}" rx="2" fill="var(--pine-text)"/>${tag}`;
+    }).join('');
+  }
+  const ref = c.reference ? `<line x1="${P}" x2="${W - P}" y1="${y(c.reference.value)}" y2="${y(c.reference.value)}" stroke="var(--gold-text)" stroke-dasharray="4,3"/>` : '';
+  const labels = n <= 12 ? `<div style="display:grid;grid-template-columns:repeat(${n},1fr);font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px;text-align:center">${c.points.map(p => `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(String(p.label).replace(/ 20\d\d$/, ''))}</span>`).join('')}</div>` : '';
+  const key = c.kind === 'paired' && c.labels ? `<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:6px"><span style="color:var(--slate-2)">■</span> ${esc(c.labels[0])} &nbsp; <span style="color:var(--pine-text)">■</span> ${esc(c.labels[1])}</div>` : '';
+  const refKey = c.reference ? `<div style="font-size:var(--fs-xs);color:var(--gold-text);margin-top:4px">- - ${esc(c.reference.label)} ${fmt(c.reference.value)}</div>` : '';
+  return `<div style="margin:10px 0"><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="${aria}">${ref}${marks}</svg>${labels}${key}${refKey}</div>`;
+}
+
+function _rbTable(t) {
+  if (!t || !t.rows || !t.rows.length) return '';
+  const num = v => /^[-+]?\$/.test(String(v));
+  return `<div style="overflow-x:auto;margin:10px 0"><table style="width:100%;border-collapse:collapse;font-size:var(--fs-sm)">
+    <thead><tr style="border-bottom:1px solid var(--steel)">${t.columns.map(c => `<th style="text-align:left;padding:5px 8px;color:var(--slate-2);font-weight:500;white-space:nowrap">${esc(c)}</th>`).join('')}</tr></thead>
+    <tbody>${t.rows.map(r => `<tr style="border-bottom:1px solid var(--steel)">${r.map(v => `<td style="padding:5px 8px;color:var(--ink);${num(v) ? 'font-family:var(--font-mono);text-align:right;white-space:nowrap' : ''}">${esc(String(v ?? ''))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+
+function _rbSection(s, st) {
+  const head = `<div style="font-size:var(--fs-lg);font-weight:500;color:var(--ink);margin-bottom:6px">${esc(s.title)}</div>`;
+  const words = (st.compact ? (s.sentences || []).slice(0, 1) : (s.sentences || []))
+    .map(t => `<div style="font-size:var(--fs-base);line-height:1.6;color:${s.enough ? 'var(--ink)' : 'var(--slate)'}">${esc(t)}</div>`).join('');
+  // a list is always a table (P14), in every style that shows anything beyond words
+  const isList = s.shape === 'list';
+  const chart = s.enough && st.visuals && !isList ? _rbChart(s.chart) : '';
+  const table = s.enough && (st.tables || (isList && !st.compact && st.key !== 'text_only')) ? _rbTable(s.table) : '';
+  return `<div class="card rb-section" style="padding:16px;margin-bottom:12px;break-inside:avoid">${head}${st.charts_first ? chart + words : words + chart}${table}</div>`;
+}
+
+// the app's own dialog: the browser's native prompt and confirm boxes are dead in the desktop window (pywebview)
+function _rbSave() {
+  confirmAction('Save this report', `<label style="display:flex;flex-direction:column;gap:6px;font-size:var(--fs-sm);color:var(--slate)">Its name
+      <input id="rbNameInput" value="${esc(_rbName || '')}" maxlength="80" style="font-size:var(--fs-base);padding:6px 8px;border:1px solid var(--steel);border-radius:var(--r-sm);color:var(--ink);background:var(--paper)"></label>
+    <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:6px">It keeps these sections and the ${esc((_rbCatalog.styles.find(s => s.key === _rbStyle) || {}).name || '')} style.</div>`,
+    () => _rbSaveNamed((g('rbNameInput')?.value || '').trim()), 'Save', false);
+  setTimeout(() => g('rbNameInput')?.focus(), 50);
+}
+
+async function _rbSaveNamed(name) {
+  if (!name) { showToast('A saved report needs a name', '', 'error'); return; }
+  try {
+    const r = await API.post('/api/reports/builder/saved', { id: _rbId, name, style: _rbStyle, sections: _rbSections });
+    _rbSaved = r.saved || []; _rbId = r.id; _rbName = name;
+    showToast('Report saved', `"${name}" - open it again from "Start from…"`);
+    _rbDraw();
+  } catch (e) { _gwErr('_rbSave')(e); showToast('Could not save the report', e.message || '', 'error'); }
+}
+
+function _rbDelete() {
+  if (!_rbId) return;
+  confirmAction('Delete this saved report?', `"${esc(_rbName)}" is removed from your saved reports. The sections stay on screen.`, async () => {
+    try { _rbSaved = (await API.delete(`/api/reports/builder/saved/${encodeURIComponent(_rbId)}`)).saved || []; _rbId = null; _rbDraw(); }
+    catch (e) { _gwErr('_rbDelete')(e); }
+  }, 'Delete');
+}
+
+// C10: print / PDF when printing - redrawn in that style, printed, then put back
+async function _rbPrint() {
+  document.body.classList.add('rb-printing');
+  await _rbRun('print');
+  window.print();
+  document.body.classList.remove('rb-printing');
+  _rbRun();
 }
 
 // ── §7.8 Spending vs. Budget ──────────────────────────────────────────────────

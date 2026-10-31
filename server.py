@@ -19,7 +19,7 @@ from pathlib import Path
 from functools import wraps
 from typing import Any
 
-from flask import copy_current_request_context, Flask, jsonify, request, send_from_directory, send_file, Response, stream_with_context
+from flask import copy_current_request_context, current_app, Flask, jsonify, request, send_from_directory, send_file, Response, stream_with_context
 
 # Session ID — changes on every server start so client can detect restarts
 _GW_SESSION_ID = str(_uuid.uuid4())[:8]
@@ -246,6 +246,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(medical_bp,        url_prefix='/api/medical-bills')   # item 94
     app.register_blueprint(help_bp,           url_prefix='/api/help')
     app.register_blueprint(review_bp,         url_prefix='/api/reports/review')
+    app.register_blueprint(report_builder_bp, url_prefix='/api/reports/builder')   # item 115
     app.register_blueprint(checkin_bp,        url_prefix='/api/checkin')
     app.register_blueprint(usage_bp,          url_prefix='/api/usage')
     app.register_blueprint(dashboard_bp,      url_prefix='/api/dashboard')
@@ -4854,6 +4855,96 @@ def narration_done():
 
 
 review_bp = Blueprint('review', __name__)
+
+
+# ── Item 115 stages 1-3 (ASK_FOR_A_REPORT.md; Rob 2026-10-31: C1-C11, C3 "all 40 at once"): a report built from sections ──
+report_builder_bp = Blueprint('report_builder', __name__)
+_RB_SAVED = 'report_builder_saved_json'       # P11: a saved report is its list of sections and its style - data, not words
+_RB_MAX_SECTIONS, _RB_MAX_SAVED = 20, 50
+
+
+def _rb_reader():
+    from core import agent_hands as ah
+    c = current_app.test_client()
+    hdr = {'X-GW-Token': _GW_TOKEN}
+
+    def get(path):
+        d = c.get(path, headers=hdr).get_json(silent=True)
+        return d.get('data', d) if isinstance(d, dict) and 'data' in d else d
+    return ah.Reader(get, db_session)
+
+
+def _rb_clean(sections):
+    """Only catalogued sections, each with its settings as plain values; a style only from the six (C9, C11)."""
+    from core import report_sections as rs
+    ids, styles = set(rs.section_ids()), {s['key'] for s in rs.STYLES}
+    out = []
+    for s in (sections or [])[:_RB_MAX_SECTIONS]:
+        if not isinstance(s, dict) or s.get('id') not in ids:
+            continue
+        st = {k: v for k, v in (s.get('settings') or {}).items()
+              if k in ('period', 'period_b', 'category', 'payee', 'amount', 'debt') and isinstance(v, (str, int, float, dict))}
+        x = {'id': s['id'], 'settings': st}
+        if s.get('style') in styles:
+            x['style'] = s['style']
+        out.append(x)
+    return out
+
+
+@report_builder_bp.route('/catalog', methods=['GET'])
+def report_builder_catalog():
+    from core import report_sections as rs
+    return ok(rs.catalog())
+
+
+@report_builder_bp.route('/run', methods=['POST'])
+@require_json
+def report_builder_run():
+    """The sections, each drawn by Groundwork from the record (H22). Nothing is kept."""
+    from core import report_sections as rs
+    secs = _rb_clean((request.json or {}).get('sections'))
+    reader = _rb_reader()
+    return ok({'sections': [{**rs.run(reader, s['id'], s['settings']), **({'style': s['style']} if s.get('style') else {})}
+                            for s in secs]})
+
+
+@report_builder_bp.route('/saved', methods=['GET'])
+def report_builder_saved():
+    with db_session() as session:
+        return ok({'saved': _setting_json(session, _RB_SAVED, []) or []})
+
+
+@report_builder_bp.route('/saved', methods=['POST'])
+@require_json
+def report_builder_save():
+    """P11 / P15: saved only when the person presses Save, with the style they chose - never one learned (R4)."""
+    from core import report_sections as rs
+    b = request.json or {}
+    name = str(b.get('name') or '').strip()[:80]
+    secs = _rb_clean(b.get('sections'))
+    style = b.get('style') if b.get('style') in {s['key'] for s in rs.STYLES} else 'text_charts'
+    if not name or not secs:
+        return err('A saved report needs a name and at least one section.')
+    with db_session() as session:
+        saved = [x for x in (_setting_json(session, _RB_SAVED, []) or []) if isinstance(x, dict)]
+        rid = str(b.get('id') or '') or f"r{int(datetime.now().timestamp() * 1000)}"
+        saved = [x for x in saved if x.get('id') != rid]
+        if len(saved) >= _RB_MAX_SAVED:
+            return err(f'At most {_RB_MAX_SAVED} saved reports.')
+        saved.append({'id': rid, 'name': name, 'style': style, 'sections': secs,
+                      'saved_at': datetime.now().isoformat(timespec='seconds')})
+        _set_setting(session, _RB_SAVED, json.dumps(saved))
+        session.commit()
+        return ok({'id': rid, 'saved': saved})
+
+
+@report_builder_bp.route('/saved/<rid>', methods=['DELETE'])
+def report_builder_delete(rid):
+    with db_session() as session:
+        saved = [x for x in (_setting_json(session, _RB_SAVED, []) or []) if isinstance(x, dict) and x.get('id') != rid]
+        _set_setting(session, _RB_SAVED, json.dumps(saved))
+        session.commit()
+        return ok({'saved': saved})
 
 
 # ── Item 75 - the month's review, written when the month is complete (MONTHLY_REVIEW.md M1-M10) ─────────────────
