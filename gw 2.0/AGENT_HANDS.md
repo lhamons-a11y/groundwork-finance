@@ -647,3 +647,31 @@ Rob: *"yes"* to stage 2.
 
 **Next, stage 3:** conversation mode for the microphone (H14) and the microphone button in the Ask box (H15).
 
+## 15. Stage 3 built: conversation mode and the microphone in the Ask box (H14, H15, 2026-10-31)
+
+Rob: *"yes push and start stage 3"*; *"you have permission to push and start each page after successful gate pass"*.
+
+- **H14, conversation mode** (`static/js/teaching/access.js`), replacing push to talk. One tap on the microphone (or
+  Alt+V) and it stays on. Groundwork finds where each thing said ends - a pause of 0.9 seconds - and sends that clip
+  alone to this computer's server (at most 14 seconds a clip; the server's 15-second limit is unchanged). It turns off
+  on a tap, on *"stop"* (or "that's all", "microphone off"), after a minute with nothing said, and when Groundwork's
+  window is left. It does not listen while Groundwork is reading aloud, so it never hears itself. Nothing is kept.
+- **Spoken answers:** a question asked out loud is shown in the Ask box and its answer read back - **only Groundwork's
+  own sentences**; the model's lead-in and close are never read (item 112 P6 holds: the server sends `say`, the
+  shown sentences less `model_words`).
+- **A spoken "yes"** answers the assistant's own question ("Did you mean the Cashback Visa?", "Have you set money
+  aside for this?"). It **never makes a change**: on a change card it says *"To make the change, press Yes on the
+  card."* - a word heard can be a word misheard (H7). A spoken "no" on a card is the same as pressing No.
+- **H15, the microphone in the Ask box:** a microphone icon at the box's right end - off, listening (tinted, a slow
+  pulse; steady with reduced motion), working (the assistant's three dots, H17). With AI off the box is gone and the
+  microphone stands alone in the top bar for voice commands. Settings: *"On (talk with Groundwork)"*, with the
+  rules above in its description.
+- **Checked:** in the app - the microphone in the box, and alone with AI off; the answer read back without the model's
+  words. The live microphone itself is not reachable in the preview; s266 drives the page's own code with a stand-in
+  microphone in Node.
+- **The gate:** s266 (8 checks: stays on across two things said, not while speaking, yes never changes, stop, a
+  minute of quiet, the button in the box, P6). 4023 passed, 0 failed.
+
+**Item 114's three stages are built.** Still to do: the Windows laptop run of the question set (Rob), and a real
+microphone try on the Mac and Windows (PANEL_REVIEW.md section 7 asked for one).
+
