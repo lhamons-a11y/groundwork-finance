@@ -87,3 +87,21 @@ or have 2.0 notice a database a 1.x opened (a 1.x schema version beside 2.0-only
 is the download; the versioned `Groundwork_Setup_1.1.1.exe` with its SHA-256 shows once `V11_SHA256` is filled in -
 **release day: build or fetch the 1.1.1 installer, fill in its hash, upload it.** Rob publishes the site.
 
+**L3c RULED 2026-10-31 (Rob):** *"lets not let a 2.0 database be open by a previous version. It should block it."* A
+released 1.1.1 cannot be changed, so a block would have to come from 2.0 making 1.1.1 fail at startup - not pursued.
+Then: *"yes build those, in windows the installer should check for previous versions and uninstall them for the user
+and then install 2.0. Mac, linux the files should overwrite the previous"*. **Built the same day:**
+- **2.0 notices it:** a database with 2.0's own tables carrying a 1.x version is recorded before the upgrade runs
+  again (`_opened_by_1x`), and the once-only upgrade notice says *"Groundwork 1.1 opened your records"*: nothing lost,
+  rows added in 1.1 keep UTC times, and the way back is the copy saved before the *first* update. Checked against a real
+  1.1.1 round trip.
+- **Windows:** `groundwork.iss` and `groundwork_offline.iss` find an earlier Groundwork (the same AppId, any version)
+  and run its uninstaller silently before installing; an open Groundwork is closed first. The uninstaller removes only
+  the program folder - the records in `%LOCALAPPDATA%\Groundwork` are never touched. (The Store package is left to the
+  Store.) **Not run here: Inno Setup is Windows-only - check on the Windows laptop when the installer is built.**
+- **Linux:** `install_linux.sh` replaces `/opt/groundwork` instead of copying over it; the records in
+  `~/.local/share/Groundwork` are never touched.
+- **macOS:** the download is a zip; dragging Groundwork into Applications asks to **Replace** - the download page says so.
+- **Said plainly:** the help guide's *"Can I go back to Groundwork 1.1?"*, and the download page once 2.0 is the
+  download. s267 (7 checks). Gate: 4035 passed, 0 failed.
+
