@@ -1644,7 +1644,7 @@ def write(model_call, question, sentences, not_enough):
             words[part] = txt
     shown = ([words['lead']] if 'lead' in words else []) + [sentences[i] for i in chosen] + \
             ([words['close']] if 'close' in words else [])
-    return shown, {'raw': raw, 'chosen': [i + 1 for i in chosen], 'held': held}
+    return shown, {'raw': raw, 'chosen': [i + 1 for i in chosen], 'held': held, 'words': list(words.values())}
 
 
 def answer(reader, model_call, model_call_text, question, context=None, progress=None):
@@ -1757,6 +1757,7 @@ def answer(reader, model_call, model_call_text, question, context=None, progress
             out['written'] = w['raw']
             out['chosen'] = w['chosen']
             out['held'] = [{'sentence': v['sentence'], 'why': v['why']} for v in w['held'].values()]
+            out['model_words'] = w['words']                 # the lead and close: the model's, so never read aloud
         out['timings']['write'] = round(time.time() - t1, 2)
     # H21: an answer that read transactions says how current they are - always shown, Groundwork's own words
     if any(r.get('reads_transactions') for r in results) and out['outcome'] in ('answer', 'does_not_know') \

@@ -10,9 +10,10 @@
  * reads what each figure means (FIGS), or what the page works out (PAGE_EXPLAIN). Only voices on this computer are
  * used (localService); Esc stops.
  *
- * Voice commands: off by default. Push to talk (Alt+V or the mic button: hold, or tap to start and tap to stop). The
- * clip goes to this computer's own Groundwork server and nowhere else (core/voice.py); the browser's own recognition,
- * which can send audio away, is switched off here. What was heard is said before it is acted on, with Undo.
+ * Voice commands: off by default. Conversation mode (item 114 H14): one tap on the microphone in the Ask box (H15) or
+ * Alt+V, and it stays on until a tap, "stop", a minute of quiet or leaving the window. Each thing said goes to this
+ * computer's own Groundwork server and nowhere else (core/voice.py); the browser's own recognition, which can send
+ * audio away, is switched off here. What was heard is said before it is acted on, with Undo.
  */
 (function () {
   'use strict';
@@ -185,10 +186,7 @@
       ev.preventDefault();
       readSection(sectionAt(document.activeElement !== document.body ? document.activeElement : pointerAt));
     }
-    if (ev.altKey && ev.code === 'KeyV' && prefs.voice_commands === 'on' && !ev.repeat) { ev.preventDefault(); talkDown(); }
-  });
-  document.addEventListener('keyup', function (ev) {
-    if (ev.code === 'KeyV' && rec) talkUp();
+    if (ev.altKey && ev.code === 'KeyV' && prefs.voice_commands === 'on' && !ev.repeat) { ev.preventDefault(); talkToggle(); }
   });
 
   // Where "go back" goes: the page before this one (watched on the pages themselves, not every change on them)
@@ -207,50 +205,97 @@
     document.querySelectorAll('.view').forEach(function (el) { views.observe(el, { attributes: true, attributeFilter: ['class'] }); });
   }
 
-  // ── Push to talk: a short clip, to this computer's server only ───────────────────────────────────────────────
-  var rec = null;           // { ctx, stream, node, chunks, rate, downAt, held, timer }
+  // ── Conversation mode (item 114 H14, Rob 2026-10-30: "it should stay on so the user can talk with the software") ──
+  // One tap turns the microphone on and it stays on. Groundwork finds where each thing said ends (a pause), and sends
+  // that clip - to this computer's own server, nowhere else. It turns off on a tap, on "stop", after a minute with
+  // nothing said, or when Groundwork's window is left. It does not listen while Groundwork is reading aloud, so it
+  // never hears itself. Nothing is kept: each clip lives for its one request.
+  var SPEECH_RMS = 0.012;       // louder than this is someone talking
+  var END_PAUSE_MS = 900;       // a pause this long ends what was said
+  var MAX_SAID_MS = 14000;      // the server takes at most 15 seconds a clip
+  var MIN_SAID_MS = 250;        // shorter is a cough or a click
+  var QUIET_OFF_MS = 60000;     // a minute with nothing said turns it off
+  var conv = null;              // { ctx, stream, node, rate, speech, chunks, pre, start, lastVoice, lastActivity, busy }
 
-  async function talkDown() {
-    if (rec) { if (!rec.held) talkUp(); return; }    // tapped to start: a second tap stops
-    var r = { chunks: [], downAt: Date.now(), held: true };
-    rec = r;
+  function _speaking() { return !!(window.speechSynthesis && (window.speechSynthesis.speaking || window.speechSynthesis.pending)); }
+
+  async function micOn() {
+    if (conv) return;
+    var c = { chunks: [], pre: [], speech: false, busy: 0, lastActivity: Date.now() };
+    conv = c;
     _micState('listening');
     try {
-      r.stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+      c.stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
     } catch (e) {
-      rec = null;
+      conv = null;
       _micState('idle');
       showToast('Groundwork could not use the microphone', esc(e.message || 'No microphone was found or allowed.'), 'error');
       return;
     }
-    if (rec !== r) { r.stream.getTracks().forEach(function (t) { t.stop(); }); return; }
-    r.ctx = new window.AudioContext();
-    r.rate = r.ctx.sampleRate;
-    var src = r.ctx.createMediaStreamSource(r.stream);
-    r.node = r.ctx.createScriptProcessor(4096, 1, 1);
-    r.node.onaudioprocess = function (e) { r.chunks.push(new window.Float32Array(e.inputBuffer.getChannelData(0))); };
-    src.connect(r.node);
-    r.node.connect(r.ctx.destination);
-    r.timer = setTimeout(function () { if (rec === r) _finish(r); }, 14000);
+    if (conv !== c) { c.stream.getTracks().forEach(function (tr) { tr.stop(); }); return; }
+    c.ctx = new window.AudioContext();
+    c.rate = c.ctx.sampleRate;
+    var src = c.ctx.createMediaStreamSource(c.stream);
+    c.node = c.ctx.createScriptProcessor(4096, 1, 1);
+    c.node.onaudioprocess = function (e) { _hear(c, e.inputBuffer.getChannelData(0)); };
+    src.connect(c.node);
+    c.node.connect(c.ctx.destination);
   }
 
-  function talkUp() {
-    var r = rec;
-    if (!r) return;
-    if (r.held && Date.now() - r.downAt < 350) { r.held = false; return; }   // a tap: keep listening until the next
-    _finish(r);
+  function micOff(why) {
+    var c = conv;
+    if (!c) return;
+    conv = null;
+    try { c.node && c.node.disconnect(); } catch (e) { /* already */ }
+    if (c.stream) c.stream.getTracks().forEach(function (tr) { tr.stop(); });
+    if (c.ctx) c.ctx.close();
+    _micState('idle');
+    if (why) showToast('The microphone is off', esc(why), 'info');
   }
 
-  function _finish(r) {
-    rec = null;
-    clearTimeout(r.timer);
-    try { r.node && r.node.disconnect(); } catch (e) { /* already */ }
-    if (r.stream) r.stream.getTracks().forEach(function (t) { t.stop(); });
-    if (r.ctx) r.ctx.close();
-    if (!r.chunks.length) { _micState('idle'); return; }
+  function _hear(c, data) {
+    if (conv !== c) return;
+    var now = Date.now();
+    if (_speaking()) { c.speech = false; c.chunks = []; c.pre = []; c.lastActivity = now; return; }   // never hears itself
+    var sum = 0;
+    for (var i = 0; i < data.length; i++) sum += data[i] * data[i];
+    var loud = Math.sqrt(sum / data.length) > SPEECH_RMS;
+    var copy = new window.Float32Array(data);
+    if (loud) {
+      if (!c.speech) { c.speech = true; c.start = now; c.chunks = c.pre.slice(); }
+      c.lastVoice = now;
+      c.lastActivity = now;
+    }
+    if (c.speech) {
+      c.chunks.push(copy);
+      if (now - c.lastVoice > END_PAUSE_MS || now - c.start > MAX_SAID_MS) {
+        var said = c.chunks;
+        var long = c.lastVoice - c.start;
+        c.speech = false;
+        c.chunks = [];
+        c.pre = [];
+        if (long >= MIN_SAID_MS) _said(c, said);
+      }
+    } else {
+      c.pre.push(copy);
+      if (c.pre.length > 2) c.pre.shift();       // a moment before the first sound, so its start is not cut
+      if (now - c.lastActivity > QUIET_OFF_MS) micOff('Nothing was said for a minute.');
+    }
+  }
+
+  async function _said(c, chunks) {
+    c.busy++;
     _micState('working');
-    _send(wav(r.chunks, r.rate || 48000));
+    await _send(wav(chunks, c.rate || 48000));
+    c.busy--;
+    _micState(conv ? (conv.busy ? 'working' : 'listening') : 'idle');
   }
+
+  function talkToggle() { if (conv) micOff(); else micOn(); }
+
+  // Leaving Groundwork's window turns the microphone off
+  if (window.addEventListener) window.addEventListener('blur', function () { if (conv) micOff('Groundwork’s window was left.'); });
+  document.addEventListener('visibilitychange', function () { if (document.hidden && conv) micOff('Groundwork’s window was left.'); });
 
   // 16 kHz mono 16-bit WAV, the form whisper.cpp reads
   function wav(chunks, rate) {
@@ -280,10 +325,8 @@
       var j = await r.json();
       if (!r.ok) throw new Error(j.error || 'The voice engine did not answer.');
       var text = ((j.data || j).text || '').trim();
-      if (!text) showToast('Groundwork did not hear any words', 'Hold Alt+V (or the mic button) and speak, then let go.', 'info');
-      else route(text);
+      if (text) route(text);                        // in a conversation, a cough is not worth a message
     } catch (e) { showToast('Voice commands could not run', esc(e.message || ''), 'error'); }
-    _micState('idle');
   }
 
   // ── What was said, to what it does. Every action is said first and can be undone ─────────────────────────────
@@ -328,10 +371,27 @@
     return function () { showView(from); };
   }
 
+  var MIC_OFF = ['stop', 'stop listening', 'that s all', "that's all", 'mic off', 'microphone off', 'turn off the microphone', 'goodbye', 'thank you that s all'];
+  var YES_NO = /^(yes|yeah|yep|sure|no|nope|no thanks|no thank you)$/;
+
   function route(text) {
     var t = _norm(text);
-    var cmd = COMMANDS.filter(function (c) { return c.words.indexOf(t) >= 0; })[0];
     var heard = 'Heard: “' + esc(text) + '”';
+    if (conv && MIC_OFF.indexOf(t) >= 0) {            // H14: "stop" ends the conversation (and any reading)
+      stop();
+      micOff();
+      showToast(heard, 'The microphone is off', 'info');
+      return;
+    }
+    if (YES_NO.test(t) && _el('askPanel') && !asking) {
+      // A change on a card is made only by pressing its Yes (H7) - a word heard can be a word misheard
+      if (window._assistProposal && /^(yes|yeah|yep|sure)$/.test(t)) { showToast(heard, 'To make the change, press Yes on the card.', 'info'); return; }
+      if (window._assistProposal) { window.assistProposalNo(); showToast(heard, 'Nothing was changed', 'info'); return; }
+      window._gwVoiceAsked = true;
+      window.askGroundwork(text);                       // the assistant's own question ("Did you mean ...?") hears it
+      return;
+    }
+    var cmd = COMMANDS.filter(function (c) { return c.words.indexOf(t) >= 0; })[0];
     if (cmd) {
       var undo = cmd.run();
       if (undo === false) { showToast(heard, 'There is nothing to do that with right now.', 'info'); return; }
@@ -340,34 +400,51 @@
     }
     // Anything else is a question or an instruction, for the Ask bar to handle as if it were typed
     showToast(heard, 'Asking Groundwork', 'info', function () { var p = _el('askPanel'); if (p) p.remove(); });
+    var box = _el('gwAskBox');
+    if (box) box.value = text;                        // what was heard, where a typed question would be
+    window._gwVoiceAsked = true;
     window.askGroundwork(text);   // a global of app.js's (s30's stripper can't see its definition past a regex there)
   }
 
-  // ── The mic button, shown only with voice commands on ────────────────────────────────────────────────────────
+  // ── The microphone, in the Ask box (item 114 H15); alone in the top bar when AI is off and the box is gone ──────────
+  var MIC_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+    + 'stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/>'
+    + '<line x1="12" y1="17" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>';
+
   function _micButton() {
-    var b = _el('gwMicBtn');
-    if (prefs.voice_commands !== 'on') { if (b) b.remove(); return; }
+    var b = _el('gwMicBtn'), wrap = _el('gwAskWrap');
+    if (prefs.voice_commands !== 'on') {
+      if (b) b.remove();
+      if (wrap) wrap.classList.remove('has-mic', 'no-box');
+      micOff();
+      return;
+    }
+    if (!wrap) return;
+    var box = _el('gwAskBox');
+    wrap.classList.add('has-mic');
+    wrap.classList.toggle('no-box', !box || box.offsetParent === null);
     if (b) return;
-    var right = document.querySelector('.topbar-right');
-    if (!right) return;
     b = document.createElement('button');
     b.id = 'gwMicBtn';
-    b.className = 'btn btn-sm btn-secondary';
     b.type = 'button';
-    b.setAttribute('aria-label', 'Voice command: hold to talk, or tap to start and tap to stop (Alt+V)');
-    b.title = 'Hold to talk, or tap to start and tap to stop (Alt+V). What you say is recognised on this computer.';
-    b.textContent = '🎙 Talk';
-    b.addEventListener('pointerdown', function (e) { e.preventDefault(); talkDown(); });
-    b.addEventListener('pointerup', function () { talkUp(); });
-    right.insertBefore(b, _el('gwAskBox') || null);
+    b.addEventListener('click', function (e) { e.preventDefault(); talkToggle(); });
+    wrap.appendChild(b);
+    _micState(conv ? 'listening' : 'idle');
   }
 
   function _micState(s) {
     var b = _el('gwMicBtn');
     if (!b) return;
-    b.textContent = s === 'listening' ? '● Listening…' : s === 'working' ? 'Hearing…' : '🎙 Talk';
-    b.style.color = s === 'listening' ? 'var(--ember-text)' : '';
-    b.setAttribute('aria-pressed', s === 'listening' ? 'true' : 'false');
+    var wrap = _el('gwAskWrap'), box = _el('gwAskBox');
+    if (wrap) wrap.classList.toggle('no-box', !box || box.offsetParent === null);
+    b.dataset.state = s;
+    b.innerHTML = s === 'working' ? '<span class="gw-working-dots" aria-hidden="true"><i></i><i></i><i></i></span>' : MIC_SVG;
+    b.setAttribute('aria-pressed', s === 'idle' ? 'false' : 'true');
+    var tip = s === 'listening' ? 'Listening - tap to turn the microphone off (Alt+V)'
+      : s === 'working' ? 'Hearing what you said'
+      : 'Talk with Groundwork - tap to turn the microphone on (Alt+V). What you say is recognised on this computer.';
+    b.setAttribute('aria-label', tip);
+    b.title = tip;
   }
 
   // ── The Settings card ────────────────────────────────────────────────────────────────────────────────────────
@@ -398,10 +475,12 @@
       + '<div>' + _radios('gwReadRate', prefs.read_rate, [['slower', 'Slower'], ['normal', 'Normal'], ['faster', 'Faster']]) + '</div>'
       + '<div style="' + small + '">Reads the part of the page you point at, in Groundwork\'s own words, then asks if you\'d like it explained further. '
       + 'Esc stops. Only voices installed on this computer are used.</div></div>'
-      + '<div class="field"><label>Voice commands</label><div>' + _radios('gwVoice', prefs.voice_commands, [['off', 'Off'], ['on', 'On (push to talk)']]) + '</div>'
-      + '<div style="' + small + '">Hold Alt+V or the Talk button and speak - "read this", "read the page", "explain further", "repeat", '
-      + '"slower", "faster", "next", "go back", "stop", "yes", "no", or a question. What you say is recognised by Groundwork on this '
-      + 'computer and is never sent anywhere or kept. Groundwork says what it heard first, with Undo.'
+      + '<div class="field"><label>Voice commands</label><div>' + _radios('gwVoice', prefs.voice_commands, [['off', 'Off'], ['on', 'On (talk with Groundwork)']]) + '</div>'
+      + '<div style="' + small + '">Tap the microphone in the Ask box (or Alt+V) and talk - a question, or "read this", "read the page", '
+      + '"explain further", "repeat", "slower", "faster", "next", "go back", "yes", "no". It stays on until you tap it again, say "stop", '
+      + 'say nothing for a minute, or leave Groundwork\'s window, and it doesn\'t listen while Groundwork is reading aloud. An answer to a '
+      + 'spoken question is read back in Groundwork\'s own words. A change is made only by pressing Yes on its card. What you say is '
+      + 'recognised by Groundwork on this computer and is never sent anywhere or kept.'
       + (vs && !vs.available ? '<br><span style="color:var(--ember-text)">Not available in this copy: ' + esc(vs.reason || '') + '</span>' : '')
       + '</div></div>';
     card.querySelectorAll('input[name="gwTextSize"]').forEach(function (i) {
@@ -428,10 +507,15 @@
     if (prefs.voice_commands === 'on') API.get('/api/voice').catch(function () {});    // the server readies the model
     _micButton();
     _card();
+    var box = _el('gwAskBox');
+    if (box && window.MutationObserver) new window.MutationObserver(function () { _micState(conv ? 'listening' : 'idle'); })
+      .observe(box, { attributes: true, attributeFilter: ['style', 'class', 'hidden'] });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load);
   else load();
 
-  GWTeaching.register('access', { load: load, route: route, wav: wav, readSection: readSection, answer: answer, stop: stop, prefs: prefs });
+  window.GWVoice = { say: function (w) { return say(w); }, on: function () { return !!conv; } };   // item 114 H14
+  GWTeaching.register('access', { load: load, route: route, wav: wav, readSection: readSection, answer: answer, stop: stop, prefs: prefs,
+                                   talk: talkToggle, listening: function () { return !!conv; } });
 })();

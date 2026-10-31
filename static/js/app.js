@@ -28467,6 +28467,8 @@ async function askAssistant(q, p, head) {
                  offer: res.offer || null, offer_name: res.offer_name || null, offer_goal: res.offer_goal || null };
   window._assistLast = { q, res };
   p.innerHTML = head + _assistHTML(res);
+  // H14: asked out loud, answered out loud - Groundwork's own sentences only (P6); the microphone does not listen meanwhile
+  if (window._gwVoiceAsked) { window._gwVoiceAsked = false; if (window.GWVoice && (res.say || []).length) window.GWVoice.say(res.say.join(' ')); }
   return true;
 }
 

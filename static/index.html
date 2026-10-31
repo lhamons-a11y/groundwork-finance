@@ -120,6 +120,18 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 #gwAskBox:focus{width:28.75rem;height:2.25rem;font-size:var(--fs-md);outline:none;box-shadow:0 6px 24px rgba(13,17,23,.16)}
 @media (max-width:900px){#gwAskBox:focus{width:18.75rem}}
 @media (prefers-reduced-motion:reduce){#gwAskBox{transition:none}}
+/* Item 114 H15: the microphone in the Ask box - off, listening, working */
+#gwAskWrap.has-mic #gwAskBox{padding-right:34px}
+#gwMicBtn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;border:none;
+  background:transparent;color:var(--slate);cursor:pointer;padding:0}
+#gwAskWrap.has-mic #gwMicBtn{position:absolute;right:3px;top:50%;transform:translateY(-50%)}
+#gwAskWrap.has-mic.no-box #gwMicBtn{position:static;transform:none;border:1px solid var(--steel)}
+#gwMicBtn:hover{background:var(--mist);color:var(--ink)}
+#gwMicBtn[data-state="listening"]{background:var(--ember-bg);color:var(--ember-text)}
+#gwMicBtn[data-state="listening"] svg{animation:gwMicPulse 1.4s ease-in-out infinite}
+@keyframes gwMicPulse{0%,100%{opacity:1}50%{opacity:.45}}
+#gwMicBtn .gw-working-dots i{width:4px;height:4px}
+@media (prefers-reduced-motion:reduce){#gwMicBtn[data-state="listening"] svg{animation:none}}
 /* Item 114 H17: the assistant is working - a state, not a nudge (TM6); steady with reduced motion */
 .gw-working{display:flex;align-items:center;gap:10px;font-size:var(--fs-base);color:var(--slate);margin-top:10px}
 .gw-working-dots{display:inline-flex;gap:4px}
@@ -1251,8 +1263,12 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <!-- Rob 2026-10-22: Reports is in the menu, Report a problem in the ? help, and Backup in Settings - the bar
              keeps the date, the Ask bar, Explain and ? -->
         <!-- Item 102 (Rob 2026-10-19): the Ask box is AI help - shown only while AI is on and able to run (ai-feature) -->
+        <!-- Item 114 H15: the microphone sits at the right end of the Ask box; with AI off the box is gone and the
+             button stays, alone, for voice commands (access.js puts it in this wrapper) -->
+        <span id="gwAskWrap" style="position:relative;display:inline-flex;align-items:center">
         <input id="gwAskBox" class="ai-feature" type="search" placeholder="Ask or tell Groundwork…" aria-label="Ask Groundwork a question, or tell it what to do"
           onkeydown="if (event.key === 'Enter') { askGroundwork(this.value); }">
+        </span>
         <!-- Item 103 (Rob 2026-10-19): what this page works out, and with AI on what its figures mean -->
         <button class="btn btn-sm btn-secondary ai-feature" onclick="explainPage()" title="Explain this page: what it works out, and what your figures on it mean" aria-label="Explain this page">Explain</button>
         <button class="btn btn-sm btn-secondary" onclick="showHelpOverlay()" title="Help">?</button>

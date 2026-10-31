@@ -4998,6 +4998,8 @@ def _assistant_job(app, job_id, question, context):
             result = {'outcome': out.get('outcome'), 'shown': out.get('shown') or [],
                       'choices': clar.get('choices') or [], 'offer_name': out.get('offer_name'),
                       'offer_goal': out.get('offer_goal'),
+                      # item 114 H14 / item 112 P6: read aloud only Groundwork's own sentences, never the model's words
+                      'say': [x for x in (out.get('shown') or []) if x not in (out.get('model_words') or [])],
                       'offer': next((s for s in out.get('shown') or [] if 'get your accounts' in s or 'No bank is set up' in s), None),
                       'page': (out.get('plan') or {}).get('page'), 'confirmed_name': out.get('confirmed_name'),
                       'said': next((x.get('debt') for x in (out.get('plan') or {}).get('lookups') or [] if x.get('debt')), None),
