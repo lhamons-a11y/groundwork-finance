@@ -63,3 +63,23 @@ Opened 2026-10-12. R1 built (awaiting acceptance). R3 is the next build, if Rob 
 - The open-source release (the cleaned public copy, `scripts/export_public.py`) waits for the 2.0 release.
 - Order: s174 A8 fixed (2026-10-19), then the release-day lines.
 
+**R3 / L3c, the one-way test - RUN 2026-10-31** (`scripts/l3c_one_way.py`, a worktree of `v1.1.1`; Rob: *"go ahead with
+1-3"*). A 1.1.1 database (an account, three transactions, a budget line) was upgraded by 2.0, opened again in 1.1.1,
+then in 2.0 again:
+
+| Step | Starts | Records read | Stored schema version | Backups |
+|---|---|---|---|---|
+| Made in 1.1.1 | yes | 3 transactions, 1 account, 1 line | `20261002-lts-household-facts` | none |
+| Opened in 2.0 | yes | all of them | `20261030-goal-accounts` (78 tables) | before / after upgrade |
+| Opened again in 1.1.1 | **yes** | all of them; **a new transaction written** | **set back to `20261002-lts-household-facts`** | unchanged |
+| Opened again in 2.0 | yes | all 4 | `20261030-goal-accounts` | a second before / after pair |
+
+**What this measures, said plainly - L3c's statement was not true as written.** 1.1 is *not* stopped from opening a
+2.0 database: it opens it, reads and writes it, ignores the tables it does not know, and writes its own schema
+version back. The next 2.0 start reads that as a 1.x database and runs the whole migration again. That is safe as far
+as measured: every one-time step is guarded by its own done-flag, so nothing is converted twice (item 109's UTC to
+local conversion included), and nothing was lost. Two effects remain: rows written while back in 1.1 carry 1.1's UTC
+times, which 2.0 does not convert afterwards (4-5 hours off in the US); and each round trip writes another pair of
+backups. **For ruling (L3c):** keep the statement "restore the L3b copy to go back to 1.1" and record this as measured,
+or have 2.0 notice a database a 1.x opened (a 1.x schema version beside 2.0-only tables) and say so once.
+
