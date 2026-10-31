@@ -901,6 +901,28 @@ HOME_CONTENT = _icons("""
         <figcaption>"Have you set money aside for this?" - sample household, made-up figures</figcaption></figure>
       </div>
     </div>
+    <div class="story flip reveal" id="reports">
+      <div class="story-text">
+        <div class="section-label">Build your own report</div>
+        <h3>"Monthly totals of debt payments, June to September."</h3>
+        <p>Stack the sections you want to see. Choose what to show - monthly totals, a trend, a list, a snapshot, a
+          comparison or a what-if - and what it's about: spending, one category, payees, income, debt payments, debt
+          balances, net worth, recurring charges, bills due or room in your budget. Say the period in your own words:
+          "June to September", "last month", "this year".</p>
+        <p>Start from one of Groundwork's reports or from nothing, then pick how it looks: text and grid, text and charts,
+          charts first, text only, print / PDF, or a compact summary. Save it, and next month it's ready again.</p>
+        <p class="say">Every figure is worked out by Groundwork from your own records - with the AI on or off. When your
+          records can't answer yet, the section says so and what would let it.</p>
+      </div>
+      <div style="display:grid;gap:18px">
+      <figure class="shot"><img src="/static/shots/report-builder-crop.jpg" width="960" height="1220" loading="lazy"
+        alt="Build a report: Monthly totals of Debt payments for June to September - $4,796.00 in all, $1,199.00 each month, as bars - and a snapshot of what is owed today, $36,790.00, debt-free August 2030 on the plan. Made-up sample figures.">
+        <figcaption>Two sections, text and charts - sample household, made-up figures</figcaption></figure>
+      <figure class="shot"><img src="/static/shots/report-compare-crop.jpg" width="960" height="817" loading="lazy"
+        alt="A comparison in the text and grid style: spending by category in October against September, with the change for each - Groceries up $246.79, Clothing down $59.72. Made-up sample figures.">
+        <figcaption>A comparison, text and grid - sample household, made-up figures</figcaption></figure>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -1868,6 +1890,10 @@ def coming():
       <div class="next-card reveal"><span class="chip chip-gold">[[wallet]]</span><h3>Set aside, and available</h3>
         <p>Savings goals live inside the accounts you already have. Every account shows its balance, what's set aside and
         what's available, and a purchase can be paid from the goal you saved for it.</p></div>
+      <div class="next-card reveal"><span class="chip chip-pine">[[chart]]</span><h3>Build your own report</h3>
+        <p>Stack sections - monthly totals, a trend, a list, a snapshot, a comparison or a what-if - for any period in
+        your own words, in one of six styles from text and grid to print / PDF. Save it and it's ready next month.
+        <a href="/#reports">See it</a></p></div>
       <div class="next-card reveal"><span class="chip chip-pine">[[bank]]</span><h3>Your statements, with one press</h3>
         <p>No more logging in to download files. Tell Groundwork which bank you use, and when you ask, it opens your bank's
         website in a window inside Groundwork and brings your statements back for you to review. It only goes when you ask,
@@ -2192,6 +2218,10 @@ LLMS_TXT = ('# Groundwork\n\n'
     '- Changes to records (filing transactions, import rules, budget lines, recurring bills) only on the person\'s Yes, with Undo (2.0)\n'
     '- Voice conversation, recognised on the computer, never sent or kept (2.0)\n'
     '- Savings goals set aside inside existing accounts, with available balances (2.0)\n'
+    '- Build your own report (2.0): stack sections - monthly totals, a trend, a list, a snapshot, a comparison or a what-if '
+    'of spending, a category, payees, income, debt payments, debt balances, net worth, recurring charges, bills due or '
+    'budget room - for a period in plain words, in one of six styles (text and grid, text and charts, charts first, text '
+    'only, print / PDF, compact); every figure worked out by Groundwork, with AI on or off\n'
     '- A Health page (2.0): medical bills as the provider sent them, deductible progress as the insurer reports it, a '
     'health reserve, HSA and FSA balances, and health spending recorded but never judged; nothing about health leaves the computer\n\n'
     '## What it never does\n'
