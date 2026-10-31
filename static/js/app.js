@@ -28489,9 +28489,55 @@ function _assistHTML(res) {
       ? `<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="closeAsk(); showView('automation')">Open the Assistant page</button></div>`
       : `<div style="margin-top:10px"><button class="btn btn-primary btn-sm" onclick="closeAsk(); startFetchAll()">Yes, get my accounts</button></div>`;
   }
+  if (res.proposal) {                                     // H7: the change, stated; nothing happens without Yes
+    window._assistProposal = res.proposal;
+    more += `<div id="assistCard" style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" onclick="assistProposalYes()">Yes</button>
+      <button class="btn btn-secondary btn-sm" onclick="assistProposalNo()">No</button></div>`;
+  }
   const note = res.r15 || res.r7 || ['refuse', 'propose', 'outside_record', 'unavailable'].includes(res.outcome) ? ''
     : `<div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:10px">Every figure is Groundwork's own, worked from your records on this computer; the AI chose which to show.</div>`;
   return `<div class="byb-in" style="font-size:var(--fs-base);color:var(--ink);line-height:1.65;margin-top:6px">${lines}</div>${more}${note}`;
+}
+
+// H7: Yes applies the change the card stated (by its ticket); Undo puts it back; No changes nothing
+async function assistProposalYes() {
+  const pr = window._assistProposal, box = g('assistCard');
+  if (!pr || !box) return;
+  box.innerHTML = '<span style="font-size:var(--fs-sm);color:var(--slate)">Making the change…</span>';
+  let r;
+  try { r = await API.post('/api/assistant/proposal/yes', { ticket: pr.ticket }); }
+  catch (e) { box.innerHTML = `<span style="font-size:var(--fs-sm);color:var(--ember-text)">${esc(e?.message || 'Not changed.')}</span>`; return; }
+  window._assistProposal = null;
+  window._assistUndo = r.undo;
+  box.innerHTML = `<span style="font-size:var(--fs-sm);color:var(--pine-text)">Done.</span>
+    <button class="btn btn-ghost btn-sm" onclick="assistProposalUndo()">Undo</button>`;
+  _assistRefresh();
+}
+function assistProposalNo() {
+  window._assistProposal = null;
+  const box = g('assistCard');
+  if (box) box.innerHTML = '<span style="font-size:var(--fs-sm);color:var(--slate)">Nothing was changed.</span>';
+}
+async function assistProposalUndo() {
+  const box = g('assistCard');
+  try { await API.post('/api/assistant/proposal/undo', { undo: window._assistUndo }); }
+  catch (e) { if (box) box.innerHTML = `<span style="font-size:var(--fs-sm);color:var(--ember-text)">${esc(e?.message || 'Could not undo.')}</span>`; return; }
+  window._assistUndo = null;
+  if (box) box.innerHTML = '<span style="font-size:var(--fs-sm);color:var(--slate)">Put back as it was.</span>';
+  _assistRefresh();
+}
+// The pages read the change: transactions, the budget, rules and recurring bills are loaded again
+async function _assistRefresh() {
+  try {
+    await _refreshTransactionsFromServer();
+    await loadImportIntelligence();
+    await loadRecurringItems();
+    const b = await API.get('/api/settings/bootstrap');      // the budget lines arrive with the bootstrap
+    restoreFromBootstrap(b.data || b);
+    const view = document.querySelector('.view.active')?.id?.replace('view-', '');
+    if (view) showView(view);                                  // the open page shows the change
+  } catch (e) { _gwErr('_assistRefresh')(e); }
 }
 
 // R16 / R17: the person's Yes, or their pick, is kept as their word - then the question is answered for it

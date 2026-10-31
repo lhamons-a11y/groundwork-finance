@@ -617,3 +617,33 @@ Savings $740.00 available: the goals' money not offered) and credit. The reply t
 with no model call. `/goal-plan` also answers a read (GET) and the no-goal case. Q51 now expects the question, Q52 and
 Q66 the answers; s264 two more checks. Gate: 4005 passed, 0 failed.
 
+## 14. Stage 2 built: proposals with Yes, No and Undo (H7, 2026-10-31)
+
+Rob: *"yes"* to stage 2.
+
+- **Read by Groundwork** (`read_change`): *file / put / move the X charges under Y* (recategorize), *always file X
+  under Y* or *make a rule for X to go to Y* (an import rule), *add a $N X line* / *add an X line of $N* (a new budget
+  line, or the existing one's amount if X already has a line - the card says which), *change the X budget to $N*,
+  *mark X as recurring*, *X is not a bill*. When the words are unusual the model fills a closed form
+  (`CHANGE_SCHEMA`, six kinds or none) - it cannot ask for anything else.
+- **Checked against the record** (`build_proposal`): a category must exist - nothing is ever created ("There is no
+  category called ..."); a payee must have transactions; an amount must be one the person said; a change that is
+  already true says so and proposes nothing; a recurring bill needs charges in two months, and its amount and day
+  are the record's.
+- **The card** states the change in Groundwork's own words (*"File 15 transactions from Corner Market under
+  Restaurants? They are filed now under Groceries (15)."*) with **Yes** and **No**. The card holds a one-time ticket;
+  what Yes applies stays on the server, so the page cannot send a change it was not shown. Yes applies it
+  (`/api/assistant/proposal/yes`), checked again against the record as it is then; **Undo** puts back exactly what
+  changed (`/proposal/undo`). Both are in the Historian (`assistant_change_applied`, `assistant_change_undone`); a
+  budget change is also a `budget_adjusted` event, as a hand edit is. The open page reloads to show it.
+- **H8 and TM1 first:** moving money ("move $200 from savings to the Visa", "transfer", "pay") is refused before a
+  change is read, so it can never be proposed; deleting and settings are refused as before.
+- **Provision 3, as amended:** `core/agent_hands.py` writes only a confirmed name (R17); every change is applied
+  only in `/proposal/yes`. s265 holds both.
+- **Checked in the app** on the sample with the real engine: the Corner Market card, Yes (all 15 under Restaurants),
+  Undo (back under Groceries); an import rule, a new Gifts line, a changed Clothing line and TuneFlow as recurring
+  each proposed; a budget change with no amount, and a rule to a category that is not there, proposed nothing.
+- **The gate:** s265 (12 checks). Q37 now expects the "already filed" answer. 4015 passed, 0 failed.
+
+**Next, stage 3:** conversation mode for the microphone (H14) and the microphone button in the Ask box (H15).
+

@@ -551,9 +551,9 @@
       "ask": "File the ParcelMart charges under Household Supplies",
       "expect": {
         "lookups": [],
-        "outcome": "propose"
+        "outcome": "answer"
       },
-      "check": "in the measurement: they are already there - it says so with the rows; nothing is changed"
+      "check": "stage 2 (H7): read by Groundwork as a change; every ParcelMart charge is already under Household Supplies, so it says so and proposes nothing"
     },
     {
       "id": "Q38",

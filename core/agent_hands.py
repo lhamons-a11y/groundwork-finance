@@ -998,11 +998,198 @@ def illegal(text):
     return bool(_ILLEGAL.search(text or ''))
 
 
+# ── Stage 2, H7 (Rob 2026-10-30: "yes" to stage 2): a change to the record, proposed - never made here ─────────────
+# Groundwork reads the change from the person's own words; the model only fills a closed form when the wording is
+# unusual. Every part is checked against the record (a category must exist - nothing is created; a payee must have
+# transactions; an amount must be one the person said), and the card states exactly what would change. This module
+# only builds proposals: the Yes applies them in server.py, through a one-time ticket the card holds.
+CHANGE_KINDS = ('recategorize', 'rule', 'budget_add', 'budget_change', 'recurring_add', 'recurring_remove')
+CHANGE_SCHEMA = {'type': 'object', 'properties': {
+    'kind': {'type': 'string', 'enum': list(CHANGE_KINDS) + ['none']},
+    'payee': {'type': 'string'}, 'category': {'type': 'string'}, 'line': {'type': 'string'}, 'amount': {'type': 'number'},
+    'month': {'type': 'string'}}, 'required': ['kind']}
+CHANGE_SYSTEM = """A person asked Groundwork, a personal finance app, to change their record. Fill the form with their own words.
+kind: recategorize (file transactions from a payee under a category), rule (always file a payee under a category on
+future imports), budget_add (a new budget line), budget_change (change an existing budget line's amount),
+recurring_add (mark a payee's charge as a recurring bill), recurring_remove (it is not a recurring bill), or none.
+payee: the store or company as they said it. category: the category as they said it. line: the budget line's name.
+amount: only a number they said. month: this_month, last_month or YYYY-MM if they named one. Reply with JSON only."""
+
+_CH_FILE = re.compile(r'^\s*(?:please\s+|can you\s+|could you\s+)?(?:file|put|move|re-?categori[sz]e|categori[sz]e)\s+'
+                      r'(?:all\s+)?(?:the\s+|my\s+|our\s+)?(.+?)\s+(?:charges?|transactions?|purchases?|payments?)?\s*'
+                      r'(?:under|into|in|as|to)\s+(?:the\s+)?(.+?)\s*(?:category)?[.!?]?\s*$', re.I)
+_CH_RULE = re.compile(r'(?:always\s+(?:file|put|categori[sz]e)\s+(.+?)\s+(?:under|into|as|in)\s+(.+?)|'
+                      r'(?:make|add|create|set up)\s+(?:a\s+|an\s+)?(?:import\s+)?rule\s+(?:for|so|that)\s+(.+?)\s+'
+                      r'(?:to\s+go\s+(?:to|under|into)|goes?\s+(?:to|under|into)|is\s+filed\s+(?:under|as)|(?:under|as|to))\s+(.+?))\s*(?:category)?[.!?]?\s*$', re.I)
+_CH_BUDGET_ADD = re.compile(r'(?:add|create|make)\s+(?:a\s+|an\s+)?(?:\$?([\d,]+(?:\.\d+)?)\s+)?(.+?)\s+(?:budget\s+)?line'
+                            r'(?:\s+(?:of|for|at)\s+\$?([\d,]+(?:\.\d+)?))?(?:\s+(?:a|per|each)\s+month)?\s*[.!?]?\s*$', re.I)
+_CH_BUDGET_CHANGE = re.compile(r'(?:change|set|make|raise|lower|move)\s+(?:the\s+|my\s+|our\s+)?(.+?)\s+(?:budget\s+)?'
+                               r'(?:line\s+)?(?:budget\s+)?to\s+\$?([\d,]+(?:\.\d+)?)', re.I)
+_CH_RECUR = re.compile(r'(?:mark|set|add)\s+(?:the\s+)?(.+?)\s+(?:charges?\s+)?as\s+(?:a\s+)?(?:recurring|monthly|bill|subscription)'
+                       r'|^(.+?)\s+is\s+(?:a\s+)?(?:recurring|monthly\s+bill|subscription)\b', re.I)
+_CH_NOT_RECUR = re.compile(r"(.+?)\s+(?:is\s+not|isn't|is\s+no\s+longer)\s+(?:a\s+)?(?:recurring|monthly\s+bill|bill|subscription)"
+                           r"|(?:remove|unmark)\s+(.+?)\s+(?:from|as)\s+(?:a\s+)?(?:recurring|bills?|subscriptions?)", re.I)
+
+
+_MOVE_MONEY = re.compile(r'\b(move|transfer|send|put|shift|take)\s+\$?\s?\d|\b(move|transfer|send|shift|take)\s+(?:some\s+)?'
+                         r'(?:money|cash|funds)\b|\bfrom\s+(?:my\s+|our\s+|the\s+)?(?:savings|checking)\s+(?:account\s+)?(?:to|into)\b|'
+                         r'\b(?:pay|pay off)\b', re.I)
+
+
+def read_change(question):
+    """The change, read by Groundwork from the person's words - or None (the model fills the form)."""
+    q = question.strip()
+    m = _CH_RULE.search(q)
+    if m:
+        payee, cat = (m.group(1), m.group(2)) if m.group(1) else (m.group(3), m.group(4))
+        return {'kind': 'rule', 'payee': payee, 'category': cat}
+    m = _CH_NOT_RECUR.search(q)
+    if m:
+        return {'kind': 'recurring_remove', 'payee': m.group(1) or m.group(2)}
+    m = _CH_RECUR.search(q)
+    if m:
+        return {'kind': 'recurring_add', 'payee': m.group(1) or m.group(2)}
+    m = _CH_BUDGET_CHANGE.search(q)
+    if m:
+        return {'kind': 'budget_change', 'line': m.group(1), 'amount': float(m.group(2).replace(',', ''))}
+    m = _CH_BUDGET_ADD.search(q)
+    if m and (m.group(1) or m.group(3)):
+        return {'kind': 'budget_add', 'line': m.group(2), 'amount': float((m.group(1) or m.group(3)).replace(',', ''))}
+    m = _CH_FILE.search(q)
+    if m:
+        return {'kind': 'recategorize', 'payee': m.group(1), 'category': m.group(2)}
+    return None
+
+
+def _clean(s):
+    return re.sub(r'^(the|my|our|all)\s+', '', (s or '').strip(), flags=re.I).strip(' .!?"\'')
+
+
+def build_proposal(reader, question, ch):
+    """H7: the change checked against the record. {'proposal': {...}} - its sentences, in Groundwork's own words, and
+    what the Yes would apply - or {'cannot': sentence}."""
+    from core.database import BudgetItem, Category
+    kind = (ch or {}).get('kind')
+    if kind not in CHANGE_KINDS:
+        return {'cannot': "Groundwork couldn't tell which change you mean. It can file transactions under a category, "
+                          'make an import rule, add or change a budget line, or mark a charge as recurring or not.'}
+    with reader.session_factory() as s:
+        cats = {c.name.lower(): (c.id, c.name) for c in s.query(Category).all()}
+        lines = [(b.id, b.name, b.category, round(float(b.amount or 0), 2), b.type)
+                 for b in s.query(BudgetItem).filter_by(is_active=True).all()]
+    from server import _setting_json
+    with reader.session_factory() as s:
+        rules = _setting_json(s, 'import_rules_json', []) or []
+        recurring = _setting_json(s, 'recurring_items_json', []) or []
+
+    def category(word):
+        w = _clean(word).lower()
+        if w in cats:
+            return cats[w]
+        m = _category_match(w, [v[1] for v in cats.values()])
+        return cats[m[0].lower()] if len(m) == 1 else (None if not m else ('many', m))
+
+    def amount_said(x):
+        return x is not None and round(float(x), 2) in _numbers(question)
+
+    if kind in ('recategorize', 'rule'):
+        cat = category(ch.get('category'))
+        if cat is None:
+            return {'cannot': f'There is no category called "{_clean(ch.get("category"))}". Groundwork never makes a new '
+                              'category from here; the Budget page is where one is added.'}
+        if cat[0] == 'many':
+            return {'cannot': f'Which category: ' + ' or '.join(cat[1][:4]) + '?'}
+        cid, cname = cat
+        rows, _ = _rows(reader)
+        payee = _clean(ch.get('payee')).lower()
+        hits = [r for r in rows if payee and payee in r['payee'].lower() and r['kind'] in ('spending', 'refund')]
+        if kind == 'recategorize':
+            month = _resolve_month(ch.get('month'), reader.today)
+            if month:
+                hits = [r for r in hits if r['date'].startswith(month)]
+            if not hits:
+                return {'cannot': f'Groundwork found no spending from "{_clean(ch.get("payee"))}" to file.'}
+            move = [r for r in hits if r['category'] != cname]
+            if not move:
+                return {'cannot': f'All {_plural(len(hits), "transaction")} from {hits[0]["payee"]} are already filed '
+                                  f'under {cname}. Nothing to change.'}
+            now = {}
+            for r in move:
+                now[r['category'] or 'no category'] = now.get(r['category'] or 'no category', 0) + 1
+            return {'proposal': {'kind': 'recategorize',
+                    'sentences': [f'File {_plural(len(move), "transaction")} from {move[0]["payee"]} under {cname}?',
+                                  'They are filed now under ' + ', '.join(f'{k} ({v})' for k, v in now.items()) + '.']
+                                 + ([f'{len(hits) - len(move)} more are already under {cname}.'] if len(hits) > len(move) else []),
+                    'apply': {'ids': [r['id'] for r in move], 'category_id': cid}}}
+        if not hits:
+            return {'cannot': f'Groundwork found no transactions from "{_clean(ch.get("payee"))}", so a rule for it '
+                              "can't be checked against anything."}
+        value = payee
+        if any((r.get('value') or '').lower().strip() == value and r.get('category') == cname for r in rules if isinstance(r, dict)):
+            return {'cannot': f'There is already a rule filing {hits[0]["payee"]} under {cname}. Nothing to change.'}
+        return {'proposal': {'kind': 'rule',
+                'sentences': [f'Make an import rule: anything from {hits[0]["payee"]} is filed under {cname} on future imports?',
+                              "Transactions already in your record aren't changed by a rule."],
+                'apply': {'value': value, 'category': cname}}}
+    if kind in ('budget_add', 'budget_change'):
+        amt = ch.get('amount')
+        if not amount_said(amt):
+            return {'cannot': 'Say the amount for the budget line, and Groundwork will propose it.'}
+        name = _clean(ch.get('line'))
+        word = name.lower()
+        same = [l for l in lines if l[4] == 'expense' and (l[1].lower() == word or (l[2] or '').lower() == word
+                                                           or word in (l[2] or '').lower().split(' / '))]
+        if kind == 'budget_change' or same:
+            if len(same) != 1:
+                return {'cannot': f'There is no budget line called "{name}".' if not same else
+                        f'Which line: ' + ' or '.join(l[1] for l in same) + '?'}
+            lid, lname, lcat, lamt, _ = same[0]
+            if lamt == round(float(amt), 2):
+                return {'cannot': f'The {lname} line is already {money(lamt)} a month. Nothing to change.'}
+            return {'proposal': {'kind': 'budget_change',
+                    'sentences': [f'Change the {lname} budget line from {money(lamt)} to {money(amt)} a month?'],
+                    'apply': {'item_id': lid, 'amount': round(float(amt), 2)}}}
+        cat = category(name)
+        if cat is None or cat[0] == 'many':
+            return {'cannot': f'A budget line needs one of your categories, and "{name}" isn\'t one. The Budget page '
+                              'is where a category is added.'}
+        return {'proposal': {'kind': 'budget_add',
+                'sentences': [f'Add a {cat[1]} budget line of {money(amt)} a month?'],
+                'apply': {'name': cat[1], 'category': cat[1], 'amount': round(float(amt), 2)}}}
+    payee = _clean(ch.get('payee'))
+    if kind == 'recurring_remove':
+        it = next((r for r in recurring if isinstance(r, dict) and payee.lower() in str(r.get('name') or '').lower()), None)
+        if not it:
+            return {'cannot': f'{payee} is not on your list of recurring bills. Nothing to change.'}
+        return {'proposal': {'kind': 'recurring_remove',
+                'sentences': [f'Take {it["name"]} off your recurring bills ({money(float(it.get("amount") or 0))} around '
+                              f'day {it.get("dayOfMonth")})?'], 'apply': {'id': it.get('id')}}}
+    rows, _ = _rows(reader)
+    hits = [r for r in rows if payee.lower() in r['payee'].lower() and r['kind'] == 'spending']
+    if len({r['date'][:7] for r in hits}) < 2:
+        return {'cannot': f'Groundwork needs charges from {payee} in at least two months to call it recurring, and '
+                          f'the record has {len({r["date"][:7] for r in hits})}.'}
+    if any(isinstance(r, dict) and payee.lower() in str(r.get('name') or '').lower() for r in recurring):
+        return {'cannot': f'{payee} is already on your recurring bills. Nothing to change.'}
+    last = sorted(hits, key=lambda r: r['date'])[-1]
+    amt = last['amount']
+    days = [int(r['date'][8:10]) for r in hits]
+    day = max(set(days), key=days.count)
+    return {'proposal': {'kind': 'recurring_add',
+            'sentences': [f'Add {last["payee"]} to your recurring bills: {money(amt)} around day {day} of the month?',
+                          f'That is its last charge, on {_day(last["date"])}, and the day it is charged most often.'],
+            'apply': {'name': last['payee'], 'amount': amt, 'category': last['category'], 'day': day}}}
+
+
 def read_request(question, context=None):
     """The kind of request, read by Groundwork's own code before the model, or None (the model plans it). A command to
     act must lead the sentence, so "what if we only paid the minimums" stays a question."""
     q = question.strip()
     if context and _YES.match(q) and context.get('offer'):
+        return 'propose'
+    if _MOVE_MONEY.search(q) and not _QUESTION.match(q):         # TM1/H8: moving money is refused before anything else
+        return 'refuse'
+    if read_change(q) is not None and not _QUESTION.match(q):     # H7: a change Groundwork can read is proposed
         return 'propose'
     if _ACT.search(q) and not _QUESTION.match(q):
         return 'refuse'
@@ -1537,7 +1724,25 @@ def answer(reader, model_call, model_call_text, question, context=None, progress
         shown = [context['offer'] if 'No bank' in context['offer'] else
                  'Groundwork would press Get my accounts now (not in this measurement: nothing is pressed).']
     elif out['outcome'] == 'propose':
-        shown = ['Groundwork cannot make changes from here yet; it opens the place where you can.']
+        ch = read_change(question)
+        if ch is None:
+            progress('Reading the change')
+            try:
+                ch = json.loads(model_call(CHANGE_SYSTEM, question, CHANGE_SCHEMA))
+                out['change_read_by'] = 'the model'
+            except Exception:
+                ch = None
+        else:
+            out['change_read_by'] = 'groundwork'
+        progress('Checking the change against your record')
+        b = build_proposal(reader, question, ch)
+        out['change'] = ch
+        if b.get('proposal'):
+            out['proposal'] = b['proposal']
+            shown = list(b['proposal']['sentences'])
+        else:
+            out['outcome'] = 'answer'
+            shown = [b['cannot']]
     elif out['outcome'] in ('open_page', 'guide'):
         shown = [f'(opens {p.get("page") or "the page"})' if out['outcome'] == 'open_page' else '(the guide answers)']
     elif out['outcome'] == 'outside_record':

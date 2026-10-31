@@ -4952,7 +4952,10 @@ help_bp = Blueprint('help', __name__)
 # it is answered: never written, never logged (R19). The AI log keeps which lookups ran and when, nothing else.
 assistant_bp = Blueprint('assistant', __name__)
 _ASSIST_JOBS = {}
+_ASSIST_PROPOSALS = {}       # H7: ticket -> the change a card proposed (memory only; gone on use or after an hour)
+_ASSIST_UNDO = {}            # H7: ticket -> what puts an applied change back
 _ASSIST_LOCK = threading.Lock()
+ASSIST_PROPOSAL_SECONDS = 3600
 ASSIST_JOB_SECONDS = 600
 
 
@@ -5000,6 +5003,12 @@ def _assistant_job(app, job_id, question, context):
                       'said': next((x.get('debt') for x in (out.get('plan') or {}).get('lookups') or [] if x.get('debt')), None),
                       'plan': {'lookups': (out.get('plan') or {}).get('lookups') or []},
                       'r7': bool(out.get('r7')), 'r15': bool(out.get('r15'))}
+            if out.get('proposal'):                     # H7: the card holds a ticket; what it applies stays here
+                tk = secrets.token_hex(12)
+                with _ASSIST_LOCK:
+                    _ASSIST_PROPOSALS[tk] = {'t': time.time(), 'p': out['proposal']}
+                result['proposal'] = {'ticket': tk, 'kind': out['proposal']['kind'],
+                                      'sentences': out['proposal']['sentences']}
             looked = out.get('lookups') or []
         except _EngineNotReady as e:
             result = {'outcome': 'unavailable', 'shown': [str(e)]}
@@ -5051,6 +5060,131 @@ def assistant_job(job_id):
             _ASSIST_JOBS.pop(job_id, None)
             return ok({'done': True, 'result': j['result']})
         return ok({'done': False, 'step': j['step']})
+
+
+def _assistant_apply(session, kind, a):
+    """H7: one proposed change, on the person's Yes - checked again here, against the record as it is now. Returns
+    (what puts it back, None) or (None, why it can't be applied). Never deletes a transaction, never moves money,
+    never touches a setting but the rule and recurring lists (H8)."""
+    if kind == 'recategorize':
+        cat = session.get(Category, int(a['category_id']))
+        if not cat:
+            return None, 'That category is no longer there.'
+        before = []
+        for tid in a['ids']:
+            t = session.get(Transaction, int(tid))
+            if t:
+                before.append({'id': t.id, 'category_id': t.category_id})
+                t.category_id = cat.id
+        if not before:
+            return None, 'Those transactions are no longer there.'
+        return {'kind': kind, 'before': before}, None
+    if kind == 'rule':
+        rules = _setting_json(session, 'import_rules_json', []) or []
+        rid = int(time.time() * 1000)
+        rules.append({'id': rid, 'type': 'contains', 'value': a['value'], 'category': a['category'], 'by': 'assistant'})
+        _set_setting(session, 'import_rules_json', json.dumps(rules))
+        return {'kind': kind, 'rule_id': rid}, None
+    if kind == 'budget_add':
+        if not session.query(Category).filter(func.lower(Category.name) == a['category'].lower()).first():
+            return None, 'That category is no longer there.'
+        b = BudgetItem(type='expense', name=a['name'], category=a['category'], amount=float(a['amount']), is_active=True)
+        session.add(b)
+        session.flush()
+        return {'kind': kind, 'item_id': b.id}, None
+    if kind == 'budget_change':
+        b = session.get(BudgetItem, int(a['item_id']))
+        if not b or not b.is_active:
+            return None, 'That budget line is no longer there.'
+        old = b.amount
+        b.amount = float(a['amount'])
+        log_historian_event(session, 'budget_adjusted', expected_value=old, actual_value=b.amount,
+                            context={'budget_item_id': b.id, 'name': b.name, 'by': 'assistant, on the person\'s yes'})
+        return {'kind': kind, 'item_id': b.id, 'amount': old}, None
+    items = _setting_json(session, 'recurring_items_json', []) or []
+    if kind == 'recurring_add':
+        rid = int(time.time() * 1000)
+        items.append({'id': rid, 'name': a['name'], 'amount': a['amount'], 'category': a['category'], 'type': 'debit',
+                      'dayOfMonth': a['day'], 'lastPosted': None})
+        _set_setting(session, 'recurring_items_json', json.dumps(items))
+        return {'kind': kind, 'id': rid}, None
+    if kind == 'recurring_remove':
+        it = next((r for r in items if isinstance(r, dict) and str(r.get('id')) == str(a['id'])), None)
+        if not it:
+            return None, 'That bill is no longer on the list.'
+        items.remove(it)
+        _set_setting(session, 'recurring_items_json', json.dumps(items))
+        return {'kind': kind, 'item': it}, None
+    return None, 'That change is not one the assistant can make.'
+
+
+def _assistant_undo(session, u):
+    k = u['kind']
+    if k == 'recategorize':
+        for b in u['before']:
+            t = session.get(Transaction, b['id'])
+            if t:
+                t.category_id = b['category_id']
+    elif k == 'rule':
+        rules = [r for r in (_setting_json(session, 'import_rules_json', []) or []) if not (isinstance(r, dict) and r.get('id') == u['rule_id'])]
+        _set_setting(session, 'import_rules_json', json.dumps(rules))
+    elif k == 'budget_add':
+        b = session.get(BudgetItem, u['item_id'])
+        if b:
+            session.delete(b)
+    elif k == 'budget_change':
+        b = session.get(BudgetItem, u['item_id'])
+        if b:
+            b.amount = u['amount']
+    elif k == 'recurring_add':
+        items = [r for r in (_setting_json(session, 'recurring_items_json', []) or []) if not (isinstance(r, dict) and r.get('id') == u['id'])]
+        _set_setting(session, 'recurring_items_json', json.dumps(items))
+    elif k == 'recurring_remove':
+        items = _setting_json(session, 'recurring_items_json', []) or []
+        items.append(u['item'])
+        _set_setting(session, 'recurring_items_json', json.dumps(items))
+
+
+@assistant_bp.route('/proposal/yes', methods=['POST'])
+@require_json
+def assistant_proposal_yes():
+    """H7: the person pressed Yes on a card - {ticket}. Only a change a card proposed can be applied, once."""
+    tk = str((request.get_json() or {}).get('ticket') or '')
+    now = time.time()
+    with _ASSIST_LOCK:
+        for k in [k for k, v in _ASSIST_PROPOSALS.items() if now - v['t'] > ASSIST_PROPOSAL_SECONDS]:
+            _ASSIST_PROPOSALS.pop(k, None)
+        pr = _ASSIST_PROPOSALS.pop(tk, None)
+    if not pr:
+        return err('That change is no longer waiting. Ask again.', 404)
+    p = pr['p']
+    with db_session() as session:
+        undo, why = _assistant_apply(session, p['kind'], p['apply'])
+        if why:
+            session.rollback()
+            return err(why, 409)
+        log_historian_event(session, 'assistant_change_applied', context={'kind': p['kind'], 'by': 'the person said yes'})
+        session.commit()
+    ut = secrets.token_hex(12)
+    with _ASSIST_LOCK:
+        _ASSIST_UNDO[ut] = {'t': now, 'u': undo}
+    return ok({'done': True, 'undo': ut})
+
+
+@assistant_bp.route('/proposal/undo', methods=['POST'])
+@require_json
+def assistant_proposal_undo():
+    """H7: Undo puts back exactly what the Yes changed."""
+    ut = str((request.get_json() or {}).get('undo') or '')
+    with _ASSIST_LOCK:
+        u = _ASSIST_UNDO.pop(ut, None)
+    if not u:
+        return err('There is nothing to undo.', 404)
+    with db_session() as session:
+        _assistant_undo(session, u['u'])
+        log_historian_event(session, 'assistant_change_undone', context={'kind': u['u']['kind']})
+        session.commit()
+    return ok({'undone': True})
 
 
 @assistant_bp.route('/names', methods=['GET'])
