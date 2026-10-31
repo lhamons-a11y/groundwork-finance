@@ -12,7 +12,8 @@ import os
 import sys
 import tempfile
 
-_tmp = os.path.join(tempfile.gettempdir(), 'gw_dev_server')
+_PORT = int(os.environ.get('PORT') or os.environ.get('GW_DEV_PORT') or 8766)     # a second preview beside a running one: its own port and temp DB
+_tmp = os.path.join(tempfile.gettempdir(), 'gw_dev_server' + ('' if _PORT == 8766 else f'_{_PORT}'))
 os.makedirs(_tmp, exist_ok=True)
 os.environ['GROUNDWORK_DATA_DIR'] = _tmp
 
@@ -29,4 +30,4 @@ if __name__ == '__main__':
         engine_launch()
     # The same server the packaged app uses. A dev server on different
     # machinery measures the wrong thing, and latency was measured here.
-    serve(app, host='127.0.0.1', port=8766)
+    serve(app, host='127.0.0.1', port=_PORT)

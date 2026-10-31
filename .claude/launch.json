@@ -34,6 +34,33 @@
         "dev_server.py"
       ],
       "port": 8766
+    },
+    {
+      "name": "builder-preview",
+      "runtimeExecutable": "/usr/bin/env",
+      "runtimeArgs": [
+        "GW_DEV_PORT=8767",
+        "/Users/dev/gw-engine-venv/bin/python",
+        "dev_server.py"
+      ],
+      "port": 8767
+    },
+    {
+      "name": "website-preview",
+      "runtimeExecutable": "/usr/bin/env",
+      "runtimeArgs": [
+        "GW_SITE_DATA=/tmp/gw_site_preview",
+        "/Users/dev/gw-engine-venv/bin/python",
+        "-m",
+        "flask",
+        "--app",
+        "Website/website.py",
+        "run",
+        "--port",
+        "5056"
+      ],
+      "port": 5056,
+      "autoPort": false
     }
   ]
 }
