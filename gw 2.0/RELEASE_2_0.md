@@ -83,3 +83,7 @@ times, which 2.0 does not convert afterwards (4-5 hours off in the US); and each
 backups. **For ruling (L3c):** keep the statement "restore the L3b copy to go back to 1.1" and record this as measured,
 or have 2.0 notice a database a 1.x opened (a 1.x schema version beside 2.0-only tables) and say so once.
 
+**R7 and R8 built 2026-10-31** (with the website remake, WEBSITE_MESSAGE.md): the download page's 1.1 line shows once 2.0
+is the download; the versioned `Groundwork_Setup_1.1.1.exe` with its SHA-256 shows once `V11_SHA256` is filled in -
+**release day: build or fetch the 1.1.1 installer, fill in its hash, upload it.** Rob publishes the site.
+

@@ -77,7 +77,7 @@ init_db()
 # Paths we never count as page views: static assets, the admin area, the
 # download-counter redirect, and any URL carrying a per-user token.
 _SKIP_VIEW_PREFIXES = ('/static', '/admin', '/dl', '/confirm', '/unsubscribe',
-                       '/favicon', '/robots', '/sitemap')
+                       '/favicon', '/robots', '/sitemap', '/llms')
 _BOT_MARKERS = ('bot', 'crawl', 'spider', 'slurp', 'bingpreview', 'facebookexternalhit',
                 'headlesschrome', 'python-requests', 'curl', 'wget')
 
@@ -164,6 +164,39 @@ def send_confirmation_email(email, name, token):
 # ── CSS / Design ──────────────────────────────────────────────────────────────
 SITE_CSS = """
 * { box-sizing: border-box; margin: 0; padding: 0; }
+/* Real screenshots, framed (the sample household's made-up figures) */
+.shot { margin: 0; border-radius: 14px; overflow: hidden; background: #fff; border: 1px solid var(--steel, #e3e1d8);
+        box-shadow: 0 2px 4px rgba(15,27,45,.06), 0 24px 48px rgba(15,27,45,.14); }
+.shot-bar { display: flex; gap: 6px; padding: 10px 12px; background: #eef0f3; border-bottom: 1px solid #e3e1d8; }
+.shot-bar i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+.shot img { display: block; width: 100%; height: auto; }
+.shot figcaption { font-size: 12.5px; color: #6b7280; padding: 8px 14px 10px; background: #fff; border-top: 1px solid #eee; }
+.hero .shot { transform: perspective(1400px) rotateY(-4deg); }
+.story { display: grid; grid-template-columns: 1fr 1.25fr; gap: 56px; align-items: center; padding: 56px 0;
+         border-bottom: 1px solid var(--steel, #e3e1d8); }
+.story:last-child { border-bottom: none; }
+.story.flip { grid-template-columns: 1.25fr 1fr; }
+.story.flip .story-text { order: 2; }
+.story h3 { font-size: clamp(24px, 3vw, 34px); line-height: 1.15; margin: 10px 0 14px; }
+.story p { color: #4a5568; font-size: 17px; margin-bottom: 12px; }
+.story .say { font-family: 'Fraunces', Georgia, serif; font-style: italic; font-size: 19px; color: #0f1b2d;
+              border-left: 3px solid #3ddc97; padding: 4px 0 4px 14px; margin: 14px 0 16px; }
+.new-tag { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+           color: #17604a; background: #e3f6ee; border-radius: 999px; padding: 4px 10px; }
+.trust-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); gap: 18px; margin-top: 40px; }
+.trust { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 16px; padding: 22px; }
+.trust h3 { font-family: 'Inter', sans-serif; font-size: 16px; color: #fff; margin: 10px 0 6px; letter-spacing: -.01em; }
+.trust p { font-size: 14.5px; color: rgba(255,255,255,.72); line-height: 1.6; }
+.faq { max-width: 820px; margin: 36px auto 0; }
+.faq details { background: #fff; border: 1px solid var(--steel, #e3e1d8); border-radius: 12px; padding: 16px 20px; margin-bottom: 10px; }
+.faq summary { cursor: pointer; font-weight: 600; font-size: 16px; }
+.faq details p { color: #4a5568; margin-top: 10px; font-size: 15.5px; }
+@media (max-width: 860px) {
+  .story, .story.flip { grid-template-columns: 1fr; gap: 26px; padding: 40px 0; }
+  .story.flip .story-text { order: 0; }
+  .hero .shot { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .hero .shot { transform: none; } }
 :root {
   --ink:    #0f1b2d;
   --ink-2:  #16263d;
@@ -513,6 +546,16 @@ def _icons(html):
 
 
 SITE_VERSION = '1.1.1'   # the version offered for download; s205 holds it to the changelog's newest entry
+# Rob 2026-10-31: "remake the website to show this ... highlight all these features ... make that the central focus".
+# Until 2.0 is the version offered for download, everything new in it says so ("New in 2.0 · coming soon"); on the
+# day SITE_VERSION becomes 2.x the same pages describe it as here, with no other edit. A page is never ahead of the
+# download.
+RELEASED_20 = int(SITE_VERSION.split('.')[0]) >= 2
+NEW20 = 'New in 2.0' if RELEASED_20 else 'New in 2.0 · coming soon'
+# Item 82 R7: the last 1.1 stays downloadable under its own name, with its SHA-256. Shown only once the real file's
+# hash is filled in here (release day) - a checksum is never invented.
+V11_FILE = 'Groundwork_Setup_1.1.1.exe'
+V11_SHA256 = ''
 
 BASE_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
@@ -528,11 +571,13 @@ BASE_TEMPLATE = """<!DOCTYPE html>
   <meta property="og:title" content="{{ title }} — Groundwork">
   <meta property="og:description" content="{{ description }}">
   <meta property="og:url" content="{{ canonical }}">
-  <meta property="og:image" content="https://groundworkfinance.app/static/groundwork_256.png">
+  <meta property="og:image" content="https://groundworkfinance.app/static/shots/og.jpg">
+  <meta property="og:image:alt" content="Groundwork's assistant answering a question about paying down a card, on a made-up sample household">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{{ title }} — Groundwork">
   <meta name="twitter:description" content="{{ description }}">
-  <meta name="twitter:image" content="https://groundworkfinance.app/static/groundwork_256.png">
+  <meta name="twitter:image" content="https://groundworkfinance.app/static/shots/og.jpg">
+  <link rel="alternate" type="text/markdown" href="/llms.txt" title="Groundwork, described for AI assistants">
   {{ structured_data|default('')|safe }}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -543,7 +588,7 @@ BASE_TEMPLATE = """<!DOCTYPE html>
 
 <div class="beta-bar">
   <strong>Groundwork """ + SITE_VERSION + """ is here</strong>: free for Windows, macOS and Linux.
-  &nbsp;·&nbsp; <a href="/coming">See what's coming in 2.0 →</a>
+  &nbsp;·&nbsp; <a href="/coming">""" + ('See what\'s new in 2.0 →' if RELEASED_20 else 'Meet the assistant coming in 2.0 →') + """</a>
 </div>
 
 <nav class="site-nav">
@@ -551,7 +596,7 @@ BASE_TEMPLATE = """<!DOCTYPE html>
     <a href="/" class="nav-logo"><span class="nav-mark"><i style="height:7px"></i><i style="height:12px"></i><i style="height:17px"></i></span><span class="nav-word">Ground<em>work</em></span></a>
     <div class="nav-links">
       <a href="/features">Features</a>
-      <a href="/coming" class="nav-new">Coming in 2.0</a>
+      <a href="/coming" class="nav-new">""" + ('What\'s new in 2.0' if RELEASED_20 else 'Coming in 2.0') + """</a>
       <a href="/knowledge-base">Help</a>
       <a href="/about">About</a>
       <a href="/privacy">Privacy</a>
@@ -642,6 +687,26 @@ BASE_TEMPLATE = """<!DOCTYPE html>
 
 # ── Pages ─────────────────────────────────────────────────────────────────────
 
+HOME_FAQ = [
+    ('Is Groundwork really free?', 'Yes. Groundwork costs nothing, has no subscription, shows no ads and has no partner '
+     'offers. There is nothing to upgrade to.'),
+    ('Does my financial data leave my computer?', 'No. Your transactions, balances, budgets and debts are stored in one '
+     'file on your own computer. Groundwork has no account and no server holding your finances. The privacy policy lists '
+     'the few facts it does fetch, like investment prices, and none of them carries a balance or a transaction.'),
+    ('Does the AI send my questions anywhere?', 'No. The AI model ships inside Groundwork and runs on your computer. '
+     'Nothing you ask is sent to an AI company, there is no cloud AI option, and every page still works with the AI turned off.'),
+    ('Can the assistant make mistakes with my numbers?', 'Every figure in an answer is written by Groundwork from your own '
+     'records, using the same engines as its pages. The AI only chooses which of those sentences to show, so it cannot '
+     'invent a number. When your records hold too little to answer, it says it does not know yet.'),
+    ('Can Groundwork move money or pay my bills?', 'Never. It cannot pay, transfer, or delete anything. It can propose '
+     'changes to your own records, like filing transactions under a category, and nothing happens until you press Yes.'),
+    ('Do I need to connect my bank account?', 'No. You import the file your bank already gives you (CSV, OFX, QFX or QIF). '
+     'In 2.0 you can also ask Groundwork to open your bank\'s site and fetch your statements for you to review.'),
+    ('Which computers does it run on?', 'Windows, macOS on Apple Silicon, and Linux. The built-in AI wants about 8GB of '
+     'memory; everything else runs without it.'),
+]
+
+
 _HOME_STRUCTURED_DATA = '<script type="application/ld+json">' + json.dumps({
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
@@ -654,6 +719,23 @@ _HOME_STRUCTURED_DATA = '<script type="application/ld+json">' + json.dumps({
     'downloadUrl': SITE_URL + '/download',
     'softwareVersion': SITE_VERSION,
     'offers': {'@type': 'Offer', 'price': '0', 'priceCurrency': 'USD'},
+    'isAccessibleForFree': True,
+    'applicationSubCategory': 'Personal finance, budgeting, debt payoff',
+    'featureList': ['Budget against actual spending', 'Bank file import (CSV, OFX, QFX, QIF)', 'Debt payoff planner (snowball and avalanche)',
+                    'Net worth and investments', 'Before You Buy purchase check', 'Trip planner', 'Printable reports',
+                    'An AI assistant that runs on your computer and answers from your own records (2.0)',
+                    'Changes to your records only on your Yes, with Undo (2.0)', 'Voice conversation, recognised on your computer (2.0)',
+                    'Savings goals with set-aside and available balances (2.0)', 'No account, no subscription, no ads, no cloud'],
+    'screenshot': [SITE_URL + '/static/shots/' + s for s in ('assistant-debt-crop.jpg', 'proposal-crop.jpg', 'dashboard.jpg', 'available-crop.jpg')],
+    'keywords': 'free budgeting app, private personal finance app, offline budget app, debt payoff planner, local AI finance '
+                'assistant, no subscription budgeting, money manager for Windows Mac Linux',
+}) + '</script>' + '<script type="application/ld+json">' + json.dumps({
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    'mainEntity': [{'@type': 'Question', 'name': q, 'acceptedAnswer': {'@type': 'Answer', 'text': a}} for q, a in HOME_FAQ],
+}) + '</script>' + '<script type="application/ld+json">' + json.dumps({
+    '@context': 'https://schema.org', '@type': 'WebSite', 'name': 'Groundwork', 'url': SITE_URL,
+    'description': 'Your whole financial picture, explained, with nothing to sell you.',
 }) + '</script>'
 
 
@@ -663,7 +745,8 @@ def home():
         '{% block content %}{% endblock %}', HOME_CONTENT
     ), title='Your whole financial picture, explained',
        description='Groundwork is a free personal finance app that tracks your whole financial picture, explains it, '
-                   'and has nothing to sell you. No account, no subscription, no ads. Your data stays on your computer.',
+                   'and has nothing to sell you. Ask it about your money and it answers from your own records, on your '
+                   'own computer. No account, no subscription, no ads.',
        canonical=SITE_URL + '/',
        structured_data=_HOME_STRUCTURED_DATA)
 
@@ -713,43 +796,133 @@ HOME_CONTENT = _icons("""
 <section class="hero">
   <div class="hero-inner">
     <div>
-      <div class="beta-badge"><b></b> Version """ + SITE_VERSION + """ · Free for Windows, macOS and Linux</div>
+      <div class="beta-badge"><b></b> Free for Windows, macOS and Linux · Version """ + SITE_VERSION + ("" if RELEASED_20 else " · 2.0 coming soon") + """</div>
       <h1>Your whole financial picture, <em>explained.</em> And nothing to sell you.</h1>
-      <p class="lead">Groundwork is a free personal finance app that tracks your money, explains what it shows you,
-        and never tries to sell you a loan, a card or a subscription. It runs on your own computer, and it's built for
-        everyone: whether you're paying down $12,000 or deciding where your first $10,000 goes.</p>
+      <p class="lead">Groundwork is a free personal finance app that tracks your money, explains what it shows you, and
+        never tries to sell you a loan, a card or a subscription. In 2.0 you can simply <strong>ask it</strong> - in plain
+        words, typed or spoken - and it answers from your own records, with the math done by Groundwork, on your own
+        computer. Built for everyone, wherever you're starting from.</p>
       <div class="hero-btns">
         <a href="/download" class="btn btn-primary" style="font-size:16px;padding:15px 30px">
           Download free for <span class="os-download-label">Windows</span>
         </a>
-        <a href="/coming" class="btn btn-ghost-light">See what's coming in 2.0 →</a>
+        <a href="#ask" class="btn btn-ghost-light">See the assistant →</a>
       </div>
       <div class="hero-note">No account. No subscription. No ads. Your data never leaves your computer.</div>
     </div>
     <div>
-      <div class="appwin" role="img" aria-label="An illustration of the Groundwork dashboard, with sample figures">
-        <div class="appwin-bar"><i style="background:#e4572e"></i><i style="background:#f2c14e"></i><i style="background:#3ddc97"></i></div>
-        <div class="appwin-body">
-          <div class="appwin-side"><span class="on"></span><span></span><span></span><span></span><span></span><span></span></div>
-          <div class="appwin-main">
-            <div class="tile-row">
-              <div class="tile"><div class="tile-l">Income this month</div><div class="tile-n">$5,200</div></div>
-              <div class="tile"><div class="tile-l">Spent so far</div><div class="tile-n" style="color:#b33a14">$3,916</div></div>
-            </div>
-            <div class="tile">
-              <div class="tile-l">Left this month</div>
-              <div class="tile-n" style="color:#1f7a5c">$1,284</div>
-              <div class="tile-why"><b>How:</b> $5,200 income − $3,916 spent. Nothing estimated.</div>
-              <div class="tile-bars"><i style="height:52%"></i><i style="height:70%"></i><i style="height:44%"></i><i style="height:82%"></i><i style="height:60%"></i><i class="hi" style="height:96%"></i></div>
-            </div>
-            <div class="tile-row">
-              <div class="tile"><div class="tile-l">Net worth</div><div class="tile-n">$18,450</div></div>
-              <div class="tile"><div class="tile-l">Debt-free</div><div class="tile-n" style="font-size:16px">Mar 2028</div></div>
-            </div>
-          </div>
-        </div>
+      <figure class="shot">
+        <div class="shot-bar"><i style="background:#e4572e"></i><i style="background:#f2c14e"></i><i style="background:#3ddc97"></i></div>
+        <img src="/static/shots/assistant-debt-crop.jpg" width="720" height="935" fetchpriority="high"
+          alt="Groundwork's assistant answering: with $200 more a month on the Cashback Visa you are debt-free 9 months sooner, with $1,013 less interest, and the budget has $25.97 a month of room. Sample household, made-up figures.">
+        <figcaption>""" + NEW20 + """ · the assistant answering, on a made-up sample household</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="ask">
+  <div class="container center reveal">
+    <span class="new-tag">""" + NEW20 + """</span>
+    <h2 class="section-title" style="margin-top:12px">Ask. Groundwork does the math.</h2>
+    <p class="section-sub">An assistant that knows your budget, your debts and your spending - because it reads your own
+      records, on your own computer. It doesn't guess, it doesn't sell, and it can't make a number up.</p>
+  </div>
+  <div class="container">
+    <div class="story reveal">
+      <div class="story-text">
+        <div class="section-label">Ask in plain words</div>
+        <h3>"Would $200 more on my Visa make a difference?"</h3>
+        <p>Groundwork looks up your debts, works out the payoff with the same engine as its Debt Payoff page, and checks
+          every budget line against what you actually spent. Then it answers: how many months sooner, how much interest
+          you'd save, and where in your budget the room is - or that there isn't enough.</p>
+        <p class="say">Every figure is written by Groundwork from your records. The AI only chooses what to show - it never
+          does the arithmetic, so it can't invent a number.</p>
       </div>
-      <div class="sample-tag">Illustration · sample figures</div>
+      <figure class="shot"><img src="/static/shots/assistant-debt-crop.jpg" width="720" height="935" loading="lazy"
+        alt="The assistant's answer: debt-free in November 2029 instead of August 2030, $1,013 less interest, and the Restaurants line has $25.97 a month of room. Made-up sample figures.">
+        <figcaption>Sample household, made-up figures</figcaption></figure>
+    </div>
+    <div class="story flip reveal">
+      <div class="story-text">
+        <div class="section-label">It asks instead of guessing</div>
+        <h3>"Did you mean the Cashback Visa?"</h3>
+        <p>Say "Chase Visa" when your card is the Cashback Visa, and Groundwork asks about the closest match instead of
+          guessing. Your answer is kept, so it doesn't ask again - and you can see and remove every name it keeps.</p>
+        <p>When your records hold too little to answer, it says so, and tells you what would let it know.</p>
+      </div>
+      <figure class="shot"><img src="/static/shots/did-you-mean-crop.jpg" width="940" height="330" loading="lazy"
+        alt="The assistant asking: There is no debt called Chase Visa in the record. Did you mean the Cashback Visa? With Yes and the other debts as buttons. Sample household, made-up figures.">
+        <figcaption>Sample household, made-up figures</figcaption></figure>
+    </div>
+    <div class="story reveal">
+      <div class="story-text">
+        <div class="section-label">Nothing changes without your Yes</div>
+        <h3>"Move the Corner Market charges to Restaurants."</h3>
+        <p>Ask it to file transactions, make an import rule, add or change a budget line, or mark a bill as recurring.
+          Groundwork checks the change against your records and shows you exactly what would happen. Nothing changes until
+          you press <strong>Yes</strong> - and <strong>Undo</strong> puts it back.</p>
+        <p>It can never move money, pay a bill, delete anything or change your settings. Those stay yours.</p>
+      </div>
+      <figure class="shot"><img src="/static/shots/proposal-crop.jpg" width="940" height="330" loading="lazy"
+        alt="A change card: File 15 transactions from Corner Market under Restaurants? They are filed now under Groceries (15). With Yes and No buttons. Sample household, made-up figures.">
+        <figcaption>Sample household, made-up figures</figcaption></figure>
+    </div>
+    <div class="story flip reveal">
+      <div class="story-text">
+        <div class="section-label">Talk to it</div>
+        <h3>Tap the microphone. Have a conversation.</h3>
+        <p>Turn on voice and the microphone sits in the Ask box. Tap it once and talk - it stays on until you tap it again,
+          say "stop", or step away. Answers are read back to you in Groundwork's own words.</p>
+        <p>What you say is recognised on your computer and never sent anywhere or kept. Read-aloud and voice commands work
+          even with the AI turned off.</p>
+      </div>
+      <figure class="shot"><img src="/static/shots/assistant-budget-crop.jpg" width="940" height="1060" loading="lazy"
+        alt="The answer to: Are we on budget this month? Every budget line beside what was spent, five over budget, listed by name. Made-up sample figures.">
+        <figcaption>"Are we on budget this month?" - sample household, made-up figures</figcaption></figure>
+    </div>
+    <div class="story reveal">
+      <div class="story-text">
+        <div class="section-label">Money set aside, money you can spend</div>
+        <h3>Savings goals that live inside your accounts</h3>
+        <p>An emergency fund doesn't need its own bank account. Tell Groundwork which account holds it, and every account
+          shows its balance, what's set aside in it, and what's actually <strong>available</strong>.</p>
+        <p>Planning a purchase? Groundwork asks "Have you set money aside for this?", uses that goal first, and shows where
+          the rest could come from - including what it would add to your debt on a card.</p>
+      </div>
+      <div style="display:grid;gap:18px">
+      <figure class="shot"><img src="/static/shots/available-crop.jpg" width="1580" height="620" loading="lazy"
+        alt="Settings, Accounts: High-Yield Savings holds $1,800.00, with $1,060.00 set aside for Car repairs and Holidays, so $740.00 is available. Made-up sample figures.">
+        <figcaption>Each account: its balance, what's set aside, what's available</figcaption></figure>
+      <figure class="shot"><img src="/static/shots/goal-first-crop.jpg" width="1600" height="310" loading="lazy"
+        alt="Before You Buy: Have you set money aside for this? Holidays covers $420.00, the other $180.00 would come from available funds or the Visa as new debt. Made-up sample figures.">
+        <figcaption>"Have you set money aside for this?" - sample household, made-up figures</figcaption></figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band band-ink">
+  <div class="container reveal">
+    <div class="center">
+      <div class="section-label">Built so you can trust it</div>
+      <h2 class="section-title" style="color:#fff">An assistant with rules it can't talk its way out of</h2>
+      <p class="section-sub" style="color:rgba(255,255,255,.72)">These aren't settings. They're how Groundwork is built, and
+        its own tests fail if any of them is ever broken.</p>
+    </div>
+    <div class="trust-grid">
+      <div class="trust"><span class="chip chip-pine">[[cpu]]</span><h3>It runs on your computer</h3>
+        <p>The AI ships inside Groundwork and runs on your machine. Nothing you ask is sent to an AI company. There is no cloud AI option.</p></div>
+      <div class="trust"><span class="chip chip-gold">[[math]]</span><h3>It can't make a number up</h3>
+        <p>Every figure in an answer is written by Groundwork from your records. The AI chooses which to show; it never does the math.</p></div>
+      <div class="trust"><span class="chip chip-ember">[[shield]]</span><h3>It never moves money</h3>
+        <p>No payments, no transfers, no deletions, no settings. A change to your records needs your Yes, and comes with Undo.</p></div>
+      <div class="trust"><span class="chip chip-ink">[[ask]]</span><h3>It says when it doesn't know</h3>
+        <p>"I can't say yet - your record has two months, and a pattern needs three." Then it tells you what would fix that.</p></div>
+      <div class="trust"><span class="chip chip-pine">[[lock]]</span><h3>Your questions aren't kept</h3>
+        <p>A question is answered and forgotten. The AI log shows only which parts of your records were read, and when.</p></div>
+      <div class="trust"><span class="chip chip-gold">[[eye]]</span><h3>It can't be talked into anything</h3>
+        <p>"Ignore your rules" is refused before the AI ever sees it - typed, spoken, or hidden in a bank memo. So is anything against the law.</p></div>
     </div>
   </div>
 </section>
@@ -835,6 +1008,7 @@ HOME_CONTENT = _icons("""
         <li>No account and no login</li>
         <li>No telemetry, no analytics, no usage tracking in the app</li>
         <li>No cloud AI: the AI runs on your computer or not at all</li>
+        <li>Your voice is recognised on your computer, never sent or kept</li>
         <li>Uninstalling never deletes your data</li>
       </ul>
     </div>
@@ -852,10 +1026,10 @@ HOME_CONTENT = _icons("""
 
 <section class="band">
   <div class="container center reveal">
-    <div class="section-label">Coming in Groundwork 2.0</div>
+    <div class="section-label">""" + ('More in Groundwork 2.0' if RELEASED_20 else 'Coming in Groundwork 2.0') + """</div>
     <h2 class="section-title">The biggest update we've ever built</h2>
-    <p class="section-sub">Groundwork 2.0 is being built and tested right now. It does more of the work for you,
-      explains more of what it finds, and still keeps every number on your computer.</p>
+    <p class="section-sub">Beyond the assistant, Groundwork 2.0 does more of the work for you, explains more of what it
+      finds, and still keeps every number on your computer.</p>
   </div>
   <div class="container reveal">
     <div class="teaser-grid" style="margin-top:44px">
@@ -863,10 +1037,10 @@ HOME_CONTENT = _icons("""
       <div class="feature-card"><span class="chip chip-gold">[[ask]]</span><h3>Ask why</h3><p>A number looks wrong? Groundwork checks your records, tells you what it found, and shows any fix before it happens.</p></div>
       <div class="feature-card"><span class="chip chip-ink">[[fork]]</span><h3>Possible futures</h3><p>Your next twelve months side by side, including the rough ones, each saying exactly what it assumes.</p></div>
       <div class="feature-card"><span class="chip chip-ember">[[bill]]</span><h3>Bills, read from the biller</h3><p>The amount and due date from the company's own site, next to your budget. Groundwork never presses Pay.</p></div>
-      <div class="feature-card"><span class="chip chip-pine">[[pay]]</span><h3>Your pay, employer by employer</h3><p>If a paycheck stops or drops, Groundwork says so plainly, without mistaking overtime for a raise.</p></div>
+      <div class="feature-card"><span class="chip chip-pine">[[pulse]]</span><h3>A Health page</h3><p>Medical bills, your plan, your deductible and a health reserve in one place. Nothing about your health leaves your computer.</p></div>
       <div class="feature-card"><span class="chip chip-gold">[[cal]]</span><h3>A Sunday check-in</h3><p>A short look at the week behind you and the week ahead: a paycheck due, a bill coming up.</p></div>
     </div>
-    <div style="text-align:center;margin-top:44px"><a href="/coming" class="btn btn-primary">See everything coming in 2.0 →</a></div>
+    <div style="text-align:center;margin-top:44px"><a href="/coming" class="btn btn-primary">""" + ("See everything new in 2.0 →" if RELEASED_20 else "See everything coming in 2.0 →") + """</a></div>
   </div>
 </section>
 
@@ -889,6 +1063,14 @@ HOME_CONTENT = _icons("""
       <div class="panel-row"><b>Works on</b><span>Windows, macOS and Linux</span></div>
     </div>
   </div>
+</section>
+
+<section class="band">
+  <div class="container center reveal">
+    <div class="section-label">Questions</div>
+    <h2 class="section-title">What people ask first</h2>
+  </div>
+  <div class="faq reveal">""" + ''.join(f'<details><summary>{h(q)}</summary><p>{h(a)}</p></details>' for q, a in HOME_FAQ) + """</div>
 </section>
 
 <section class="statement">
@@ -919,6 +1101,18 @@ def download_file(platform):
     return redirect(target)
 
 # ── Download page ─────────────────────────────────────────────────────────────
+def _v11_note():
+    """Item 82 R8 and R7: on the download page once 2.0 is the download - what happens to 1.1, and the last 1.1 by name
+    with its SHA-256 (only once the real hash is filled in)."""
+    if not RELEASED_20:
+        return ''
+    kept = (f'The last 1.1 stays downloadable as <a href="/static/download/{V11_FILE}">{V11_FILE}</a> '
+            f'(SHA-256 <code>{V11_SHA256}</code>), with no further fixes.') if V11_SHA256 else ''
+    return ('<div class="container" style="padding-top:40px"><div class="callout" style="max-width:860px;margin:0 auto">'
+            '<strong>Groundwork 1.1 gets no more updates.</strong> 2.0 upgrades a 1.1 install in place and keeps a dated '
+            'copy of your data first. ' + kept + '</div></div>')
+
+
 @app.route('/download')
 def download():
     content = """
@@ -928,6 +1122,7 @@ def download():
   <p>Free. No account. No subscription. Your data stays on your computer.</p>
 </section>
 
+""" + _v11_note() + """
 <div class="container" style="padding-top:40px">
   <div class="callout" style="max-width:860px;margin:0 auto">
     <strong>Use a system that still gets security updates.</strong> Groundwork holds your financial data, and an
@@ -1353,7 +1548,7 @@ def privacy():
   <p>What stays on your computer, what leaves it, and why.</p>
 </section>
 <div class="narrow prose">
-  <p style="color:var(--muted)">Last updated: October 19, 2026. This page describes Groundwork """ + SITE_VERSION + """, the version offered for download.</p>
+  <p style="color:var(--muted)">Last updated: October 31, 2026. This page describes Groundwork """ + SITE_VERSION + """, the version offered for download.</p>
 
   <h2>Your data stays on your machine</h2>
   <p>Groundwork is a desktop application. Your financial data — transactions, balances,
@@ -1401,6 +1596,19 @@ def privacy():
   <p>Groundwork's AI features are optional and run <strong>only on your own machine</strong>: the
     model comes with Groundwork and runs inside it, so nothing is sent to an AI service and no API
     key exists. There is no cloud AI option.</p>
+
+  <h2>The assistant""" + ('' if RELEASED_20 else ' (Groundwork 2.0)') + """</h2>
+  <p>The assistant in the Ask box reads your own records on your computer to answer you. A question is answered and then
+    forgotten: it is not stored anywhere. The AI log keeps only which parts of your records were read, and when - never
+    the question or the answer. The assistant cannot move money, pay a bill, delete anything or change a setting; a
+    change to your records is made only when you press Yes, and can be undone.</p>
+
+  <h2>The microphone""" + ('' if RELEASED_20 else ' (Groundwork 2.0)') + """</h2>
+  <p>Voice is off until you turn it on. When you tap the microphone, what you say is turned into words by a speech
+    engine that runs on your computer. The audio is never sent anywhere and never kept - each clip lives only for the
+    moment it is recognised. Your browser's own speech recognition, which can send audio to a company's servers, is
+    switched off inside Groundwork. The microphone turns off when you tap it, say "stop", say nothing for a minute, or
+    leave Groundwork's window, and it does not listen while Groundwork is reading aloud.</p>
 
   <h2>Report a problem</h2>
   <p><strong>⚑ Report a problem</strong>, under <strong>?</strong> in the top bar, opens your own email app with a report filled in. Nothing is sent unless
@@ -1630,8 +1838,8 @@ def coming():
     content = _icons("""
 <section class="hero next-hero">
   <div class="hero-center">
-    <div class="beta-badge"><b></b> Being built and tested now</div>
-    <h1>Coming in <em>Groundwork 2.0</em></h1>
+    <div class="beta-badge"><b></b> """ + ('Available now' if RELEASED_20 else 'Being built and tested now') + """</div>
+    <h1>""" + ('What\'s new in' if RELEASED_20 else 'Coming in') + """ <em>Groundwork 2.0</em></h1>
     <p class="lead">The biggest update we've ever built. Groundwork 2.0 does more of the work for you, explains more of
       what it finds, and still keeps every number on your own computer, all toward one horizon: <span class="fi">financial independence, for everyone</span>. Here's what's on the way.</p>
     <div class="hero-btns"><a href="#signup" class="btn btn-gold">Tell me when it ships</a>
@@ -1642,6 +1850,19 @@ def coming():
 <section class="band" style="padding-top:64px">
   <div class="container">
     <div class="next-grid" style="margin-top:0">
+      <div class="next-card reveal"><span class="chip chip-gold">[[ask]]</span><h3>An assistant that answers from your records</h3>
+        <p>Ask about your money in plain words - "are we on budget this month?", "would $200 more on my Visa make a
+        difference?" - and Groundwork answers from your own records, with every figure written by Groundwork, not the AI.
+        When your records hold too little, it says it doesn't know yet, and what would let it know.</p></div>
+      <div class="next-card reveal"><span class="chip chip-ember">[[shield]]</span><h3>Nothing changes without your Yes</h3>
+        <p>Ask it to file transactions, make an import rule, add a budget line or mark a bill as recurring. It shows exactly
+        what would change; nothing happens until you press Yes, and Undo puts it back. It can never move money.</p></div>
+      <div class="next-card reveal"><span class="chip chip-pine">[[pulse]]</span><h3>Talk with Groundwork</h3>
+        <p>Tap the microphone in the Ask box and talk. It stays on until you're done, answers out loud in Groundwork's own
+        words, and recognises your voice on your computer - nothing is sent or kept.</p></div>
+      <div class="next-card reveal"><span class="chip chip-gold">[[wallet]]</span><h3>Set aside, and available</h3>
+        <p>Savings goals live inside the accounts you already have. Every account shows its balance, what's set aside and
+        what's available, and a purchase can be paid from the goal you saved for it.</p></div>
       <div class="next-card reveal"><span class="chip chip-pine">[[bank]]</span><h3>Your statements, with one press</h3>
         <p>No more logging in to download files. Tell Groundwork which bank you use, and when you ask, it opens your bank's
         website in a window inside Groundwork and brings your statements back for you to review. It only goes when you ask,
@@ -1682,29 +1903,30 @@ def coming():
       <div class="next-card reveal"><span class="chip chip-pine">[[micro]]</span><h3>Research, shown honestly</h3>
         <p>Where a well-known study backs up an idea, like saving automatically, Groundwork shows you what the study found
         and what it doesn't show.</p></div>
-      <div class="next-card reveal"><span class="chip chip-ink">[[cpu]]</span><h3>An assistant that lives on your computer</h3>
+      <div class="next-card reveal"><span class="chip chip-ink">[[cpu]]</span><h3>AI that lives on your computer</h3>
         <p>The AI ships inside Groundwork and runs on your own machine. Nothing you ask it is sent anywhere. Every page still
-        works with the AI turned off, and a log shows you exactly what the assistant was given.</p></div>
+        works with the AI turned off, and a log shows you what was read - never your questions.</p></div>
       <div class="next-card reveal"><span class="chip chip-gold">[[math]]</span><h3>Every number shows its working</h3>
         <p>Groundwork shows where its figures come from: the inputs, the math, and any assumption behind them. If it can't
         show how it got a number, it doesn't show you the number.</p></div>
       <div class="next-card reveal"><span class="chip chip-pine">[[eye]]</span><h3>Easier on the eyes</h3>
         <p>We checked every piece of text against every background, so nothing in Groundwork is too faint to read.</p></div>
-      <div class="next-card design reveal"><span class="chip chip-ember">[[pulse]]</span><h3>Health care costs <span class="tag tag-design">In design</span></h3>
-        <p>We're designing a health care section that tracks your bills against your insurance statements and follows your
-        deductible through the year. It's in design, not built yet, and it will follow the same rule as the rest of
-        Groundwork: nothing about your health leaves your computer.</p></div>
+      <div class="next-card reveal"><span class="chip chip-ember">[[pulse]]</span><h3>A Health page</h3>
+        <p>Medical bills as the provider sent them, your plan and deductible through the year, people you care for, and a
+        health reserve - in one place. Health care is a cost, never a lever to cut, and nothing about your health leaves
+        your computer.</p></div>
     </div>
     <p class="center" style="margin-top:52px;font-family:'Fraunces',Georgia,serif;font-style:italic;font-size:clamp(16px,4.8vw,30px);color:var(--ink)"><span class="fi">Financial independence for everyone,</span> <span class="fi">one understood decision at a time.</span></p>
-    <p class="center" style="margin-top:14px;color:var(--slate)"><em>Groundwork 2.0 isn't in the download yet. When it is, you'll see it here first.</em></p>
+    """ + ('' if RELEASED_20 else '<p class="center" style="margin-top:14px;color:var(--slate)"><em>Groundwork 2.0 isn\'t in the download yet. When it is, you\'ll see it here first.</em></p>') + """
   </div>
 </section>
 <div id="signup"></div>
 """) + SIGNUP_BAND
     return render_template_string(
         BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
-        title='Coming in Groundwork 2.0',
-        description='Groundwork 2.0 is being built now: statements with one press, bills read from the biller, Ask why, possible futures, a Sunday check-in and more, all on your own computer.',
+        title=('What\'s new in Groundwork 2.0' if RELEASED_20 else 'Coming in Groundwork 2.0'),
+        description='Groundwork 2.0: an AI assistant that answers from your own records on your own computer, changes only on '
+                    'your Yes, voice conversation, savings set aside inside your accounts, statements with one press, a Health page and more.',
         canonical=SITE_URL + '/coming'
     )
 
@@ -1832,6 +2054,8 @@ def changelog():
 # the repo is kept in sync as a fallback in case Nginx is ever set to serve
 # statics first. Add new public pages HERE — the sitemap generates from this
 # list, so it can never silently go stale the way the old 3-entry file did.
+SITE_UPDATED = '2026-10-31'   # the last time the site's pages changed (each sitemap entry's lastmod)
+
 _SITEMAP_PAGES = [
     # (path, changefreq, priority)
     ('/',               'weekly',  '1.0'),
@@ -1851,6 +2075,7 @@ def sitemap_xml():
     urls = '\n'.join(
         f'  <url>\n'
         f'    <loc>{SITE_URL}{path}</loc>\n'
+        f'    <lastmod>{SITE_UPDATED}</lastmod>\n'
         f'    <changefreq>{freq}</changefreq>\n'
         f'    <priority>{prio}</priority>\n'
         f'  </url>'
@@ -1864,17 +2089,49 @@ def sitemap_xml():
     resp.headers['Cache-Control'] = 'public, max-age=3600'
     return resp
 
+LLMS_TXT = ('# Groundwork\n\n'
+    '> A free personal finance app for Windows, macOS and Linux that tracks your whole financial picture, explains it, '
+    'and has nothing to sell you. It runs on your own computer: no account, no subscription, no ads, no cloud.\n\n'
+    'Groundwork ' + SITE_VERSION + ' is the version offered for download.' + ('' if RELEASED_20 else
+    ' Groundwork 2.0, being built and tested now, adds the assistant described below.') + '\n\n'
+    '## What it does\n'
+    '- Budget against actual spending, from the bank files you already have (CSV, OFX, QFX, QIF)\n'
+    '- Debt payoff planner (snowball and avalanche) with a dated debt-free plan\n'
+    '- Net worth and investments; printable reports; trip planner; Before You Buy purchase check; gift planning\n'
+    '- An AI assistant (2.0) that runs on the computer and answers questions from the person\'s own records. Every figure '
+    'in an answer is written by Groundwork; the model only chooses which to show. It says when it does not know.\n'
+    '- Changes to records (filing transactions, import rules, budget lines, recurring bills) only on the person\'s Yes, with Undo (2.0)\n'
+    '- Voice conversation, recognised on the computer, never sent or kept (2.0)\n'
+    '- Savings goals set aside inside existing accounts, with available balances (2.0)\n\n'
+    '## What it never does\n'
+    '- Move money, pay bills, or delete records; sell a product, show ads, or send financial data to a server\n'
+    '- Send questions to an AI company: there is no cloud AI option\n\n'
+    '## Pages\n'
+    f'- [Home]({SITE_URL}/): what Groundwork is\n'
+    f'- [Features]({SITE_URL}/features): every feature\n'
+    f'- [Groundwork 2.0]({SITE_URL}/coming): the assistant and what else is new\n'
+    f'- [Privacy]({SITE_URL}/privacy): exactly what leaves the computer, and why\n'
+    f'- [Download]({SITE_URL}/download): Windows, macOS, Linux; free\n'
+    f'- [Help]({SITE_URL}/knowledge-base): installing and using Groundwork\n')
+
+
+@app.route('/llms.txt')
+def llms_txt():
+    """Groundwork described for AI assistants (the llms.txt convention) - the same truths as the pages."""
+    resp = app.response_class(LLMS_TXT, mimetype='text/markdown')
+    resp.headers['Cache-Control'] = 'public, max-age=3600'
+    return resp
+
+
 @app.route('/robots.txt')
 def robots_txt():
     # Token URLs (confirm/unsubscribe) and the admin panel have no business
-    # in a search index; everything else is fair game.
-    body = ('User-agent: *\n'
-            'Disallow: /admin\n'
-            'Disallow: /confirm/\n'
-            'Disallow: /unsubscribe/\n'
-            'Allow: /\n'
-            '\n'
-            f'Sitemap: {SITE_URL}/sitemap.xml\n')
+    # in a search index; everything else is fair game - for search engines and AI assistants alike, named so none of
+    # them has to guess (Rob 2026-10-31: Google and other AI agents should find Groundwork).
+    agents = ('*', 'Googlebot', 'Bingbot', 'GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'ClaudeBot', 'Claude-User',
+              'Claude-SearchBot', 'PerplexityBot', 'Google-Extended', 'Applebot', 'Applebot-Extended', 'DuckDuckBot')
+    rules = 'Disallow: /admin\nDisallow: /confirm/\nDisallow: /unsubscribe/\nAllow: /\n'
+    body = ''.join(f'User-agent: {a}\n{rules}\n' for a in agents) + f'Sitemap: {SITE_URL}/sitemap.xml\n'
     resp = app.response_class(body, mimetype='text/plain')
     resp.headers['Cache-Control'] = 'public, max-age=3600'
     return resp

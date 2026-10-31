@@ -66,13 +66,47 @@ def run(ctx):
     home = src.split('HOME_CONTENT = _icons(', 1)[1].split('""") + SIGNUP_BAND', 1)[0]
     pages = {k: src.split(f"@app.route('{k}')", 1)[1].split('@app.route', 1)[0]
              for k in ('/features', '/about', '/download', '/knowledge-base', '/privacy', '/terms')}
-    leak = [k for k, v in pages.items() if re.search(r'Groundwork 2\.0|in 2\.0 ', v)
-            and k not in ('/features', '/knowledge-base')]   # those two only link to the 2.0 page
-    check(f's206 W3 2.0 is described only on its own page and the home page\'s labelled section ({leak})',
-          not leak and 'Coming in Groundwork 2.0' in home and "isn't in the download yet" in coming
-          and all(re.search(r'href="/coming"', pages[k]) for k in ('/features',)))
-    check('s206 W3/W8 the one designed-only part says so, and the health promise is the general one',
-          'In design' in coming and 'not built yet' in coming and 'nothing about your health leaves your computer' in coming)
+    # W3, superseded 2026-10-31 (Rob: "remake the website to show this ... highlight all these features ... make that
+    # the central focus"): 2.0 may be shown on every page - but never as available before it is the download. Every
+    # page is rendered both ways; until SITE_VERSION is 2.x each says "coming soon" / names it as 2.0's.
+    import importlib, os as _os, sys as _sys, tempfile as _tf
+    _os.environ.setdefault('GW_SITE_DATA', _tf.mkdtemp(prefix='gw_site_'))
+    _sys.path.insert(0, str(BASE / 'Website'))
+    site = importlib.import_module('website')
+    sc = site.app.test_client()
+    pre = {k: sc.get(k).get_data(as_text=True) for k in ('/', '/coming', '/privacy', '/download', '/llms.txt')}
+    check('s206 W3 (2026-10-31) before 2.0 is the download, everything new says so: "coming soon", the 2.0 page "isn\'t in '
+          'the download yet", the Privacy page names its 2.0 parts, and llms.txt says 2.0 is being built',
+          not site.RELEASED_20 and pre['/'].count('New in 2.0 · coming soon') >= 2 and 'Coming in Groundwork 2.0' in pre['/']
+          and "isn't in the download yet" in pre['/coming'] and 'The assistant (Groundwork 2.0)' in pre['/privacy']
+          and 'The microphone (Groundwork 2.0)' in pre['/privacy'] and 'being built and tested now' in pre['/llms.txt']
+          and 'Groundwork 1.1 gets no more updates' not in pre['/download'])
+    check('s206 W3/W8 the Health page is described as built (no longer "in design"), and the health promise stays',
+          'In design' not in coming and 'not built yet' not in coming and 'A Health page' in coming
+          and 'nothing about your health leaves' in ' '.join(coming.split()))
+    # The site is truthful whenever it is published: no invented proof, no pressure (TM6), no checksum made up
+    bad = [w for w in ('trusted by', 'join thousands', 'join millions', 'limited time', 'only today', 'act now', '5 stars',
+                       'rated #1', '#1 app', 'testimonial', 'award-winning') if w in flat.lower()]
+    check(f's206 the site invents no proof and no urgency ({bad})', not bad)
+    check('s206 R7 the last 1.1 is offered by name only with its real SHA-256 - none is made up',
+          site.V11_SHA256 == '' or re.fullmatch(r'[0-9a-f]{64}', site.V11_SHA256))
+    shots = re.findall(r'src="/static/shots/([^"]+)"', pre['/'])
+    alts = re.findall(r'<img src="/static/shots/[^"]+"[^>]*alt="([^"]+)"', pre['/'])
+    check(f's206 the screenshots exist, each with words for a screen reader that say its figures are made up ({len(shots)})',
+          shots and all((BASE / 'Website' / 'static' / 'shots' / f).exists() for f in shots)
+          and len(alts) == len(shots) and all('made-up' in a.lower() or 'made up' in a.lower() for a in alts))
+    import json as _j
+    lds = [_j.loads(m) for m in re.findall(r'<script type="application/ld\+json">(.*?)</script>', pre['/'], re.S)]
+    faq = next((d for d in lds if d.get('@type') == 'FAQPage'), {})
+    check('s206 SEO: the home page gives search engines the app, its features and its FAQ - the same answers the page shows',
+          {d.get('@type') for d in lds} >= {'SoftwareApplication', 'FAQPage', 'WebSite'}
+          and all(q['name'] in pre['/'] for q in faq.get('mainEntity', [])) and len(faq.get('mainEntity', [])) >= 5)
+    robots = sc.get('/robots.txt').get_data(as_text=True)
+    check('s206 SEO: robots.txt welcomes search engines and AI assistants by name, and keeps the admin and token pages out; '
+          'llms.txt describes Groundwork for AI assistants',
+          all(f'User-agent: {a}' in robots for a in ('GPTBot', 'ClaudeBot', 'PerplexityBot', 'Googlebot'))
+          and robots.count('Disallow: /admin') >= 5 and 'Sitemap:' in robots
+          and '# Groundwork' in pre['/llms.txt'] and 'never' in pre['/llms.txt'].lower())
     titles = re.findall(r"title='([^']+)'", src) + re.findall(r"description='([^']+)'", src)
     debt_first = [t for t in titles if re.search(r'paycheck to paycheck|get out of debt', t, re.I)]
     check(f's206 W1/W4 no page title or description leads with debt any more ({debt_first})', not debt_first)

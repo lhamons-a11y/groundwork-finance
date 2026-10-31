@@ -490,3 +490,33 @@ pages to it.
   - at the foot of the 2.0 page.
 
   s206 holds both.
+
+## The 2.0 remake (Rob, 2026-10-31)
+
+Rob: *"with the changes that we added we should remake the website to show this. We should highlight all these features
+that Groundwork has and make that the central focus ie: lets market groundwork to make someone feel like that have to
+download it. Also add as much SSO [SEO] to the backend that Google and other AI agents can't help but not look at
+Groundwork."*
+
+- **W3 superseded:** 2.0 is the site's central focus, on every page - but never shown as available before it is the
+  download. `RELEASED_20` follows `SITE_VERSION`: until it is 2.x, everything new says *"New in 2.0 · coming soon"*,
+  the 2.0 page says it isn't in the download yet, and the Privacy page names its 2.0 parts; on release day the same
+  pages read as current with no other edit.
+- **The home page** leads with the assistant, in real screenshots of the made-up sample household: asking in plain
+  words (Rob's $200-on-the-Visa question), "Did you mean...?", nothing changing without your Yes, talking to it, and
+  money set aside and available. Then *Built so you can trust it* (runs on your computer; can't make a number up;
+  never moves money; says when it doesn't know; questions aren't kept; can't be talked into anything), the horizon,
+  the four promises, today's features, privacy, what else is in 2.0, who it's for, and seven questions answered.
+- **W1, the horizon and the closing statement are unchanged**; every claim is one the app holds (s206). No invented
+  proof, no urgency (TM6), no made-up checksum.
+- **Corrected:** the 2.0 page said Health care was "in design, not built yet" - the Health page is built; its
+  assistant card described an older design.
+- **Privacy:** the assistant (questions never kept; the AI log keeps what was read; no money moved) and the microphone
+  (off until turned on; recognised on the computer; never sent or kept) - item 113's condition for voice.
+- **SEO and AI assistants:** the home page carries the app (with its features and screenshots), its FAQ and the site as
+  structured data; a real link-preview image; `/llms.txt` describes Groundwork for AI assistants; `robots.txt` welcomes
+  search engines and AI crawlers by name (Google, Bing, OpenAI, Anthropic, Perplexity, Apple, DuckDuckGo) and keeps
+  the admin and token pages out; every sitemap entry has a last-modified date.
+- **Item 82 R7/R8:** the download page says what happens to 1.1 once 2.0 is the download; the last 1.1 is offered by
+  name only when its real SHA-256 is filled in (`V11_SHA256`, release day).
+

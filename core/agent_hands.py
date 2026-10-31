@@ -1576,10 +1576,20 @@ def render(r, today):
         s.append('Nothing moves; a goal is reduced only when the purchase happens.')
     elif k == 'freshness':
         s.append(f"Your record runs to {_day(r['record_runs_to'])}" + (
-            f"; the last download was {r['hours_since']:.0f} hours ago." if r.get('hours_since') is not None else '.'))
+            f"; the last download was {_ago(r['hours_since'])}." if r.get('hours_since') is not None else '.'))
         if r.get('offer'):
             s.append(r['offer'])
     return s
+
+
+def _ago(hours):
+    """How long ago, in plain words: "less than an hour ago", "5 hours ago", "3 days ago"."""
+    if hours < 1:
+        return 'less than an hour ago'
+    if hours < 48:
+        n = int(round(hours))
+        return f'{n} hour{"s" if n != 1 else ""} ago'
+    return f'{int(hours // 24)} days ago'
 
 
 def _th(n):
