@@ -597,6 +597,7 @@ BASE_TEMPLATE = """<!DOCTYPE html>
     <div class="nav-links">
       <a href="/features">Features</a>
       <a href="/coming" class="nav-new">""" + ('What\'s new in 2.0' if RELEASED_20 else 'Coming in 2.0') + """</a>
+      <a href="/health">Health</a>
       <a href="/knowledge-base">Help</a>
       <a href="/about">About</a>
       <a href="/privacy">Privacy</a>
@@ -618,6 +619,7 @@ BASE_TEMPLATE = """<!DOCTYPE html>
       <ul>
         <li><a href="/features">Features</a></li>
         <li><a href="/coming">Coming in 2.0</a></li>
+        <li><a href="/health">Health</a></li>
         <li><a href="/download">Download</a></li>
         <li><a href="/changelog">Changelog</a></li>
       </ul>
@@ -1037,7 +1039,7 @@ HOME_CONTENT = _icons("""
       <div class="feature-card"><span class="chip chip-gold">[[ask]]</span><h3>Ask why</h3><p>A number looks wrong? Groundwork checks your records, tells you what it found, and shows any fix before it happens.</p></div>
       <div class="feature-card"><span class="chip chip-ink">[[fork]]</span><h3>Possible futures</h3><p>Your next twelve months side by side, including the rough ones, each saying exactly what it assumes.</p></div>
       <div class="feature-card"><span class="chip chip-ember">[[bill]]</span><h3>Bills, read from the biller</h3><p>The amount and due date from the company's own site, next to your budget. Groundwork never presses Pay.</p></div>
-      <div class="feature-card"><span class="chip chip-pine">[[pulse]]</span><h3>A Health page</h3><p>Medical bills, your plan, your deductible and a health reserve in one place. Nothing about your health leaves your computer.</p></div>
+      <div class="feature-card"><span class="chip chip-pine">[[pulse]]</span><h3>A Health page</h3><p>Medical bills, your plan, your deductible and a health reserve in one place. Nothing about your health leaves your computer. <a href="/health">How it works →</a></p></div>
       <div class="feature-card"><span class="chip chip-gold">[[cal]]</span><h3>A Sunday check-in</h3><p>A short look at the week behind you and the week ahead: a paycheck due, a bill coming up.</p></div>
     </div>
     <div style="text-align:center;margin-top:44px"><a href="/coming" class="btn btn-primary">""" + ("See everything new in 2.0 →" if RELEASED_20 else "See everything coming in 2.0 →") + """</a></div>
@@ -1917,7 +1919,7 @@ def coming():
       <div class="next-card reveal"><span class="chip chip-ember">[[pulse]]</span><h3>A Health page</h3>
         <p>Medical bills as the provider sent them, your plan and deductible through the year, people you care for, and a
         health reserve - in one place. Health care is a cost, never a lever to cut, and nothing about your health leaves
-        your computer.</p></div>
+        your computer. <a href="/health">How it works →</a></p></div>
     </div>
     <p class="center" style="margin-top:52px;font-family:'Fraunces',Georgia,serif;font-style:italic;font-size:clamp(16px,4.8vw,30px);color:var(--ink)"><span class="fi">Financial independence for everyone,</span> <span class="fi">one understood decision at a time.</span></p>
     """ + ('' if RELEASED_20 else '<p class="center" style="margin-top:14px;color:var(--slate)"><em>Groundwork 2.0 isn\'t in the download yet. When it is, you\'ll see it here first.</em></p>') + """
@@ -1931,6 +1933,89 @@ def coming():
         description='Groundwork 2.0: an AI assistant that answers from your own records on your own computer, changes only on '
                     'your Yes, voice conversation, savings set aside inside your accounts, statements with one press, a Health page and more.',
         canonical=SITE_URL + '/coming'
+    )
+
+# ── Health page (Rob 2026-10-31: "We also need to have that as it own page to show how that works. Its a major feature.")
+@app.route('/health')
+def health():
+    content = _icons("""
+<section class="hero next-hero">
+  <div class="hero-center">
+    <div class="beta-badge"><b></b> """ + NEW20 + """</div>
+    <h1>Health care costs, <em>recorded, never judged.</em></h1>
+    <p class="lead">Medical bills, your health plan, a reserve for a bad year and what care has cost - on one page in
+      Groundwork, worked out from your own records, on your own computer. Health care is a cost, never a lever to cut.</p>
+    <div class="hero-btns"><a href="#how" class="btn btn-gold">See how it works</a>
+      <a href="/download" class="btn btn-ghost-light">Download free</a></div>
+  </div>
+</section>
+
+<section class="band" id="how" style="padding-top:64px">
+  <div class="container">
+    <div class="story reveal">
+      <div class="story-text">
+        <div class="section-label">Bills</div>
+        <h3>A bill is the provider's statement, read as it was sent</h3>
+        <p>Bring in a medical bill and Groundwork keeps what it says: the amount, the date, the due date, the account
+          number. It becomes something you owe only when you say so. Payments toward it, what insurance changed and any
+          payment arrangement the provider agreed are kept with it, so "amount owed now" always shows its working.</p>
+        <p>It shows what monthly amounts your own record can sustain - and never tells you what to offer, never contacts
+          anyone, and never says what to do. If a bill goes to collections, it stays on the Health page with its own
+          running balance, not in your debt payoff plan.</p>
+      </div>
+      <figure class="shot"><img src="/static/shots/health-bills-crop.jpg" width="835" height="540" loading="lazy"
+        alt="The Health page's Bills tab: a Northside Urgent Care bill of $285.40, amount owed now, a card charge that may be the same bill, and monthly amounts the record sustains. Sample household, made-up figures.">
+        <figcaption>Sample household, made-up figures</figcaption></figure>
+    </div>
+    <div class="story flip reveal">
+      <div class="story-text">
+        <div class="section-label">Plan and reserve</div>
+        <h3>Your deductible as your insurer shows it</h3>
+        <p>Enter your plan's deductible and out-of-pocket maximum, then what your insurer reports you've met. Groundwork
+          shows what's left and when it starts over. It never works these out from your spending - only your insurer
+          knows what counted.</p>
+        <p>A health reserve is money set aside in an account you already have, so a bad medical year doesn't put a card
+          back to work. Its natural target is your plan's out-of-pocket maximum - the most a covered year can cost.
+          HSA and FSA balances, contribution limits and an FSA's deadline sit beside it.</p>
+      </div>
+      <figure class="shot"><img src="/static/shots/health-plan-crop.jpg" width="835" height="550" loading="lazy"
+        alt="The Plan and reserve tab: deductible $900 of $1,500 met, out-of-pocket maximum $1,240 of $4,000 met, as the insurer reports, and a health reserve of $1,800 of $4,000. Sample household, made-up figures.">
+        <figcaption>Sample household, made-up figures</figcaption></figure>
+    </div>
+    <div class="story reveal">
+      <div class="story-text">
+        <div class="section-label">Spending and people</div>
+        <h3>What care has cost, month by month</h3>
+        <p>Health spending as recorded, for the last twelve months and the year so far, and whom it was for - as you said
+          it, payment by payment, never guessed. The visit report and the year in review open from the same page.</p>
+        <p>It's a record, not a budget: no limit to beat, no "over", no trophies, and Groundwork never suggests spending
+          less on care - anywhere, including the assistant and the debt plan.</p>
+      </div>
+      <figure class="shot"><img src="/static/shots/health-spending-crop.jpg" width="835" height="500" loading="lazy"
+        alt="The Spending tab: health spending by month for twelve months, $310 so far in 2026, and whom it was for. Sample household, made-up figures.">
+        <figcaption>Sample household, made-up figures</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section class="band" style="padding-top:24px">
+  <div class="narrow prose reveal">
+    <h2>Private by design</h2>
+    <p>Nothing about your health leaves your computer. Health records never reach the AI log, and an export includes
+      them only when you tick the box. The page says plainly that anyone who opens Groundwork on this computer can see
+      it, and you can hide Health from the sidebar in Settings - your records stay.</p>
+    <p>Everything works with the AI turned off. Where a figure isn't in your records - no plan entered, no balance known -
+      Groundwork says so instead of guessing.</p>
+    <p style="margin-top:20px"><a href="/download" class="btn btn-primary">Download Groundwork free →</a></p>
+  </div>
+</section>
+""")
+    return render_template_string(
+        BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
+        title='Health care costs, recorded, never judged',
+        description='Groundwork 2.0\'s Health page: medical bills as the provider sent them, your deductible as your insurer '
+                    'shows it, a health reserve, HSA and FSA balances and what care has cost - private, on your own computer.',
+        canonical=SITE_URL + '/health'
     )
 
 
@@ -2066,6 +2151,7 @@ _SITEMAP_PAGES = [
     ('/signup',         'monthly', '0.9'),
     ('/features',       'monthly', '0.8'),
     ('/coming',         'weekly',  '0.8'),
+    ('/health',         'monthly', '0.8'),
     ('/knowledge-base', 'weekly',  '0.7'),
     ('/about',          'monthly', '0.6'),
     ('/changelog',      'weekly',  '0.5'),
@@ -2105,7 +2191,9 @@ LLMS_TXT = ('# Groundwork\n\n'
     'in an answer is written by Groundwork; the model only chooses which to show. It says when it does not know.\n'
     '- Changes to records (filing transactions, import rules, budget lines, recurring bills) only on the person\'s Yes, with Undo (2.0)\n'
     '- Voice conversation, recognised on the computer, never sent or kept (2.0)\n'
-    '- Savings goals set aside inside existing accounts, with available balances (2.0)\n\n'
+    '- Savings goals set aside inside existing accounts, with available balances (2.0)\n'
+    '- A Health page (2.0): medical bills as the provider sent them, deductible progress as the insurer reports it, a '
+    'health reserve, HSA and FSA balances, and health spending recorded but never judged; nothing about health leaves the computer\n\n'
     '## What it never does\n'
     '- Move money, pay bills, or delete records; sell a product, show ads, or send financial data to a server\n'
     '- Send questions to an AI company: there is no cloud AI option\n\n'
@@ -2113,6 +2201,7 @@ LLMS_TXT = ('# Groundwork\n\n'
     f'- [Home]({SITE_URL}/): what Groundwork is\n'
     f'- [Features]({SITE_URL}/features): every feature\n'
     f'- [Groundwork 2.0]({SITE_URL}/coming): the assistant and what else is new\n'
+    f'- [Health]({SITE_URL}/health): how the Health page works\n'
     f'- [Privacy]({SITE_URL}/privacy): exactly what leaves the computer, and why\n'
     f'- [Download]({SITE_URL}/download): Windows, macOS, Linux; free\n'
     f'- [Help]({SITE_URL}/knowledge-base): installing and using Groundwork\n')
