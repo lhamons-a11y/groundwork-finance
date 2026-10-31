@@ -15280,6 +15280,25 @@ def _vault_backup_key(prot):
     return k if k is not None and bc.key_id(k) == prot.get('key_id') else None
 
 
+def _opened_by_1x(stored):
+    """Item 82 L3c (Rob 2026-10-31: "lets not let a 2.0 database be open by a previous version"): True when Groundwork
+    1.x has opened records that 2.0 had already upgraded - 2.0's own tables are there, but 1.x has written its version
+    back (1.x versions are dated before 2026-10-18, when 2.0's account_banks table arrived). Measured by
+    scripts/l3c_one_way.py: 1.x reads and writes them; nothing is lost; rows it adds carry UTC times."""
+    import sqlite3
+    from core.database import DB_PATH
+    if not stored or stored[:8] >= '20261018':
+        return False
+    try:
+        con = sqlite3.connect(f'file:{DB_PATH}?mode=ro', uri=True)
+        try:
+            return bool(con.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='account_banks'").fetchone())
+        finally:
+            con.close()
+    except Exception:                                     # noqa: BLE001 - unreadable: not said
+        return False
+
+
 def _backup_before_migration():
     """Item 82 R3 (item 32 L3b, ruled 2026-10-04): before a database whose recorded schema differs from this build's
     is migrated - 1.1 opened by 2.0, or any later upgrade - a dated copy is written through the backup function: sealed
@@ -15308,6 +15327,8 @@ def _backup_before_migration():
     except Exception:                                     # noqa: BLE001 - unreadable here: copy it anyway, the safe way
         logging.getLogger('groundwork').warning('pre-upgrade backup: could not read the database first; copying anyway')
     rec = {'at': datetime.now().isoformat(timespec='seconds'), 'from': stored, 'to': migrate.SCHEMA_VERSION, 'shown': False}
+    if _opened_by_1x(stored):                              # item 82 L3c: said once, with the way back
+        rec['opened_by_1x'] = stored
     try:
         name = _write_backup(f"groundwork_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}_before_upgrade")
         rec.update(name=name, folder=str(_backups_dir()), sealed=name.endswith('.gwbk'))

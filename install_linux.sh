@@ -1,8 +1,8 @@
 #!/bin/bash
 # ============================================================
-#  Groundwork v1.0.0.0 — Linux Install Script
-#  Run after extracting groundwork-1.0.0.0-linux.tar.gz
-#  Installs to /opt/groundwork and creates desktop shortcut
+#  Groundwork - Linux Install Script
+#  Run after extracting the Linux download. Installs to /opt/groundwork (replacing any earlier version there) and
+#  creates a desktop shortcut. Your records stay in ~/.local/share/Groundwork.
 # ============================================================
 
 set -e
@@ -32,8 +32,14 @@ elif command -v pacman &>/dev/null; then
 fi
 echo "       Done."
 
-# Copy app to /opt
+# Copy app to /opt, replacing any earlier version (Rob 2026-10-31: "the files should overwrite the previous"). Only
+# the program folder is replaced: your records live in ~/.local/share/Groundwork, which this script never touches.
 echo " [2/3] Installing to ${INSTALL_DIR}..."
+if [ -d "$INSTALL_DIR" ]; then
+    pkill -f "$INSTALL_DIR/Groundwork" 2>/dev/null || true      # an open Groundwork is closed first
+    echo "       Replacing the earlier version in ${INSTALL_DIR} (your records are not touched)."
+    rm -rf "${INSTALL_DIR:?}"
+fi
 mkdir -p "$INSTALL_DIR"
 cp -r ./* "$INSTALL_DIR/"
 chmod +x "$INSTALL_DIR/Groundwork"

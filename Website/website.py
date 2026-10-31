@@ -1110,7 +1110,10 @@ def _v11_note():
             f'(SHA-256 <code>{V11_SHA256}</code>), with no further fixes.') if V11_SHA256 else ''
     return ('<div class="container" style="padding-top:40px"><div class="callout" style="max-width:860px;margin:0 auto">'
             '<strong>Groundwork 1.1 gets no more updates.</strong> 2.0 upgrades a 1.1 install in place and keeps a dated '
-            'copy of your data first. ' + kept + '</div></div>')
+            'copy of your data first. On Windows the installer removes the earlier version for you, then installs 2.0; '
+            'on macOS, drag Groundwork into Applications and choose <strong>Replace</strong>; on Linux, the install '
+            'script replaces the earlier version. Your records are never touched. The update goes one way: 1.1 isn\'t '
+            'made to use 2.0\'s records. ' + kept + '</div></div>')
 
 
 @app.route('/download')

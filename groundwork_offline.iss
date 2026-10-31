@@ -31,6 +31,9 @@ SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
+; Groundwork open while installing is closed first, so its files can be replaced
+CloseApplications=yes
+RestartApplications=no
 MinVersion=10.0.17763
 
 [Languages]
@@ -61,6 +64,43 @@ Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(
 Type: filesandordirs; Name: "{app}"
 
 [Code]
+// Rob 2026-10-31: "the installer should check for previous versions and uninstall them for the user and then install
+// 2.0". An earlier Groundwork (this same AppId, any version) is removed silently before the new files go in. Its
+// uninstaller removes only the program folder - your records in %LOCALAPPDATA%\Groundwork are never touched - and
+// skips its own message box when run silently.
+const
+  UninstKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{A3F8C2D1-5B4E-4F9A-8C6D-2E7F1A0B3C5D}_is1';
+
+function EarlierGroundwork(var Version: String): String;
+var
+  S: String;
+begin
+  Result := '';
+  Version := '';
+  if RegQueryStringValue(HKCU, UninstKey, 'UninstallString', S) or
+     RegQueryStringValue(HKLM, UninstKey, 'UninstallString', S) or
+     (IsWin64 and RegQueryStringValue(HKLM64, UninstKey, 'UninstallString', S)) then begin
+    Result := RemoveQuotes(S);
+    if not (RegQueryStringValue(HKCU, UninstKey, 'DisplayVersion', Version) or
+            RegQueryStringValue(HKLM, UninstKey, 'DisplayVersion', Version) or
+            (IsWin64 and RegQueryStringValue(HKLM64, UninstKey, 'DisplayVersion', Version))) then
+      Version := 'an earlier version';
+  end;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Uninst, Version: String;
+  Code: Integer;
+begin
+  Result := '';
+  Uninst := EarlierGroundwork(Version);
+  if (Uninst = '') or not FileExists(Uninst) then exit;
+  WizardForm.PreparingLabel.Caption := 'Removing Groundwork ' + Version + ' first. Your records are not touched.';
+  if not Exec(Uninst, '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '', SW_HIDE, ewWaitUntilTerminated, Code) or (Code <> 0) then
+    Result := 'Groundwork ' + Version + ' could not be removed first (code ' + IntToStr(Code) + '). ' +
+              'Close Groundwork if it is open, then run this installer again. Your records are not touched.';
+end;
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   // Guard against UninstallSilent(): an unattended/scripted uninstall must

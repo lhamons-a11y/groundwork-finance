@@ -13483,6 +13483,7 @@ const HELP_FAQ = [
   {"q": "How does auto-import from Downloads work?", "a": "Save a bank statement (.csv, .txt, .ofx, .qfx, .qif) to your Downloads folder. Groundwork detects it and shows a 12-second notification: \"File detected — import now?\" One tap imports it.", "keys": ["auto", "import", "downloads", "folder", "detect"]},
   {"q": "Does Groundwork connect to my bank?", "a": "Not through a third-party service - those ask for your bank login and keep your data. Instead, when you ask, Groundwork visits your bank's website itself, in its own window on this computer, and downloads the statement you showed it how to get. Nothing runs on a schedule, and the file still waits for your review before anything is imported. Set it up on the Assistant page.", "keys": ["connect", "bank", "directly", "plaid", "link", "sync", "automatic"], "open": {"view": "automation"}},
   {"q": "What does swiping do in the desktop app?", "a": "Swiping right shows the Groundwork loading screen — a quick way to put your numbers out of sight if someone walks up, since no financial data is visible there. Swipe left to return to where you were.", "keys": ["swipe", "swiping", "hide", "screen"]},
+  {"q": "Can I go back to Groundwork 1.1?", "a": "Updating to 2.0 goes one way: 2.0 changes how your records are stored, and Groundwork 1.1 isn't made to use them. Before the first update, 2.0 saves a dated copy of your records as they were (its name ends in \"before_upgrade\", in your backups folder). To go back to 1.1, uninstall 2.0, install 1.1 and restore that copy - anything added since the update isn't in it. If 1.1 does open your 2.0 records, nothing is lost, and 2.0 says so the next time it starts. The Windows installer removes an earlier Groundwork for you; uninstalling never deletes your records.", "keys": ["back", "go", "1.1", "older", "previous", "version", "downgrade", "upgrade", "update", "restore"]},
   {"h": "Getting your data in"},
   {"q": "How do I get my accounts from my bank?", "a": "Set each account up once on the Assistant page (Coach → Assistant), in the Accounts tab: Groundwork opens your bank in its own window and you show it the steps to download a statement. After that, \"⟳ Get my accounts\" in the top bar visits each bank you set up, one at a time, when you press it. You sign in; each file waits for your review.", "keys": ["get", "accounts", "bank", "fetch", "download", "automatic", "automation", "assistant", "pull"], "open": {"view": "automation"}, "labels": ["Get my accounts", "Assistant"]},
   {"q": "How do I see what a bill owes?", "a": "On the Assistant page, open the Bills tab. Groundwork can visit a bill's own website when you ask and read what is owed and when it is due. It never pays a bill - \"Take me to pay this\" opens the page where you pay it yourself.", "keys": ["bill", "bills", "owe", "owes", "due", "utility", "pay", "paid"], "open": {"view": "automation", "el": "autoTab-bills"}, "labels": ["autoTab-bills", "Take me to pay this"]},
@@ -26422,15 +26423,21 @@ async function _preUpgradeNotice() {
   let r;
   try { r = await API.get('/api/backup/pre-upgrade'); } catch (e) { _gwErr('_preUpgradeNotice')(e); return; }
   if (!r || r.shown || !(r.name || r.error)) return;
-  const body = r.name
+  // Item 82 L3c (Rob 2026-10-31): Groundwork 1.1 opened these records after 2.0 had upgraded them - said once, plainly
+  const reopened = r.opened_by_1x ? `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--ink);margin-bottom:10px;padding:10px 12px;background:var(--gold-bg, #fdf6e3);border-radius:var(--r-sm)">
+       <b>Groundwork 1.1 opened these records</b> after Groundwork 2.0 had updated them. Nothing was lost, and they are
+       updated again now. Anything added while in 1.1 kept 1.1's clock (UTC), so those times may read a few hours off.
+       <div style="margin-top:6px">Groundwork 2.0's records go one way. To use 1.1 again, restore the copy saved before your
+       <i>first</i> update to 2.0 - not these records. Uninstalling 1.1 keeps it from opening them again.</div></div>` : '';
+  const body = reopened + (r.name
     ? `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--ink)">Before updating your records to this version, Groundwork saved a copy of them as they were:</div>
        <div style="font-family:var(--font-mono);font-size:var(--fs-sm);margin:8px 0;word-break:break-all">${esc(r.folder)}<br>${esc(r.name)}</div>
        <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.6">${r.sealed ? 'It is protected like your other backups.' : 'It is not protected yet: set up backup protection in Backups, and it can be re-saved protected.'}
          Groundwork never deletes it. The update only goes one way, so this copy is how to go back.</div>`
       + (r.after_name ? `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--ink);margin-top:10px">And a backup of your records as they are now, after the update:</div>
        <div style="font-family:var(--font-mono);font-size:var(--fs-sm);margin:8px 0;word-break:break-all">${esc(r.after_name)}</div>` : '')
-    : `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--ember-text)">Groundwork tried to save a copy of your records before updating them, and could not (${esc(r.error)}). Your records were updated. Make a backup now from Backups.</div>`;
-  confirmAction(r.name ? (r.after_name ? 'Your records were backed up before and after this update' : 'A copy was saved before this update')
+    : `<div style="font-size:var(--fs-base);line-height:1.6;color:var(--ember-text)">Groundwork tried to save a copy of your records before updating them, and could not (${esc(r.error)}). Your records were updated. Make a backup now from Backups.</div>`);
+  confirmAction(r.opened_by_1x ? 'Groundwork 1.1 opened your records' : r.name ? (r.after_name ? 'Your records were backed up before and after this update' : 'A copy was saved before this update')
     : 'The copy before this update could not be saved', body,
     () => {}, 'OK', false);
   API.post('/api/backup/pre-upgrade', {}).catch(_gwErr('_preUpgradeNotice:shown'));
