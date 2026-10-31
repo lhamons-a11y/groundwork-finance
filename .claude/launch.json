@@ -4,20 +4,36 @@
     {
       "name": "dev-server",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["dev_server.py"],
+      "runtimeArgs": [
+        "dev_server.py"
+      ],
       "port": 8766
     },
     {
       "name": "real-server",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["server.py"],
+      "runtimeArgs": [
+        "server.py"
+      ],
       "port": 8765
     },
     {
       "name": "website",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["Website/website.py"],
+      "runtimeArgs": [
+        "Website/website.py"
+      ],
       "port": 5000
+    },
+    {
+      "name": "assistant-preview",
+      "runtimeExecutable": "/usr/bin/env",
+      "runtimeArgs": [
+        "GROUNDWORK_MODEL_PATH=/Applications/Groundwork.app/Contents/Resources/models/phi3.5-mini-instruct-q4.gguf",
+        "/Users/dev/gw-engine-venv/bin/python",
+        "dev_server.py"
+      ],
+      "port": 8766
     }
   ]
 }
