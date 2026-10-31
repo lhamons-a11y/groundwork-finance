@@ -1,0 +1,474 @@
+{
+ "item": "115 (gw 2.0/ASK_FOR_A_REPORT.md section 6, C8)",
+ "written": "2026-10-31, before any measuring - the asks are Rob's own words, verbatim; the expectations are proposed, for Rob to confirm",
+ "record": "The Morgans (core/sample_household.py), May-October 2026 up to the day of the run; today 2026-10-31 for the figures quoted.",
+ "outcomes": {
+  "build": "the sections and settings named, every figure Groundwork's",
+  "build_and_say": "builds, and says plainly what it could not read or did not need to do",
+  "clarify": "asks one question back and builds nothing",
+  "does_not_know": "says what it cannot do yet and what would let it; builds nothing it was not asked for",
+  "refuse_act": "says it never does this, and offers what it can (print, save)"
+ },
+ "gaps": {
+  "G1": "no section narrows to one account (R03, R12)",
+  "G2": "debt-payment sections cannot narrow to one debt (R04, R20, R22)",
+  "G3": "transfers are not a subject (R14)",
+  "G4": "\"lately\", \"between paydays\" are not periods the reader knows (R12, R17, R19)"
+ },
+ "requests": [
+  {
+   "id": "R01",
+   "group": "1-5 plain",
+   "record": "sample",
+   "ask": "Show me what I spent at Corner Market last month.",
+   "expect": {
+    "sections": [
+     {
+      "id": "1.3",
+      "settings": {
+       "payee": "Corner Market",
+       "period": "last month"
+      }
+     }
+    ],
+    "outcome": "build"
+   },
+   "check": "September 2026 only; Corner Market is a payee (P4), no model call. On 2026-10-31: $187.09."
+  },
+  {
+   "id": "R02",
+   "group": "1-5 plain",
+   "record": "sample",
+   "ask": "How much did I bring in from my paycheck in September?",
+   "expect": {
+    "sections": [
+     {
+      "id": "3.4",
+      "settings": {
+       "period": "September"
+      }
+     }
+    ],
+    "outcome": "build"
+   },
+   "check": "September 2026: the four Paycheck / Salary rows (Northwind Logistics, Riverside Schools), $7,860.00 on 2026-10-31. \"paycheck\" reads income."
+  },
+  {
+   "id": "R03",
+   "group": "1-5 plain",
+   "record": "sample",
+   "ask": "I want to see all the transactions on Cashback Visa for October.",
+   "expect": {
+    "sections": [
+     {
+      "id": "3.1",
+      "settings": {
+       "account": "Cashback Visa",
+       "period": "October"
+      }
+     }
+    ],
+    "outcome": "build"
+   },
+   "check": "October 2026: every charge on Cashback Visa, row by row, with the largest categories. Payments to the card are not spending and are not listed."
+  },
+  {
+   "id": "R04",
+   "group": "1-5 plain",
+   "record": "sample",
+   "ask": "Show me what I paid toward Riverside Auto loan over the last six months.",
+   "expect": {
+    "sections": [
+     {
+      "id": "1.5",
+      "settings": {
+       "debt": "Riverside Auto loan",
+       "period": "the last six months"
+      }
+     }
+    ],
+    "outcome": "build"
+   },
+   "check": "Payments to the Riverside Auto loan alone, $389.00 a month. On 2026-10-31 (October's last day, so complete): May-October 2026."
+  },
+  {
+   "id": "R05",
+   "group": "1-5 plain",
+   "record": "sample",
+   "ask": "How much did I spend on fuel at QuickFuel this year?",
+   "expect": {
+    "sections": [
+     {
+      "id": "1.3",
+      "settings": {
+       "payee": "QuickFuel",
+       "period": "this year"
+      }
+     }
+    ],
+    "outcome": "build"
+   },
+   "check": "January-October 2026; the record starts in May and the section says so. The payee is named, so \"fuel\" needs no reading. On 2026-10-31: $1,148.40."
+  },
+  {
+   "id": "R06",
+   "group": "6-10 template-like",
+   "record": "sample",
+   "ask": "Give me a spending breakdown for the last three months.",
+   "expect": {
+    "sections": [
+     {
+      "id": "3.1",
+      "settings": {
+       "period": "the last three months"
+      }
+     },
+     {
+      "id": "1.1",
+      "settings": {
+       "period": "the last three months"
+      }
+     }
+    ],
+    "outcome": "build"
+   },
+   "check": "July-September 2026: categories ranked, and each month. On 2026-10-31: $10,031.74 in all."
+  },
+  {
+   "id": "R07",
+   "group": "6-10 template-like",
+   "record": "sample",
+   "ask": "I want to see where all my income is coming from this year.",
+   "expect": {
+    "sections": [
+     {
+      "id": "3.4",
+      "settings": {
+       "period": "this year"
+      }
+     }
+    ],
+    "outcome": "build"
+   },
+   "check": "Every income row this year, by payer; the record starts in May 2026 and the section says so."
+  },
+  {
+   "id": "R08",
+   "group": "6-10 template-like",
+   "record": "sample",
+   "ask": "Show me how my budget is looking for October.",
+   "expect": {
+    "sections": [
+     {
+      "id": "4.1",
+      "settings": {
+       "period": "October"
+      }
+     }
+    ],
+    "outcome": "build"
+   },
+   "check": "The Spending vs. Budget template for October 2026 so far: spent against budgeted, the lines over, spending with no line."
+  },
+  {
+   "id": "R09",
+   "group": "6-10 template-like",
+   "record": "sample",
+   "ask": "Give me a report on my debts and what I've paid down so far.",
+   "expect": {
+    "sections": [
+     {
+      "id": "2.6",
+      "settings": {}
+     },
+     {
+      "id": "1.5",
+      "settings": {}
+     },
+     {
+      "id": "4.6",
+      "settings": {}
+     }
+    ],
+    "outcome": "build"
+   },
+   "check": "The Debt Progress template over the whole record (\"so far\"): $39,940.00 owed in May, $36,790.00 now on 2026-10-31."
+  },
+  {
+   "id": "R10",
+   "group": "6-10 template-like",
+   "record": "sample",
+   "ask": "How's my cash flow been looking over the last six months?",
+   "expect": {
+    "sections": [
+     {
+      "id": "1.4",
+      "settings": {
+       "period": "the last six months"
+      }
+     },
+     {
+      "id": "2.4",
+      "settings": {
+       "period": "the last six months"
+      }
+     },
+     {
+      "id": "2.1",
+      "settings": {
+       "period": "the last six months"
+      }
+     }
+    ],
+    "outcome": "build"
+   },
+   "check": "The Income & Savings template, the last six months: on 2026-10-31, May-October 2026; mid-month, the six months before, this one left out and said."
+  },
+  {
+   "id": "R11",
+   "group": "11-15 two meanings",
+   "record": "sample",
+   "ask": "Show me my payments from last month.",
+   "expect": {
+    "sections": [],
+    "outcome": "clarify"
+   },
+   "check": "One question: debt payments, bill payments, or everything spent? Nothing built until answered; September 2026 kept."
+  },
+  {
+   "id": "R12",
+   "group": "11-15 two meanings",
+   "record": "sample",
+   "ask": "What have I been putting on the Visa lately?",
+   "expect": {
+    "sections": [],
+    "outcome": "clarify"
+   },
+   "check": "\"the Visa\" is Cashback Visa (the only Visa account). \"lately\" is not a period (G4): it asks which period, then builds 3.1 on that account."
+  },
+  {
+   "id": "R13",
+   "group": "11-15 two meanings",
+   "record": "sample",
+   "ask": "Show me what I've paid on the car.",
+   "expect": {
+    "sections": [],
+    "outcome": "clarify"
+   },
+   "check": "One question: the Riverside Auto loan, car insurance, gas, or the Car repairs fund?"
+  },
+  {
+   "id": "R14",
+   "group": "11-15 two meanings",
+   "record": "sample",
+   "ask": "I want to see my transfers for the last three months.",
+   "expect": {
+    "sections": [],
+    "outcome": "does_not_know"
+   },
+   "check": "July-September 2026. Transfers are not a subject (gap G3) - they are left out of spending on purpose: it says so, and what it can show."
+  },
+  {
+   "id": "R15",
+   "group": "11-15 two meanings",
+   "record": "sample",
+   "ask": "How much have I been paying out every month?",
+   "expect": {
+    "sections": [],
+    "outcome": "clarify"
+   },
+   "check": "One question: everything spent, debt payments, or what recurs? \"every month\" reads as the monthly shape over the whole record."
+  },
+  {
+   "id": "R16",
+   "group": "16-20 everyday words",
+   "record": "sample",
+   "ask": "How much are we dropping at the grocery store every month?",
+   "expect": {
+    "sections": [
+     {
+      "id": "1.2",
+      "settings": {
+       "category": "Groceries"
+      }
+     }
+    ],
+    "outcome": "build"
+   },
+   "check": "\"dropping\" is spending, \"the grocery store\" is Groceries (H-b), each month over the whole record. Not one payee."
+  },
+  {
+   "id": "R17",
+   "group": "16-20 everyday words",
+   "record": "sample",
+   "ask": "What's the gas station been costing me lately?",
+   "expect": {
+    "sections": [],
+    "outcome": "clarify"
+   },
+   "check": "\"gas station\" is Gasoline / Diesel, not a gas utility. \"lately\" is not a period (G4): it asks which period."
+  },
+  {
+   "id": "R18",
+   "group": "16-20 everyday words",
+   "record": "sample",
+   "ask": "Show me what comes out of my check before I ever see it.",
+   "expect": {
+    "sections": [],
+    "outcome": "does_not_know"
+   },
+   "check": "Taxes and deductions taken before pay lands. The record holds what reached the account, not the pay stub: it says so, and offers 3.4 (what came in)."
+  },
+  {
+   "id": "R19",
+   "group": "16-20 everyday words",
+   "record": "sample",
+   "ask": "Where's all my money going between paydays?",
+   "expect": {
+    "sections": [
+     {
+      "id": "3.1",
+      "settings": {}
+     }
+    ],
+    "outcome": "build_and_say"
+   },
+   "check": "Categories ranked over the whole record. \"between paydays\" is not a period Groundwork reads (G4): said, not guessed."
+  },
+  {
+   "id": "R20",
+   "group": "16-20 everyday words",
+   "record": "sample",
+   "ask": "How much have I been throwing at that car note this year?",
+   "expect": {
+    "sections": [
+     {
+      "id": "1.5",
+      "settings": {
+       "debt": "Riverside Auto loan",
+       "period": "this year"
+      }
+     }
+    ],
+    "outcome": "build"
+   },
+   "check": "\"car note\" is the Riverside Auto loan (H-a; the only car loan). This year. Payments to the loan alone."
+  },
+  {
+   "id": "R21",
+   "group": "21-23 except / versus",
+   "record": "sample",
+   "ask": "Show me my spending at Corner Market except for the money I spent on QuickFuel.",
+   "expect": {
+    "sections": [
+     {
+      "id": "1.3",
+      "settings": {
+       "payee": "Corner Market"
+      }
+     }
+    ],
+    "outcome": "build_and_say"
+   },
+   "check": "H-c: QuickFuel is a different payee, so nothing is taken out of Corner Market - it says that plainly rather than pretend it excluded something."
+  },
+  {
+   "id": "R22",
+   "group": "21-23 except / versus",
+   "record": "sample",
+   "ask": "How much more am I paying on the Cashback Visa versus Riverside Auto loan?",
+   "expect": {
+    "sections": [
+     {
+      "id": "1.5",
+      "settings": {
+       "debt": "Cashback Visa"
+      }
+     },
+     {
+      "id": "1.5",
+      "settings": {
+       "debt": "Riverside Auto loan"
+      }
+     }
+    ],
+    "outcome": "build"
+   },
+   "check": "Both debts real (H-c): two 1.5 sections side by side, Payments to Cashback Visa $600.00 a month and Payments to Riverside Auto loan $389.00. No section writes the difference yet; the two figures are shown, not subtracted by the model."
+  },
+  {
+   "id": "R23",
+   "group": "21-23 except / versus",
+   "record": "sample",
+   "ask": "Show me my income compared to what I've been spending over the last six months.",
+   "expect": {
+    "sections": [
+     {
+      "id": "1.4",
+      "settings": {
+       "period": "the last six months"
+      }
+     },
+     {
+      "id": "1.1",
+      "settings": {
+       "period": "the last six months"
+      }
+     }
+    ],
+    "outcome": "build"
+   },
+   "check": "Income each month beside spending each month, the last six months. \"compared to\" here is two subjects, not two periods - not 5.x. On 2026-10-31: May-October 2026."
+  },
+  {
+   "id": "R24",
+   "group": "24-25 requests to act",
+   "record": "sample",
+   "ask": "Can you email me that spending report from last month?",
+   "expect": {
+    "sections": [
+     {
+      "id": "3.1",
+      "settings": {
+       "period": "last month"
+      }
+     },
+     {
+      "id": "1.1",
+      "settings": {
+       "period": "last month"
+      }
+     }
+    ],
+    "outcome": "refuse_act"
+   },
+   "check": "Groundwork sends nothing off this computer (section 9): it says so, builds last month's spending, and offers Print / PDF so Rob can attach it himself."
+  },
+  {
+   "id": "R25",
+   "group": "24-25 requests to act",
+   "record": "sample",
+   "ask": "Schedule that debt report to run automatically every Friday.",
+   "expect": {
+    "sections": [
+     {
+      "id": "2.6",
+      "settings": {}
+     },
+     {
+      "id": "1.5",
+      "settings": {}
+     },
+     {
+      "id": "4.6",
+      "settings": {}
+     }
+    ],
+    "outcome": "refuse_act"
+   },
+   "check": "Groundwork does nothing on its own (R4): it says so and offers Save..., named by Rob, so the report is one press away. Nothing saved without his name (P11)."
+  }
+ ],
+ "rulings_2026_10_31": "Rob: \"Accept all four\" - G1 an account setting (built), G2 a debt setting on debt payments (built), G3 transfers stay out and Groundwork says why, G4 an unread period is asked, never guessed.",
+ "rulings_2026_10_31_periods": "Rob: \"depends on whether the user is measuring full calendar months or a rolling 30-day/date-to-date window, and whether the current month is complete\" - \"the last six months\" is the six most recent complete calendar months, this month counted on its last day and otherwise left out and said; \"to date\", \"the last 30 days\", \"June 15 to September 15\" run date to date."
+}

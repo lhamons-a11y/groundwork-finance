@@ -352,3 +352,50 @@ Rob: *"after the gates are done lets build this final piece"*; C3 *"Accept, all 
 
 **Next, stage 4:** the index (P3-P6) - the Ask box reading "monthly totals of debt payments from June to September"
 into section 1.5 and its period, with no model call; then the section 6 question set, written by Rob before measuring.
+
+## 13. The 25 requests (C8), written 2026-10-31
+
+Rob's 25, verbatim, are in `tests/report_requests.json`, each with the sections, settings and outcome proposed for it.
+They were checked against the 39 sections on the sample household before measuring. 13 build as the catalogue
+stands, four should ask, six say what Groundwork cannot do yet, two are refused as requests to act. Four gaps showed:
+
+| Gap | What | Requests | Proposed |
+|---|---|---|---|
+| G1 | No section narrows to one account | R03, R12 | an *account* setting on the spending sections |
+| G2 | Debt payments cannot narrow to one debt | R04, R20, R22 | the *debt* setting (today only on 6.6) on 1.5, 2.5, 3.5, 5.5 |
+| G3 | Transfers are not a subject | R14 | stays out: says so (transfers are left out of spending on purpose) |
+| G4 | "lately", "between paydays" are not periods | R12, R17, R19 | ask the period; never guess (P5) |
+
+Also seen: "the last six months" reads as the six full months before this one (April-September). On the sample,
+April is before the record, so the section shows May-September without saying April is missing. A section title
+echoes the category as typed ("groceries, each month"), not the record's name.
+
+**Ruled 2026-10-31.** Rob: *"Accept all four."*
+
+- **G1, built:** an optional *account* on the spending, category, payee and income sections (not the snapshots: the
+  budget and income lines are the household's). The name is matched like a debt's ("the Visa" is Cashback Visa); a
+  name the record lacks is said, with the accounts it has. List of items with an account shows the charges row by row.
+- **G2, built:** an optional *debt* on the debt-payment sections. A payment belongs to a debt when it is linked to it
+  on Debt Payoff, or when its payee carries a distinctive word of that debt's name and of no other ("Riverside Auto
+  Finance" is the Riverside Auto loan). On the sample: $600.00, $389.00 and $210.00 a month, the $1,199.00 together.
+- **G3:** transfers stay out of the catalogue; Groundwork says they are left out of spending on purpose.
+- **G4:** "lately" and "between paydays" are asked, never guessed - R12 and R17 now ask the period.
+- Titles now carry the record's own names ("Groceries, each month"; "…, on Cashback Visa"; "…, to Riverside Auto loan").
+- s269: five more checks. The expectations in `tests/report_requests.json` are updated to match: 14 build, 2 build and
+  say, 5 ask, 2 say what the record cannot tell (transfers, pay-stub deductions), 2 refused as requests to act.
+
+**Periods, ruled 2026-10-31.** Rob: *"depends on whether the user is measuring full calendar months or a rolling
+30-day/date-to-date window, and whether the current month is complete."* Built in `core/periods.py`:
+
+| Said | Read as |
+|---|---|
+| "the last six months" | the six most recent complete calendar months. This month counts once complete - on its last day; before that it is left out and the section says *"October 2026 is left out: it is not over yet."* |
+| "the last six months to date", "… up to today" | date to date: the day after the same date six months back, to today |
+| "the last 30 days", "the past 2 weeks" | date to date, ending today |
+| "June 15 to September 15", "since June 15" | date to date, the days named; across the new year when the end comes first |
+
+A date-to-date section counts only its days, says them ("15 June 2026 to 15 September 2026"), and says which month
+counts from or up to which day. Where the record starts after the period does, the section says when it starts. "Today
+is the last day" is the calendar's word on complete: a statement for that day may not be imported yet.
+s268 and s269: three more checks; s268's "the last 3 months" on 31 October is now August-October. One help entry: what
+"the last six months" means.

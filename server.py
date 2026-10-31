@@ -4883,7 +4883,7 @@ def _rb_clean(sections):
         if not isinstance(s, dict) or s.get('id') not in ids:
             continue
         st = {k: v for k, v in (s.get('settings') or {}).items()
-              if k in ('period', 'period_b', 'category', 'payee', 'amount', 'debt') and isinstance(v, (str, int, float, dict))}
+              if k in ('period', 'period_b', 'category', 'payee', 'amount', 'debt', 'account') and isinstance(v, (str, int, float, dict))}
         x = {'id': s['id'], 'settings': st}
         if s.get('style') in styles:
             x['style'] = s['style']

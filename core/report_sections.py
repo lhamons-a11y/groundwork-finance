@@ -10,8 +10,11 @@ monthly totals of debt payments.
     run(reader, section_id, settings) -> {id, title, enough, sentences, table, chart, ...}
 
 settings: period ('June to September', or {'start': 'YYYY-MM', 'end': 'YYYY-MM'}), period_b (comparisons), category,
-payee, amount, debt. Health is not a subject (TM7): it stays behind item 45's H6 boundary, on its own page.
+payee, amount, debt, account. G1/G2 (Rob 2026-10-31, "Accept all four"): an account narrows the spending and income
+sections to that account; a debt narrows the debt-payment sections to that debt. Health is not a subject (TM7): it stays behind item 45's H6 boundary, on its own page.
 """
+import re
+
 from core import agent_hands as ah
 from core import periods
 
@@ -100,8 +103,10 @@ def catalog():
             needs.append('period_b')
         if sid in ('6.6', '6.10'):
             needs.append('amount')
+        optional = (['account'] if subj <= 4 and shape != 4 else []) + (['debt'] if subj == 5 or sid == '6.6' else [])
         secs.append({'id': sid, 'shape': sh['key'], 'subject': su['key'], 'title': TITLES[sid],
-                     'shape_name': sh['name'], 'subject_name': su['name'], 'draws': sh['draws'], 'needs': needs})
+                     'shape_name': sh['name'], 'subject_name': su['name'], 'draws': sh['draws'], 'needs': needs,
+                     'optional': optional})
     return {'shapes': SHAPES, 'subjects': SUBJECTS, 'sections': secs, 'styles': STYLES,
             'templates': [{'id': t['id'], 'name': t['name'],
                            'sections': [{'id': i, 'settings': s} for i, s in t['sections']]} for t in TEMPLATES]}
@@ -162,6 +167,10 @@ def _label(months):
 def _out(sid, settings, **kw):
     title = TITLES[sid].format(category=settings.get('category') or 'One category', payee=settings.get('payee') or 'A payee',
                                amount=_m(_f(settings.get('amount'))) if settings.get('amount') else 'an amount')
+    if settings.get('account'):
+        title += f", on {settings['account']}"
+    if settings.get('debt') and sid.endswith('.5'):
+        title += f", to {settings['debt']}"
     o = {'id': sid, 'title': title, 'enough': True, 'sentences': [], 'table': None, 'chart': None, 'settings': settings}
     o.update(kw)
     return o
@@ -221,6 +230,7 @@ def _subject_rows(subj, rows, settings):
         if not names:
             return None, None, None, None, (f'there is no category called "{settings.get("category") or ""}" in the record',
                                             'choosing one of: ' + ', '.join(_cats(rows)))
+        settings['category'] = ', '.join(names)          # the record's own name in the title, not the word as typed
         return rows, (lambda r: _is_spend(r) and r['category'] in names), ah._signed, ', '.join(names), None
     if subj == 3:
         p = (settings.get('payee') or '').lower()
@@ -232,18 +242,121 @@ def _subject_rows(subj, rows, settings):
     return None, None, None, None, ('this subject has no rows to add up', None)
 
 
+def _account_named(said, rows):
+    """G1: the accounts a name can mean - the whole name, or every distinctive word of it ("the Visa")."""
+    accounts = sorted({r['account'] for r in rows if r['account']})
+    n = (said or '').lower().replace('the ', '').strip()
+    hits = [a for a in accounts if n and (n in a.lower() or a.lower() in n)]
+    if not hits:
+        words = [w for w in re.findall(r'[a-z]+', n) if w not in ah._GENERIC_WORDS]
+        hits = [a for a in accounts if words and all(w in a.lower() for w in words)]
+    return hits, accounts
+
+
+def _debt_payment_ids(reader, said, rows):
+    """G2: the debt a name means, and which payment rows went to it - a payment linked to the debt on Debt Payoff,
+    else one whose payee carries a distinctive word of that debt's name and of no other. -> (name, ids) or (None, why)"""
+    cards, _, _ = ah._engine_inputs(reader)
+    target, hits = ah._match_debt(said, cards)
+    if target is None:
+        names = [c.name for c in (hits or cards)]
+        return None, (f'"{said}" could be ' + ' or '.join(names) if len(hits) > 1 else f'there is no debt called "{said}"',
+                      'choosing one of: ' + ', '.join(names))
+    from core.database import DebtAccount, DebtLedgerEntry
+    with reader.session_factory() as s:
+        ids = {d.id: d.name for d in s.query(DebtAccount).all()}
+        linked = {e.linked_checking_transaction_id: ids.get(e.debt_account_id) for e in s.query(DebtLedgerEntry).all()
+                  if e.linked_checking_transaction_id}
+    words = {c.name: [w for w in re.findall(r'[a-z]+', c.name.lower()) if len(w) >= 4 and w not in ah._GENERIC_WORDS]
+             for c in cards}
+    out = set()
+    for r in rows:
+        if not _is_debt_payment(r):
+            continue
+        if r['id'] in linked:
+            if linked[r['id']] == target.name:
+                out.add(r['id'])
+            continue
+        p = r['payee'].lower()
+        to = [n for n, ws in words.items() if any(w in p for w in ws)]
+        if to == [target.name]:
+            out.add(r['id'])
+    return target.name, out
+
+
 # ── the sections ────────────────────────────────────────────────────────────────────────────────────────────────────
 def _flow(reader, sid, shape, subj, settings, rows):
-    """Subjects 1-5: rows added up - monthly, trend, list, snapshot, comparison."""
+    """Subjects 1-5: rows added up - monthly, trend, list, snapshot, comparison - and what the period left out."""
+    notes = []
+    o = _flow_body(reader, sid, shape, subj, settings, rows, notes)
+    if o.get('enough') and notes:
+        o['sentences'] = [*o['sentences'], *notes]
+    return o
+
+
+def _day_words(d):
+    return f"{d.day} {d.strftime('%B %Y')}"
+
+
+def _ordinal(n):
+    return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
+
+
+def _read(reader, setting):
+    return periods.read_period(setting, reader.today) if isinstance(setting, str) and setting.strip() else None
+
+
+def _in_window(pred, p):
+    """A date-to-date period (Rob 2026-10-31): only the days it names, not the whole months they touch."""
+    if not (p and p.get('window')):
+        return pred
+    lo, hi = p['start'].isoformat(), p['end'].isoformat()
+    return lambda r: pred(r) and lo <= r['date'] <= hi
+
+
+def _flow_body(reader, sid, shape, subj, settings, rows, notes):
     src, pred, val, what, bad = _subject_rows(subj, rows, settings)
     if bad:
         return _not_enough(sid, settings, *bad)
+    if settings.get('account') and subj <= 4:
+        if shape == 4:
+            return _not_enough(sid, settings, 'the budget and the income lines are the household\'s, not one account\'s',
+                               'leaving the account out of this section')
+        hits, accounts = _account_named(settings['account'], rows)
+        if len(hits) != 1:
+            return _not_enough(sid, settings, (f'"{settings["account"]}" could be ' + ' or '.join(hits)) if hits else
+                               f'there is no account called "{settings["account"]}"',
+                               'choosing one of: ' + ', '.join(hits or accounts))
+        acct, base = hits[0], pred
+        settings['account'] = acct
+        pred = lambda r: base(r) and r['account'] == acct
+    if settings.get('debt') and subj == 5:
+        name, got = _debt_payment_ids(reader, settings['debt'], rows)
+        if name is None:
+            return _not_enough(sid, settings, *got)
+        if not got:
+            return _not_enough(sid, settings, f'no payment in the record is tied to {name} yet',
+                               f'linking a payment to {name} on Debt Payoff')
+        settings['debt'], what, base = name, f'Payments to {name}', pred
+        pred = lambda r: base(r) and r['id'] in got
     months, said = _months(reader, rows, settings.get('period'), default='this' if shape in (4, 5) else 'record')
     if months is None:
         return _not_enough(sid, settings, said, 'words like "June to September", "last month" or "this year"')
     if not months:
         return _not_enough(sid, settings, 'the record has no transactions yet', 'importing a statement')
     said = _label(months) if said not in ('this month',) else said
+    p, pred_all = _read(reader, settings.get('period')), pred
+    pred = _in_window(pred, p)
+    if p and p.get('window'):
+        said = f"{_day_words(p['start'])} to {_day_words(p['end'])}"
+        if shape in (1, 2) and p['start'].day != 1 and p['months'][0] in months:
+            notes.append(f"{ah.month_label(p['months'][0])} counts from the {_ordinal(p['start'].day)}.")
+        if shape in (1, 2) and p['end'].month != reader.today.month and p['end'] != periods._last_day(p['end'].year, p['end'].month):
+            notes.append(f"{ah.month_label(p['months'][-1])} counts up to the {_ordinal(p['end'].day)}.")
+    if p and p.get('note'):
+        notes.append(p['note'])
+    if p and p['months'][0] < months[0]:
+        notes.append(f"The record starts in {ah.month_label(months[0])}.")
     if shape in (1, 2):
         series = _monthly_series(src, months, pred, val)
         o = _out(sid, settings, sentences=[_series_sentence(what, series, said)],
@@ -272,6 +385,16 @@ def _flow(reader, sid, shape, subj, settings, rows):
                                   + (' (so far).' if months[-1] == reader.today.strftime('%Y-%m') else '.'))
         return o
     if shape == 3:
+        if subj == 1 and settings.get('account'):      # G1: one account's spending is short enough to show row by row
+            sel = [r for r in src if r['date'][:7] in months and pred(r)]
+            by = _sum_by(src, months, lambda r: r['category'] or 'Uncategorised', pred, val)
+            top = sorted(by.items(), key=lambda kv: -kv[1])[:3]
+            sent = (f"{len(sel)} charges on {settings['account']}, {said}: {_m(round(sum(val(r) for r in sel), 2))} in all."
+                    + (' The largest: ' + '; '.join(f'{k} {_m(v)}' for k, v in top) + '.' if top else '')
+                    if sel else f"Nothing spent on {settings['account']} in {said}.")
+            return _out(sid, settings, sentences=[sent], table={'columns': ['Date', 'Payee', 'Category', 'Amount'],
+                        'rows': [[r['date'], r['payee'], r['category'], _m(val(r))] for r in sel[-200:]]},
+                        title=f"Charges on {settings['account']}")
         if subj in (1, 3):
             key = (lambda r: r['category'] or 'Uncategorised') if subj == 1 else (lambda r: r['payee'])
             by = _sum_by(src, months, key, pred, val)
@@ -284,7 +407,9 @@ def _flow(reader, sid, shape, subj, settings, rows):
                                                                 'rows': [[k, _m(v)] for k, v in top]})
         sel = [r for r in src if r['date'][:7] in months and pred(r)]
         total = round(sum(val(r) for r in sel), 2)
-        return _out(sid, settings, sentences=[f'{len(sel)} {what.lower()} rows, {said}: {_m(total)} in all.'],
+        count = (f"{len(sel)} payment{'s' if len(sel) != 1 else ''} to {settings['debt']}" if subj == 5 and settings.get('debt')
+                 else f'{len(sel)} {what.lower()} rows')
+        return _out(sid, settings, sentences=[f'{count}, {said}: {_m(total)} in all.'],
                     table={'columns': ['Date', 'Payee', 'Category', 'Account', 'Amount'],
                            'rows': [[r['date'], r['payee'], r['category'], r['account'], _m(val(r))] for r in sel[-200:]]})
     if shape == 4:
@@ -332,8 +457,10 @@ def _flow(reader, sid, shape, subj, settings, rows):
             return _not_enough(sid, settings, 'a comparison needs a second period', 'choosing the period to compare against')
         key = {1: lambda r: r['category'] or 'Uncategorised', 2: lambda r: r['category'], 3: lambda r: r['payee'],
                4: lambda r: r['payee'], 5: lambda r: r['payee']}[subj]
-        a, b = _sum_by(src, months, key, pred, val), _sum_by(src, months_b, key, pred, val)
-        la, lb = _label(months), _label(months_b)
+        pb = _read(reader, settings.get('period_b'))
+        a, b = _sum_by(src, months, key, pred, val), _sum_by(src, months_b, key, _in_window(pred_all, pb), val)
+        la = said if p and p.get('window') else _label(months)
+        lb = f"{_day_words(pb['start'])} to {_day_words(pb['end'])}" if pb and pb.get('window') else _label(months_b)
         keys = sorted(set(a) | set(b), key=lambda k: -(a.get(k, 0) + b.get(k, 0)))
         ta, tb = round(sum(a.values()), 2), round(sum(b.values()), 2)
         return _out(sid, settings, sentences=[f'{what}: {_m(ta)} in {la}; {_m(tb)} in {lb}.'],

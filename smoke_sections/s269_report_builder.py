@@ -72,3 +72,38 @@ def run(ctx):
     check('s269 the Report Center offers Build a report, its styles and Save; Print redraws in the print style',
           "id:        'builder'" in js and "case 'builder':         _rcRenderBuilder()" in js
           and "await _rbRun('print')" in js and "'/api/reports/builder/saved'" in js)
+
+    # G1/G2 (Rob 2026-10-31, "Accept all four"): an account narrows spending; a debt narrows debt payments
+    accts = sorted({a['name'] for a in c.get('/api/accounts', headers=H).get_json()['data']})
+    debts = [d['name'] for d in (c.get('/api/debt', headers=H).get_json() or [])
+             if isinstance(d, dict) and float(d.get('current_balance') or 0) > 0]
+    one = accts[0] if accts else 'none'
+    g = c.post('/api/reports/builder/run', headers=HJ, data=json.dumps({'sections': [
+        {'id': '1.1', 'settings': {'account': one}}, {'id': '1.1', 'settings': {'account': 'Narnia'}},
+        {'id': '4.1', 'settings': {'account': one}}, {'id': '1.5', 'settings': {'debt': 'the boat'}},
+        *[{'id': '1.5', 'settings': {'debt': d}} for d in debts[:3]], {'id': '1.5', 'settings': {}}]})).get_json()['data']['sections']
+    sec = {x['id']: x for x in cat['sections']}
+    check('s269 G1/G2 the catalog offers an account on spending and income, a debt on debt payments',
+          'account' in sec['3.1']['optional'] and 'account' not in sec['4.1']['optional'] and 'debt' in sec['1.5']['optional']
+          and 'debt' not in sec['1.1']['optional'])
+    check('s269 G1 an account the record does not have, or a budget asked of one account, is said, not guessed',
+          not g[1]['enough'] and 'no account called "Narnia"' in g[1]['sentences'][0]
+          and not g[2]['enough'] and "household's" in g[2]['sentences'][0])
+    check('s269 G2 a debt the record does not have is said, with the debts it does have',
+          not g[3]['enough'] and 'no debt called "the boat"' in g[3]['sentences'][0])
+    each = [x for x in g[4:-1] if x['enough']]
+    total = lambda x: float(x['sentences'][0].split(': $')[1].split(' in all')[0].replace(',', '')) if ': $' in x['sentences'][0] else 0.0
+    check('s269 G2 one debt\'s payments are its own, and the debts\' payments together are no more than all of them',
+          all(x['title'].endswith(f", to {x['settings']['debt']}") for x in each)
+          and round(sum(total(x) for x in each), 2) <= total(g[-1]) + 0.005)
+    check('s269 G1/G2 the builder page offers the account and the debt',
+          "(sec.optional || []).includes('account')" in js and "(sec.optional || []).includes('debt')" in js)
+
+    import datetime as _dt
+    today = _dt.date.today()
+    lo = today - _dt.timedelta(days=29)
+    win = c.post('/api/reports/builder/run', headers=HJ, data=json.dumps({'sections': [
+        {'id': '3.1', 'settings': {'period': 'the last 30 days'}}]})).get_json()['data']['sections'][0]
+    check('s269 Rob 2026-10-31 a date-to-date period reads only its days, and says them',
+          win['enough'] and f"{lo.day} {lo.strftime('%B %Y')} to {today.day} {today.strftime('%B %Y')}" in win['sentences'][0]
+          or (not win['enough'] and "doesn't know yet" in win['sentences'][0]))

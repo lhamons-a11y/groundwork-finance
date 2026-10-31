@@ -27,7 +27,20 @@ def run(ctx):
           span('this month') == ('2026-10', '2026-10', 1) and span('last month') == ('2026-09', '2026-09', 1)
           and span('this year') == ('2026-01', '2026-10', 10) and span('last year') == ('2025-01', '2025-12', 12)
           and span('since January') == ('2026-01', '2026-10', 10) and span('Q3') == ('2026-07', '2026-09', 3)
-          and span('the last 3 months') == ('2026-07', '2026-09', 3))
+          and span('the last 3 months') == ('2026-08', '2026-10', 3))
+    mid = date(2026, 10, 15)
+    six = periods.read_period('the last six months', mid)
+    check('s268 Rob 2026-10-31 calendar months: this month counts once complete (its last day); before that it is left '
+          'out, and said',
+          span('the last six months') == ('2026-05', '2026-10', 6) and not periods.read_period('the last six months', t).get('note')
+          and (six['months'][0], six['months'][-1]) == ('2026-04', '2026-09') and 'October 2026 is left out' in six['note'])
+    w = lambda s_, d=mid: (lambda p: p and (str(p['start']), str(p['end']), bool(p.get('window'))))(periods.read_period(s_, d))
+    check('s268 Rob 2026-10-31 date to date: "to date", the last N days or weeks, day to day, since a day',
+          w('the last six months to date') == ('2026-04-16', '2026-10-15', True)
+          and w('the last 30 days') == ('2026-09-16', '2026-10-15', True) and w('past 2 weeks') == ('2026-10-02', '2026-10-15', True)
+          and w('June 15 to September 15') == ('2026-06-15', '2026-09-15', True)
+          and w('since June 15') == ('2026-06-15', '2026-10-15', True)
+          and w('November 20 to February 10') == ('2025-11-20', '2026-02-10', True))
     check('s268 P5 words that are not periods read as none ("may we", "market", "since we cut that budget")',
           span('may we see it') is None and span('the market report') is None
           and span('What have we spent on coffee since we cut that budget?') is None
