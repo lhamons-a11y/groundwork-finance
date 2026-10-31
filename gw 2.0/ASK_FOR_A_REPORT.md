@@ -249,6 +249,24 @@ through the Model Context Protocol. **Ruled 2026-10-31: dropped. Groundwork does
 is built so phi is enough. The reasons, kept for the record: outside agents do their own arithmetic, so H22 cannot
 hold for them; a cloud agent takes the record off the computer; R7 and H8 refusals would become the other agent's.
 
+**Security, the strongest reason** (Rob, 2026-10-31: *"i think that would produce security issues"*):
+- **Planted text reaches a model Groundwork does not guard.** Item 114 section 11 held back 5 / 5 planted memos and
+  payees because Groundwork's own gate reads them first. An outside agent reading the same rows through MCP has no
+  such gate: a memo written to instruct a model ("ignore earlier instructions and ...") goes straight to it.
+- **The record leaves the computer.** Most agents people would attach run in the cloud; every lookup would send
+  transactions, balances and debts to another company's servers - against local-first, and against the health
+  boundary (TM7).
+- **A door other programs can open.** An MCP server is something listening on the computer. Unless it is locked down
+  with care, any program there, malware included, could ask it for the whole financial record. Groundwork has no such
+  door today, and that is a strength.
+- **No say over what the agent does next.** R7, H8 and Yes / No / Undo live inside Groundwork. An outside agent could
+  take what it read and act elsewhere - email, a browser, a bank's website.
+- **Figures nobody checked**, shown beside Groundwork's name (H22 cannot hold).
+- **Tools Groundwork cannot review.** People would install third-party MCP servers and agents; their code is outside
+  anything Groundwork can test or vouch for.
+
+Reopening it would need a ruling that answers each of these first.
+
 ## 10. Ruling: Rob, 2026-10-31
 
 Rob: *"lets rule in section 4-9"*, then ruled one by one:
