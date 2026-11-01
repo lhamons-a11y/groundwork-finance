@@ -14,6 +14,8 @@ proposal first; only the person's tap changes anything, and every change has Und
 """
 import re
 
+from core.money_kind import filed_kind
+
 NEVER_HIDE = {'other', 'transfer', 'income', 'uncategorized'}
 # Names that look like one but are two on purpose. Gas is the natural-gas utility and Gasoline / Diesel is fill-ups:
 # item 52 (CATEGORY_LABELS.md) separated them because fuel was counted as a gas bill. Found measuring item 83 on Rob's
@@ -143,6 +145,6 @@ def splits(rows, min_each=1):
         if len(cs) < 2:
             continue
         cs.sort(key=lambda c: -c['count'])
-        out.append({'merchant': m, 'categories': cs, 'transfer': any(c['name'].lower() == 'transfer' for c in cs),
+        out.append({'merchant': m, 'categories': cs, 'transfer': any(filed_kind(c['name']) == 'own_move' for c in cs),
                     'count': sum(c['count'] for c in cs)})
     return sorted(out, key=lambda s: -s['count'])
