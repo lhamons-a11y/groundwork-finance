@@ -1,0 +1,2043 @@
+{
+ "when": "2026-11-01 01:03",
+ "today": "2026-11-01",
+ "index": [
+  {
+   "id": "R01",
+   "set": "rob",
+   "style": null,
+   "ask": "Show me what I spent at Corner Market last month.",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "1.3",
+     "settings": {
+      "payee": "Corner Market",
+      "period": "last month"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 18.0,
+   "step": 1,
+   "first_sentences": [
+    [
+     "Corner Market, October 2026: $187.09 in all. October 2026 $187.09."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R02",
+   "set": "rob",
+   "style": null,
+   "ask": "How much did I bring in from my paycheck in September?",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "3.4",
+     "settings": {
+      "period": "September"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 13.7,
+   "step": 1,
+   "first_sentences": [
+    [
+     "4 income rows, September 2026: $7,860.00 in all."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R03",
+   "set": "rob",
+   "style": null,
+   "ask": "I want to see all the transactions on Cashback Visa for October.",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "3.1",
+     "settings": {
+      "account": "Cashback Visa",
+      "period": "October"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 12.8,
+   "step": 1,
+   "first_sentences": [
+    [
+     "24 charges on Cashback Visa, October 2026: $1,268.33 in all. The largest: Groceries $555.83; Restaurants $243.64; Gasoline / Diesel $210.96."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R04",
+   "set": "rob",
+   "style": null,
+   "ask": "Show me what I paid toward Riverside Auto loan over the last six months.",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "1.5",
+     "settings": {
+      "debt": "Riverside Auto loan",
+      "period": "the last six months"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 12.4,
+   "step": 1,
+   "first_sentences": [
+    [
+     "Payments to Riverside Auto loan, June 2026 to October 2026: $1,945.00 in all. June 2026 $389.00; July 2026 $389.00; August 2026 $389.00; September 2026 $389.00; October 2026 $389.00."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R05",
+   "set": "rob",
+   "style": null,
+   "ask": "How much did I spend on fuel at QuickFuel this year?",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "1.3",
+     "settings": {
+      "payee": "QuickFuel",
+      "period": "this year"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 13.6,
+   "step": 1,
+   "first_sentences": [
+    [
+     "QuickFuel, June 2026 to November 2026: $941.91 in all. June 2026 $160.85; July 2026 $151.25; August 2026 $217.63; September 2026 $201.22; October 2026 $210.96; November 2026 $0.00."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R06",
+   "set": "rob",
+   "style": null,
+   "ask": "Give me a spending breakdown for the last three months.",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "3.1",
+     "settings": {
+      "period": "the last three months"
+     }
+    },
+    {
+     "id": "1.1",
+     "settings": {
+      "period": "the last three months"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 12.4,
+   "step": 1,
+   "first_sentences": [
+    [
+     "17 categories, August 2026 to October 2026. The largest: Rent / Mortgage $4,950.00; Groceries $1,667.31; Restaurants $637.93."
+    ],
+    [
+     "Spending, August 2026 to October 2026: $10,031.74 in all. August 2026 $3,315.29; September 2026 $3,359.93; October 2026 $3,356.52."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R07",
+   "set": "rob",
+   "style": null,
+   "ask": "I want to see where all my income is coming from this year.",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "3.4",
+     "settings": {
+      "period": "this year"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 33.7,
+   "step": 1,
+   "first_sentences": [
+    [
+     "22 income rows, June 2026 to November 2026: $43,230.00 in all."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R08",
+   "set": "rob",
+   "style": null,
+   "ask": "Show me how my budget is looking for October.",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "4.1",
+     "settings": {
+      "period": "October"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 11.8,
+   "step": 1,
+   "first_sentences": [
+    [
+     "October 2026: $3,345.53 spent against $3,530.00 budgeted."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R09",
+   "set": "rob",
+   "style": null,
+   "ask": "Give me a report on my debts and what I've paid down so far.",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "2.6",
+     "settings": {}
+    },
+    {
+     "id": "1.5",
+     "settings": {}
+    },
+    {
+     "id": "4.6",
+     "settings": {}
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 13.8,
+   "step": 1,
+   "first_sentences": [
+    [
+     "Owed across the debts: $39,940.00 in June 2026; $36,790.00 in November 2026."
+    ],
+    [
+     "Debt payments, June 2026 to November 2026: $5,995.00 in all. June 2026 $1,199.00; July 2026 $1,199.00; August 2026 $1,199.00; September 2026 $1,199.00; October 2026 $1,199.00; November 2026 $0.00."
+    ],
+    [
+     "Owed today: $36,790.00 across 3 debts."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R10",
+   "set": "rob",
+   "style": null,
+   "ask": "How's my cash flow been looking over the last six months?",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "1.4",
+     "settings": {
+      "period": "the last six months"
+     }
+    },
+    {
+     "id": "2.4",
+     "settings": {
+      "period": "the last six months"
+     }
+    },
+    {
+     "id": "2.1",
+     "settings": {
+      "period": "the last six months"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 12.9,
+   "step": 1,
+   "first_sentences": [
+    [
+     "Income, June 2026 to October 2026: $43,230.00 in all. June 2026 $7,860.00; July 2026 $10,010.00; August 2026 $7,860.00; September 2026 $7,860.00; October 2026 $9,640.00."
+    ],
+    [
+     "Income, June 2026 to October 2026: $43,230.00 in all. June 2026 $7,860.00; July 2026 $10,010.00; August 2026 $7,860.00; September 2026 $7,860.00; October 2026 $9,640.00."
+    ],
+    [
+     "Spending, June 2026 to October 2026: $16,761.34 in all. June 2026 $3,434.78; July 2026 $3,294.82; August 2026 $3,315.29; September 2026 $3,359.93; October 2026 $3,356.52."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R11",
+   "set": "rob",
+   "style": null,
+   "ask": "Show me my payments from last month.",
+   "want": "clarify",
+   "got": "clarify",
+   "sections": [],
+   "question": "Which payments do you mean?",
+   "said": [],
+   "choices": [
+    "Debt payments",
+    "Bills that recur",
+    "Everything spent"
+   ],
+   "ms": 13.2,
+   "step": 2,
+   "first_sentences": [],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R12",
+   "set": "rob",
+   "style": null,
+   "ask": "What have I been putting on the Visa lately?",
+   "want": "clarify",
+   "got": "clarify",
+   "sections": [],
+   "question": "Over what period?",
+   "said": [],
+   "choices": [
+    "Last month",
+    "The last three months",
+    "This year",
+    "Everything in the record"
+   ],
+   "ms": 12.7,
+   "step": 2,
+   "first_sentences": [],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R13",
+   "set": "rob",
+   "style": null,
+   "ask": "Show me what I've paid on the car.",
+   "want": "clarify",
+   "got": "clarify",
+   "sections": [],
+   "question": "What about the car do you mean?",
+   "said": [],
+   "choices": [
+    "Riverside Auto loan",
+    "Auto Insurance",
+    "Gasoline / Diesel"
+   ],
+   "ms": 13.1,
+   "step": 2,
+   "first_sentences": [],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R14",
+   "set": "rob",
+   "style": null,
+   "ask": "I want to see my transfers for the last three months.",
+   "want": "does_not_know",
+   "got": "does_not_know",
+   "sections": [],
+   "question": "Transfers between your own accounts are left out of spending on purpose, so there is no report of them. Groundwork can show what was spent, or each account's balance.",
+   "said": [
+    "Transfers between your own accounts are left out of spending on purpose, so there is no report of them. Groundwork can show what was spent, or each account's balance."
+   ],
+   "choices": [
+    "Everything spent",
+    "Each account"
+   ],
+   "ms": 0.1,
+   "step": 2,
+   "first_sentences": [],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R15",
+   "set": "rob",
+   "style": null,
+   "ask": "How much have I been paying out every month?",
+   "want": "clarify",
+   "got": "clarify",
+   "sections": [],
+   "question": "Which do you mean by paying out?",
+   "said": [],
+   "choices": [
+    "Everything spent",
+    "Debt payments",
+    "What recurs"
+   ],
+   "ms": 13.0,
+   "step": 2,
+   "first_sentences": [],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R16",
+   "set": "rob",
+   "style": null,
+   "ask": "How much are we dropping at the grocery store every month?",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "1.2",
+     "settings": {
+      "category": "Groceries"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 12.5,
+   "step": 1,
+   "first_sentences": [
+    [
+     "Groceries, June 2026 to November 2026: $2,931.05 in all. June 2026 $668.51; July 2026 $595.23; August 2026 $477.17; September 2026 $634.31; October 2026 $555.83; November 2026 $0.00."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R17",
+   "set": "rob",
+   "style": null,
+   "ask": "What's the gas station been costing me lately?",
+   "want": "clarify",
+   "got": "clarify",
+   "sections": [],
+   "question": "Over what period?",
+   "said": [],
+   "choices": [
+    "Last month",
+    "The last three months",
+    "This year",
+    "Everything in the record"
+   ],
+   "ms": 11.5,
+   "step": 2,
+   "first_sentences": [],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R18",
+   "set": "rob",
+   "style": null,
+   "ask": "Show me what comes out of my check before I ever see it.",
+   "want": "does_not_know",
+   "got": "does_not_know",
+   "sections": [],
+   "question": "The record holds what reached your accounts, not your pay stub, so Groundwork cannot show what was taken out before pay landed. It can show what came in.",
+   "said": [
+    "The record holds what reached your accounts, not your pay stub, so Groundwork cannot show what was taken out before pay landed. It can show what came in."
+   ],
+   "choices": [
+    "What came in"
+   ],
+   "ms": 0.1,
+   "step": 2,
+   "first_sentences": [],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R19",
+   "set": "rob",
+   "style": null,
+   "ask": "Where's all my money going between paydays?",
+   "want": "build_and_say",
+   "got": "build_and_say",
+   "sections": [
+    {
+     "id": "3.1",
+     "settings": {}
+    }
+   ],
+   "question": null,
+   "said": [
+    "\"Between paydays\" is not a period Groundwork can read yet, so this is over the whole record. Choose a period below to narrow it."
+   ],
+   "choices": [],
+   "ms": 12.6,
+   "step": 1,
+   "first_sentences": [
+    [
+     "17 categories, June 2026 to November 2026. The largest: Rent / Mortgage $9,900.00; Groceries $2,931.05; Restaurants $1,102.04."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R20",
+   "set": "rob",
+   "style": null,
+   "ask": "How much have I been throwing at that car note this year?",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "1.5",
+     "settings": {
+      "debt": "Riverside Auto loan",
+      "period": "this year"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 13.0,
+   "step": 1,
+   "first_sentences": [
+    [
+     "Payments to Riverside Auto loan, June 2026 to November 2026: $1,945.00 in all. June 2026 $389.00; July 2026 $389.00; August 2026 $389.00; September 2026 $389.00; October 2026 $389.00; November 2026 $0.00."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R21",
+   "set": "rob",
+   "style": null,
+   "ask": "Show me my spending at Corner Market except for the money I spent on QuickFuel.",
+   "want": "build_and_say",
+   "got": "build_and_say",
+   "sections": [
+    {
+     "id": "1.3",
+     "settings": {
+      "payee": "Corner Market"
+     }
+    }
+   ],
+   "question": null,
+   "said": [
+    "QuickFuel is a different payee from Corner Market, so nothing is taken out."
+   ],
+   "choices": [],
+   "ms": 12.5,
+   "step": 1,
+   "first_sentences": [
+    [
+     "Corner Market, June 2026 to November 2026: $1,002.85 in all. June 2026 $77.84; July 2026 $326.12; August 2026 $297.82; September 2026 $113.98; October 2026 $187.09; November 2026 $0.00."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R22",
+   "set": "rob",
+   "style": null,
+   "ask": "How much more am I paying on the Cashback Visa versus Riverside Auto loan?",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "1.5",
+     "settings": {
+      "debt": "Cashback Visa"
+     }
+    },
+    {
+     "id": "1.5",
+     "settings": {
+      "debt": "Riverside Auto loan"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 12.1,
+   "step": 1,
+   "first_sentences": [
+    [
+     "Payments to Cashback Visa, June 2026 to November 2026: $3,000.00 in all. June 2026 $600.00; July 2026 $600.00; August 2026 $600.00; September 2026 $600.00; October 2026 $600.00; November 2026 $0.00."
+    ],
+    [
+     "Payments to Riverside Auto loan, June 2026 to November 2026: $1,945.00 in all. June 2026 $389.00; July 2026 $389.00; August 2026 $389.00; September 2026 $389.00; October 2026 $389.00; November 2026 $0.00."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R23",
+   "set": "rob",
+   "style": null,
+   "ask": "Show me my income compared to what I've been spending over the last six months.",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "1.4",
+     "settings": {
+      "period": "the last six months"
+     }
+    },
+    {
+     "id": "1.1",
+     "settings": {
+      "period": "the last six months"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 12.4,
+   "step": 1,
+   "first_sentences": [
+    [
+     "Income, June 2026 to October 2026: $43,230.00 in all. June 2026 $7,860.00; July 2026 $10,010.00; August 2026 $7,860.00; September 2026 $7,860.00; October 2026 $9,640.00."
+    ],
+    [
+     "Spending, June 2026 to October 2026: $16,761.34 in all. June 2026 $3,434.78; July 2026 $3,294.82; August 2026 $3,315.29; September 2026 $3,359.93; October 2026 $3,356.52."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R24",
+   "set": "rob",
+   "style": null,
+   "ask": "Can you email me that spending report from last month?",
+   "want": "refuse_act",
+   "got": "refuse_act",
+   "sections": [
+    {
+     "id": "3.1",
+     "settings": {
+      "period": "last month"
+     }
+    },
+    {
+     "id": "1.1",
+     "settings": {
+      "period": "last month"
+     }
+    }
+   ],
+   "question": null,
+   "said": [
+    "Groundwork never sends anything off this computer, and it never runs on its own. Here is the report: \u2399 Print it or save it as a PDF to send it yourself, or Save\u2026 it and it runs again whenever you open it, with the period moved on."
+   ],
+   "choices": [],
+   "ms": 12.1,
+   "step": 1,
+   "first_sentences": [
+    [
+     "15 categories, October 2026. The largest: Rent / Mortgage $1,650.00; Groceries $555.83; Restaurants $243.64."
+    ],
+    [
+     "Spending, October 2026: $3,356.52 in all. October 2026 $3,356.52."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "R25",
+   "set": "rob",
+   "style": null,
+   "ask": "Schedule that debt report to run automatically every Friday.",
+   "want": "refuse_act",
+   "got": "refuse_act",
+   "sections": [
+    {
+     "id": "2.6",
+     "settings": {}
+    },
+    {
+     "id": "1.5",
+     "settings": {}
+    },
+    {
+     "id": "4.6",
+     "settings": {}
+    }
+   ],
+   "question": null,
+   "said": [
+    "Groundwork never sends anything off this computer, and it never runs on its own. Here is the report: \u2399 Print it or save it as a PDF to send it yourself, or Save\u2026 it and it runs again whenever you open it, with the period moved on."
+   ],
+   "choices": [],
+   "ms": 12.3,
+   "step": 1,
+   "first_sentences": [
+    [
+     "Owed across the debts: $39,940.00 in June 2026; $36,790.00 in November 2026."
+    ],
+    [
+     "Debt payments, June 2026 to November 2026: $5,995.00 in all. June 2026 $1,199.00; July 2026 $1,199.00; August 2026 $1,199.00; September 2026 $1,199.00; October 2026 $1,199.00; November 2026 $0.00."
+    ],
+    [
+     "Owed today: $36,790.00 across 3 debts."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H01",
+   "set": "held_out",
+   "style": null,
+   "ask": "Monthly totals of debt payments from June to September",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "1.5",
+     "settings": {
+      "period": "from June to September"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 11.6,
+   "step": 1,
+   "first_sentences": [
+    [
+     "Debt payments, June 2026 to September 2026: $4,796.00 in all. June 2026 $1,199.00; July 2026 $1,199.00; August 2026 $1,199.00; September 2026 $1,199.00."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H02",
+   "set": "held_out",
+   "style": null,
+   "ask": "What did we spend on groceries last month?",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "3.2",
+     "settings": {
+      "category": "Groceries",
+      "period": "last month"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 11.5,
+   "step": 1,
+   "first_sentences": [
+    [
+     "6 groceries rows, October 2026: $555.83 in all."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H03",
+   "set": "held_out",
+   "style": null,
+   "ask": "How has our eating out changed over time?",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "2.2",
+     "settings": {
+      "category": "Restaurants"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 11.9,
+   "step": 1,
+   "first_sentences": [
+    [
+     "Restaurants, June 2026 to November 2026: $1,102.04 in all. June 2026 $274.03; July 2026 $190.08; August 2026 $176.37; September 2026 $217.92; October 2026 $243.64; November 2026 $0.00."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H04",
+   "set": "held_out",
+   "style": null,
+   "ask": "Show my top payees this year",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "3.3",
+     "settings": {
+      "period": "this year"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 14.5,
+   "step": 1,
+   "first_sentences": [
+    [
+     "22 payees, June 2026 to November 2026. The largest: Lakeside Property Management $9,900.00; Valley Foods $1,022.05; Corner Market $1,002.85."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H05",
+   "set": "held_out",
+   "style": null,
+   "ask": "How much do we owe right now?",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "4.6",
+     "settings": {}
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 12.1,
+   "step": 1,
+   "first_sentences": [
+    [
+     "Owed today: $36,790.00 across 3 debts."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H06",
+   "set": "held_out",
+   "style": null,
+   "ask": "Net worth over time",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "2.7",
+     "settings": {}
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 11.3,
+   "step": 1,
+   "first_sentences": [
+    [
+     "Net worth: $8,960.00 in Jun 2026; $17,610.00 in Nov 2026."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H07",
+   "set": "held_out",
+   "style": null,
+   "ask": "What bills are coming up?",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "3.9",
+     "settings": {}
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 11.9,
+   "step": 1,
+   "first_sentences": [
+    [
+     "27 due in the next 30 days."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H08",
+   "set": "held_out",
+   "style": null,
+   "ask": "Which subscriptions do we pay for?",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "3.8",
+     "settings": {}
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 32.8,
+   "step": 1,
+   "first_sentences": [
+    [
+     "7 charges recur, $2,023.97 a month in all."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H09",
+   "set": "held_out",
+   "style": null,
+   "ask": "Where could we find $200 in the budget?",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "6.10",
+     "settings": {
+      "amount": 200.0
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 12.4,
+   "step": 1,
+   "first_sentences": [
+    [
+     "$200.00: the room does not cover it."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H10",
+   "set": "held_out",
+   "style": null,
+   "ask": "Spending this month compared to last month",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "5.1",
+     "settings": {
+      "period": "this month",
+      "period_b": "last month"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 12.4,
+   "step": 1,
+   "first_sentences": [
+    [
+     "Spending: $1,650.00 in November 2026; $3,356.52 in October 2026."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H11",
+   "set": "held_out",
+   "style": "text_grid",
+   "ask": "Groceries each month as a table",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "1.2",
+     "settings": {
+      "category": "Groceries"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 11.9,
+   "step": 1,
+   "first_sentences": [
+    [
+     "Groceries, June 2026 to November 2026: $2,931.05 in all. June 2026 $668.51; July 2026 $595.23; August 2026 $477.17; September 2026 $634.31; October 2026 $555.83; November 2026 $0.00."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H12",
+   "set": "held_out",
+   "style": "text_only",
+   "ask": "Read me my spending breakdown for September out loud",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "3.1",
+     "settings": {
+      "period": "September"
+     }
+    },
+    {
+     "id": "1.1",
+     "settings": {
+      "period": "September"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 11.8,
+   "step": 1,
+   "first_sentences": [
+    [
+     "15 categories, September 2026. The largest: Rent / Mortgage $1,650.00; Groceries $634.31; Restaurants $217.92."
+    ],
+    [
+     "Spending, September 2026: $3,359.93 in all. September 2026 $3,359.93."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H13",
+   "set": "held_out",
+   "style": "print",
+   "ask": "The debt report, for printing",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "2.6",
+     "settings": {}
+    },
+    {
+     "id": "1.5",
+     "settings": {}
+    },
+    {
+     "id": "4.6",
+     "settings": {}
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 13.5,
+   "step": 1,
+   "first_sentences": [
+    [
+     "Owed across the debts: $39,940.00 in June 2026; $36,790.00 in November 2026."
+    ],
+    [
+     "Debt payments, June 2026 to November 2026: $5,995.00 in all. June 2026 $1,199.00; July 2026 $1,199.00; August 2026 $1,199.00; September 2026 $1,199.00; October 2026 $1,199.00; November 2026 $0.00."
+    ],
+    [
+     "Owed today: $36,790.00 across 3 debts."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H14",
+   "set": "held_out",
+   "style": "compact",
+   "ask": "A compact monthly review",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "4.1",
+     "settings": {}
+    },
+    {
+     "id": "3.1",
+     "settings": {
+      "period": "this month"
+     }
+    },
+    {
+     "id": "4.4",
+     "settings": {}
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 11.3,
+   "step": 1,
+   "first_sentences": [
+    [
+     "November 2026 so far: $1,650.00 spent against $3,530.00 budgeted."
+    ],
+    [
+     "1 categories, this month. The largest: Rent / Mortgage $1,650.00."
+    ],
+    [
+     "November 2026: $0.00 came in; the income lines plan $8,515.00."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H15",
+   "set": "held_out",
+   "style": null,
+   "ask": "How much went to the student loan since June?",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "1.5",
+     "settings": {
+      "debt": "Student loan",
+      "period": "since June"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 11.9,
+   "step": 1,
+   "first_sentences": [
+    [
+     "Payments to Student loan, June 2026 to November 2026: $1,050.00 in all. June 2026 $210.00; July 2026 $210.00; August 2026 $210.00; September 2026 $210.00; October 2026 $210.00; November 2026 $0.00."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H16",
+   "set": "held_out",
+   "style": null,
+   "ask": "Coffee spending in Q3",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "1.2",
+     "settings": {
+      "category": "Coffee Shops",
+      "period": "Q3"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 11.4,
+   "step": 1,
+   "first_sentences": [
+    [
+     "Coffee Shops, July 2026 to September 2026: $101.73 in all. July 2026 $50.15; August 2026 $25.87; September 2026 $25.71."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H17",
+   "set": "held_out",
+   "style": null,
+   "ask": "What did I spend at Walmart last month?",
+   "want": "build_and_say",
+   "got": "build_and_say",
+   "sections": [
+    {
+     "id": "3.1",
+     "settings": {
+      "period": "last month"
+     }
+    }
+   ],
+   "question": null,
+   "said": [
+    "There is no payee called \"Walmart\" in the record, so this shows all spending."
+   ],
+   "choices": [],
+   "ms": 11.8,
+   "step": 1,
+   "first_sentences": [
+    [
+     "15 categories, October 2026. The largest: Rent / Mortgage $1,650.00; Groceries $555.83; Restaurants $243.64."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H18",
+   "set": "held_out",
+   "style": null,
+   "ask": "Show me the streaming charges",
+   "want": "clarify",
+   "got": "clarify",
+   "sections": [],
+   "question": "Which category do you mean?",
+   "said": [],
+   "choices": [
+    "Streaming Music",
+    "Streaming Video"
+   ],
+   "ms": 11.5,
+   "step": 2,
+   "first_sentences": [],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H19",
+   "set": "held_out",
+   "style": null,
+   "ask": "Spending last month except groceries",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "3.1",
+     "settings": {
+      "exclude": [
+       "Groceries"
+      ],
+      "period": "last month"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 12.1,
+   "step": 1,
+   "first_sentences": [
+    [
+     "14 categories, October 2026. The largest: Rent / Mortgage $1,650.00; Restaurants $243.64; Gasoline / Diesel $210.96."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H20",
+   "set": "held_out",
+   "style": null,
+   "ask": "Pay off the Visa for me",
+   "want": "refuse",
+   "got": "refuse",
+   "sections": [],
+   "question": null,
+   "said": [
+    "Groundwork never moves money or changes your accounts. It can show you a report of them."
+   ],
+   "choices": [],
+   "ms": 0.0,
+   "step": 1,
+   "first_sentences": [],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H21",
+   "set": "held_out",
+   "style": null,
+   "ask": "Text me the budget every Monday",
+   "want": "refuse_act",
+   "got": "refuse_act",
+   "sections": [
+    {
+     "id": "4.1",
+     "settings": {}
+    }
+   ],
+   "question": null,
+   "said": [
+    "Groundwork never sends anything off this computer, and it never runs on its own. Here is the report: \u2399 Print it or save it as a PDF to send it yourself, or Save\u2026 it and it runs again whenever you open it, with the period moved on."
+   ],
+   "choices": [],
+   "ms": 11.8,
+   "step": 1,
+   "first_sentences": [
+    [
+     "November 2026 so far: $1,650.00 spent against $3,530.00 budgeted."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H22",
+   "set": "held_out",
+   "style": null,
+   "ask": "What's the trend?",
+   "want": "clarify",
+   "got": "clarify",
+   "sections": [],
+   "question": "Trend over time of what?",
+   "said": [],
+   "choices": [
+    "Spending by category",
+    "Income",
+    "Debt payments",
+    "Debt balances",
+    "Net worth and balances",
+    "Recurring charges and price steps"
+   ],
+   "ms": 12.3,
+   "step": 2,
+   "first_sentences": [],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H23",
+   "set": "held_out",
+   "style": null,
+   "ask": "Give me something useful",
+   "want": "none",
+   "got": "none",
+   "sections": [],
+   "question": "Groundwork could not tell what to show. Start from one of these, or build it section by section below.",
+   "said": [],
+   "choices": [
+    "Monthly Spending Summary",
+    "Category Deep-Dive",
+    "Spending vs. Budget",
+    "Annual Summary",
+    "Year-end packet",
+    "Distance Traveled",
+    "Debt Payoff Analysis",
+    "Debt Progress",
+    "Income & Savings Rate",
+    "Net Worth Timeline"
+   ],
+   "ms": 11.5,
+   "step": 3,
+   "first_sentences": [],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H24",
+   "set": "held_out",
+   "style": null,
+   "ask": "Income versus spending each month this year",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "1.4",
+     "settings": {
+      "period": "this year"
+     }
+    },
+    {
+     "id": "1.1",
+     "settings": {
+      "period": "this year"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 11.5,
+   "step": 1,
+   "first_sentences": [
+    [
+     "Income, June 2026 to November 2026: $43,230.00 in all. June 2026 $7,860.00; July 2026 $10,010.00; August 2026 $7,860.00; September 2026 $7,860.00; October 2026 $9,640.00; November 2026 $0.00."
+    ],
+    [
+     "Spending, June 2026 to November 2026: $18,411.34 in all. June 2026 $3,434.78; July 2026 $3,294.82; August 2026 $3,315.29; September 2026 $3,359.93; October 2026 $3,356.52; November 2026 $1,650.00."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  },
+  {
+   "id": "H25",
+   "set": "held_out",
+   "style": null,
+   "ask": "How much did we put on the checking account in the last 30 days?",
+   "want": "build",
+   "got": "build",
+   "sections": [
+    {
+     "id": "3.1",
+     "settings": {
+      "account": "Everyday Checking",
+      "period": "the last 30 days"
+     }
+    }
+   ],
+   "question": null,
+   "said": [],
+   "choices": [],
+   "ms": 12.1,
+   "step": 1,
+   "first_sentences": [
+    [
+     "6 charges on Everyday Checking, 3 October 2026 to 1 November 2026: $2,088.19 in all. The largest: Rent / Mortgage $1,650.00; Auto Insurance $138.50; Electric $120.21."
+    ]
+   ],
+   "outcome_ok": true,
+   "sections_ok": true,
+   "wrong_section_built": false,
+   "style_ok": true
+  }
+ ],
+ "helpers": [
+  {
+   "id": "A01",
+   "helper": "H-a",
+   "ask": "Show me my payments from last month.",
+   "want": {
+    "outcome": "clarify"
+   },
+   "got": "build_and_say",
+   "sections": [
+    {
+     "id": "3.8",
+     "settings": {}
+    }
+   ],
+   "said": [
+    "Read \"payments\" as bills that recur. The other readings are below, one click away."
+   ],
+   "asked": [
+    {
+     "helper": "H-a",
+     "answer": "Bills that recur"
+    }
+   ],
+   "s": 0.61,
+   "right": false,
+   "index_alone": "clarify",
+   "model_figures": []
+  },
+  {
+   "id": "A02",
+   "helper": "H-a",
+   "ask": "Show me what I've paid on the car.",
+   "want": {
+    "outcome": "clarify"
+   },
+   "got": "build_and_say",
+   "sections": [
+    {
+     "id": "1.2",
+     "settings": {
+      "category": "Gasoline / Diesel"
+     }
+    }
+   ],
+   "said": [
+    "Read \"car\" as gasoline / diesel. The other readings are below, one click away."
+   ],
+   "asked": [
+    {
+     "helper": "H-a",
+     "answer": "Gasoline / Diesel"
+    }
+   ],
+   "s": 0.39,
+   "right": false,
+   "index_alone": "clarify",
+   "model_figures": []
+  },
+  {
+   "id": "A03",
+   "helper": "H-a",
+   "ask": "How much have I been paying out every month?",
+   "want": {
+    "outcome": "clarify"
+   },
+   "got": "build_and_say",
+   "sections": [
+    {
+     "id": "1.1",
+     "settings": {}
+    }
+   ],
+   "said": [
+    "Read \"paying out\" as everything spent. The other readings are below, one click away."
+   ],
+   "asked": [
+    {
+     "helper": "H-a",
+     "answer": "Everything spent"
+    }
+   ],
+   "s": 0.33,
+   "right": false,
+   "index_alone": "clarify",
+   "model_figures": []
+  },
+  {
+   "id": "A04",
+   "helper": "H-a",
+   "ask": "Show me the payments I made on our loans and credit card last month",
+   "want": {
+    "outcome": "build",
+    "sections": [
+     "1.5"
+    ]
+   },
+   "got": "build",
+   "sections": [
+    {
+     "id": "3.4",
+     "settings": {
+      "period": "last month"
+     }
+    }
+   ],
+   "said": [],
+   "asked": [],
+   "s": 0.01,
+   "right": false,
+   "index_alone": "build",
+   "model_figures": []
+  },
+  {
+   "id": "A05",
+   "helper": "H-a",
+   "ask": "Show me my payments for Netflix-type services and other monthly memberships",
+   "want": {
+    "outcome": "build",
+    "sections": [
+     "3.8"
+    ]
+   },
+   "got": "build_and_say",
+   "sections": [
+    {
+     "id": "3.8",
+     "settings": {}
+    }
+   ],
+   "said": [
+    "Read \"payments\" as bills that recur. The other readings are below, one click away."
+   ],
+   "asked": [
+    {
+     "helper": "H-a",
+     "answer": "Bills that recur"
+    }
+   ],
+   "s": 0.36,
+   "right": false,
+   "index_alone": "clarify",
+   "model_figures": []
+  },
+  {
+   "id": "A06",
+   "helper": "H-a",
+   "ask": "Payments for everything we bought at the shops last month",
+   "want": {
+    "outcome": "build",
+    "sections": [
+     "3.1"
+    ]
+   },
+   "got": "build",
+   "sections": [
+    {
+     "id": "3.1",
+     "settings": {
+      "period": "last month"
+     }
+    }
+   ],
+   "said": [],
+   "asked": [],
+   "s": 0.01,
+   "right": true,
+   "index_alone": "build",
+   "model_figures": []
+  },
+  {
+   "id": "B01",
+   "helper": "H-b",
+   "ask": "What did the dog cost us this year?",
+   "want": {
+    "outcome": "build",
+    "names": [
+     "Pet Food / Supplies"
+    ]
+   },
+   "got": "build",
+   "sections": [
+    {
+     "id": "3.1",
+     "settings": {
+      "period": "this year"
+     }
+    }
+   ],
+   "said": [],
+   "asked": [],
+   "s": 0.01,
+   "right": false,
+   "index_alone": "build",
+   "model_figures": []
+  },
+  {
+   "id": "B02",
+   "helper": "H-b",
+   "ask": "What do workouts cost us each month?",
+   "want": {
+    "outcome": "build",
+    "names": [
+     "Gym / Fitness"
+    ]
+   },
+   "got": "build",
+   "sections": [
+    {
+     "id": "1.1",
+     "settings": {}
+    }
+   ],
+   "said": [],
+   "asked": [],
+   "s": 0.01,
+   "right": false,
+   "index_alone": "build",
+   "model_figures": []
+  },
+  {
+   "id": "B03",
+   "helper": "H-b",
+   "ask": "What did the wifi cost this year?",
+   "want": {
+    "outcome": "build",
+    "names": [
+     "Internet"
+    ]
+   },
+   "got": "build",
+   "sections": [
+    {
+     "id": "3.1",
+     "settings": {
+      "period": "this year"
+     }
+    }
+   ],
+   "said": [],
+   "asked": [],
+   "s": 0.01,
+   "right": false,
+   "index_alone": "build",
+   "model_figures": []
+  },
+  {
+   "id": "B04",
+   "helper": "H-b",
+   "ask": "How much are we spending on tunes?",
+   "want": {
+    "outcome": "build",
+    "names": [
+     "Streaming Music"
+    ]
+   },
+   "got": "build",
+   "sections": [
+    {
+     "id": "3.1",
+     "settings": {}
+    }
+   ],
+   "said": [],
+   "asked": [],
+   "s": 0.01,
+   "right": false,
+   "index_alone": "build",
+   "model_figures": []
+  },
+  {
+   "id": "B05",
+   "helper": "H-b",
+   "ask": "How much did the kids' piano lessons cost?",
+   "want": {
+    "outcome": "none"
+   },
+   "got": "build",
+   "sections": [
+    {
+     "id": "3.1",
+     "settings": {}
+    }
+   ],
+   "said": [],
+   "asked": [],
+   "s": 0.01,
+   "right": false,
+   "index_alone": "build",
+   "model_figures": []
+  },
+  {
+   "id": "B06",
+   "helper": "H-b",
+   "ask": "How much went to the landlord?",
+   "want": {
+    "outcome": "build",
+    "any_of": [
+     "Rent / Mortgage",
+     "Lakeside Property Management"
+    ]
+   },
+   "got": "build_and_say",
+   "sections": [
+    {
+     "id": "1.2",
+     "settings": {
+      "category": "Rent / Mortgage"
+     }
+    }
+   ],
+   "said": [
+    "Read \"went landlord\" as Rent / Mortgage."
+   ],
+   "asked": [
+    {
+     "helper": "H-b",
+     "answer": "Rent / Mortgage"
+    }
+   ],
+   "s": 1.06,
+   "right": false,
+   "index_alone": "none",
+   "model_figures": []
+  },
+  {
+   "id": "C01",
+   "helper": "H-c",
+   "ask": "Spending last month except the stuff for the dog",
+   "want": {
+    "outcome": "build",
+    "names": [
+     "Pet Food / Supplies"
+    ]
+   },
+   "got": "build_and_say",
+   "sections": [
+    {
+     "id": "3.1",
+     "settings": {
+      "exclude": [
+       "Pet Food / Supplies"
+      ],
+      "period": "last month"
+     }
+    }
+   ],
+   "said": [
+    "Read \"dog\" as Pet Food / Supplies."
+   ],
+   "asked": [
+    {
+     "helper": "H-c",
+     "answer": "Pet Food / Supplies"
+    }
+   ],
+   "s": 1.05,
+   "right": false,
+   "index_alone": "build_and_say",
+   "model_figures": []
+  },
+  {
+   "id": "C02",
+   "helper": "H-c",
+   "ask": "Debt payments to the Visa versus the car",
+   "want": {
+    "outcome": "build",
+    "names": [
+     "Cashback Visa",
+     "Riverside Auto loan"
+    ]
+   },
+   "got": "build_and_say",
+   "sections": [
+    {
+     "id": "1.5",
+     "settings": {
+      "debt": "Cashback Visa"
+     }
+    },
+    {
+     "id": "1.5",
+     "settings": {
+      "debt": "Riverside Auto loan"
+     }
+    }
+   ],
+   "said": [
+    "Read \"car\" as Riverside Auto loan."
+   ],
+   "asked": [
+    {
+     "helper": "H-c",
+     "answer": "Riverside Auto loan"
+    }
+   ],
+   "s": 0.35,
+   "right": false,
+   "index_alone": "build",
+   "model_figures": []
+  },
+  {
+   "id": "C03",
+   "helper": "H-c",
+   "ask": "Spending this year leaving out the landlord",
+   "want": {
+    "outcome": "build",
+    "any_of": [
+     "Rent / Mortgage",
+     "Lakeside Property Management"
+    ]
+   },
+   "got": "build_and_say",
+   "sections": [
+    {
+     "id": "3.1",
+     "settings": {
+      "exclude": [
+       "Rent / Mortgage"
+      ],
+      "period": "this year"
+     }
+    }
+   ],
+   "said": [
+    "Read \"landlord\" as Rent / Mortgage."
+   ],
+   "asked": [
+    {
+     "helper": "H-c",
+     "answer": "Rent / Mortgage"
+    }
+   ],
+   "s": 1.05,
+   "right": false,
+   "index_alone": "build_and_say",
+   "model_figures": []
+  },
+  {
+   "id": "C04",
+   "helper": "H-c",
+   "ask": "Spending last month except the unicorn rides",
+   "want": {
+    "outcome": "build_and_say"
+   },
+   "got": "build_and_say",
+   "sections": [
+    {
+     "id": "3.1",
+     "settings": {
+      "period": "last month"
+     }
+    }
+   ],
+   "said": [
+    "\"the unicorn rides\" is not a payee or category in the record, so nothing is left out."
+   ],
+   "asked": [
+    {
+     "helper": "H-c",
+     "answer": "can't tell"
+    }
+   ],
+   "s": 0.98,
+   "right": true,
+   "index_alone": "build_and_say",
+   "model_figures": []
+  }
+ ]
+}

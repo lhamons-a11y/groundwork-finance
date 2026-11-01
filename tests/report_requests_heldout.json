@@ -1,0 +1,32 @@
+{
+ "item": "115 stage 5 (gw 2.0/ASK_FOR_A_REPORT.md section 6)",
+ "written": "2026-11-01 by Claude, after the index was built against Rob's 25 and before any of these were run - a held-out check on rewordings the index was not tuned to. The expectations are proposed, for Rob to confirm.",
+ "record": "The Morgans (core/sample_household.py)",
+ "requests": [
+  {"id": "H01", "ask": "Monthly totals of debt payments from June to September", "expect": {"outcome": "build", "sections": [{"id": "1.5", "settings": {"period": "June to September"}}]}},
+  {"id": "H02", "ask": "What did we spend on groceries last month?", "expect": {"outcome": "build", "sections": [{"id": "3.2", "settings": {"category": "Groceries", "period": "last month"}}]}},
+  {"id": "H03", "ask": "How has our eating out changed over time?", "expect": {"outcome": "build", "sections": [{"id": "2.2", "settings": {"category": "Restaurants"}}]}},
+  {"id": "H04", "ask": "Show my top payees this year", "expect": {"outcome": "build", "sections": [{"id": "3.3", "settings": {"period": "this year"}}]}},
+  {"id": "H05", "ask": "How much do we owe right now?", "expect": {"outcome": "build", "sections": [{"id": "4.6", "settings": {}}]}},
+  {"id": "H06", "ask": "Net worth over time", "expect": {"outcome": "build", "sections": [{"id": "2.7", "settings": {}}]}},
+  {"id": "H07", "ask": "What bills are coming up?", "expect": {"outcome": "build", "sections": [{"id": "3.9", "settings": {}}]}},
+  {"id": "H08", "ask": "Which subscriptions do we pay for?", "expect": {"outcome": "build", "sections": [{"id": "3.8", "settings": {}}]}},
+  {"id": "H09", "ask": "Where could we find $200 in the budget?", "expect": {"outcome": "build", "sections": [{"id": "6.10", "settings": {"amount": "200.0"}}]}},
+  {"id": "H10", "ask": "Spending this month compared to last month", "expect": {"outcome": "build", "sections": [{"id": "5.1", "settings": {"period": "this month", "period_b": "last month"}}]}},
+  {"id": "H11", "ask": "Groceries each month as a table", "expect": {"outcome": "build", "style": "text_grid", "sections": [{"id": "1.2", "settings": {"category": "Groceries"}}]}},
+  {"id": "H12", "ask": "Read me my spending breakdown for September out loud", "expect": {"outcome": "build", "style": "text_only", "sections": [{"id": "3.1", "settings": {"period": "September"}}, {"id": "1.1", "settings": {"period": "September"}}]}},
+  {"id": "H13", "ask": "The debt report, for printing", "expect": {"outcome": "build", "style": "print", "sections": [{"id": "2.6", "settings": {}}, {"id": "1.5", "settings": {}}, {"id": "4.6", "settings": {}}]}},
+  {"id": "H14", "ask": "A compact monthly review", "expect": {"outcome": "build", "style": "compact", "sections": [{"id": "4.1", "settings": {}}, {"id": "3.1", "settings": {"period": "this month"}}, {"id": "4.4", "settings": {}}]}},
+  {"id": "H15", "ask": "How much went to the student loan since June?", "expect": {"outcome": "build", "sections": [{"id": "1.5", "settings": {"debt": "Student loan", "period": "since June"}}]}},
+  {"id": "H16", "ask": "Coffee spending in Q3", "expect": {"outcome": "build", "sections": [{"id": "1.2", "settings": {"category": "Coffee Shops", "period": "Q3"}}]}},
+  {"id": "H17", "ask": "What did I spend at Walmart last month?", "expect": {"outcome": "build_and_say", "sections": [{"id": "3.1", "settings": {"period": "last month"}}]}},
+  {"id": "H18", "ask": "Show me the streaming charges", "expect": {"outcome": "clarify"}},
+  {"id": "H19", "ask": "Spending last month except groceries", "expect": {"outcome": "build", "sections": [{"id": "3.1", "settings": {"period": "last month", "exclude": "Groceries"}}]}},
+  {"id": "H20", "ask": "Pay off the Visa for me", "expect": {"outcome": "refuse"}},
+  {"id": "H21", "ask": "Text me the budget every Monday", "expect": {"outcome": "refuse_act", "sections": [{"id": "4.1", "settings": {}}]}},
+  {"id": "H22", "ask": "What's the trend?", "expect": {"outcome": "clarify"}},
+  {"id": "H23", "ask": "Give me something useful", "expect": {"outcome": "none"}},
+  {"id": "H24", "ask": "Income versus spending each month this year", "expect": {"outcome": "build", "sections": [{"id": "1.4", "settings": {"period": "this year"}}, {"id": "1.1", "settings": {"period": "this year"}}]}},
+  {"id": "H25", "ask": "How much did we put on the checking account in the last 30 days?", "expect": {"outcome": "build", "sections": [{"id": "3.1", "settings": {"account": "Everyday Checking", "period": "the last 30 days"}}]}}
+ ]
+}

@@ -5014,6 +5014,9 @@ def _rb_clean(sections):
             continue
         st = {k: v for k, v in (s.get('settings') or {}).items()
               if k in ('period', 'period_b', 'category', 'payee', 'amount', 'debt', 'account') and isinstance(v, (str, int, float, dict))}
+        ex = (s.get('settings') or {}).get('exclude')            # item 115 H-c: names left out, the record's own
+        if isinstance(ex, list) and ex and all(isinstance(x, str) for x in ex):
+            st['exclude'] = [x[:80] for x in ex[:5]]
         x = {'id': s['id'], 'settings': st}
         if s.get('style') in styles:
             x['style'] = s['style']
@@ -5075,6 +5078,122 @@ def report_builder_delete(rid):
         _set_setting(session, _RB_SAVED, json.dumps(saved))
         session.commit()
         return ok({'saved': saved})
+
+
+# ── Item 115 stages 4, 6 and 7 (ASK_FOR_A_REPORT.md P3-P9; Rob 2026-11-01 "lets complete the rest of the stages"):
+# a request in the person's words, read by the index first; phi only chooses from a list, and only with AI on.
+_RB_MISSES = 'report_ask_misses'          # P6 step 4: requests the index could not build alone - kept on this computer,
+_RB_TERMS = 'report_index_terms_json'     # shown back to the person and cleared by them; C4: their accepted words
+_RB_MAX_MISSES = 100
+
+
+def _rb_helper(session):
+    """Phi's helpers (P7) only with AI on and the model loaded; otherwise None, and a doubt is a question (P12)."""
+    from core import engine
+    if not _assistant_ai_on(session) or not engine.is_loaded():
+        return None
+    return engine.pick_label
+
+
+@report_builder_bp.route('/ask', methods=['POST'])
+@require_json
+def report_builder_ask():
+    """{text} -> what Groundwork will build, or the one question it asks first. The sections run through /run."""
+    from core import report_index as ri
+    text = str((request.json or {}).get('text') or '').strip()[:300]
+    with db_session() as session:
+        terms = _setting_json(session, _RB_TERMS, {}) or {}
+        helper = _rb_helper(session)
+    r = ri.read(_rb_reader(), text, terms=terms, helper=helper)
+    r['sections'] = _rb_clean(r['sections'])
+    for ch in r.get('choices') or []:
+        ch['sections'] = _rb_clean(ch['sections'])
+    if text and (r['step'] > 1 or r['outcome'] not in ('build', 'refuse_act')):
+        miss = {'id': secrets.token_hex(6), 'when': datetime.now().isoformat(timespec='seconds'), 'said': text,
+                'outcome': r['outcome'], 'found': r['found'], 'asked': r.get('question'),
+                'helpers': [h['helper'] for h in r['helpers']], 'picked': None}
+        with db_session() as session:
+            misses = [m for m in (_setting_json(session, _RB_MISSES, []) or []) if isinstance(m, dict)]
+            _set_setting(session, _RB_MISSES, json.dumps((misses + [miss])[-_RB_MAX_MISSES:]))
+            session.commit()
+        r['miss'] = miss['id']
+    r.pop('helpers', None)
+    return ok(r)
+
+
+@report_builder_bp.route('/ask/picked', methods=['POST'])
+@require_json
+def report_builder_ask_picked():
+    """P6 step 4: what the person picked when asked - added to that request's miss."""
+    b = request.json or {}
+    with db_session() as session:
+        misses = [m for m in (_setting_json(session, _RB_MISSES, []) or []) if isinstance(m, dict)]
+        for m in misses:
+            if m.get('id') == b.get('miss'):
+                m['picked'] = str(b.get('picked') or '')[:80]
+        _set_setting(session, _RB_MISSES, json.dumps(misses))
+        session.commit()
+    return ok({})
+
+
+@report_builder_bp.route('/misses', methods=['GET'])
+def report_builder_misses():
+    with db_session() as session:
+        return ok({'misses': _setting_json(session, _RB_MISSES, []) or [],
+                   'terms': _setting_json(session, _RB_TERMS, {}) or {}})
+
+
+@report_builder_bp.route('/misses/clear', methods=['POST'])
+def report_builder_misses_clear():
+    with db_session() as session:
+        _set_setting(session, _RB_MISSES, json.dumps([]))
+        session.commit()
+    return ok({'misses': []})
+
+
+@report_builder_bp.route('/terms/suggest', methods=['POST'])
+def report_builder_terms_suggest():
+    """H-d (P9): phi reads the miss log and suggests words - shown as proposals; nothing is kept until Yes."""
+    from core import report_index as ri
+    with db_session() as session:
+        helper = _rb_helper(session)
+        misses = _setting_json(session, _RB_MISSES, []) or []
+        terms = _setting_json(session, _RB_TERMS, {}) or {}
+    if helper is None:
+        return err('Suggesting words is AI help, and the AI is off or not ready.', 409)
+    return ok({'suggestions': ri.suggest_terms(_rb_reader(), misses, helper, terms)})
+
+
+@report_builder_bp.route('/terms', methods=['POST'])
+@require_json
+def report_builder_terms_yes():
+    """C4 / P9: the person's Yes - a word kept as theirs, on this computer, checked against the record first."""
+    from core import report_index as ri
+    b = request.json or {}
+    said = ri._norm(b.get('said'))[:40]
+    kind, means = b.get('kind'), str(b.get('means') or '')
+    names = ri.record_names(_rb_reader())
+    if not said or kind not in ('category', 'payee') or means not in names['categories' if kind == 'category' else 'payees']:
+        return err('That word or name is not one Groundwork can keep.')
+    with db_session() as session:
+        terms = _setting_json(session, _RB_TERMS, {}) or {}
+        terms[said] = {'kind': kind, 'means': means, 'kept': datetime.now().isoformat(timespec='seconds')}
+        _set_setting(session, _RB_TERMS, json.dumps(terms))
+        session.commit()
+    return ok({'terms': terms})
+
+
+@report_builder_bp.route('/terms/forget', methods=['POST'])
+@require_json
+def report_builder_terms_forget():
+    from core import report_index as ri
+    said = ri._norm((request.json or {}).get('said'))
+    with db_session() as session:
+        terms = _setting_json(session, _RB_TERMS, {}) or {}
+        terms.pop(said, None)
+        _set_setting(session, _RB_TERMS, json.dumps(terms))
+        session.commit()
+    return ok({'terms': terms})
 
 
 # ── Item 75 - the month's review, written when the month is complete (MONTHLY_REVIEW.md M1-M10) ─────────────────
@@ -15879,7 +15998,8 @@ def _backup_reminder(session, now=None):
         added['other'] = q(Account) + q(DebtAccount) + q(BudgetItem)
     else:
         added['transactions'] = session.query(func.count(Transaction.id)).scalar() or 0
-    age = (now - since).days if since else None
+    # real time elapsed: each local time keeps its own offset, so the week the clocks go back is still 8 days, not 7
+    age = (now.astimezone() - since.astimezone()).days if since else None
     flag = _get_setting(session, sh.SAMPLE_FLAG)
     sample = bool(flag and flag.value == 'true')
     snoozed = bool(snooze and now.date().isoformat() < snooze)

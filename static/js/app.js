@@ -13467,6 +13467,7 @@ const HELP_FAQ = [
   {"q": "What does the monthly report show?", "a": "Each report shows its summary - every computed figure as a plain line - whether AI is on or off. With AI on, a written part follows that explains what the figures mean; it never lists them again. Add a note before generating and the written part takes it into account.", "keys": ["report", "reports", "monthly", "summary", "narrative"], "open": {"view": "reports"}},
   {"q": "Can I build my own report?", "a": "Yes. In Reports, open Build a report. A report is a stack of sections: for each one, choose what to show (monthly totals, a trend, a list, a snapshot, a comparison or a what-if), what it is about (spending, one category, payees, income, debt payments, debt balances, net worth, recurring charges, bills due or room in the budget), and the period in your own words - \"June to September\", \"last month\", \"this year\". Add, remove and reorder sections; start from one of the reports, or from nothing. Groundwork works out every figure from your own record, with AI on or off; where the record can't say yet, the section says so and what would let it.", "keys": ["build", "custom", "own", "report", "reports", "section", "sections", "make"], "open": {"view": "reports"}, "labels": ["Build a report"]},
   {"q": "What does \"the last six months\" mean in a report?", "a": "Whole calendar months. \"The last six months\" is the six most recent complete months; this month counts once it is over - on its last day. Before then it is left out, and the section says so. To count date to date instead, say so: \"the last six months to date\" runs from the same day six months back to today, and \"the last 30 days\", \"the past 2 weeks\", \"June 15 to September 15\" or \"since June 15\" count just those days. Where the record starts later than the period, the section says when it starts. Words that aren't a period, like \"lately\", are asked about, never guessed.", "keys": ["months", "period", "last", "six", "days", "date", "rolling", "calendar", "weeks", "since"], "open": {"view": "reports"}, "labels": ["Build a report"]},
+  {"q": "Can I just ask for a report?", "a": "Yes. At the top of Build a report, say what you want to see - \"monthly totals of debt payments from June to September\", \"what did we spend at Corner Market last month\", \"the debt report, for printing\". Groundwork reads it itself and builds the sections; you can change any of them. When a word could mean two things, or it doesn't know a word, it asks one question with buttons rather than guess. With AI on, the AI may mark the likeliest answer, but you choose. Requests it had to ask about are kept on this computer under \"Requests Groundwork asked about\", where you can clear them; from there the AI can suggest words for it to learn, and a word is kept only if you say Yes. Groundwork never emails or schedules a report: print it, save it as a PDF, or Save it to run again.", "keys": ["ask", "request", "words", "say", "build", "report", "learn", "question"], "open": {"view": "reports"}, "labels": ["Build a report"]},
   {"q": "How do I change how a report looks?", "a": "Build a report has six styles: Text and grid (sentences and tables), Text and charts (the usual), Charts first, Text only (good for having it read aloud), Print / PDF, and Compact summary. Pick one for the whole report, or set one section apart - \"this one as a table\". Each section draws the chart that fits it: bars for monthly totals, a line for a trend, side-by-side bars for a comparison; a list is always a table. Groundwork never changes the style for you.", "keys": ["style", "styles", "look", "chart", "charts", "table", "grid", "text", "compact"], "open": {"view": "reports"}, "labels": ["Build a report"]},
   {"q": "How do I save or print a report I built?", "a": "Press Save… and give it a name. It keeps its sections and the style you chose, and the period moves on by itself - \"this month\" is always this month. Open it again from \"Start from…\" in Build a report; Delete removes it. ⎙ Print prints just the report in the Print / PDF style; choose Save as PDF in the print window for a file. Nothing leaves your computer unless you print or save it yourself.", "keys": ["save", "saved", "print", "pdf", "report", "keep", "again"], "open": {"view": "reports"}, "labels": ["Build a report"]},
   {"q": "How does the AI know my patterns?", "a": "It doesn't learn on its own. Groundwork's engines work out every figure from your records each time - income, spending by category, debt pace, net worth - and the AI is handed those figures to explain. It never adds a number of its own: a written part with a figure that isn't in what it was given is held back.", "keys": ["ai", "patterns", "profile", "know", "learn"]},
@@ -32670,6 +32671,103 @@ async function _rcRenderBuilder(start) {
 
 function _rbSec(id) { return (_rbCatalog.sections || []).find(s => s.id === id); }
 
+// ── Item 115 stages 4, 6, 7 (P3-P9): ask for a report in your own words. The index reads it first, with no model; a
+// doubt is one question with buttons. With AI on, phi only chooses from a list (H-a, H-b, H-c). Requests Groundwork
+// had to ask about are kept on this computer, shown here and cleared by the person; H-d suggests words from them, and
+// a word is kept only on the person's Yes (C4, P9).
+let _rbAsk = null, _rbMisses = null;
+function _rbAskBox() {
+  const a = _rbAsk || {};
+  const btn = 'background:none;border:1px solid var(--steel);border-radius:var(--r-sm);padding:4px 10px;font-size:var(--fs-sm);cursor:pointer;color:var(--ink)';
+  const said = (a.said || []).filter(x => x !== a.question).map(x => `<div style="font-size:var(--fs-sm);color:var(--ink);line-height:1.5;margin-top:6px">${esc(x)}</div>`).join('');
+  const q = a.question && (a.choices || []).length ? `<div style="margin-top:8px"><div style="font-size:var(--fs-sm);color:var(--ink);margin-bottom:6px">${esc(a.question)}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${a.choices.map((c, i) => `<button style="${btn}" onclick="_rbPick(${i})">${esc(c.label)}${c.likely ? ' <span style="color:var(--slate-2)">(likely)</span>' : ''}</button>`).join('')}</div></div>`
+    : (a.question ? `<div style="font-size:var(--fs-sm);color:var(--ink);margin-top:6px">${esc(a.question)}</div>` : '');
+  const n = (_rbMisses || []).length;
+  return `<div class="card" style="padding:12px 14px;margin-bottom:16px">
+      <form onsubmit="event.preventDefault();_rbAskSend(this.q.value)" style="display:flex;gap:8px;flex-wrap:wrap">
+        <input name="q" value="${esc(a.text || '')}" maxlength="300" aria-label="Ask for a report"
+          placeholder="Say what you want to see - e.g. monthly totals of debt payments from June to September"
+          style="flex:1;min-width:220px;font-size:var(--fs-base);padding:6px 8px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper);color:var(--ink)">
+        <button type="submit" style="${btn}">Build it</button>
+      </form>${said}${q}
+      <div style="margin-top:8px"><button style="${btn};border:none;padding:0;color:var(--slate);text-decoration:underline" onclick="_rbMissesShow()">Requests Groundwork asked about${n ? ` (${n})` : ''}</button></div>
+      <div id="rbMisses"></div></div>`;
+}
+
+async function _rbAskSend(text) {
+  text = String(text || '').trim();
+  if (!text) return;
+  let r;
+  try { r = await API.post('/api/reports/builder/ask', { text }); }
+  catch (e) { _gwErr('_rbAskSend')(e); return; }
+  _rbAsk = { text, said: r.said || [], question: r.question || '', choices: r.choices || [], miss: r.miss || null };
+  if ((r.sections || []).length) {
+    _rbSections = r.sections.map(s => ({ id: s.id, settings: { ...(s.settings || {}) } }));
+    if (r.style) _rbStyle = r.style;
+    _rbId = null;
+  }
+  if (r.miss && _rbMisses) _rbMisses = null;
+  _rbDraw();
+}
+
+function _rbPick(i) {
+  const c = ((_rbAsk || {}).choices || [])[i];
+  if (!c) return;
+  if ((c.sections || []).length) _rbSections = c.sections.map(s => ({ id: s.id, settings: { ...(s.settings || {}) } }));
+  if (_rbAsk.miss) API.post('/api/reports/builder/ask/picked', { miss: _rbAsk.miss, picked: c.label }).catch(_gwErr('_rbPick'));
+  _rbAsk = { ..._rbAsk, question: '', choices: [], said: (_rbAsk.said || []).filter(x => x !== _rbAsk.question) };
+  _rbDraw();
+}
+
+async function _rbMissesShow(suggestions) {
+  const box = g('rbMisses');
+  if (!box) return;
+  let d;
+  try { d = await API.get('/api/reports/builder/misses'); } catch (e) { _gwErr('_rbMissesShow')(e); return; }
+  _rbMisses = d.misses || [];
+  const btn = 'background:none;border:1px solid var(--steel);border-radius:var(--r-sm);padding:3px 8px;font-size:var(--fs-xs);cursor:pointer;color:var(--ink)';
+  const terms = Object.entries(d.terms || {});
+  box.innerHTML = `<div style="margin-top:10px;font-size:var(--fs-sm);color:var(--slate);line-height:1.5">
+      <div>Kept only on this computer, so you can see what Groundwork had to ask about. Nothing here is sent anywhere.</div>
+      ${_rbMisses.length ? `<ul style="margin:6px 0 6px 18px">${_rbMisses.slice(-20).reverse().map(m =>
+        `<li>${esc(m.said)}${m.picked ? ` <span style="color:var(--slate-2)">→ ${esc(m.picked)}</span>` : ''}</li>`).join('')}</ul>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${aiEnabled() ? `<button style="${btn}" onclick="_rbSuggest()">Suggest words Groundwork could learn</button>` : ''}
+          <button style="${btn}" onclick="_rbMissesClear()">Clear this list</button></div>` : '<div style="margin-top:6px">Nothing yet.</div>'}
+      ${(suggestions || []).length ? `<div style="margin-top:10px;color:var(--ink)">Suggested - kept only if you say Yes:</div>${suggestions.map((x, i) =>
+        `<div style="display:flex;gap:6px;align-items:center;margin-top:4px;color:var(--ink)">"${esc(x.said)}" means ${esc(x.means)}
+          <button style="${btn}" onclick="_rbTermYes(${i})">Yes</button><button style="${btn}" onclick="_rbTermNo(${i})">No</button></div>`).join('')}` : ''}
+      ${suggestions && !suggestions.length ? '<div style="margin-top:8px">No words to suggest.</div>' : ''}
+      ${terms.length ? `<div style="margin-top:10px;color:var(--ink)">Words you taught Groundwork:</div>${terms.map(([k, v]) =>
+        `<div style="display:flex;gap:6px;align-items:center;margin-top:4px;color:var(--ink)">"${esc(k)}" means ${esc(v.means)}
+          <button style="${btn}" onclick="_rbTermForget('${esc(k).replace(/'/g, '&#39;')}')">Forget</button></div>`).join('')}` : ''}
+    </div>`;
+  _rbSuggested = suggestions || [];
+}
+let _rbSuggested = [];
+async function _rbSuggest() {
+  const box = g('rbMisses');
+  if (box) box.insertAdjacentHTML('beforeend', '<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:6px">Looking…</div>');
+  try { const d = await API.post('/api/reports/builder/terms/suggest', {}); _rbMissesShow(d.suggestions || []); }
+  catch (e) { _gwErr('_rbSuggest')(e); _rbMissesShow([]); }
+}
+async function _rbTermYes(i) {
+  const x = _rbSuggested[i];
+  if (!x) return;
+  try { await API.post('/api/reports/builder/terms', x); } catch (e) { _gwErr('_rbTermYes')(e); return; }
+  _rbMissesShow(_rbSuggested.filter((_, j) => j !== i));
+}
+function _rbTermNo(i) { _rbMissesShow(_rbSuggested.filter((_, j) => j !== i)); }
+async function _rbTermForget(said) {
+  try { await API.post('/api/reports/builder/terms/forget', { said }); } catch (e) { _gwErr('_rbTermForget')(e); return; }
+  _rbMissesShow(_rbSuggested.length ? _rbSuggested : null);
+}
+async function _rbMissesClear() {
+  try { await API.post('/api/reports/builder/misses/clear', {}); } catch (e) { _gwErr('_rbMissesClear')(e); return; }
+  _rbMisses = []; _rbMissesShow([]);
+}
+
 function _rbDraw() {
   const body = g('rcReportBody');
   if (!body || !_rbCatalog) return;
@@ -32712,6 +32810,7 @@ function _rbDraw() {
     <div class="rb-controls">
       <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-3xl);font-weight:600;color:var(--ink);margin-bottom:4px">Build a report</h2>
       <div style="font-size:var(--fs-base);color:var(--slate);margin-bottom:16px;line-height:1.6">Stack the sections you want to see. Groundwork works out every figure from your own record.</div>
+      ${_rbAskBox()}
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:16px">
         <select style="${sel}" onchange="_rbStart(this.value);this.value=''">
           <option value="">Start from…</option>

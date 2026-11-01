@@ -171,6 +171,8 @@ def _out(sid, settings, **kw):
         title += f", on {settings['account']}"
     if settings.get('debt') and sid.endswith('.5'):
         title += f", to {settings['debt']}"
+    if isinstance(settings.get('exclude'), list) and settings['exclude']:
+        title += ', leaving out ' + ' and '.join(settings['exclude'])
     o = {'id': sid, 'title': title, 'enough': True, 'sentences': [], 'table': None, 'chart': None, 'settings': settings}
     o.update(kw)
     return o
@@ -284,6 +286,37 @@ def _debt_payment_ids(reader, said, rows):
     return target.name, out
 
 
+def _leave_out(settings, rows, pred, notes):
+    """Item 115 H-c: "except QuickFuel" - each name left out is a payee or a category of the record, by its own name.
+    A name the record does not have leaves nothing out, and says so; nothing is taken out by a guess."""
+    payees, cats = sorted({r['payee'] for r in rows if r['payee']}), _cats(rows)
+    gone_p, gone_c = set(), set()
+    for said in [x for x in (settings['exclude'] if isinstance(settings['exclude'], list) else [settings['exclude']])
+                 if isinstance(x, str) and x.strip()][:5]:
+        c = ah._category_match(said, cats)
+        p = [x for x in payees if x.lower() == said.strip().lower()] or [x for x in payees if said.strip().lower() in x.lower()]
+        if len(c) == 1 and not p:
+            gone_c.add(c[0])
+        elif len(p) == 1:
+            gone_p.add(p[0])
+        else:
+            notes.append(f'There is no single payee or category called "{said}" in the record, so nothing was left out for it.')
+    if not (gone_p or gone_c):
+        settings.pop('exclude', None)
+        return pred
+    left = [r for r in rows if pred(r)]
+    for name in sorted(gone_p | gone_c):
+        if not any((r['payee'] == name or r['category'] == name) for r in left):
+            notes.append(f'{name} is not in this section, so leaving it out changes nothing.')
+            gone_p.discard(name)
+            gone_c.discard(name)
+    settings['exclude'] = sorted(gone_p | gone_c)
+    if not settings['exclude']:
+        settings.pop('exclude')
+        return pred
+    return lambda r: pred(r) and r['payee'] not in gone_p and r['category'] not in gone_c
+
+
 # ── the sections ────────────────────────────────────────────────────────────────────────────────────────────────────
 def _flow(reader, sid, shape, subj, settings, rows):
     """Subjects 1-5: rows added up - monthly, trend, list, snapshot, comparison - and what the period left out."""
@@ -339,6 +372,8 @@ def _flow_body(reader, sid, shape, subj, settings, rows, notes):
                                f'linking a payment to {name} on Debt Payoff')
         settings['debt'], what, base = name, f'Payments to {name}', pred
         pred = lambda r: base(r) and r['id'] in got
+    if settings.get('exclude') and subj <= 3:
+        pred = _leave_out(settings, rows, pred, notes)
     months, said = _months(reader, rows, settings.get('period'), default='this' if shape in (4, 5) else 'record')
     if months is None:
         return _not_enough(sid, settings, said, 'words like "June to September", "last month" or "this year"')

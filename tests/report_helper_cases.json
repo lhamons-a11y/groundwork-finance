@@ -1,0 +1,23 @@
+{
+ "item": "115 stage 6 (gw 2.0/ASK_FOR_A_REPORT.md section 6: H-a, H-b, H-c measured, no bar yet)",
+ "written": "2026-11-01 by Claude, before any model run - requests the index cannot settle alone, so each reaches one helper. The expectations are proposed, for Rob to confirm. 'clarify' means the right answer is \"can't tell\" and the person is asked.",
+ "record": "The Morgans (core/sample_household.py)",
+ "cases": [
+  {"id": "A01", "helper": "H-a", "ask": "Show me my payments from last month.", "expect": {"outcome": "clarify"}},
+  {"id": "A02", "helper": "H-a", "ask": "Show me what I've paid on the car.", "expect": {"outcome": "clarify"}},
+  {"id": "A03", "helper": "H-a", "ask": "How much have I been paying out every month?", "expect": {"outcome": "clarify"}},
+  {"id": "A04", "helper": "H-a", "ask": "Show me the payments I made on our loans and credit card last month", "expect": {"outcome": "build", "sections": ["1.5"]}},
+  {"id": "A05", "helper": "H-a", "ask": "Show me my payments for Netflix-type services and other monthly memberships", "expect": {"outcome": "build", "sections": ["3.8"]}},
+  {"id": "A06", "helper": "H-a", "ask": "Payments for everything we bought at the shops last month", "expect": {"outcome": "build", "sections": ["3.1"]}},
+  {"id": "B01", "helper": "H-b", "ask": "What did the dog cost us this year?", "expect": {"outcome": "build", "names": ["Pet Food / Supplies"]}},
+  {"id": "B02", "helper": "H-b", "ask": "What do workouts cost us each month?", "expect": {"outcome": "build", "names": ["Gym / Fitness"]}},
+  {"id": "B03", "helper": "H-b", "ask": "What did the wifi cost this year?", "expect": {"outcome": "build", "names": ["Internet"]}},
+  {"id": "B04", "helper": "H-b", "ask": "How much are we spending on tunes?", "expect": {"outcome": "build", "names": ["Streaming Music"]}},
+  {"id": "B05", "helper": "H-b", "ask": "How much did the kids' piano lessons cost?", "expect": {"outcome": "none"}},
+  {"id": "B06", "helper": "H-b", "ask": "How much went to the landlord?", "expect": {"outcome": "build", "any_of": ["Rent / Mortgage", "Lakeside Property Management"]}},
+  {"id": "C01", "helper": "H-c", "ask": "Spending last month except the stuff for the dog", "expect": {"outcome": "build", "names": ["Pet Food / Supplies"]}},
+  {"id": "C02", "helper": "H-c", "ask": "Debt payments to the Visa versus the car", "expect": {"outcome": "build", "names": ["Cashback Visa", "Riverside Auto loan"]}},
+  {"id": "C03", "helper": "H-c", "ask": "Spending this year leaving out the landlord", "expect": {"outcome": "build", "any_of": ["Rent / Mortgage", "Lakeside Property Management"]}},
+  {"id": "C04", "helper": "H-c", "ask": "Spending last month except the unicorn rides", "expect": {"outcome": "build_and_say"}}
+ ]
+}

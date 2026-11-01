@@ -16,7 +16,8 @@ Opened 2026-10-31. Rob, after item 114 gave the assistant hands:
 > templetes that use all text and grid, text and charts, text and graphs, etc."* - P13-P15, added 2026-10-31 (Rob:
 > *"yes add that"*).
 
-**ACCEPTED 2026-10-31, no code yet.** C1-C11 ruled as recommended, one by one (section 10); MCP dropped (section 9).
+**STAGES 4-7 BUILT 2026-11-01** (Rob: *"lets complete the rest of the stages"*), awaiting acceptance; section 14,
+with five rulings sought (14.6). **ACCEPTED 2026-10-31.** C1-C11 ruled as recommended, one by one (section 10); MCP dropped (section 9).
 Next: the C3 pairing table for ruling, and the section 6 question set, written before measuring. Stages 1-3 may
 build alongside item 114's fixes; stage 4 waits for them (C7).
 
@@ -399,3 +400,137 @@ counts from or up to which day. Where the record starts after the period does, t
 is the last day" is the calendar's word on complete: a statement for that day may not be imported yet.
 s268 and s269: three more checks; s268's "the last 3 months" on 31 October is now August-October. One help entry: what
 "the last six months" means.
+
+## 14. Stages 4-7 built (2026-11-01)
+
+Rob: *"lets complete the rest of the stages"*.
+
+### 14.1 Stage 4: the index (P3-P6)
+
+`core/report_index.py`, `read(reader, text)`. Build a report has an Ask box above the sections:
+- **Read in order, by code, no model.** First a request to act ("email", "schedule", "every Friday"), then the style
+  ("as a table", "for printing", "out loud"), then things the record has no subject for (transfers, pay-stub
+  deductions), the period (`core/periods.py`, P5), the record's own names (P4), and the template, shape and subject
+  terms (P3).
+- **"Except" and "versus" are read by code too** (H-c's first half). Two debts make two sections. Two subjects make two
+  monthly sections. Two periods make a comparison.
+- **What it can't decide becomes one question with buttons** (step 2). Each button is the sections it would build. This
+  covers:
+  - a word with two meanings ("payments", "paying out", "the car");
+  - two close names (P4);
+  - a period like "lately" (G4);
+  - a shape the subject has no section for;
+  - a word nothing read ("the dog").
+
+  **That last one is new.** The first build dropped such a word and showed all spending instead (section 14.3).
+- **A name the record lacks** ("at Walmart") is dropped and said (P4).
+- **When nothing is found** (step 3), it offers the templates.
+- **A request to act** is never done. It says so and builds what it can show (R24, R25).
+- **New spending setting: `exclude`,** the names left out, each the record's own. A name that is not in that section
+  leaves nothing out, and the section says so (R21).
+- **Every request it could not build alone is kept** (P6.4): the words, what the index found, what it asked, and what
+  the person picked. The list is kept on this computer under *Requests Groundwork asked about*, shown there, and
+  cleared by the person, the item 72 pattern. Requests it built alone are not kept.
+
+### 14.2 Stage 5: measured, index alone (section 6)
+
+`scripts/report_requests_measure.py`, on the sample household, built fresh. Results are in
+`tests/report_requests_results/`.
+
+| Set | Right | Wrong section built | Slowest |
+|---|---|---|---|
+| Rob's 25 (`tests/report_requests.json`) | 25 / 25 | 0 | 33 ms |
+| 25 held out, **first run** | 20 / 25 | **2** | 32 ms |
+| 25 held out, after the fixes | 25 / 25 | 0 | 32 ms |
+
+**Said openly: Rob's 25 were in view while the index was written, so 25 / 25 there flatters it.** That is why I wrote
+a second set of 25 rewordings (`tests/report_requests_heldout.json`). I wrote all 25 before running any of them, and
+the first run is kept as it came out (`20261101-0100-index-first-run.json`).
+
+Its misses:
+- **Built wrong:**
+  - "spend at Walmart" built all spending without saying Walmart is not in the record.
+  - "Text me the budget every Monday" built categories ranked instead of the budget.
+- **Asked instead of building:**
+  - "top payees"
+  - "what bills are coming up"
+- **The scorer's error, not the index's:** one miss (H19) came from the scorer comparing a list with a word.
+
+Every period was read right, and the four style terms too. The bar for index-only requests is under 1 s; all ran in
+milliseconds.
+
+### 14.3 Stage 6: phi's helpers (P7, P8)
+
+`engine.pick_label`: one of a list of labels under a GBNF grammar, with the record's names quoted and escaped, then
+checked again in code. I wrote 16 cases before any model run (`tests/report_helper_cases.json`). They ran on the M2,
+8 GB, phi3.5 Q4, with Groundwork closed.
+
+**The first run was 2 / 16** (`20261101-0104-m2-helpers-first-run.json`). Three of the causes were Groundwork's:
+- **Silently ignored words.** "What did the dog cost us", "the wifi", "workouts" and "tunes" never reached H-b. The
+  index read "cost" as spending and dropped the word it did not know, so it built all spending: a wrong section, in
+  silence. **Fixed:** a word nothing reads is now asked about, with the categories as buttons and "All spending" last.
+- **"made" was read as income** ("the payments I made"). It now needs "how much did we make".
+- **The scorer** counted a helper's stated reading as a wrong outcome.
+
+After the fixes:
+
+| Helper | Phi's answer right | What it showed |
+|---|---|---|
+| H-a two meanings | 2 / 2 where the words decide; **0 / 3 "can't tell"** where they truly don't | It always picks one |
+| H-b unknown words | 5 / 6 ("dog" Pet Food / Supplies, "wifi" Internet, "workouts" Gym / Fitness, "tunes" Streaming Music, "landlord" Rent / Mortgage) | "kids' piano lessons" read as Gifts; "can't tell" was right |
+| H-c except / versus | 4 / 4, including "can't tell" for "the unicorn rides" | |
+
+Every helper answered in about 1 s or less, against the 20 s bar. No helper wrote a figure; each answer is a name from
+the list.
+
+**What the measurement decided, per helper (C5):**
+- **H-a and H-b only advise.** Phi does not say "can't tell" when it should, so its pick is shown first, marked
+  *(likely)*, and the person chooses.
+- **H-c builds on its pick and says it** ("Read "the stuff for the dog" as Pet Food / Supplies"). The name it leaves out
+  is in the section's title.
+
+This is a ruling for Rob (14.6).
+
+### 14.4 Stage 7: H-d (P9)
+
+*Suggest words Groundwork could learn* is under the kept list, AI on only. Phi reads the kept requests' unread words
+and picks one of the record's categories or payees. Each suggestion is shown with Yes / No. On Yes, code checks that
+the name is the record's, then keeps the word as the person's own, on this computer (C4); Forget removes it. An
+accepted word is read before the built-in vocabulary, with no model.
+
+Measured from six planted misses (4.9 s for all six). Five suggestions, each one for Rob to say whether he would
+accept:
+
+| Word | Suggested |
+|---|---|
+| dog | Pet Food / Supplies |
+| wifi | Internet |
+| workouts | Gym / Fitness |
+| date nights | Restaurants |
+| tunes | Streaming Music |
+
+The first version also suggested "kids piano lessons" as GiftNook. The person had answered "All spending" for that
+request, and now a request answered like that is skipped.
+
+**One departure from P7:** H-d runs when the person presses the button, not "when idle". Groundwork starts no model
+work the person did not ask for.
+
+### 14.5 Also in this change
+
+- **The backup reminder counted 7 days for 8** in the week the clocks go back. It subtracted two local times; it now
+  compares real time. This was found because the gate ran at 01:15 on 1 November, just after DST ended.
+- **A help entry:** "Can I just ask for a report?"
+- **The gate:** s276 (20 checks); 4118 passed, 0 failed.
+
+### 14.6 Rulings sought
+
+| | Question | Recommended |
+|---|---|---|
+| D1 | **The built-in vocabulary** (`STYLE_TERMS`, `SHAPE_TERMS`, `SUBJECT_TERMS`, `TEMPLATE_TERMS`, `TWO_MEANINGS`, `NOT_SUBJECTS` in `core/report_index.py`). C4 says built-in terms change only by Rob's ruling, and these are mine. | Accept as the starting list |
+| D2 | **H-a and H-b only advise** (measured: no "can't tell" where it was right). Or let them build on their pick, said, one click to change. | Advise only |
+| D3 | **H-d on the person's press,** not when idle | On press |
+| D4 | **Requests it had to ask about are kept** on this computer, shown and cleared by the person (P6.4). Item 114's R19 keeps the assistant's own questions nowhere; this follows item 72's list instead. | Keep, as built |
+| D5 | **The expectations** in the held-out set and the helper cases are mine, written before running. Confirm them, or correct any. | Rob to read |
+
+**Not done here:** the Windows laptop run, and a microphone try with "read it to me" (section 5, items 2 and 3, Rob's
+runs).

@@ -499,6 +499,37 @@ def choose(system, question, options):
     return {'ok': True, 'choice': raw, 'raw': raw}
 
 
+def label_grammar(labels):
+    """Item 115 P8: a GBNF grammar whose only sentences are the given labels - the record's own names, so each is
+    written as a quoted literal with its backslashes and quotes escaped."""
+    lits = ['"' + str(x).replace('\\', '\\\\').replace('"', '\\"') + '"' for x in labels if str(x).strip()]
+    if not lits or any('\n' in str(x) for x in labels):
+        raise ValueError('labels must be one line each')
+    return 'root ::= ' + ' | '.join(lits)
+
+
+def pick_label(system, question, labels):
+    """Item 115 P7/P8, phi's helpers: one of `labels`, or None when the model is not ready or the answer is not one of
+    them. The grammar makes any other answer impossible; the check refuses one anyway (grammar first, check second)."""
+    from llama_cpp import LlamaGrammar
+    labels = list(dict.fromkeys(str(x) for x in labels))
+    grammar = LlamaGrammar.from_string(label_grammar(labels), verbose=False)
+    if _state['state'] in ('loading', 'fitting'):
+        _ready.wait(LOADING_WAIT_SECONDS)
+    with _lock:
+        if _model is None:
+            return None
+        listed = '\n'.join(f'- {x}' for x in labels)
+        msgs = [{'role': 'system', 'content': system}, {'role': 'user', 'content': f'{question}\nChoices:\n{listed}'}]
+        try:
+            out = _model.create_chat_completion(messages=msgs, max_tokens=24, temperature=0.0, grammar=grammar,
+                                                stop=STOP)
+        except ValueError:
+            return None
+    raw = (((out.get('choices') or [{}])[0].get('message') or {}).get('content') or '').strip()
+    return raw if raw in labels else None
+
+
 _json_grammars = {}
 
 
