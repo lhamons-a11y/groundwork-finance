@@ -564,3 +564,9 @@ and by X20 (a) Ask why now asks only what the Ledger would pair, so the check st
   - s149 L2j (master and lts/1.x commit ancestry);
   - *all 271 mutating routes refuse an empty body*.
 - The build's third failure was s189's C3, fixed above. s189 alone after the fix: 26 passed, 0 failed.
+
+## 11. Accepted (2026-11-01)
+
+Rob: *"accept"*. The reopening, built and pushed at `49803d2` (combined gate 4213/2, both failures s234 X5 and on
+master without this build), is accepted as built. That includes X11's stricter reading (reaching a card is not a
+sign by itself) and s189's changed fixture. **Item 111 CLOSED again.** X14 stays unruled, as built.
