@@ -655,14 +655,14 @@
   // Each step is Groundwork's own words about its own screens; a step that opens a screen opens it, nothing more.
   var GUIDES = {
     'import a statement': [
-      ['Download your bank\'s file first - a CSV, OFX, QFX or QIF file, or a credit card statement PDF. Say next step when you have it.'],
+      ['Download your bank\'s file first - a CSV, OFX, QFX or QIF file, or the statement PDF from a card you already have. Say next step when you have it.'],
       ['I am opening Import on the Ledger.', function () { if (window.showView) window.showView('ledger'); setTimeout(function () { if (window.showImportModal) window.showImportModal(); }, 120); }],
       ['Choose the file. Groundwork reads it and shows a preview. Nothing is saved yet.'],
       ['Look over the account and the categories in the preview, and change anything that is wrong.'],
       ['When it looks right, press the button that brings them in. That is the end of the steps.'],
     ],
     'add a card or loan': [
-      ['I am opening Debt Payoff with a new card to fill in.', function () { if (window.showView) window.showView('debt'); setTimeout(function () { if (window._debtShowTab) window._debtShowTab('setup'); if (window.addCard) window.addCard(); }, 150); }],
+      ['I am opening Debt Payoff with a blank entry for a card or loan you already have.', function () { if (window.showView) window.showView('debt'); setTimeout(function () { if (window._debtShowTab) window._debtShowTab('setup'); if (window.addCard) window.addCard(); }, 150); }],
       ['Give it its name, the balance you owe now, the interest rate, and the minimum payment from your statement.'],
       ['Groundwork works out the payoff from those figures. Check the date it shows. That is the end of the steps.'],
     ],
