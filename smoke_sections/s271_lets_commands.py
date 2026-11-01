@@ -94,7 +94,7 @@ console.log(JSON.stringify({ shows: shows.map(([q, want]) => [q, _askShowTxns(q)
           and "_askSaid(_askSaidFor(d.said));" in intent and 'const shown = _askShowTxns(n);' in intent
           and '!assist' not in intent[intent.index('const shown = _askShowTxns(n);') - 40:intent.index('const shown = _askShowTxns(n);')]
           and "_askSaid('Sure, getting your accounts now.')" in app
-          and 'window._gwVoiceAsked = false;              // a spoken command has had its spoken reply' in ask[:2500]
+          and 'if (spoken && window._gwVoiceAsked) { window._gwVoiceAsked = false; _askSpeakPanel(); }' in ask[:1500]
           and 'if (!window._gwVoiceAsked) return;' in app)
     go = app[app.index('function askGo(pl)'):app.index('// ── Item 102 (Rob 2026-10-19: "add those four')]
     check('s271 L3/L4 opening the Ledger shows all of it, and a page opened is answered "Sure, opening ... for you."',

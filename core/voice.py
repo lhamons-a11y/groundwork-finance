@@ -112,14 +112,30 @@ def read_wav(data):
     return np.frombuffer(frames, dtype='<i2').astype(np.float32) / 32768.0
 
 
-def transcribe(data, model=None):
-    """The words in a clip, recognised here. `model` is for tests; otherwise the base.en model is loaded once."""
+HINT_CHARS = 800        # whisper reads at most half its 448-token context as a prompt; this stays well inside it
+
+
+def hint_for(words=None):
+    """V1 (item 116, VOICE_ASSISTANT.md): Groundwork's words, then the person's own - their payees, accounts, people,
+    budget lines and categories - so "Meijer" or "Ally" is heard as itself and not as a sound-alike. Nothing is kept."""
+    hint = HINT
+    for w in words or []:
+        more = (' Your words: ' if hint == HINT else ', ') + w
+        if len(hint) + len(more) > HINT_CHARS:
+            break
+        hint += more
+    return hint if hint == HINT else hint + '.'
+
+
+def transcribe(data, model=None, words=None):
+    """The words in a clip, recognised here. `model` is for tests; otherwise the base.en model is loaded once.
+    `words`: the person's own names for the hint (hint_for); the hint is set on every clip, so none carries over."""
     samples = read_wav(data)
     if len(samples) < RATE // 4:
         return ''
     with _lock:
         m = model or _load()
-        segments = m.transcribe(samples)
+        segments = m.transcribe(samples, initial_prompt=hint_for(words)) if model is None else m.transcribe(samples)
     text = ' '.join((getattr(s, 'text', s) or '').strip() for s in segments).strip()
     # whisper marks silence and noise in brackets ("[BLANK_AUDIO]", "(wind)"); those are not words
     if text.startswith(('[', '(')) and text.endswith((']', ')')):

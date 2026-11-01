@@ -27681,6 +27681,7 @@ function askPlace(question) {
 }
 
 function askGo(pl) {
+  _askLast = { kind: 'place', pl };
   closeAsk();
   const box = g('gwAskBox');
   if (box) box.value = '';
@@ -27826,7 +27827,53 @@ function _askSaidFor(done) {          // a command's toast ("Opened Import") as 
 }
 const _askTitle = s => String(s).replace(/\b[a-z]/g, c => c.toUpperCase());
 
+// V4 (item 116): what the last command was about, for a follow-up - "what about Walmart?", "and last month?". Held in
+// memory for this window only; nothing is kept.
+let _askLast = null;
+
+// V4: a follow-up to the last command. "what about walmart" after a Ledger search searches Walmart; "and last month"
+// steps the Ledger back a month; "what about my debts" after a page opens that page.
+function _askFollow(n) {
+  if (!_askLast) return false;
+  const m = n.match(/^(?:and|what about|how about|and what about|now|then)\s+(.+)$/);
+  if (!m) return false;
+  const rest = m[1].replace(/^(?:my|the|our)\s+/, '').replace(/\s+(?:transactions|purchases|charges)$/, '').trim();
+  if (_askLast.kind === 'ledger' && /^(?:last|the last|previous|the previous) month$/.test(m[1])) {
+    showView('ledger');
+    ledgerMonthStep(1);
+    _askSaid('OK, the month before.');
+    return true;
+  }
+  const place = ASK_PLACES.find(pl => pl.names.includes(rest));
+  if (place) { askGo(place); return true; }
+  if (_askLast.kind === 'ledger' && rest) { askLedgerSearch(rest); return true; }
+  return false;
+}
+
+// V15 (item 116): "what's coming up this week?" - the Calendar's own dates, from the record, said aloud with how sure
+// each one is. Only when asked; Groundwork never watches for it.
+const ASK_COMING = /^(?:what(?:\x27s| is| are)?|whats) (?:coming up|coming due|due|upcoming|coming)(?: soon| next)?(?: for me)?(?: (this|next) (week|month))?$|^(?:what|which) (?:bills|payments) (?:are |do i have )?(?:coming up|due)(?: (this|next) (week|month))?$/;
+async function askComingUp(month) {
+  const spoken = !!window._gwVoiceAsked;
+  window._gwVoiceAsked = false;                 // spent now: the answer comes after the record is read
+  _askDone();
+  showView('budget');
+  setTimeout(() => _budShowTab('calendar'), 60);
+  let es = [];
+  try { es = ((await API.get(`/api/calendar?days=${month ? 31 : 7}`)).entries || []).filter(e => e.title); }
+  catch (e) { if (spoken && window.GWVoice) window.GWVoice.say("I couldn't read the calendar just now."); return; }
+  const when = d => new Date(d + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const one = e => `${when(e.date)}, ${e.title}` + (e.amount != null ? `, ${e.certainty === 'confirmed' ? '' : 'about '}${fmt(e.amount)}` : '')
+    + (e.certainty === 'possible' ? ', possibly' : '');
+  const span = month ? 'this month' : 'this week';
+  const words = !es.length ? `Nothing is due ${span}, from what your records show.`
+    : `Coming up ${span}: ` + es.slice(0, 6).map(one).join('. ') + (es.length > 6 ? `. And ${es.length - 6} more on the Calendar.` : '.');
+  showToast(es.length ? `${es.length} coming up ${span}` : `Nothing due ${span}`, 'On the Calendar, with how sure each one is.', 'info');
+  if (spoken && window.GWVoice) window.GWVoice.say(words);
+}
+
 function askLedgerSearch(term) {
+  _askLast = { kind: 'ledger', term };
   _askDone(`Showing your ${_askTitle(term)} transactions in the Ledger`);
   _askSaid(`OK, showing your ${_askTitle(term)} transactions in the Ledger.`);
   showView('ledger');
@@ -27845,12 +27892,18 @@ function _askBudgetCat(text) {
 function askIntent(q, p, head, assist = false) {
   const n = _askNorm(q);
   if (!n) return false;
+  if (_askFollow(n)) return true;                              // V4: "what about Walmart?", "and last month?"
+  const coming = n.match(ASK_COMING);
+  if (coming) { askComingUp((coming[2] || coming[4]) === 'month'); return true; }   // V15
   if (/^(?:hi|hello|hey there|hey|good (?:morning|afternoon|evening)|yo)$/.test(n)) {
     _askSay(p, head, `Hi! Ask a question, or tell me what to do - "how do I split a transaction?", "view my budget", "explain these numbers", "why is restaurants so high", "get my accounts".`);
     return true;
   }
   if (/^(?:thanks|thank you|thx|ty|cheers|great|perfect|ok thanks)$/.test(n)) { _askSay(p, head, "You're welcome."); return true; }
   if (/^(?:help|\?|what can you do|what can i ask|what can i say|commands)$/.test(n)) {
+    _askSaid('You can say: open my budget. Show me my Kroger transactions. What is coming up this week. Build a report. '
+      + 'Get my accounts. Read this, or read the page. Or ask a question, like how much do I owe. While I am talking, '
+      + 'say stop, next, or repeat.');                            // V7: said short; the panel below has the rest
     _askSay(p, head, `Ask how to do something ("how do I split a transaction?"), ask what a page means ("explain these numbers"), see what's behind a figure ("why is restaurants so high"), or say where to go ("view the calendar", "see my medical bills"),
       or what to do ("get my accounts", "import a statement", "add a bill", "back up"). ${assist
         ? 'Questions about your own numbers ("how much do I owe?", "what did we spend on groceries?") are answered here, from your records.'
@@ -28398,7 +28451,31 @@ function careAsk(q, p, head) {
   return true;
 }
 
+// V4 (item 116): a question said aloud gets its answer said aloud, whatever answers it - a command's own line, the
+// assistant, a fixed sentence, the guide. "One moment." if it takes more than a moment (V7). Typed, nothing is read.
 async function askGroundwork(question, shownAs) {
+  const spoken = !!window._gwVoiceAsked;
+  const wait = spoken ? setTimeout(() => { if (window._gwVoiceAsked && window.GWVoice) window.GWVoice.say('One moment.'); }, 1200) : null;
+  try {
+    await _askGroundwork(question, shownAs);
+  } finally {
+    clearTimeout(wait);
+    if (spoken && window._gwVoiceAsked) { window._gwVoiceAsked = false; _askSpeakPanel(); }
+  }
+}
+
+// The Ask panel's answer as words to say: its text, without the "You asked" line, buttons or form fields
+function _askSpeakPanel() {
+  const p = g('askPanel');
+  if (!p || !window.GWVoice) return;
+  const body = (p.querySelector('.byb-in') || p).cloneNode(true);
+  body.querySelectorAll('button, select, input, textarea, script, style').forEach(e => e.remove());
+  let t = (body.textContent || '').replace(/\s+/g, ' ').replace(/^You asked: .*?(?=[A-Z])/, '').replace(/✕/g, '').trim();
+  if (t.length > 600) { const at = t.lastIndexOf('. ', 600); t = t.slice(0, at > 200 ? at + 1 : 600); }
+  if (t) window.GWVoice.say(t);
+}
+
+async function _askGroundwork(question, shownAs) {
   const q = String(question || '').trim().slice(0, 300);
   if (!q) return;
   const p = _askPanel();
@@ -28408,8 +28485,7 @@ async function askGroundwork(question, shownAs) {
   window._askHead = head;
   if (careAsk(q, p, head)) return;            // item 104: someone struggling hears this first, from fixed words
   if (askIntent(q, p, head, aiEnabled())) {   // commands, pages - and with AI off, searches and your own figures
-    window._gwVoiceAsked = false;              // a spoken command has had its spoken reply; a typed one after it is not read
-    return;
+    return;                                    // a spoken one's reply: its own line, else askGroundwork says the panel
   }
   if (!aiEnabled()) {                         // the box is hidden with AI off; a question already typed gets the guide
     const hit = helpMatch(q);

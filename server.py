@@ -3706,10 +3706,43 @@ def voice_transcribe():
         return err(st['reason'], 503)
     data = request.get_data(cache=False)
     try:
-        text = voice.transcribe(data)
+        with db_session() as session:
+            words = _voice_words(session)
+        text = voice.transcribe(data, words=words)
     except voice.VoiceError as e:
         return err(str(e), 400)
     return ok({'text': text})
+
+
+def _voice_words(session):
+    """V1 (item 116): the person's own words for the recogniser - payees, accounts, people, budget lines, categories -
+    most used first. Read from the record for each clip and kept nowhere. Health is left out (H6: a provider's or a
+    pharmacy's name goes to no model), and so is anything in an HSA or FSA account."""
+    from core import health_boundary as hb
+    from core.database import Person
+    try:
+        is_health = hb.health_rows(session)
+        hcats = hb.health_category_ids(session)
+    except Exception:
+        return []
+    counts = {}
+    for t in (session.query(Transaction).filter(Transaction.merchant != '', Transaction.merchant.isnot(None))
+              .order_by(Transaction.date.desc()).limit(3000)):
+        if not is_health(t):
+            counts[t.merchant] = counts.get(t.merchant, 0) + 1
+    names = [m for m, _ in sorted(counts.items(), key=lambda kv: -kv[1])[:30]]
+    names += [a.name for a in session.query(Account).all() if (a.type or '').lower() not in hb.HEALTH_ACCOUNT_TYPES]
+    names += [p.display_name for p in session.query(Person).filter(Person.active.is_(True)).all()]
+    names += [b.name for b in session.query(BudgetItem).all()
+              if not hb.is_health_category(b.category) and not hb.is_health_category(b.name)]
+    names += [c.name for c in session.query(Category).all() if c.id not in hcats]
+    out, seen = [], set()
+    for n in names:
+        n = (n or '').strip()
+        if n and len(n) <= 40 and n.lower() not in seen:
+            seen.add(n.lower())
+            out.append(n)
+    return out
 
 
 # Rob 2026-10-31: "when Groundwork ask the operating system to use the microphone and the user selects yes that answer

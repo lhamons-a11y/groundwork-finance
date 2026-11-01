@@ -21,7 +21,7 @@
   var SIZES = { '100': 1, '115': 1.15, '130': 1.3 };
   var RATES = { slower: 0.8, normal: 1, faster: 1.25 };
   var RATE_ORDER = ['slower', 'normal', 'faster'];
-  var prefs = { text_size: '100', read_aloud: 'off', read_rate: 'normal', voice_commands: 'off' };
+  var prefs = { text_size: '100', read_aloud: 'off', read_rate: 'normal', voice_commands: 'off', voice_tour: '' };
   var last = null;          // { words, section } - what was read last, for "repeat" and "explain further"
   var asking = null;        // the open "explained further?" question: { section }
   var hoverTimer = null, pointerAt = null, lastView = null, viewStack = [];
@@ -278,8 +278,9 @@
   // ── Conversation mode (item 114 H14, Rob 2026-10-30: "it should stay on so the user can talk with the software") ──
   // One tap turns the microphone on and it stays on. Groundwork finds where each thing said ends (a pause), and sends
   // that clip - to this computer's own server, nowhere else. It turns off on a tap, on "stop", after a minute with
-  // nothing said, or when Groundwork's window is left. It does not listen while Groundwork is reading aloud, so it
-  // never hears itself. Nothing is kept: each clip lives for its one request.
+  // nothing said, or when Groundwork's window is left. While Groundwork reads aloud it listens only for a few short
+  // words (V2 below), so it never takes its own voice for the person's. Nothing is kept: each clip lives for its one
+  // request.
   var SPEECH_RMS = 0.012;       // louder than this is someone talking
   var END_PAUSE_MS = 900;       // a pause this long ends what was said
   var MAX_SAID_MS = 14000;      // the server takes at most 15 seconds a clip
@@ -313,6 +314,8 @@
     c.node.onaudioprocess = function (e) { _hear(c, e.inputBuffer.getChannelData(0)); };
     src.connect(c.node);
     c.node.connect(c.ctx.destination);
+    _chime(true);
+    _tourOnce();
   }
 
   function micOff(why) {
@@ -322,32 +325,45 @@
     try { c.node && c.node.disconnect(); } catch (e) { /* already */ }
     if (c.stream) c.stream.getTracks().forEach(function (tr) { tr.stop(); });
     if (c.ctx) c.ctx.close();
+    _chime(false);
     _micState('idle');
     if (why) showToast('The microphone is off', why, 'info');
   }
 
+  // V2 (item 116): while Groundwork speaks it still listens, for a few short words only - "stop", "next", "repeat",
+  // "slower" - so the person can cut in. Its own voice is not taken for theirs: the browser cancels the echo, a clip
+  // over speech must be louder and short, and anything but those words is let go unread.
+  var BARGE_RMS = SPEECH_RMS * 2.5;
+  var BARGE_MAX_MS = 2500;
+  var BARGE = { 'stop': 'stop', 'quiet': 'stop', 'be quiet': 'stop', 'stop reading': 'stop', 'stop talking': 'stop',
+                'that s enough': 'stop', "that's enough": 'stop', 'enough': 'stop', 'pause': 'stop', 'no': 'stop',
+                'nope': 'stop', 'next': 'next', 'next one': 'next', 'next part': 'next', 'skip': 'next',
+                'repeat': 'repeat', 'again': 'repeat', 'say that again': 'repeat', 'slower': 'slower',
+                'slow down': 'slower', 'faster': 'faster', 'speed up': 'faster' };
+
   function _hear(c, data) {
     if (conv !== c) return;
     var now = Date.now();
-    if (_speaking()) { c.speech = false; c.chunks = []; c.pre = []; c.lastActivity = now; return; }   // never hears itself
+    var over = _speaking();
+    if (over) c.lastActivity = now;                 // a long reading is not a quiet minute
     var sum = 0;
     for (var i = 0; i < data.length; i++) sum += data[i] * data[i];
-    var loud = Math.sqrt(sum / data.length) > SPEECH_RMS;
+    var loud = Math.sqrt(sum / data.length) > (over ? BARGE_RMS : SPEECH_RMS);
     var copy = new window.Float32Array(data);
     if (loud) {
-      if (!c.speech) { c.speech = true; c.start = now; c.chunks = c.pre.slice(); }
+      if (!c.speech) { c.speech = true; c.over = over; c.start = now; c.chunks = c.pre.slice(); }
       c.lastVoice = now;
       c.lastActivity = now;
     }
     if (c.speech) {
       c.chunks.push(copy);
-      if (now - c.lastVoice > END_PAUSE_MS || now - c.start > MAX_SAID_MS) {
+      if (now - c.lastVoice > END_PAUSE_MS || now - c.start > (c.over ? BARGE_MAX_MS : MAX_SAID_MS)) {
         var said = c.chunks;
         var long = c.lastVoice - c.start;
         c.speech = false;
         c.chunks = [];
         c.pre = [];
-        if (long >= MIN_SAID_MS) _said(c, said);
+        if (long >= MIN_SAID_MS) _said(c, said, c.over);
       }
     } else {
       c.pre.push(copy);
@@ -356,10 +372,10 @@
     }
   }
 
-  async function _said(c, chunks) {
+  async function _said(c, chunks, over) {
     c.busy++;
     _micState('working');
-    await _send(wav(chunks, c.rate || 48000));
+    await _send(wav(chunks, c.rate || 48000), over);
     c.busy--;
     _micState(conv ? (conv.busy ? 'working' : 'listening') : 'idle');
   }
@@ -392,14 +408,55 @@
     return buf;
   }
 
-  async function _send(buf) {
+  async function _send(buf, over) {
     try {
       var r = await _gwFetch('/api/voice/transcribe', { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: buf });
       var j = await r.json();
       if (!r.ok) throw new Error(j.error || 'The voice engine did not answer.');
       var text = ((j.data || j).text || '').trim();
+      if (over) {                                   // heard while Groundwork spoke: one of the short words, or nothing
+        var cut = BARGE[_norm(text).replace(/^(?:groundwork|ok|okay|hey|please)\s+/, '').replace(/\s+please$/, '')];
+        var cmd = cut && COMMANDS.filter(function (x) { return x.words.indexOf(cut) >= 0; })[0];
+        if (cmd) {                                  // the reading's own command - "stop" stops the reading, not the mic
+          _hush();
+          var undo = cmd.run();
+          showToast('Heard: “' + text + '”', cmd.said, 'info', typeof undo === 'function' ? undo : null);
+        }
+        return;
+      }
       if (text) route(text);                        // in a conversation, a cough is not worth a message
     } catch (e) { showToast('Voice commands could not run', e.message || '', 'error'); }
+  }
+
+  // V7 (item 116): the first time the microphone is turned on, a short spoken tour - once; Settings records that it was
+  // given, nothing else
+  var TOUR = "Hi, this is Groundwork. You can talk to me. Try open my budget, show me my Kroger transactions, or what's "
+    + "coming up this week. While I'm talking, say stop to cut me off, or next, or repeat. Say what can I say to hear more. "
+    + "Everything you say stays on this computer.";
+  function _tourOnce() {
+    if (prefs.voice_tour === 'done') return;
+    prefs.voice_tour = 'done';
+    _save('voice_tour', 'done');
+    setTimeout(function () { say(TOUR); }, 300);
+  }
+
+  // V7 (item 116): a soft sound when listening starts and when it stops - two short tones, made here, nothing played
+  // from anywhere else
+  var tones = null;
+  function _chime(up) {
+    try {
+      tones = tones || new window.AudioContext();
+      var t = tones.currentTime;
+      (up ? [523.25, 783.99] : [783.99, 523.25]).forEach(function (f, i) {
+        var o = tones.createOscillator(), gn = tones.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        gn.gain.setValueAtTime(0.0001, t + i * 0.09);
+        gn.gain.exponentialRampToValueAtTime(0.05, t + i * 0.09 + 0.02);
+        gn.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.09 + 0.12);
+        o.connect(gn); gn.connect(tones.destination);
+        o.start(t + i * 0.09); o.stop(t + i * 0.09 + 0.13);
+      });
+    } catch (e) { /* no sound is no harm */ }
   }
 
   // ── What was said, to what it does. Every action is said first and can be undone ─────────────────────────────
@@ -515,7 +572,8 @@
     b.setAttribute('aria-pressed', s === 'idle' ? 'false' : 'true');
     var tip = s === 'listening' ? 'Listening - tap to turn the microphone off (Alt+V)'
       : s === 'working' ? 'Hearing what you said'
-      : 'Talk with Groundwork - tap to turn the microphone on (Alt+V). What you say is recognised on this computer.';
+      : 'Talk with Groundwork - tap to turn the microphone on (Alt+V). Try "open my budget", "show me my Kroger '
+        + 'transactions", "what can I say?". What you say is recognised on this computer.';
     b.setAttribute('aria-label', tip);
     b.title = tip;
   }
@@ -555,7 +613,8 @@
       + '<div class="field"><label>Voice commands</label><div>' + _radios('gwVoice', prefs.voice_commands, [['off', 'Off'], ['on', 'On (talk with Groundwork)']]) + '</div>'
       + '<div style="' + small + '">Tap the microphone in the Ask box (or Alt+V) and talk - a question, or "read this", "read the page", '
       + '"explain further", "repeat", "slower", "faster", "next", "go back", "yes", "no". It stays on until you tap it again, say "stop", '
-      + 'say nothing for a minute, or leave Groundwork\'s window, and it doesn\'t listen while Groundwork is reading aloud. An answer to a '
+      + 'say nothing for a minute, or leave Groundwork\'s window. While Groundwork is reading aloud you can cut in with "stop", '
+      + '"next", "repeat", "slower" or "faster"; nothing else is taken while it speaks. Say "what can I say?" to hear more. An answer to a '
       + 'spoken question is read back in Groundwork\'s own words. A change is made only by pressing Yes on its card. What you say is '
       + 'recognised by Groundwork on this computer and is never sent anywhere or kept.'
       + (vs && !vs.available ? '<br><span style="color:var(--ember-text)">Not available in this copy: ' + esc(vs.reason || '') + '</span>' : '')
