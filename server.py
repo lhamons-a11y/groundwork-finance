@@ -63,9 +63,13 @@ _ASSET_FILES = ('groundwork.png', 'groundwork_256.png', 'groundwork.ico')
 
 # Sent with every response (issue 4). The page leans on inline handlers (onclick=...), so inline script stays
 # allowed; what the policy takes away is somewhere to send data: connect, images, fonts and media come only from
-# this server, the page cannot be framed, and no form or <base> can point elsewhere.
+# this server, the page cannot be framed, and no form or <base> can point elsewhere. 'unsafe-eval' is allowed
+# because pywebview builds window.pywebview.api with new Function (its js/api.js): without it WebKit on Linux
+# refused the bridge, and links, the crisis lines' Call/Text and the folder picker had no way to Python (Rob
+# 2026-11-01: "Allow unsafe-eval"; ENGINE_OTHER_PLATFORMS.md section 7). With inline script already allowed it
+# opens no new door; connect-src 'self' still leaves injected script nowhere to send data.
 _SECURITY_HEADERS = {
-    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
                                "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; "
                                "media-src 'self' data: blob:; worker-src 'self' blob:; connect-src 'self'; "
                                "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
