@@ -115,6 +115,7 @@ const run = async (v, ms) => { for (let t = 0; t < ms; t += 256) { now += 256; n
     srv, js = ctx.server_src, ctx.app_src
     check("s266 P6 an answer to a spoken question is read back without the model's words",
           "'say': [x for x in (out.get('shown') or []) if x not in (out.get('model_words') or [])]" in srv
-          and "window.GWVoice.say(res.say.join(' '))" in js and "out['model_words'] = w['words']"
+          and "const words = (res.say || []).join(' ') + (res.proposal ? ' Press Yes on the card to make the change.' : '');" in js
+          and "out['model_words'] = w['words']"
           in (ctx.BASE / 'core' / 'agent_hands.py').read_text(encoding='utf-8'))
     check('s266 H15 the Ask box holds the microphone', 'id="gwAskWrap"' in ctx.html_src and '#gwAskWrap.has-mic #gwMicBtn' in ctx.html_src)

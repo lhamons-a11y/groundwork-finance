@@ -74,6 +74,24 @@ so WKWebView asks each time; the Linux window turns media on but handles no perm
 default applies - possibly a refusal. V18 answers each from the same kept yes. Untested: needs a Mac and a Linux
 machine with a microphone (as item 33 Q6).
 
+## 4a. Measured (V8, first cut, 2026-10-31 - synthetic voices, not yet real people)
+
+`scripts/voice_measure.py`: 30 commands said by six voices - Kokoro af_heart, am_michael, bf_emma, bm_george (American
+and British) and Windows' David and Zira - clean and with noise at about 15 dB, recognised by Groundwork's whisper.cpp
+base.en with and without the household's words in the hint, then routed by the Ask bar's own code from `app.js`.
+
+| | did what was meant |
+|---|---|
+| first run, 720 commands | 677 (94%) |
+| the same recognitions after the router took whisper's punctuation ("Groundwork. Open my budget."), quotes, singular "transaction", "do" for "due", "calendars", "net work" | 698 (97%) |
+| the short words said over Groundwork's voice (84), full hint | 76 |
+| the same with only the short words as the hint (V2, `SHORT_HINT`) | 82 |
+| with the household's words in the hint (V1) / without, 360 each | 339 / 338 - no measurable gain on these payees, which whisper already hears; the hint is for names like "Meijer", which this set does not carry |
+
+Time to Groundwork's first spoken reply ("Sure, opening the Budget for you."): 0.6 to 0.9 seconds to make. Recognising a
+command: 1.0 to 1.3 seconds. What still fails is mishearing, not routing - mostly the British male voice ("Stomp!" for
+"Stop") and "my Kroger" heard as "microger". **Not the exit criterion:** that needs real people on real microphones.
+
 ## 5. Stages - one at a time, accepted between
 
 | Stage | Items | Rulings needed first |

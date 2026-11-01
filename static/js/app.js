@@ -27808,6 +27808,99 @@ function _askSearchTerm(n) {
   return term && !/^(?:my|all|the|recent|new|latest|our|last|every)$/.test(term) ? term : null;   // "my transactions" is the Ledger
 }
 
+// V6 (item 116): control the page by voice - what its own buttons and filters do, nothing they don't. Scrolling works on
+// any page; the rest are the Ledger's own controls (sort, range, month, category, type, clear).
+const _ASK_NUM = { one: 1, three: 3, six: 6, twelve: 12, '1': 1, '3': 3, '6': 6, '12': 12 };
+function _askPageControl(n) {
+  const view = (document.querySelector('.view.active') || {}).id || '';
+  const said = (toast, words) => { _askDone(toast); _askSaid(words || `OK, ${toast.charAt(0).toLowerCase() + toast.slice(1)}.`); return true; };
+  const pane = (document.querySelector('.view.active') || document.body).closest('.content') || document.querySelector('.content');   // the page's own scroller holds the view
+  const scroll = top => { if (pane) pane.scrollTo({ top }); };
+  if (/^(?:scroll|page|go) down$/.test(n)) { if (pane) pane.scrollBy({ top: pane.clientHeight * 0.8 }); return said('Scrolled down'); }
+  if (/^(?:scroll|page|go) up$/.test(n)) { if (pane) pane.scrollBy({ top: -pane.clientHeight * 0.8 }); return said('Scrolled up'); }
+  if (/^(?:go to |scroll to )?(?:the )?top(?: of the page)?$/.test(n)) { scroll(0); return said('At the top'); }
+  if (/^(?:go to |scroll to )?(?:the )?bottom(?: of the page)?$/.test(n)) { scroll(pane ? pane.scrollHeight : 0); return said('At the bottom'); }
+  if (view !== 'view-ledger') return false;
+  let m = n.match(/^sort(?: it| them| the ledger)? by (date|amount|name|description|payee|merchant)(?: (highest|largest|biggest|newest|lowest|smallest|oldest) first)?$/);
+  if (m) {
+    const col = m[1] === 'date' ? 'date' : m[1] === 'amount' ? 'amount' : 'description';
+    _ledgerSortCol = col;
+    _ledgerSortDir = /lowest|smallest|oldest/.test(m[2] || '') || (col === 'description' && !m[2]) ? 1 : -1;
+    renderLedger();
+    return said(`Sorted by ${m[1]}`);
+  }
+  m = n.match(/^(?:show |only |just )?(?:the )?(?:last|past) (one|three|six|twelve|1|3|6|12) months?$/);
+  if (m || /^(?:show |only |just )?(?:the )?(?:last|past) year$/.test(n)) {
+    const k = m ? _ASK_NUM[m[1]] : 12;
+    setLedgerRange(k);
+    return said(`Showing the last ${k === 1 ? 'month' : k + ' months'}`);
+  }
+  if (/^(?:show |only |just )?this month$/.test(n)) {
+    setLedgerRange(1);
+    const months = _ledgerAvailableMonths();
+    if (months.length) { _ledgerMonthKey = months[0]; renderLedger(); updateLedgerStats(); }
+    return said('Showing this month');
+  }
+  if (/^(?:the )?(?:previous|last) month$|^(?:go )?back a month$/.test(n)) { ledgerMonthStep(1); return said('The month before'); }
+  if (/^(?:the )?next month$|^(?:go )?forward a month$/.test(n)) { ledgerMonthStep(-1); return said('The month after'); }
+  if (/^(?:clear|reset|remove)(?: the| all)?(?: search| filters?| everything)+$|^show (?:me )?(?:everything|all(?: of it)?)$/.test(n)) {
+    ['ledgerSearch', 'ledgerCatFilter', 'ledgerTypeFilter', 'ledgerAccountFilter'].forEach(f => { if (g(f)) g(f).value = ''; });
+    renderLedger(); updateLedgerStats();
+    return said('Showing everything', 'OK, showing everything.');
+  }
+  m = n.match(/^(?:show )?(?:only|just) (?:my |the )?(.+?)$|^filter (?:by|to) (?:my |the )?(.+?)$/);
+  if (m) {
+    const want = (m[1] || m[2]).replace(/\s+(?:transactions|purchases|spending)$/, '');
+    const type = /^(?:income|deposits|money in)$/.test(want) ? 'credit' : /^(?:expenses|spending|money out|purchases)$/.test(want) ? 'debit' : null;
+    if (type && g('ledgerTypeFilter')) {
+      g('ledgerTypeFilter').value = type; renderLedger(); updateLedgerStats();
+      return said(type === 'credit' ? 'Showing only income' : 'Showing only spending');
+    }
+    const sel = g('ledgerCatFilter');
+    const opt = sel && [...sel.options].find(o => o.value && o.value.toLowerCase() === want)
+      || sel && [...sel.options].find(o => o.value && o.value.toLowerCase().startsWith(want.replace(/ies$|s$/, '')));
+    if (opt) { sel.value = opt.value; renderLedger(); updateLedgerStats(); return said(`Showing only ${opt.value}`); }
+  }
+  return false;
+}
+
+// V5 (item 116): "add a 40 dollar grocery purchase at Kroger today" - Add transaction, filled in and read back; nothing
+// is saved until Save is pressed (H7: a change is the person's press, never a word heard)
+const _ASK_WORDNUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11,
+  twelve: 12, fifteen: 15, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+function _askAmount(t) {
+  let m = t.match(/\$?\s?(\d[\d,]*(?:\.\d{1,2})?)(?:\s*dollars?)?(?:\s*(?:and\s*)?(\d{1,2})\s*cents?)?/);
+  if (m) return Math.round((parseFloat(m[1].replace(/,/g, '')) + (m[2] ? +m[2] / 100 : 0)) * 100) / 100;
+  m = t.match(/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:[ -](one|two|three|four|five|six|seven|eight|nine))? dollars?\b/);
+  return m ? _ASK_WORDNUM[m[1]] + (m[2] ? _ASK_WORDNUM[m[2]] : 0) : null;
+}
+function _askAddTxn(n) {
+  const m = n.match(/^(?:add|enter|record|log)(?: an?| my| new)? (.+?)(?: (purchase|expense|charge|transaction|payment|deposit|refund))(?: (?:at|from|to|for) (.+?))?(?: (today|yesterday))?$/);
+  if (!m) return false;
+  const amount = _askAmount(m[1]);
+  if (amount == null) return false;
+  const catWord = m[1].replace(/\$?\s?\d[\d,]*(?:\.\d{1,2})?\s*(?:dollars?)?(?:\s*(?:and\s*)?\d{1,2}\s*cents?)?/, '')
+    .replace(/\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:[ -](?:one|two|three|four|five|six|seven|eight|nine))? dollars?\b/, '')
+    .replace(/^\s*(?:a|an)\s+/, '').trim();
+  const cats = _categoryNames();
+  const cat = catWord && (cats.find(c => c.toLowerCase() === catWord)
+    || cats.find(c => c.toLowerCase().startsWith(catWord.replace(/y$/, 'i').replace(/s$/, '')))) || '';
+  const income = /deposit|refund/.test(m[2]);
+  const day = m[4] === 'yesterday' ? _localISODate(new Date(Date.now() - 864e5)) : today();   // the computer's own date (item 109)
+  const payee = m[3] ? _askTitle(m[3]) : '';
+  showView('ledger');
+  openAddModal();
+  g('txnDate').value = day;
+  g('txnAmount').value = amount.toFixed(2);
+  g('txnType').value = income ? 'credit' : 'debit';
+  if (payee) g('txnDesc').value = payee;
+  if (cat && g('txnCategory')) g('txnCategory').value = cat;
+  const what = [`${fmt(amount)}`, cat, payee, m[4] || 'today'].filter(Boolean).join(', ');
+  _askDone(`Add ${what}? Press Save to add it.`);
+  _askSaid(`Add ${what}? Press Save to add it.`);
+  return true;
+}
+
 // Rob 2026-10-31: "show me my Kroger transactions" is the Ledger, searched for Kroger - a command, with AI on or off.
 // (\x27 not a bare quote in these patterns: s30 reads a bare one inside a regex as the start of a string.)
 function _askShowTxns(n) {
@@ -27955,6 +28048,8 @@ function askIntent(q, p, head, assist = false) {
     return true;
   }
   if (askFetch(n)) return true;
+  if (_askAddTxn(n)) return true;                              // V5: filled in and read back; Save makes it
+  if (_askPageControl(n)) return true;                         // V6: the page's own controls
   for (const d of ASK_DO) if (d.re.test(n)) { _askDone(d.said); _askSaid(_askSaidFor(d.said)); d.run(); return true; }
   const shown = _askShowTxns(n);
   if (shown) { askLedgerSearch(shown); return true; }
@@ -28616,7 +28711,12 @@ async function askAssistant(q, p, head) {
   window._assistLast = { q, res };
   p.innerHTML = head + _assistHTML(res);
   // H14: asked out loud, answered out loud - Groundwork's own sentences only (P6); the microphone does not listen meanwhile
-  if (window._gwVoiceAsked) { window._gwVoiceAsked = false; if (window.GWVoice && (res.say || []).length) window.GWVoice.say(res.say.join(' ')); }
+  if (window._gwVoiceAsked) {
+    window._gwVoiceAsked = false;
+    // V5 (item 116): a change asked for aloud is read back with its figures; only the card's Yes makes it (H7)
+    const words = (res.say || []).join(' ') + (res.proposal ? ' Press Yes on the card to make the change.' : '');
+    if (window.GWVoice && words.trim()) window.GWVoice.say(words.trim());
+  }
   return true;
 }
 
