@@ -74,6 +74,23 @@ so WKWebView asks each time; the Linux window turns media on but handles no perm
 default applies - possibly a refusal. V18 answers each from the same kept yes. Untested: needs a Mac and a Linux
 machine with a microphone (as item 33 Q6).
 
+## 4b. V11 Spanish - measured, not built (2026-11-01). Rob's to rule.
+
+Speaking needs nothing new: the shipped voices file already holds Spanish voices (ef_dora, em_alex). Listening does:
+base.en hears English only. Measured with whisper.cpp's multilingual `base` (141 MB, the same size as base.en):
+
+| | result |
+|---|---|
+| Spanish, 11 commands x Dora and Alex x clean and noise (44) | 28 heard exactly (64%); mean word error 23.8%; 1.1 s each |
+| what misses | an English store name ("Kroger" heard as "crojero"), one-word commands ("Para" as "Parque", "Repite" as "Repita"), "Muéstrame" split into "Muestra me" - harmless to a router |
+| English, 50 commands, routed by the Ask bar | base.en 50/50; multilingual base 50/50 |
+
+So swapping base.en for the multilingual base would cost English nothing measured here, at no extra size, and would
+hear Spanish. **What it would not do on its own:** every command, page name, reply and fixed sentence is English. A
+Spanish Groundwork is a Spanish command layer and Spanish fixed words throughout - the real work. The questions for Rob:
+(a) swap to the multilingual model now (English unchanged, Spanish heard but only questions to the assistant work), or
+(b) the full Spanish layer as its own item, or (c) neither yet.
+
 ## 4a. Measured (V8, first cut, 2026-10-31 - synthetic voices, not yet real people)
 
 `scripts/voice_measure.py`: 30 commands said by six voices - Kokoro af_heart, am_michael, bf_emma, bm_george (American
