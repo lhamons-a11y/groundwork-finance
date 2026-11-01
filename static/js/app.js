@@ -2031,8 +2031,8 @@ function showToast(title, sub = '', type = 'success', undoFn = null) {
   el.innerHTML = `
     <div class="toast-icon">${type === 'error' ? '❌' : type === 'warning' ? '⚠️' : type === 'info' ? 'ℹ️' : '✅'}</div>
     <div class="toast-body">
-      <div class="toast-title">${title}</div>
-      ${sub ? `<div class="toast-sub">${sub}</div>` : ''}
+      <div class="toast-title">${esc(title)}</div>
+      ${sub ? `<div class="toast-sub">${esc(sub)}</div>` : ''}
     </div>
     ${undoFn ? `<button class="toast-undo" onclick="_runToastUndo(${++_toastUndoN}, this)">Undo</button>` : ''}`;
   // The Undo function is kept and called, never copied into the button as text: copied, it lost every variable it
@@ -6675,7 +6675,14 @@ function parseRichDescription(description='') {
 }
 
 function esc(s='') {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\x27/g,'&#39;');
+}
+// A value quoted inside an on*="fn('...')" handler. The attribute is decoded before the script runs, so esc() alone
+// would hand a ' straight back to the script: a bank description or category name carrying '); could run code there.
+// The script's own escapes come first, then the attribute's. (Found 2026-10-31; 1.1.x security fix, item 32 L1.)
+function escJs(s='') {
+  return esc(String(s).replace(/\\/g,'\\\\').replace(/\x27/g,"\\'").replace(/\r/g,'\\r').replace(/\n/g,'\\n')
+    .replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029'));
 }
 
 // ─── DB write helpers (Phase 0B) ─────────────────────────────────────────────
@@ -14416,8 +14423,8 @@ async function loadRecurringDetection() {
         ${patterns.map(p => `
           <div style="display:flex;align-items:center;gap:10px;padding:4px 0;font-size:12px">
             <div style="flex:1;color:var(--ink)">${esc(p.merchant)} ${fmt(p.avg_amount)} — seen ${p.frequency} times, consistently</div>
-            <button class="btn btn-secondary btn-sm" onclick="acceptRecurringDetection('${esc(p.merchant).replace(/'/g,"\\'")}', ${p.avg_amount})">Add to budget</button>
-            <button class="btn btn-ghost btn-sm" onclick="dismissRecurringDetection('${esc(p.merchant).replace(/'/g,"\\'")}', ${p.avg_amount})">Dismiss</button>
+            <button class="btn btn-secondary btn-sm" onclick="acceptRecurringDetection('${escJs(p.merchant)}', ${p.avg_amount})">Add to budget</button>
+            <button class="btn btn-ghost btn-sm" onclick="dismissRecurringDetection('${escJs(p.merchant)}', ${p.avg_amount})">Dismiss</button>
           </div>`).join('')}
       </div>`;
   } catch (e) {
@@ -15963,27 +15970,27 @@ function _renderInvPositions() {
     const er        = p.expense_ratio;   // a FRACTION of the value a year (0.0003 = 0.03%)
     // Fee flag — only shown when ER is notable (>0.5%); a ratio saved before its unit was stated asks to be confirmed
     const feeFlag = p.expense_ratio_unconfirmed != null
-      ? `<span onclick="promptExpenseRatio('${esc(p.ticker)}')"
+      ? `<span onclick="promptExpenseRatio('${escJs(p.ticker)}')"
                style="font-size:10px;padding:2px 6px;border-radius:20px;cursor:pointer;
                       background:var(--gold-bg);border:1px solid #FAC775;color:#854F0B"
                title="Expense ratio saved without a unit — click to confirm">Confirm ER</span>`
       : er > 0.01
-      ? `<span onclick="promptExpenseRatio('${esc(p.ticker)}')"
+      ? `<span onclick="promptExpenseRatio('${escJs(p.ticker)}')"
                style="font-size:10px;padding:2px 6px;border-radius:20px;cursor:pointer;
                       background:#FCEBEB;border:1px solid #F7C1C1;color:#A32D2D"
                title="High expense ratio — click to review">${(er*100).toFixed(2)}%</span>`
       : er > 0.005
-      ? `<span onclick="promptExpenseRatio('${esc(p.ticker)}')"
+      ? `<span onclick="promptExpenseRatio('${escJs(p.ticker)}')"
                style="font-size:10px;padding:2px 6px;border-radius:20px;cursor:pointer;
                       background:var(--gold-bg);border:1px solid #FAC775;color:#854F0B"
                title="Moderate expense ratio — click to review">${(er*100).toFixed(2)}%</span>`
       : '';
 
     const acCell = ac
-      ? `<span onclick="promptAssetClass('${esc(p.ticker)}')"
+      ? `<span onclick="promptAssetClass('${escJs(p.ticker)}')"
                style="font-size:10px;padding:2px 7px;border-radius:20px;cursor:pointer;
                       background:${acColor}22;border:1px solid ${acColor}55;color:${acColor}">${acLabel}</span>`
-      : `<select onchange="saveAssetClass('${esc(p.ticker)}', this.value)"
+      : `<select onchange="saveAssetClass('${escJs(p.ticker)}', this.value)"
                  style="font-size:10px;padding:2px 4px;border-radius:4px;cursor:pointer;
                         border:1px dashed var(--steel);
                         background:transparent;color:var(--slate)">
@@ -15999,7 +16006,7 @@ function _renderInvPositions() {
           ${feeFlag}
         </div>
         <div style="font-size:11px;color:var(--slate);margin-top:2px">${esc(p.company_name||'')}</div>
-        <div onclick="promptManualPrice('${esc(p.ticker)}', ${p.current_price||0})"
+        <div onclick="promptManualPrice('${escJs(p.ticker)}', ${p.current_price||0})"
              style="font-size:11px;color:${p.price_stale?'var(--gold)':'var(--slate-2)'};margin-top:3px;cursor:pointer;
                     display:inline-flex;align-items:center;gap:3px"
              title="Click to set price manually">
@@ -21248,7 +21255,7 @@ function _drawCategoryManager() {
         ${isEnabled ? `
         <div style="padding:6px 12px;background:var(--mist);border-top:0.5px solid var(--steel-2)">
           <button class="btn-ghost btn-sm" style="font-size:11px;padding:3px 8px"
-            onclick="_catAddChild(${parent.id}, '${esc(parent.name)}')">
+            onclick="_catAddChild(${parent.id}, '${escJs(parent.name)}')">
             + Add sub-category
           </button>
         </div>` : ''}
@@ -21345,7 +21352,7 @@ async function _mergeGhostCategory(sourceId) {
     async () => {
       try {
         const res = await API.post(`/api/categories/${sourceId}/merge`, { target_id: parseInt(targetId) });
-        showToast('Categories merged', `${res.transactions_moved||0} transaction${(res.transactions_moved||0)!==1?'s':''} moved to "${esc(target.name)}"`, 'success');
+        showToast('Categories merged', `${res.transactions_moved||0} transaction${(res.transactions_moved||0)!==1?'s':''} moved to "${target.name}"`, 'success');
         await renderCategoryManager();
         renderLedger();
         renderDashboard();
@@ -21826,8 +21833,8 @@ async function renderImportCustody() {
       ${(() => {             // one decision for a whole import's held lines, e.g. a file imported twice
         const by = {}; held.forEach(h => { if (h.batch) by[h.batch] = (by[h.batch] || 0) + 1; });
         return Object.entries(by).filter(([, n]) => n > 1).map(([b, n]) => `<div style="font-size:12px;padding:4px 0">All ${n} from one import:
-          <button class="btn btn-sm btn-ghost" onclick="_heldResolveBatch('${esc(b)}', 'same')">They're all the same</button>
-          <button class="btn btn-sm btn-ghost" onclick="_heldResolveBatch('${esc(b)}', 'bring_in')">Bring them all in</button></div>`).join('');
+          <button class="btn btn-sm btn-ghost" onclick="_heldResolveBatch('${escJs(b)}', 'same')">They're all the same</button>
+          <button class="btn btn-sm btn-ghost" onclick="_heldResolveBatch('${escJs(b)}', 'bring_in')">Bring them all in</button></div>`).join('');
       })()}
       ${held.length ? held.map(h => line(h, `<button class="btn btn-sm btn-secondary" onclick="_heldResolve(${h.id}, 'bring_in')">Bring it in</button>
           <button class="btn btn-sm btn-ghost" onclick="_heldResolve(${h.id}, 'same')">It's the same</button>`)).join('')
@@ -21838,7 +21845,7 @@ async function renderImportCustody() {
       <details style="margin-top:12px"><summary style="cursor:pointer;font-size:12px;color:var(--ink)">Recent imports</summary>
         ${(st.batches || []).length ? st.batches.map(b => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px">
             <span style="flex:1">${esc(b.imported_at || '')} · ${esc(b.account)} · ${b.lines} line${b.lines === 1 ? '' : 's'}</span>
-            <button class="btn btn-sm btn-ghost" onclick="_batchSetAside('${esc(b.batch)}', ${b.lines})">Set this import aside</button></div>`).join('')
+            <button class="btn btn-sm btn-ghost" onclick="_batchSetAside('${escJs(b.batch)}', ${b.lines})">Set this import aside</button></div>`).join('')
           : '<div style="font-size:12px;color:var(--slate)">Imports from before this change have no batch.</div>'}
       </details></div>`;
 }
@@ -22236,7 +22243,7 @@ async function loadBackupList() {
           </div>
         </div>
         <button class="btn btn-secondary btn-sm"
-          onclick="restoreFromBackup('${esc(filename)}')"
+          onclick="restoreFromBackup('${escJs(filename)}')"
           style="color:var(--pine);border-color:var(--pine)">
           ↩ Recover
         </button>
@@ -26591,7 +26598,7 @@ function _renderBYBList() {
         </div>` : ''}
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
           ${b.decision === 'track' ? `
-          <button class="btn btn-secondary btn-sm" onclick="_bybResolveTracked(${b._dbId}, '${esc(b.name).replace(/'/g,"\\'")}', ${b.monthly||0})" style="font-size:11px">Decide now</button>
+          <button class="btn btn-secondary btn-sm" onclick="_bybResolveTracked(${b._dbId}, '${escJs(b.name)}', ${b.monthly||0})" style="font-size:11px">Decide now</button>
           ` : ''}
           <button class="btn btn-ghost btn-sm" onclick="_bybReEvaluate(${safeJson})" style="font-size:11px">Re-evaluate</button>
           <button class="btn btn-ghost btn-sm" onclick="removeBYBItem(${b._dbId})" style="color:var(--slate-2);font-size:11px">Remove</button>

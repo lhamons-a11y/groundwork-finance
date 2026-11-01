@@ -32,6 +32,46 @@ GW_VERSION     = '20261008-d25'  # must match app.js GW_VERSION constant
 # cannot read or write Groundwork data without the token.
 _GW_TOKEN = secrets.token_hex(32)
 
+# 1.1.x security fix (2026-10-31; item 32 L1), the same as 2.0 (BANK_BROWSER.md F12): the only names a request may
+# address this server by. It binds 127.0.0.1 and nothing else, so any other Host means a name that was made to resolve
+# here - a DNS-rebinding page, which would otherwise read the token out of index.html and have every /api/* route.
+_LOCAL_HOSTNAMES = ('127.0.0.1', 'localhost')
+
+# Sent with every response. The page leans on inline handlers (onclick=...), so inline script stays allowed; what the
+# policy takes away is somewhere to send data: connect, images and media come only from this server, the page cannot
+# be framed, and no form or <base> can point elsewhere. 1.1 loads its fonts from Google, so those two hosts stay allowed
+# for styles and fonts only (2.0 ships its fonts with the app).
+_SECURITY_HEADERS = {
+    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+                               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; "
+                               "font-src 'self' data: https://fonts.gstatic.com; media-src 'self' data: blob:; "
+                               "worker-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; "
+                               "form-action 'self'; frame-ancestors 'none'",
+    'X-Frame-Options':        'DENY',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy':        'no-referrer',
+}
+
+
+def _request_host_refusal(environ, path):
+    """Why this request must be refused, or None if it may proceed. Module-level so the smoke section can break it."""
+    port = str(environ.get('SERVER_PORT', ''))
+    host = environ.get('HTTP_HOST', '')
+    name, sep, host_port = host.rpartition(':')
+    if not sep:
+        name, host_port = host, '80'
+    if name not in _LOCAL_HOSTNAMES or host_port != port:
+        return 'Unauthorized host'
+
+    origin = environ.get('HTTP_ORIGIN')
+    if origin is not None and path.startswith('/api/'):
+        allowed = {f'http://{n}:{port}' for n in _LOCAL_HOSTNAMES}
+        if port == '80':
+            allowed |= {f'http://{n}' for n in _LOCAL_HOSTNAMES}
+        if origin not in allowed:
+            return 'Unauthorized origin'
+    return None
+
 from sqlalchemy import func, desc, text
 
 # Add parent to path
@@ -288,6 +328,24 @@ def create_app(static_folder: str = None) -> Flask:
             response = Response(html, mimetype='text/html')
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         response.headers['Pragma']        = 'no-cache'
+        return response
+
+    @app.before_request
+    def _check_request_host():
+        """Refuse any request not addressed to this server by its loopback name (DNS rebinding: a page whose hostname
+        resolves to 127.0.0.1 is same-origin with this server, reads the token from index.html and has every route;
+        the Host header gives it away). The Host must name 127.0.0.1 or localhost on the port this request arrived on,
+        and an /api/* request carrying an Origin must come from this same server. Runs before the token check: it has
+        to cover `/` and /api/health, which that check exempts."""
+        refusal = _request_host_refusal(request.environ, request.path)
+        if refusal:
+            return jsonify({'error': refusal, 'code': 403}), 403
+        return None
+
+    @app.after_request
+    def _security_headers(response):
+        for name, value in _SECURITY_HEADERS.items():
+            response.headers.setdefault(name, value)
         return response
 
     @app.before_request
@@ -7280,34 +7338,8 @@ def auto_import_queue():
     return ok({'queued': True, 'filename': filename})
 
 
-@auto_import_bp.route('/delete-file', methods=['POST'])
-def auto_import_delete_file():
-    """
-    Delete a file that failed validation.
-    Security: only deletes files inside the user's Downloads folder.
-    """
-    body      = request.get_json(silent=True) or {}
-    file_path = (body.get('path') or '').strip()
-    if not file_path:
-        return err('No path provided', 400)
-
-    from pathlib import Path as P
-    try:
-        target    = P(file_path).resolve()
-        downloads = P.home() / 'Downloads'
-        target.relative_to(downloads)
-    except (ValueError, OSError):
-        return err('File path is not within the Downloads folder', 403)
-
-    if not target.exists():
-        return ok({'deleted': False, 'reason': 'File no longer exists'})
-
-    try:
-        target.unlink()
-        print(f'[Security] Deleted invalid import file: {target.name}')
-        return ok({'deleted': True, 'filename': target.name})
-    except OSError as e:
-        return err(f'Could not delete file: {e}', 500)
+# /delete-file is gone (2026-10-31, 1.1.x security fix): nothing called it, and it deleted any file in Downloads
+# outright - any kind, no proof it was ever imported, no Recycle Bin.
 
 
 @auto_import_bp.route('/pending', methods=['GET'])
