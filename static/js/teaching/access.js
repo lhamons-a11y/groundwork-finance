@@ -21,7 +21,7 @@
   var SIZES = { '100': 1, '115': 1.15, '130': 1.3 };
   var RATES = { slower: 0.8, normal: 1, faster: 1.25 };
   var RATE_ORDER = ['slower', 'normal', 'faster'];
-  var prefs = { text_size: '100', read_aloud: 'off', read_rate: 'normal', voice_commands: 'off', voice_tour: '' };
+  var prefs = { text_size: '100', read_aloud: 'off', read_rate: 'normal', voice_commands: 'off', voice_tour: '', voice_wake: 'off' };
   var last = null;          // { words, section } - what was read last, for "repeat" and "explain further"
   var asking = null;        // the open "explained further?" question: { section }
   var hoverTimer = null, pointerAt = null, lastView = null, viewStack = [];
@@ -291,9 +291,18 @@
 
   function _speaking() { return own.playing || !!(window.speechSynthesis && (window.speechSynthesis.speaking || window.speechSynthesis.pending)); }
 
-  async function micOn() {
+  // V3 (item 116): hands-free start. With "Start by saying Groundwork" on (off by default), the microphone opens on its
+  // own while Groundwork's window is in front - the red microphone showing - and acts only on what begins with
+  // "Groundwork", and on a follow-up for a few seconds after one. Everything else is let go: no toast, nothing kept.
+  // Leaving the window turns it off; coming back turns it on again.
+  var WAKE_FOLLOW_MS = 8000;
+  var WAKE_WORD = /^(?:hey |ok |okay )?ground ?works?\b[\s,.!?]*/i;
+  function _wakeWanted() { return prefs.voice_commands === 'on' && prefs.voice_wake === 'on' && !document.hidden && document.hasFocus(); }
+  function _wakeArm() { if (!conv && _wakeWanted()) micOn(true); }
+
+  async function micOn(wake) {
     if (conv) return;
-    var c = { chunks: [], pre: [], speech: false, busy: 0, lastActivity: Date.now() };
+    var c = { chunks: [], pre: [], speech: false, busy: 0, lastActivity: Date.now(), wake: !!wake, awakeUntil: 0 };
     conv = c;
     _micState('listening');
     try {
@@ -314,8 +323,7 @@
     c.node.onaudioprocess = function (e) { _hear(c, e.inputBuffer.getChannelData(0)); };
     src.connect(c.node);
     c.node.connect(c.ctx.destination);
-    _chime(true);
-    _tourOnce();
+    if (!c.wake) { _chime(true); _tourOnce(); }        // listening for its name starts quietly, red light showing
   }
 
   function micOff(why) {
@@ -325,9 +333,9 @@
     try { c.node && c.node.disconnect(); } catch (e) { /* already */ }
     if (c.stream) c.stream.getTracks().forEach(function (tr) { tr.stop(); });
     if (c.ctx) c.ctx.close();
-    _chime(false);
+    if (!c.wake) _chime(false);
     _micState('idle');
-    if (why) showToast('The microphone is off', why, 'info');
+    if (why && !c.wake) showToast('The microphone is off', why, 'info');
   }
 
   // V2 (item 116): while Groundwork speaks it still listens, for a few short words only - "stop", "next", "repeat",
@@ -368,7 +376,8 @@
     } else {
       c.pre.push(copy);
       if (c.pre.length > 2) c.pre.shift();       // a moment before the first sound, so its start is not cut
-      if (now - c.lastActivity > QUIET_OFF_MS) micOff('Nothing was said for a minute.');
+      if (!c.wake && now - c.lastActivity > QUIET_OFF_MS) micOff('Nothing was said for a minute.');   // V3: listening
+                                                                   // for its name lasts while the window is in front
     }
   }
 
@@ -380,11 +389,20 @@
     _micState(conv ? (conv.busy ? 'working' : 'listening') : 'idle');
   }
 
-  function talkToggle() { if (conv) micOff(); else micOn(); }
+  function talkToggle() {
+    if (conv && conv.wake) { conv.wake = false; _chime(true); return; }   // V3: a tap while it waits for its name - talk now
+    if (conv) micOff(); else micOn();
+  }
 
-  // Leaving Groundwork's window turns the microphone off
-  if (window.addEventListener) window.addEventListener('blur', function () { if (conv) micOff('Groundwork’s window was left.'); });
-  document.addEventListener('visibilitychange', function () { if (document.hidden && conv) micOff('Groundwork’s window was left.'); });
+  // Leaving Groundwork's window turns the microphone off; coming back turns listening for its name on again (V3)
+  if (window.addEventListener) {
+    window.addEventListener('blur', function () { if (conv) micOff('Groundwork’s window was left.'); });
+    window.addEventListener('focus', function () { setTimeout(_wakeArm, 200); });
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden && conv) micOff('Groundwork’s window was left.');
+    else if (!document.hidden) setTimeout(_wakeArm, 200);
+  });
 
   // 16 kHz mono 16-bit WAV, the form whisper.cpp reads
   function wav(chunks, rate) {
@@ -423,6 +441,18 @@
           showToast('Heard: “' + text + '”', cmd.said, 'info', typeof undo === 'function' ? undo : null);
         }
         return;
+      }
+      if (conv && conv.wake && text) {              // V3: only what is said to Groundwork
+        var at = Date.now(), t0 = text.trim();
+        if (WAKE_WORD.test(t0)) {
+          conv.awakeUntil = at + WAKE_FOLLOW_MS;
+          text = t0.replace(WAKE_WORD, '').trim();
+          if (!text) { _chime(true); return; }       // "Groundwork" alone: a sound, and the next thing said is for it
+        } else if (at > conv.awakeUntil) {
+          return;                                   // not for Groundwork: let go, unread, no toast
+        } else {
+          conv.awakeUntil = at + WAKE_FOLLOW_MS;    // a follow-up, a few seconds after the last
+        }
       }
       if (text) route(text);                        // in a conversation, a cough is not worth a message
     } catch (e) { showToast('Voice commands could not run', e.message || '', 'error'); }
@@ -621,7 +651,13 @@
       + (mic ? '<br>You allowed the microphone on ' + esc(new Date(mic).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }))
         + ', so Groundwork doesn\'t ask again. It listens only while the microphone shows it is on. '
         + '<button class="btn btn-ghost btn-sm" id="gwMicForget" style="font-size:var(--fs-xs)">Ask me next time</button>' : '')
-      + '</div></div>';
+      + '</div></div>'
+      + (prefs.voice_commands === 'on'
+        ? '<div class="field mt-4"><label>Start by saying "Groundwork"</label><div>' + _radios('gwWake', prefs.voice_wake, [['off', 'Off'], ['on', 'On']]) + '</div>'
+          + '<div style="' + small + '">Say "Groundwork, open my budget" with no tap. It listens for its name only while Groundwork\'s '
+          + 'window is in front, with the red microphone showing, and stops when you leave the window. What isn\'t said to '
+          + 'Groundwork is let go - not acted on, not kept. Tap the microphone to talk without saying its name.</div></div>'
+        : '');
     var forget = _el('gwMicForget');
     if (forget) forget.addEventListener('click', async function () {
       try { await API.delete('/api/voice/microphone'); micKept = false; showToast('Groundwork will ask about the microphone next time', '', 'info'); }
@@ -638,7 +674,16 @@
       i.addEventListener('change', function () { _save('read_rate', i.value); });
     });
     card.querySelectorAll('input[name="gwVoice"]').forEach(function (i) {
-      i.addEventListener('change', async function () { await _save('voice_commands', i.value); _micButton(); });
+      i.addEventListener('change', async function () {
+        await _save('voice_commands', i.value); _micButton(); _card();
+        if (i.value === 'on') _wakeArm(); else if (conv) micOff();
+      });
+    });
+    card.querySelectorAll('input[name="gwWake"]').forEach(function (i) {
+      i.addEventListener('change', async function () {
+        await _save('voice_wake', i.value);
+        if (i.value === 'on') _wakeArm(); else if (conv && conv.wake) micOff();
+      });
     });
   }
 
@@ -653,6 +698,7 @@
       API.get('/api/voice').then(function (v) { own.available = !!(v && v.speak && v.speak.available); }).catch(function () {});
     }
     _micButton();
+    setTimeout(_wakeArm, 600);                       // V3: listening for its name, if chosen and the window is in front
     _card();
     var box = _el('gwAskBox');
     if (box && window.MutationObserver) new window.MutationObserver(function () { _micState(conv ? 'listening' : 'idle'); })
