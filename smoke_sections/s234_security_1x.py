@@ -90,11 +90,17 @@ console.log(JSON.stringify({out, ran}));
     check('s234 X4 /api/auto-import/delete-file is gone', gone.status_code in (404, 405)
           and not hasattr(server, 'auto_import_delete_file'))
 
+    # master's page also needs the window's cookie (the page-cookie gate); 1.x has none - this checks the host alone
+    pc = c.application.test_client()
+    if hasattr(server, '_PAGE_COOKIE'):
+        for name in ('localhost', '127.0.0.1', 'evil.example'):
+            pc.set_cookie(server._PAGE_COOKIE, server._GW_PAGE_KEY, domain=name)
+
     def req(path, host, origin=None, token=True):
         env = {'HTTP_HOST': host}
         if origin:
             env['HTTP_ORIGIN'] = origin
-        r = c.get(path, headers=H if token else {}, environ_overrides=env)
+        r = pc.get(path, headers=H if token else {}, environ_overrides=env)
         return r.status_code
     check('s234 X5 a page under another name is refused - the page itself, health, and every route; so is a foreign '
           'Origin; this server by its own names is let through',
