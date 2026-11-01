@@ -91,6 +91,31 @@ Spanish Groundwork is a Spanish command layer and Spanish fixed words throughout
 (a) swap to the multilingual model now (English unchanged, Spanish heard but only questions to the assistant work), or
 (b) the full Spanish layer as its own item, or (c) neither yet.
 
+**Every language Groundwork's voice speaks (Rob 2026-11-01: "lets do all of them"), measured the same way:** the same
+11 commands in each, said by Kokoro's voices (two where it has two; French has one), clean and with noise, heard by the
+multilingual base. "Named right" is whisper telling the language from the voice alone, told nothing (for Rob's
+question: can Groundwork pick up the person's language?). Japanese and Chinese are scored by character.
+
+| language | named right | heard exactly | mean error | note |
+|---|---|---|---|---|
+| English | 44/44 | 31/44 | 10.3% (word) | control; routing was 97% (4a) |
+| Spanish | 40/44 | 29/44 | 21.5% (word) | |
+| French | 19/22 | 10/22 | 47.3% (word) | one voice only |
+| Italian | 34/44 | 24/44 | 26.8% (word) | |
+| Portuguese (Brazil) | 32/44 | 15/44 | 60.5% (word) | |
+| Hindi | 23/44 | 0/44 | 114.8% (word) | |
+| Japanese | 17/44 | 0/44 | 489.9% (char) | the voice cannot read kanji: espeak says "Chinese letter" for each |
+| Mandarin | 33/44 | 0/44 | 98.9% (char) | |
+
+**What this does and does not say.** It is whisper hearing *Groundwork's own voice*: where the voice is weak (Japanese
+plainly; Hindi and Mandarin likely, and a script mismatch - simplified against traditional, Devanagari against Urdu -
+scores as all wrong) the listening is judged on bad input. It is not a measure of real people. What it does say:
+naming the language works for English and Spanish and is unreliable on one short command elsewhere - so an offer to
+switch should wait for several things said, not one. Spanish, Italian and French are the ones near usable with these
+two engines; Portuguese is weaker; Hindi, Japanese and Mandarin are not ready with them (Japanese needs its own
+pronunciation tool before Groundwork can speak it at all). A larger multilingual whisper ("small", about 465 MB)
+hears other languages far better than base - a size Rob would weigh. Real speakers decide all of it.
+
 ## 4a. Measured (V8, first cut, 2026-10-31 - synthetic voices, not yet real people)
 
 `scripts/voice_measure.py`: 30 commands said by six voices - Kokoro af_heart, am_michael, bf_emma, bm_george (American
