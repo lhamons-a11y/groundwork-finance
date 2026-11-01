@@ -26,6 +26,14 @@ _PARAMS_ANON = re.compile(r'function\s*\(([^)]*)\)')
 _PARAMS_ARROW = re.compile(r'\(([^)]*)\)\s*=>')
 
 
+
+def _page_client(c):
+    """A client holding the window's page cookie (Mac check 2026-10-31, issue 2): / is the window's alone."""
+    import server
+    pc = c.application.test_client()
+    pc.set_cookie(server._PAGE_COOKIE, server._GW_PAGE_KEY)
+    return pc
+
 def _params(src):
     """Every parameter name bound anywhere in the source."""
     names = set()
@@ -181,7 +189,7 @@ def run(ctx):
           len(_modules) > 1)
     check('and the loader emits every one of them, so adding a module is adding a file',
           all(f'/js/teaching/{name}' in _html_probe for name in _modules)
-          if (_html_probe := c.get('/', headers=H).get_data(as_text=True)) else False)
+          if (_html_probe := _page_client(c).get('/', headers=H).get_data(as_text=True)) else False)
 
     _teach_entry = BASE / 'static' / 'js' / 'teaching' / 'index.js'
     _teach_src = _teach_entry.read_text(encoding='utf-8') if _teach_entry.exists() else ''
@@ -190,7 +198,7 @@ def run(ctx):
           and 'register:' in _teach_src)
 
     # (2) Present in the build -> server emits the loader tag, after app.js.
-    r = c.get('/', headers=H)
+    r = _page_client(c).get('/', headers=H)
     _html = r.get_data(as_text=True)
     check('index.html is served with the teaching loader tag when the file is present',
           r.status_code == 200
@@ -208,7 +216,7 @@ def run(ctx):
     _shutil.copy(BASE / 'static' / 'js' / 'app.js', _lts_static / 'js' / 'app.js')
     from server import create_app as _create_app
     _lts_app = _create_app(static_folder=str(_lts_static))
-    _lts_html = _lts_app.test_client().get('/').get_data(as_text=True)
+    _lts_html = _page_client(_lts_app.test_client()).get('/').get_data(as_text=True)
     check('a build without static/js/teaching/ serves NO teaching loader tag (the LTS path)',
           'js/teaching' not in _lts_html)
     check('that same LTS-shaped build still serves app.js normally',

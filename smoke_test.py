@@ -206,14 +206,19 @@ def main():
     HJ = {**H, 'Content-Type': 'application/json'}
 
     # ── 3. Health + database integrity ────────────────────────────────────────
-    h = c.get('/api/health').get_json()
+    h = c.get('/api/health', headers=H).get_json()
     check('health endpoint responds', h.get('ok') is True)
     check('database integrity check passes (db_ok)', h.get('db_ok') is True)
     check('health reports matching version', h.get('version') == v_server)
 
     # ── 4. Token injection + auth enforcement ─────────────────────────────────
-    check('token injected on /',            b'GW_SESSION_TOKEN' in c.get('/').data)
-    check('token injected on /index.html',  b'GW_SESSION_TOKEN' in c.get('/index.html').data)
+    import server as _srv
+    pc = c.application.test_client()                                 # the window: it holds the page cookie (Mac check, issue 2)
+    pc.set_cookie(_srv._PAGE_COOKIE, _srv._GW_PAGE_KEY)
+    check('token injected on /',            b'GW_SESSION_TOKEN' in pc.get('/').data)
+    check('token injected on /index.html',  b'GW_SESSION_TOKEN' in pc.get('/index.html').data)
+    check('no page and no token without the page cookie', c.get('/').status_code == 403
+          and _GW_TOKEN.encode() not in c.get('/').data and _GW_TOKEN.encode() not in c.get('/index.html').data)
     check('API rejects missing token (403)', c.get('/api/settings/bootstrap').status_code == 403)
     check('API accepts valid token (200)',   c.get('/api/settings/bootstrap', headers=H).status_code == 200)
 

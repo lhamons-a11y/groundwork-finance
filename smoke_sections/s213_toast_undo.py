@@ -25,7 +25,7 @@ def run(ctx):
             "const made = []; const g = () => ({ appendChild: el => made.push(el) });\n"
             "const document = { createElement: () => ({ style: {}, remove() {} }) };\n"
             "const setTimeout = () => 0;\n"
-            "const esc = s => String(s);\n"                    # showToast escapes its text (s270 X1)
+            + (re.search(r'^function esc\(.*?^\}', app, re.M | re.S) or [''])[0] + '\n'     # the toast escapes its words
             + runner.group(0) + '\n' + toast.group(0) + '\n'
             + "let got = null;\n"
             "(function () { const id = 4242; showToast('Transaction deleted', '', 'info', () => { got = id; }); })();\n"

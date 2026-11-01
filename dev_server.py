@@ -22,7 +22,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 if __name__ == '__main__':
     import logging
     logging.basicConfig(level=logging.INFO)
+    import server
     from server import create_app, serve
+    server._PAGE_GATE = False          # a throwaway database opened from an ordinary browser: no page key to hand it
     app = create_app()
     print(f'Groundwork dev server — temp DB at {_tmp}', flush=True)
     if os.environ.get('GROUNDWORK_DEV_ENGINE') == '1':     # opt in: load the model as the launcher does (AI on only)

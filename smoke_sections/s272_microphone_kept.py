@@ -13,6 +13,7 @@ import json
 
 def run(ctx):
     check, c, H, HJ = ctx.check, ctx.c, ctx.H, ctx.HJ
+    c.delete('/api/voice/microphone', headers=H)      # from nothing on record: s50's sweep posts to every route
     first = c.get('/api/voice/microphone', headers=H).get_json()['data']
     a = c.post('/api/voice/microphone', headers=HJ, data=json.dumps({})).get_json()['data']
     from core.database import db_session
