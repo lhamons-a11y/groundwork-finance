@@ -16,8 +16,8 @@ Opened 2026-10-31. Rob, after item 114 gave the assistant hands:
 > templetes that use all text and grid, text and charts, text and graphs, etc."* - P13-P15, added 2026-10-31 (Rob:
 > *"yes add that"*).
 
-**STAGES 4-7 BUILT 2026-11-01** (Rob: *"lets complete the rest of the stages"*), awaiting acceptance; section 14,
-with five rulings sought (14.6). **ACCEPTED 2026-10-31.** C1-C11 ruled as recommended, one by one (section 10); MCP dropped (section 9).
+**STAGES 4-7 BUILT 2026-11-01** (Rob: *"lets complete the rest of the stages"*) **and ACCEPTED 2026-11-01** (Rob: *"I
+accept all stages 115"*): all seven stages accepted; D1-D5 stand as built and recommended (section 14.6). **ACCEPTED 2026-10-31.** C1-C11 ruled as recommended, one by one (section 10); MCP dropped (section 9).
 Next: the C3 pairing table for ruling, and the section 6 question set, written before measuring. Stages 1-3 may
 build alongside item 114's fixes; stage 4 waits for them (C7).
 
@@ -522,7 +522,7 @@ work the person did not ask for.
 - **A help entry:** "Can I just ask for a report?"
 - **The gate:** s276 (20 checks); 4118 passed, 0 failed.
 
-### 14.6 Rulings sought
+### 14.6 Rulings sought (accepted with the stages, 2026-11-01: as recommended)
 
 | | Question | Recommended |
 |---|---|---|
