@@ -12,8 +12,8 @@ const _GW_AUTH_HEADER = () => ({ 'X-GW-Token': window.GW_SESSION_TOKEN || '' });
 // If this page was loaded before a restart (or replayed from browser cache),
 // its token is stale and every API call 403s. Recover by re-fetching the page
 // fresh, extracting the current token, and retrying the request once.
-// Security note: any local process can already GET / and read the token from
-// the HTML, so re-extracting it here does not weaken the auth model.
+// The page itself is gated (server.py _GW_PAGE_KEY): this fetch carries the
+// window's HttpOnly page cookie, which nothing outside the window holds.
 let _gwTokenRefresh = null; // in-flight refresh — dedupes concurrent 403s
 async function _gwRefreshToken() {
   if (!_gwTokenRefresh) {
@@ -2214,8 +2214,8 @@ function showToast(title, sub = '', type = 'success', undoFn = null) {
   el.innerHTML = `
     <div class="toast-icon">${type === 'error' ? '❌' : type === 'warning' ? '⚠️' : type === 'info' ? 'ℹ️' : '✅'}</div>
     <div class="toast-body">
-      <div class="toast-title">${title}</div>
-      ${sub ? `<div class="toast-sub">${sub}</div>` : ''}
+      <div class="toast-title">${esc(title)}</div>
+      ${sub ? `<div class="toast-sub">${esc(sub)}</div>` : ''}
     </div>
     ${undoFn ? `<button class="toast-undo" onclick="_runToastUndo(${++_toastUndoN}, this)">Undo</button>` : ''}`;
   // The Undo function is kept and called, never copied into the button as text: copied, it lost every variable it
@@ -3467,13 +3467,13 @@ function updateLedgerStats() {
     const accts = _accountNames();
     const cur   = acctSel.value;
     acctSel.innerHTML = '<option value="">All accounts</option>' +
-      accts.map(a=>`<option value="${a}"${a===cur?' selected':''}>${a}</option>`).join('');
+      accts.map(a=>`<option value="${esc(a)}"${a===cur?' selected':''}>${esc(a)}</option>`).join('');
   }
 
   // Keep the shared <datalist id="accountList"> fresh too — used by the
   // Add modal's free-text account field.
   const acctList = g('accountList');
-  if (acctList) acctList.innerHTML = _accountNames().map(a => `<option value="${a}">`).join('');
+  if (acctList) acctList.innerHTML = _accountNames().map(a => `<option value="${esc(a)}">`).join('');
 }
 
 // ── Account switcher (pill in the toolbar) ──────────────────────────────
@@ -5584,8 +5584,8 @@ function openAddModal() {
   // Populate datalists
   const cats = _categoryNames();
   const accs = _accountNames();
-  g('categoryList').innerHTML = cats.map(c=>`<option value="${c}">`).join('');
-  g('accountList').innerHTML  = accs.map(a=>`<option value="${a}">`).join('');
+  g('categoryList').innerHTML = cats.map(c=>`<option value="${esc(c)}">`).join('');
+  g('accountList').innerHTML  = accs.map(a=>`<option value="${esc(a)}">`).join('');
 }
 
 function closeAddModal() {
@@ -6031,7 +6031,7 @@ function showImportModal() {
     } else {
       sel.disabled = false;
       sel.innerHTML = '<option value="">Select account…</option>' +
-        accounts.map(a => `<option value="${a}">${a}</option>`).join('');
+        accounts.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('');
       // Auto-select if only one account exists
       if (accounts.length === 1) sel.value = accounts[0];
     }
@@ -33294,7 +33294,7 @@ async function initInvestments() {
     if (sel) {
       const current = sel.value;
       sel.innerHTML = '<option value="">All accounts</option>' +
-        accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+        accounts.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('');
       if (current && accounts.some(a => String(a.id) === current)) {
         sel.value = current;
       }

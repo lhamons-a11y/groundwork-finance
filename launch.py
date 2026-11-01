@@ -108,6 +108,23 @@ def _check_dependencies():
         sys.exit(1)
 
 
+def _use_bundled_certificates():
+    """Point HTTPS at the certificate list shipped in the app (Mac check 2026-10-31, issue 6).
+
+    A frozen Python cannot find the Mac's own list, so every check failed with CERTIFICATE_VERIFY_FAILED - the update
+    check, airfare, geocoding, prices - from at least 20 October. Setting SSL_CERT_FILE before anything opens a
+    connection makes every ssl.create_default_context(), and so every urlopen, load certifi's list. Verification
+    stays on; nothing falls back to an unchecked connection.
+    """
+    if os.environ.get('SSL_CERT_FILE'):
+        return
+    try:
+        import certifi
+        os.environ['SSL_CERT_FILE'] = certifi.where()
+    except ImportError:
+        logging.warning('certifi is not in this build - HTTPS checks will fail')
+
+
 def _wait_for_flask(host='127.0.0.1', port=8765, timeout=30):
     """
     Confirms Groundwork's own Flask server is actually answering — not just
@@ -321,6 +338,14 @@ def _start_downloads_watcher():
     if not downloads.is_dir():
         logging.info('auto-import: no Downloads folder found — watcher disabled')
         return None
+    # Read the folder once before watching it (Mac check 2026-10-31, issue 1). On macOS a build with a new signature
+    # is asked again for Downloads, and the watch call waits for that answer holding Python's lock, so every thread in
+    # the app stopped with it. os.listdir lets go of the lock while it waits, and a refusal is an answer, not a hang.
+    try:
+        os.listdir(downloads)
+    except OSError as e:
+        logging.info('auto-import: Downloads cannot be read (%s) — watcher disabled', e)
+        return None
 
     seen = {}
 
@@ -361,6 +386,23 @@ def _stop_engine():
         logging.exception('local AI engine did not stop cleanly')
 
 
+def _tighten_data_files():
+    """The database, its backups and the logs, readable by this user only (Mac check 2026-10-31, issue 12).
+
+    main() sets the umask, so what Groundwork writes from now on is made that way; this catches what an earlier
+    build left at 644. The data folder itself was already 700. Not encryption: FileVault is what protects the disk.
+    """
+    if os.name != 'posix':
+        return
+    try:
+        from core.database import DATA_DIR
+        for f in [*DATA_DIR.glob('*'), *DATA_DIR.glob('backups/*')]:
+            if f.is_file() and f.stat().st_mode & 0o077:
+                f.chmod(0o600)
+    except OSError as e:
+        logging.warning('could not tighten the data files: %s', e)
+
+
 def _start_server(base_dir: Path):
     try:
         # ── Path setup ────────────────────────────────────────────────────────
@@ -379,6 +421,7 @@ def _start_server(base_dir: Path):
         # ── Import and start Flask ────────────────────────────────────────────
         from server import create_app, serve
         flask_app = create_app(static_folder=static_folder)
+        _tighten_data_files()
         logging.getLogger('werkzeug').setLevel(logging.WARNING)
 
         # One serving path for every entry point (server.serve). The packaged
@@ -431,6 +474,9 @@ def main():
     )
 
     _check_dependencies()
+    if os.name == 'posix':
+        os.umask(0o077)             # issue 12: every file Groundwork writes is this user's alone
+    _use_bundled_certificates()
 
     import webview
 
@@ -471,12 +517,11 @@ def main():
 
     api    = GroundworkAPI()
 
-    # Start the Downloads auto-import watcher — Flask is up, token exists
-    _start_downloads_watcher()
-
+    import server as _server
     window = webview.create_window(
         title='Groundwork',
-        url='http://127.0.0.1:8765/',
+        # The page key opens the page once and is traded for a cookie only this window holds (issue 2).
+        url=f'http://127.0.0.1:8765/?k={_server._GW_PAGE_KEY}',
         js_api=api,
         width=1280,
         height=820,
@@ -487,6 +532,13 @@ def main():
     import atexit
     from bank_window import close_all_bank_windows
     atexit.register(close_all_bank_windows)
+
+    # The Downloads auto-import watcher starts once the window is up, on its own thread: a macOS permission
+    # question about Downloads must never stand between the user and the window (issue 1).
+    def _watch_after_shown():
+        window.events.shown.wait(30)
+        _start_downloads_watcher()
+    threading.Thread(target=_watch_after_shown, daemon=True, name='groundwork-downloads').start()
 
     webview.start(debug=False)
     _stop_engine()

@@ -443,25 +443,27 @@ def chat_stream(system, messages, max_tokens=1000, temperature=0.3):
         _cancel.clear()
         msgs = ([{'role': 'system', 'content': system}] if system else []) + [
             {'role': m.get('role', 'user'), 'content': _text_of(m.get('content'))} for m in (messages or [])]
+        finish = None
         try:
             pieces = _model.create_chat_completion(messages=msgs, max_tokens=int(max_tokens),
                                                    temperature=float(temperature), stream=True, stop=STOP)
+            # The loop is inside the try: with stream=True the context-window refusal comes on the first chunk, not
+            # from the call (Mac check 2026-10-31, issue 11; logged twice on 25 October).
+            for chunk in pieces:
+                if _cancel.is_set():
+                    yield ('stopped', None)
+                    return
+                choice = (chunk.get('choices') or [{}])[0]
+                piece = (choice.get('delta') or {}).get('content') or ''
+                if piece:
+                    yield ('text', piece)
+                if choice.get('finish_reason'):
+                    finish = choice['finish_reason']
         except ValueError as e:
             if 'context' in str(e).lower() or 'exceed' in str(e).lower():
                 yield ('error', {'reason': 'too_long', 'message': MESSAGES['too_long']})
                 return
             raise
-        finish = None
-        for chunk in pieces:
-            if _cancel.is_set():
-                yield ('stopped', None)
-                return
-            choice = (chunk.get('choices') or [{}])[0]
-            piece = (choice.get('delta') or {}).get('content') or ''
-            if piece:
-                yield ('text', piece)
-            if choice.get('finish_reason'):
-                finish = choice['finish_reason']
         yield ('done', finish)
 
 

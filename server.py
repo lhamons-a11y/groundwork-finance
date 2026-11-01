@@ -25,6 +25,19 @@ from flask import copy_current_request_context, current_app, Flask, jsonify, req
 _GW_SESSION_ID = str(_uuid.uuid4())[:8]
 GW_VERSION     = '20261008-d25'  # must match app.js GW_VERSION constant
 
+
+def _build_id():
+    """Which build of GW_VERSION this is: build_info.json, written by the Mac spec (issue 9); 'source' when run from
+    the repo."""
+    try:
+        here = Path(getattr(sys, '_MEIPASS', None) or Path(__file__).parent)
+        return json.loads((here / 'build_info.json').read_text()).get('build') or 'source'
+    except (OSError, ValueError):
+        return 'source'
+
+
+GW_BUILD = _build_id()
+
 # ── Security: session token ────────────────────────────────────────────────────
 # Generated fresh on every startup. Lives in RAM only — never written to disk.
 # Injected into index.html at serve time so the JS client can include it in
@@ -32,6 +45,42 @@ GW_VERSION     = '20261008-d25'  # must match app.js GW_VERSION constant
 # This means even if another process on the same machine finds port 8765, it
 # cannot read or write Groundwork data without the token.
 _GW_TOKEN = secrets.token_hex(32)
+
+# ── Security: the page key (Mac check 2026-10-31, issue 2) ─────────────────────
+# `/` writes the token into the page, so whoever may load the page has the token. It used to be anyone on the Mac
+# who asked: any program, or another user signed in, since 127.0.0.1 is shared by all of them. Now the page needs
+# this key. launch.py opens the window on `/?k=<key>`; that first load is answered with a redirect to `/` and an
+# HttpOnly, SameSite=Strict cookie, which lives only in the window's private WebKit store. Reloads and the 403
+# self-heal in app.js carry the cookie. A request with neither gets a page with no token in it.
+_GW_PAGE_KEY = secrets.token_urlsafe(32)
+_PAGE_COOKIE = 'gw_page'
+# dev_server.py turns the gate off: it runs on a throwaway database and is opened from an ordinary browser.
+_PAGE_GATE = True
+
+# Files the page may load from beside static/ (issue 7). Everything else there - the code, the licence, the AI
+# model - is not the page's to serve.
+_ASSET_FILES = ('groundwork.png', 'groundwork_256.png', 'groundwork.ico')
+
+# Sent with every response (issue 4). The page leans on inline handlers (onclick=...), so inline script stays
+# allowed; what the policy takes away is somewhere to send data: connect, images, fonts and media come only from
+# this server, the page cannot be framed, and no form or <base> can point elsewhere.
+_SECURITY_HEADERS = {
+    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+                               "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; "
+                               "media-src 'self' data: blob:; worker-src 'self' blob:; connect-src 'self'; "
+                               "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+    'X-Frame-Options':        'DENY',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy':        'no-referrer',
+}
+
+
+def _page_admitted(req):
+    """True if this request may have the page, and with it the token."""
+    if not _PAGE_GATE:
+        return True
+    cookie = req.cookies.get(_PAGE_COOKIE, '')
+    return bool(cookie) and secrets.compare_digest(cookie, _GW_PAGE_KEY)
 
 # The only names a request may address this server by. It binds 127.0.0.1 and
 # nothing else, so any other Host means a name that was made to resolve here -
@@ -123,7 +172,7 @@ def create_app(static_folder: str = None) -> Flask:
             health_boundary.refresh(_hs)
     except Exception:
         pass               # a database not migrated yet: refreshed on the first import or AI call
-    logging.getLogger('groundwork').info('Groundwork %s starting', GW_VERSION)
+    logging.getLogger('groundwork').info('Groundwork %s (build %s) starting', GW_VERSION, GW_BUILD)
 
     @app.errorhandler(Exception)
     def _log_unhandled(e):
@@ -319,9 +368,20 @@ def create_app(static_folder: str = None) -> Flask:
         static_path = Path(static_folder) / path
         if path and static_path.exists():
             response = send_from_directory(static_folder, path)
-        # Check assets folder (images, icons)
-        elif path and (Path(static_folder).parent / path).exists():
+        # The named icons beside static/, and nothing else there (issue 7)
+        elif path in _ASSET_FILES and (Path(static_folder).parent / path).exists():
             response = send_from_directory(str(Path(static_folder).parent), path)
+        elif path:
+            return Response('Not found', status=404, mimetype='text/plain')
+        elif _PAGE_GATE and request.args.get('k'):
+            # The window's first load: trade the one-time key for the cookie, and drop the key from the address.
+            if not secrets.compare_digest(request.args.get('k', ''), _GW_PAGE_KEY):
+                return Response('Open Groundwork from its app icon.', status=403, mimetype='text/plain')
+            from flask import redirect
+            response = redirect('/', code=303)
+            response.set_cookie(_PAGE_COOKIE, _GW_PAGE_KEY, httponly=True, samesite='Strict', path='/')
+        elif not _page_admitted(request):
+            return Response('Open Groundwork from its app icon.', status=403, mimetype='text/plain')
         else:
             # Serve index.html with the token injected
             index_path = Path(static_folder) / 'index.html'
@@ -354,7 +414,6 @@ def create_app(static_folder: str = None) -> Flask:
                     '    <script src="/js/teaching/%s?v=%s"></script>\n' % (name, GW_VERSION)
                     for name in ['index.js'] + modules)
                 html = html.replace('</body>', tags + '</body>', 1)
-            from flask import Response
             response = Response(html, mimetype='text/html')
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         response.headers['Pragma']        = 'no-cache'
@@ -384,6 +443,12 @@ def create_app(static_folder: str = None) -> Flask:
         if refusal:
             return jsonify({'error': refusal, 'code': 403}), 403
         return None  # allow through
+
+    @app.after_request
+    def _security_headers(response):
+        for name, value in _SECURITY_HEADERS.items():
+            response.headers.setdefault(name, value)
+        return response
 
     @app.before_request
     def _check_session_token():
@@ -451,8 +516,13 @@ def create_app(static_folder: str = None) -> Flask:
     @app.route('/api/health')
     def health_check():
         """Lightweight health check — used by client heartbeat to detect
-        server restarts and version mismatches."""
+        server restarts and version mismatches.
+
+        Without the token it says only that the server is up (issue 8): launch.py's start-up wait needs no more,
+        and nothing else is anyone else's business. The page's heartbeat sends the token and gets the rest."""
         import platform as _platform
+        if not secrets.compare_digest(request.headers.get('X-GW-Token', ''), _GW_TOKEN):
+            return jsonify({'ok': True})
         try:
             with db_session() as session:
                 result = session.execute(text('PRAGMA integrity_check')).fetchone()
@@ -462,6 +532,7 @@ def create_app(static_folder: str = None) -> Flask:
         return jsonify({
             'ok':         True,
             'version':    GW_VERSION,
+            'build':      GW_BUILD,
             'session_id': _GW_SESSION_ID,
             'db_ok':      db_ok,
             'platform':   _platform.system(),   # Windows / Darwin / Linux
@@ -5048,6 +5119,7 @@ _ASSIST_UNDO = {}            # H7: ticket -> what puts an applied change back
 _ASSIST_LOCK = threading.Lock()
 ASSIST_PROPOSAL_SECONDS = 3600
 ASSIST_JOB_SECONDS = 600
+ASSIST_JOBS_AT_ONCE = 4          # Mac check 2026-10-31, issue 13: the page asks one at a time; more is not the page
 
 
 class _EngineNotReady(Exception):
@@ -5136,6 +5208,8 @@ def assistant_ask():
     with _ASSIST_LOCK:
         for k in [k for k, v in _ASSIST_JOBS.items() if now - v['t'] > ASSIST_JOB_SECONDS]:
             _ASSIST_JOBS.pop(k, None)
+        if sum(1 for v in _ASSIST_JOBS.values() if not v['done']) >= ASSIST_JOBS_AT_ONCE:
+            return err('Groundwork is still answering earlier questions. Ask again in a moment.', 429)
         _ASSIST_JOBS[job_id] = {'t': now, 'step': 'Starting', 'done': False, 'result': None}
     threading.Thread(target=_assistant_job, args=(current_app._get_current_object(), job_id, q, ctx), daemon=True,
                      name='groundwork-assistant').start()
@@ -17775,4 +17849,6 @@ def serve(app, host='127.0.0.1', port=8765):
 if __name__ == '__main__':
     app = create_app()
     logging.basicConfig(level=logging.INFO)
+    # The page is the window's alone (issue 2): run this way, the address with the page key is the way in.
+    print(f'Groundwork: open http://127.0.0.1:8765/?k={_GW_PAGE_KEY}', flush=True)
     serve(app, host='127.0.0.1', port=8765)
