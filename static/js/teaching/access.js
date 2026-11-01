@@ -577,9 +577,138 @@
   var MIC_OFF = ['stop', 'stop listening', 'that s all', "that's all", 'mic off', 'microphone off', 'turn off the microphone', 'goodbye', 'thank you that s all'];
   var YES_NO = /^(yes|yeah|yep|sure|no|nope|no thanks|no thank you)$/;
 
+  // V13 (item 116): spoken figures in - "four hundred fifty dollars" is 450 dollars before anything reads it, so "set
+  // Groceries to four hundred fifty" reaches the same change as typed figures (and is read back before its Yes, V5)
+  var NUM_SMALL = { zero: 0, a: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+    eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19,
+    twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+  var NUM_SCALE = { hundred: 100, thousand: 1000, million: 1000000 };
+  function _figures(text) {
+    var toks = String(text).split(/\s+/), out = [], i = 0;
+    function w(k) { return (toks[k] || '').toLowerCase().replace(/[.,!?;:]+$/, ''); }
+    while (i < toks.length) {
+      var j = i, total = 0, cur = 0, any = false, words = 0, last = i;
+      if (w(j) === 'a' && (w(j + 1) === 'hundred' || w(j + 1) === 'thousand')) { cur = 1; j++; }      // "a hundred"
+      while (j < toks.length) {
+        var parts = w(j).split('-'), small = parts.every(function (x) { return x in NUM_SMALL && x !== 'a'; });
+        if (small) {
+          var n = parts.reduce(function (a, x) { return a + NUM_SMALL[x]; }, 0);
+          // a group starts, or a unit follows a tens word ("forty five"); "twelve fifty" is two numbers, not 62
+          if (cur % 100 !== 0 && !(cur % 100 >= 20 && cur % 10 === 0 && n < 10)) break;
+          cur += n; any = true; words++; last = j; j++; continue;
+        }
+        if (w(j) === 'hundred') { cur = (cur || 1) * 100; any = true; words++; last = j; j++; continue; }
+        if (w(j) in NUM_SCALE) { total += (cur || 1) * NUM_SCALE[w(j)]; cur = 0; any = true; words++; last = j; j++; continue; }
+        if (w(j) === 'and' && any && (w(j + 1) in NUM_SMALL) && w(j + 1) !== 'a') { j++; continue; }
+        break;
+      }
+      var val = total + cur;
+      if (any && !(words === 1 && val < 10 && w(i) !== 'a')) {
+        var trail = (toks[last].match(/[.,!?;:]+$/) || [''])[0];
+        out.push(String(val) + trail);
+        i = last + 1;
+      } else { out.push(toks[i]); i++; }
+    }
+    return out.join(' ').replace(/(\d+) dollars?\s+and\s+(\d{1,2}) cents?/i, function (m, d, c) {
+      return d + '.' + ('0' + c).slice(-2) + ' dollars';
+    });
+  }
+
+  // V14 (item 116): dictation - "type ...", "write ...", "note ..." puts the words into the box the cursor is in (not
+  // the Ask box); the box's own Save keeps them, as if they were typed
+  var _lastField = null;
+  document.addEventListener('focusin', function (e) {
+    var f = e.target;
+    if (f && (f.tagName === 'TEXTAREA' || (f.tagName === 'INPUT' && /^(text|search|)$/.test(f.type || ''))) && f.id !== 'gwAskBox') _lastField = f;
+  });
+  function _dictate(words) {
+    var f = _lastField;
+    if (!f || !document.body.contains(f) || f.offsetParent === null) {
+      showToast('Click the box to type into first', 'Then say "type" and what to write.', 'info');
+      say('Click the box to type into first.');
+      return;
+    }
+    var at = typeof f.selectionStart === 'number' ? f.selectionStart : f.value.length;
+    var add = (at > 0 && !/\s$/.test(f.value.slice(0, at)) ? ' ' : '') + words;
+    f.value = f.value.slice(0, at) + add + f.value.slice(typeof f.selectionEnd === 'number' ? f.selectionEnd : at);
+    f.dispatchEvent(new window.Event('input', { bubbles: true }));
+    try { f.focus(); f.setSelectionRange(at + add.length, at + add.length); } catch (e) { /* not every box */ }
+    showToast('Typed: “' + words + '”', 'Nothing is saved until you save it there.', 'info');
+  }
+
+  // V16 (item 116): "say Meijer like my-er" - how Groundwork says a name, kept in Settings where it can be seen and taken
+  // back; never learned without being told
+  async function _sayLike(name, how) {
+    var lex = {};
+    try { lex = JSON.parse((await API.get('/api/settings')).speak_lexicon || '{}') || {}; } catch (e) { lex = {}; }
+    var was = lex[name];
+    lex[name] = how;
+    await _save('speak_lexicon', JSON.stringify(lex));
+    showToast('Groundwork will say ' + name + ' like ' + how, 'Change it in Settings, Reading and voice.', 'success', async function () {
+      if (was === undefined) delete lex[name]; else lex[name] = was;
+      await _save('speak_lexicon', JSON.stringify(lex));
+    });
+    say('OK. ' + name + '.');
+  }
+
+  // V17 (item 116): step by step - a job said one step at a time; "next step", "previous step", "repeat", "stop".
+  // Each step is Groundwork's own words about its own screens; a step that opens a screen opens it, nothing more.
+  var GUIDES = {
+    'import a statement': [
+      ['Download your bank\'s file first - a CSV, OFX, QFX or QIF file, or a credit card statement PDF. Say next step when you have it.'],
+      ['I am opening Import on the Ledger.', function () { if (window.showView) window.showView('ledger'); setTimeout(function () { if (window.showImportModal) window.showImportModal(); }, 120); }],
+      ['Choose the file. Groundwork reads it and shows a preview. Nothing is saved yet.'],
+      ['Look over the account and the categories in the preview, and change anything that is wrong.'],
+      ['When it looks right, press the button that brings them in. That is the end of the steps.'],
+    ],
+    'add a card or loan': [
+      ['I am opening Debt Payoff with a new card to fill in.', function () { if (window.showView) window.showView('debt'); setTimeout(function () { if (window._debtShowTab) window._debtShowTab('setup'); if (window.addCard) window.addCard(); }, 150); }],
+      ['Give it its name, the balance you owe now, the interest rate, and the minimum payment from your statement.'],
+      ['Groundwork works out the payoff from those figures. Check the date it shows. That is the end of the steps.'],
+    ],
+  };
+  var guide = null;                                    // { name, steps, at }
+  function _guideSay() {
+    var st = guide.steps[guide.at];
+    if (st[1]) st[1]();
+    say('Step ' + (guide.at + 1) + ' of ' + guide.steps.length + '. ' + st[0]);
+  }
+  function _guideFor(t) {
+    var m = t.match(/^(?:walk me through|help me|show me how to|guide me through|step by step|how do i)\s+(?:how to\s+)?(.+)$/);
+    if (!m) return null;
+    var want = m[1].replace(/^(?:to\s+)?/, '');
+    if (/import|statement|bank file/.test(want)) return 'import a statement';
+    if (/(?:add|enter|set up).*(?:card|loan|debt|mortgage)/.test(want)) return 'add a card or loan';
+    return null;
+  }
+  function _guideRoute(t, heard) {
+    if (!guide) {
+      var g0 = _guideFor(t);
+      if (!g0) return false;
+      guide = { name: g0, steps: GUIDES[g0], at: 0 };
+      showToast(heard, 'Step by step: ' + g0, 'info');
+      _guideSay();
+      return true;
+    }
+    if (/^(?:next step|next|go on|continue|ok next|done that)$/.test(t)) {
+      if (guide.at + 1 >= guide.steps.length) { guide = null; say('That was the last step.'); return true; }
+      guide.at++; _guideSay(); return true;
+    }
+    if (/^(?:previous step|back a step|step back|go back a step)$/.test(t)) { guide.at = Math.max(0, guide.at - 1); _guideSay(); return true; }
+    if (/^(?:repeat|again|say that again|repeat the step)$/.test(t)) { _guideSay(); return true; }
+    if (/^(?:stop|cancel|end the steps|that s all|i m done|done)$/.test(t)) { guide = null; _hush(); say('OK, the steps are closed.'); return true; }
+    return false;                                      // anything else is asked as usual; the steps wait
+  }
+
   function route(text) {
+    text = _figures(text);                             // V13: "four hundred fifty dollars" -> "450 dollars"
     var t = _norm(text);
     var heard = 'Heard: “' + text + '”';               // a toast's text: showToast escapes it
+    if (_guideRoute(t, heard)) return;                 // V17
+    var dict = text.match(/^(?:groundwork,?\s+)?(?:type|write|note|dictate)[:,]?\s+(.+)$/i);
+    if (dict) { _dictate(dict[1].replace(/[.]$/, '')); return; }                       // V14
+    var like = text.match(/^(?:groundwork,?\s+)?say\s+(.+?)\s+(?:like|as)\s+(.+?)[.!]?$/i);
+    if (like) { _sayLike(like[1].trim(), like[2].trim()); return; }                       // V16
     if (conv && MIC_OFF.indexOf(t) >= 0) {            // H14: "stop" ends the conversation (and any reading)
       stop();
       micOff();
@@ -672,6 +801,8 @@
     var vs = null, mic = null;
     try { vs = await API.get('/api/voice'); } catch (e) { vs = { available: false, reason: 'The voice engine could not be checked.' }; }
     try { mic = (await API.get('/api/voice/microphone')).allowed_at; } catch (e) { mic = null; }
+    var lex = {};                                      // V16: names said the person's way
+    try { lex = JSON.parse((await API.get('/api/settings')).speak_lexicon || '{}') || {}; } catch (e) { lex = {}; }
     var small = 'font-size:var(--fs-xs);color:var(--slate-2);margin:2px 0 10px';
     card.innerHTML = '<div class="card-label">Reading and voice</div>'
       + '<div class="field mb-4"><label>Text size</label><div>' + _radios('gwTextSize', prefs.text_size, [['100', 'Standard'], ['115', 'Larger'], ['130', 'Largest']]) + '</div>'
@@ -690,7 +821,11 @@
             var on = (prefs.speak_voice || vs.speak.default) === v.key;
             return '<option value="' + esc(v.key) + '"' + (on ? ' selected' : '') + '>' + esc(v.name) + ' (' + esc(v.accent)
               + (v.key === vs.speak.default ? ', the default' : '') + ')</option>';
-          }).join('') + '</select><button class="btn btn-ghost btn-sm" id="gwVoiceHear">Hear it</button></div></div>'
+          }).join('') + '</select><button class="btn btn-ghost btn-sm" id="gwVoiceHear">Hear it</button></div>'
+          + '<div style="' + small + '">Names said your way - teach one by saying "say Meijer like my-er".'
+          + (Object.keys(lex).length ? Object.keys(lex).map(function (k) {
+              return '<div>' + esc(k) + ' - said like ' + esc(lex[k]) + ' <button class="btn btn-ghost btn-sm" data-gw-unsay="' + esc(k) + '" aria-label="Forget how to say ' + esc(k) + '">Remove</button></div>';
+            }).join('') : ' None yet.') + '</div></div>'
         : '')
       // V12: voice first
       + '<div class="field mb-4"><label>Voice first</label><div>' + _radios('gwVoiceFirst', prefs.voice_first, [['off', 'Off'], ['on', 'On']]) + '</div>'
@@ -771,6 +906,13 @@
       micPick.addEventListener('change', function () { _save('mic_device', micPick.value); if (conv) { micOff(); micOn(); } });
     }
     if (micTest) micTest.addEventListener('click', testMic);
+    card.querySelectorAll('[data-gw-unsay]').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        delete lex[b.getAttribute('data-gw-unsay')];
+        await _save('speak_lexicon', JSON.stringify(lex));
+        _card();
+      });
+    });
   }
 
   async function load() {
@@ -810,5 +952,6 @@
     };
   }
   GWTeaching.register('access', { load: load, route: route, wav: wav, readSection: readSection, answer: answer, stop: stop, prefs: prefs,
-                                   talk: talkToggle, listening: function () { return !!conv; } });
+                                   talk: talkToggle, listening: function () { return !!conv; },
+                                   figures: _figures, guides: GUIDES, guide: function () { return guide; } });
 })();

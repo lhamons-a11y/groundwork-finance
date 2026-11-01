@@ -3745,12 +3745,16 @@ def voice_speak():
         return err(st['reason'], 503)
     body = request.get_json(silent=True) or {}
     chosen = str(body.get('voice') or '')
-    if chosen not in speak.VOICES:
-        with db_session() as session:
+    with db_session() as session:
+        if chosen not in speak.VOICES:
             row = _get_setting(session, 'speak_voice')
             chosen = row.value if row and row.value in speak.VOICES else speak.VOICE
+        names = _setting_json(session, 'speak_lexicon', {}) or {}          # V16: "say Meijer like my-er"
+    if not isinstance(names, dict):
+        names = {}
     try:
-        wav = speak.speak(str(body.get('text') or ''), speed=str(body.get('speed') or 'normal'), voice=chosen)
+        wav = speak.speak(str(body.get('text') or ''), speed=str(body.get('speed') or 'normal'), voice=chosen,
+                          names={str(k): str(v) for k, v in names.items()})
     except speak.SpeakError as e:
         return err(str(e), 400)
     from flask import Response
@@ -3786,10 +3790,13 @@ def _voice_words(session):
     from core import health_boundary as hb
     from core.database import Person
     try:
-        is_health = hb.health_rows(session)
-        hcats = hb.health_category_ids(session)
+        is_health = hb.health_rows(session)       # the one test for a row (item 92, s226)
     except Exception:
         return []
+    cats = {c.id: c for c in session.query(Category).all()}
+
+    def health_cat(c, hops=0):                    # a category is health by its own name or any parent's
+        return bool(c) and (hb.is_health_category(c.name) or (hops < 8 and health_cat(cats.get(c.parent_id), hops + 1)))
     counts = {}
     for t in (session.query(Transaction).filter(Transaction.merchant != '', Transaction.merchant.isnot(None))
               .order_by(Transaction.date.desc()).limit(3000)):
@@ -3800,7 +3807,7 @@ def _voice_words(session):
     names += [p.display_name for p in session.query(Person).filter(Person.active.is_(True)).all()]
     names += [b.name for b in session.query(BudgetItem).all()
               if not hb.is_health_category(b.category) and not hb.is_health_category(b.name)]
-    names += [c.name for c in session.query(Category).all() if c.id not in hcats]
+    names += [c.name for c in cats.values() if not health_cat(c)]
     out, seen = [], set()
     for n in names:
         n = (n or '').strip()

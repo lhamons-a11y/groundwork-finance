@@ -48,9 +48,9 @@ def run(ctx):
           and 'CoreWebView2PermissionState.Deny' not in src)
 
     acc = (ctx.BASE / 'static' / 'js' / 'teaching' / 'access.js').read_text(encoding='utf-8')
-    mic_on = acc[acc.index('async function micOn()'):acc.index('c.ctx = new window.AudioContext();')]
+    mic_on = acc[acc.index('async function micOn(wake)'):acc.index('c.ctx = new window.AudioContext();')]
     check('s272 M1 the page records the yes only after the microphone opened',
-          mic_on.index("API.post('/api/voice/microphone'") > mic_on.index('getUserMedia(')
+          mic_on.index("API.post('/api/voice/microphone'") > mic_on.index('await _openMic()')
           and mic_on.index("API.post('/api/voice/microphone'") > mic_on.index('return;\n'))
     check('s272 M3 Settings says when the microphone was allowed, and "Ask me next time" forgets it',
           'You allowed the microphone on ' in acc and "API.delete('/api/voice/microphone')" in acc)

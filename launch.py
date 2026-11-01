@@ -461,7 +461,11 @@ def microphone_answer(kind_is_microphone, uri, allowed_at):
 def _keep_microphone_answer(window):
     """Rob 2026-10-31: the microphone's yes is recorded and kept. The window opens private (pywebview's default), so
     WebView2 forgets its own answer when Groundwork closes; the yes the page recorded answers the next request instead.
-    Windows (WebView2) only - elsewhere the window asks as it always has. Any failure leaves the question as it was."""
+    Windows here; macOS and Linux below (item 116 V18). Any failure leaves the question as it was."""
+    if sys.platform == 'darwin':
+        return _keep_microphone_answer_mac(window)
+    if sys.platform.startswith('linux'):
+        return _keep_microphone_answer_gtk(window)
     if sys.platform != 'win32':
         return
     hooked = []
@@ -493,6 +497,66 @@ def _keep_microphone_answer(window):
             logging.exception('could not keep the microphone answer')
 
     window.events.loaded += on_loaded
+
+
+# Item 116 V18 (Rob 2026-10-31: "if the assistant worked in Windows and the code is the same why would it work
+# differently on a Mac?"): the same kept yes, answered through each system's own window. pywebview answers neither.
+# WRITTEN WITHOUT THE HARDWARE - proven only on a Mac and a Linux machine with a microphone (VOICE_ASSISTANT.md V18).
+
+def _keep_microphone_answer_mac(window):
+    """WKWebView asks its UI delegate (WKUIDelegate, macOS 12+); pywebview's BrowserDelegate has no answer, so WebKit
+    asks the person every launch. Groundwork adds the one method: grant the microphone (WKMediaCaptureTypeMicrophone, 1)
+    for its own page when the yes is on record, else WKPermissionDecisionPrompt (0) - the window's own question."""
+    try:
+        import objc
+        from webview.platforms.cocoa import BrowserView
+        sel = b'webView:requestMediaCapturePermissionForOrigin:initiatedByFrame:type:decisionHandler:'
+        # the decision handler is a block taking one NSInteger (WKPermissionDecision); indices count self and _cmd
+        objc.registerMetaDataForSelector(b'NSObject', sel, {'arguments': {6: {'callable': {
+            'retval': {'type': b'v'}, 'arguments': {0: {'type': b'^v'}, 1: {'type': b'q'}}}}}})
+
+        def answer(self, webview, origin, frame, kind, handler):
+            decision = 0
+            try:
+                from server import microphone_allowed
+                uri = '%s://%s:%s/' % (origin.protocol(), origin.host(), origin.port())
+                decision = 1 if microphone_answer(kind == 1, uri, microphone_allowed()) else 0
+            except Exception:
+                logging.exception('microphone answer')
+            handler(decision)
+        objc.classAddMethods(BrowserView.BrowserDelegate,
+                             [objc.selector(answer, selector=sel, signature=b'v@:@@@q@?')])
+    except Exception:
+        logging.exception('could not keep the microphone answer (macOS)')
+
+
+def _keep_microphone_answer_gtk(window):
+    """WebKitGTK sends 'permission-request'; pywebview handles none, so the default applies. Groundwork allows a
+    microphone-only request for its own page when the yes is on record, and leaves every other request alone."""
+    def on_shown(*_):
+        try:
+            from gi.repository import GLib, WebKit2
+            from webview.platforms.gtk import BrowserView
+            view = BrowserView.instances[window.uid].webview
+
+            def on_permission(webview, request):
+                try:
+                    from server import microphone_allowed
+                    mic_only = (isinstance(request, WebKit2.UserMediaPermissionRequest)
+                                and WebKit2.user_media_permission_is_for_audio_device(request)
+                                and not WebKit2.user_media_permission_is_for_video_device(request))
+                    if microphone_answer(mic_only, webview.get_uri(), microphone_allowed()):
+                        request.allow()
+                        return True
+                except Exception:
+                    logging.exception('microphone answer')
+                return False                                 # the window's own handling
+
+            GLib.idle_add(lambda: view.connect('permission-request', on_permission) and False)
+        except Exception:
+            logging.exception('could not keep the microphone answer (Linux)')
+
+    window.events.shown += on_shown
 
 
 def main():

@@ -48,6 +48,8 @@ def run(ctx):
         ('HSA vs FSA', 'H S A versus F S A'),
         ('Due 2026-11-03', 'Due November 3, 2026'),
         ('1,234,567 lines', '1234567 lines'),
+        ('Make a copy. Three copies, copied.', 'Make a cop-pee. Three cop-pees, cop-peed.'),   # Rob 2026-11-01
+        ('Photocopy', 'Photocopy'),
     ]
     wrong = [(a, speak.spoken(a)) for a, want in cases if speak.spoken(a) != want]
     check(f's273 V2 figures are said the way a person says them: "100 dollars", "interest rate of" ({wrong})', not wrong)
