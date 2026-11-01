@@ -16,14 +16,14 @@ def run(ctx):
     check = ctx.check
     app = (ctx.BASE / 'static' / 'js' / 'app.js').read_text(encoding='utf-8')
     intent = app[app.index('function askIntent(q, p, head, assist = false) {'):app.index('// ─── Item 103: Explain this page')]
-    check('s276 V5/V6 the Ask bar tries a spoken change and the page\'s own controls before its other commands',
+    check('s280 V5/V6 the Ask bar tries a spoken change and the page\'s own controls before its other commands',
           intent.index('if (_askAddTxn(n)) return true;') < intent.index('for (const d of ASK_DO)')
           and intent.index('if (_askPageControl(n)) return true;') < intent.index('for (const d of ASK_DO)'))
     assist = app[app.index('async function askAssistant('):app.index('function _assistHTML(res) {')] if 'async function askAssistant(' in app else ''
-    check('s276 V5 with AI on, a proposal asked for aloud is read back and ends "Press Yes on the card to make the change."',
+    check('s280 V5 with AI on, a proposal asked for aloud is read back and ends "Press Yes on the card to make the change."',
           "(res.proposal ? ' Press Yes on the card to make the change.' : '')" in app)
     add = app[app.index('function _askAddTxn(n) {'):app.index('// Rob 2026-10-31: "show me my Kroger transactions"')]
-    check('s276 V5 the spoken change only fills the form - nothing in it saves, posts or presses Save',
+    check('s280 V5 the spoken change only fills the form - nothing in it saves, posts or presses Save',
           'API.' not in add and 'saveTxn' not in add and '.click()' not in add and 'Press Save to add it.' in add)
 
     node = shutil.which('node')
@@ -77,7 +77,7 @@ console.log(JSON.stringify(out));
         o = json.loads(r.stdout.strip().splitlines()[-1])
     except Exception:
         o = {'error': (r.stdout + r.stderr)[-500:]}
-    check(f"s276 V6 the Ledger's own controls by voice: sort, range, this month, the month before, a category, income, "
+    check(f"s280 V6 the Ledger's own controls by voice: sort, range, this month, the month before, a category, income, "
           f"clear - each said back ({o.get('error') or ''})",
           o.get('sort') == [[True, ['render'], 'OK, sorted by amount.'], 'amount', -1]
           and o.get('sortLow', [None, 0])[1] == 1
@@ -87,11 +87,11 @@ console.log(JSON.stringify(out));
           and o.get('cat') == [[True, ['render'], 'OK, showing only Groceries.'], 'Groceries']
           and o.get('income', [None, ''])[1] == 'credit'
           and o.get('clear', [None, 'x', 'x'])[1:] == ['', ''])
-    check(f"s276 V6 scrolling works on any page; words that are not a control are left for the rest of the Ask bar "
+    check(f"s280 V6 scrolling works on any page; words that are not a control are left for the rest of the Ask bar "
           f"({o.get('down')}, {o.get('bottom')}, {o.get('notPage')}, {o.get('offLedger')})",
           o.get('down', [None, 0])[1] == 400 and o.get('bottom', [None, 0])[1] == 4000
           and o.get('notPage') == [False, [], None] and o.get('offLedger') == [False, [], None])
-    check(f"s276 V5 a spoken purchase fills Add transaction - amount, category, payee, date, kind - and is read back for "
+    check(f"s280 V5 a spoken purchase fills Add transaction - amount, category, payee, date, kind - and is read back for "
           f"Save; without an amount nothing is filled ({o.get('add')}, {o.get('addCents')}, {o.get('addWords')}, "
           f"{o.get('refund')}, {o.get('noAmount')})",
           o.get('add') == [[True, ['view:ledger', 'add-form'], 'Add $40.00, Groceries, Kroger, today? Press Save to add it.'],

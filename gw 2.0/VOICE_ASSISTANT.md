@@ -117,7 +117,7 @@ command: 1.0 to 1.3 seconds. What still fails is mishearing, not routing - mostl
 | 2 | V6 page control, V5 changes read back | none beyond section 3 |
 | 3 | V3 hands-free start | none beyond section 3; its CPU while listening is measured and stated |
 
-**Built so far (2026-10-31/11-01, branch `voice-116`):** stage 1 (e673b42, s274), stage 2 (3d3062d, s276), stage 3 (s277).
+**Built so far (2026-10-31/11-01, branch `voice-116`):** stage 1 (e673b42, s274), stage 2 (3d3062d, s280), stage 3 (s277).
 **V3's cost, as measured:** while it waits for its name nothing is recognised until someone speaks; each thing said in
 the room - for Groundwork or not - costs one recognition, 1.0 to 1.3 seconds on up to 4 processor threads (V8's
 timings). A quiet room costs nothing; a television in the room costs a recognition per sentence. It stops when the

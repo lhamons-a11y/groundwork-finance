@@ -32921,7 +32921,7 @@ async function _rbMissesShow(suggestions) {
       ${suggestions && !suggestions.length ? '<div style="margin-top:8px">No words to suggest.</div>' : ''}
       ${terms.length ? `<div style="margin-top:10px;color:var(--ink)">Words you taught Groundwork:</div>${terms.map(([k, v]) =>
         `<div style="display:flex;gap:6px;align-items:center;margin-top:4px;color:var(--ink)">"${esc(k)}" means ${esc(v.means)}
-          <button style="${btn}" onclick="_rbTermForget('${esc(k).replace(/'/g, '&#39;')}')">Forget</button></div>`).join('')}` : ''}
+          <button style="${btn}" onclick="_rbTermForget('${escJs(k)}')">Forget</button></div>`).join('')}` : ''}
     </div>`;
   _rbSuggested = suggestions || [];
 }
