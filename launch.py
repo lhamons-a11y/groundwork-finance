@@ -382,8 +382,63 @@ def _stop_engine():
     try:
         from core import engine
         engine.stop()
+        logging.info('local AI engine released')
     except Exception:
         logging.exception('local AI engine did not stop cleanly')
+
+
+def _close_on_sigterm(window):
+    """SIGTERM closes Groundwork the way its close button does (item 33 Q6, ENGINE_OTHER_PLATFORMS.md section 7).
+
+    A desktop sends SIGTERM at log-out; by default it ends the process at once, so the model was left to process
+    teardown and the atexit hooks never ran (R-a: released explicitly). The window is closed instead, webview.start()
+    returns, and main() releases the engine as on any close. Windows closes with a window message, not a signal.
+    On Linux PyGObject wakes the GTK loop on a signal, so the Python handler runs. The Cocoa loop on macOS runs no
+    Python handler while idle; the signal still reaches the wakeup socket, and a thread reading it closes the window.
+    """
+    if sys.platform == 'win32':
+        return
+    import signal
+    import socket
+    closing = threading.Event()
+
+    def close():
+        if closing.is_set():
+            return
+        closing.set()
+        if not window.events.shown.is_set():         # no window yet to close: release the engine and leave
+            logging.info('SIGTERM before the window was shown: releasing the engine and exiting')
+            _stop_engine()
+            os._exit(0)
+        logging.info('SIGTERM: closing the window, as its close button does')
+
+        def stuck():                                  # a window that never closes must not make SIGTERM a no-op
+            logging.warning('the window did not close within 15 s of SIGTERM: releasing the engine and exiting')
+            _stop_engine()
+            os._exit(0)
+        timer = threading.Timer(15, stuck)
+        timer.daemon = True
+        timer.start()
+        try:
+            window.destroy()
+        except Exception:
+            logging.exception('the window did not close on SIGTERM')
+            _stop_engine()
+            os._exit(0)
+
+    signal.signal(signal.SIGTERM, lambda _signum, _frame: close())
+    reader, writer = socket.socketpair()
+    writer.setblocking(False)
+    signal.set_wakeup_fd(writer.fileno())
+
+    def watch():
+        while True:
+            got = reader.recv(16)
+            if not got:
+                return
+            if int(signal.SIGTERM) in got:
+                close()
+    threading.Thread(target=watch, daemon=True, name='groundwork-sigterm').start()
 
 
 def _tighten_data_files():
@@ -640,6 +695,7 @@ def main():
     )
 
     _keep_microphone_answer(window)
+    _close_on_sigterm(window)
 
     # Groundwork exiting closes every bank window it opened (F2).
     import atexit
