@@ -17,7 +17,7 @@ def run(ctx):
     check = ctx.check
     acc = (ctx.BASE / 'static' / 'js' / 'teaching' / 'access.js').read_text(encoding='utf-8')
     check('s277 V3 off by default, and only offered with voice commands on',
-          "voice_wake: 'off' }" in acc and "prefs.voice_commands === 'on' && prefs.voice_wake === 'on'" in acc
+          "voice_wake: 'off'," in acc and "prefs.voice_commands === 'on' && prefs.voice_wake === 'on'" in acc
           and "(prefs.voice_commands === 'on'" in acc and 'Start by saying "Groundwork"' in acc)
     node = shutil.which('node')
     if not node:

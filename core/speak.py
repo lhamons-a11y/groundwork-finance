@@ -27,6 +27,10 @@ VOICES_FILE = 'voices-v1.0.bin'
 MODEL_SHA256 = '6e742170d309016e5891a994e1ce1559c702a2ccd0075e67ef7157974f6406cb'
 VOICES_SHA256 = 'bca610b8308e8d99f32e6fe4197e7ec01679264efed0cac9140fe9c29f1fbf7d'
 VOICE = 'af_heart'                       # Rob 2026-10-31: "the first voice that appears to be modern and really good"
+# V9 (item 116): the voices a person may choose, all in the shipped voices file - the default first. key -> (name, accent)
+VOICES = {'af_heart': ('Heart', 'American'), 'af_bella': ('Bella', 'American'), 'af_sarah': ('Sarah', 'American'),
+          'am_michael': ('Michael', 'American'), 'am_adam': ('Adam', 'American'), 'bf_emma': ('Emma', 'British'),
+          'bm_george': ('George', 'British')}
 SPEEDS = {'slower': 0.85, 'normal': 1.0, 'faster': 1.2}
 MAX_CHARS = 600                          # the page sends a sentence or two at a time; a whole page is refused, not cut
 
@@ -171,17 +175,20 @@ def release():
         _kokoro = None
 
 
-def speak(text, speed='normal', engine=None):
-    """The words as a 16-bit mono WAV. `engine` is for tests; otherwise the voice is loaded once."""
+def speak(text, speed='normal', engine=None, voice=None):
+    """The words as a 16-bit mono WAV. `engine` is for tests; otherwise the voice is loaded once. `voice`: one of VOICES
+    (V9), else the default."""
     words = spoken(text)
     if not words:
         raise SpeakError('There is nothing to say.')
     if len(words) > MAX_CHARS:
         raise SpeakError('That is more than the voice says at once.')
+    v = voice if voice in VOICES else VOICE
     import numpy as np
     with _lock:
         k = engine or _load()
-        audio, rate = k.create(words, voice=VOICE, speed=SPEEDS.get(speed, 1.0), lang='en-us')
+        audio, rate = k.create(words, voice=v, speed=SPEEDS.get(speed, 1.0),
+                               lang='en-gb' if VOICES[v][1] == 'British' else 'en-us')
     pcm = (np.clip(np.asarray(audio, dtype=np.float32), -1, 1) * 32767).astype('<i2')
     buf = io.BytesIO()
     with wave.open(buf, 'wb') as w:

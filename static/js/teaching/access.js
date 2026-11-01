@@ -21,7 +21,8 @@
   var SIZES = { '100': 1, '115': 1.15, '130': 1.3 };
   var RATES = { slower: 0.8, normal: 1, faster: 1.25 };
   var RATE_ORDER = ['slower', 'normal', 'faster'];
-  var prefs = { text_size: '100', read_aloud: 'off', read_rate: 'normal', voice_commands: 'off', voice_tour: '', voice_wake: 'off' };
+  var prefs = { text_size: '100', read_aloud: 'off', read_rate: 'normal', voice_commands: 'off', voice_tour: '', voice_wake: 'off',
+                speak_voice: '', mic_device: '', voice_first: 'off' };
   var last = null;          // { words, section } - what was read last, for "repeat" and "explain further"
   var asking = null;        // the open "explained further?" question: { section }
   var hoverTimer = null, pointerAt = null, lastView = null, viewStack = [];
@@ -81,7 +82,7 @@
 
   async function _made(text) {
     var r = await _gwFetch('/api/voice/speak', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: text, speed: prefs.read_rate }) });
+      body: JSON.stringify({ text: text, speed: prefs.read_rate, voice: own.trying || undefined }) });   // V9: "Hear it"
     if (!r.ok) throw new Error('voice ' + r.status);
     return URL.createObjectURL(await r.blob());
   }
@@ -268,6 +269,10 @@
     if (lastView && !goingBack) viewStack = viewStack.concat([lastView]).slice(-20);
     goingBack = false;
     lastView = name;
+    // V12 (item 116): voice first - a page change is said, unless Groundwork is already saying why it changed
+    if (prefs.voice_first === 'on') setTimeout(function () {
+      if (!_speaking()) say(((typeof VIEW_LABELS !== 'undefined' && VIEW_LABELS[name]) || name) + '.');
+    }, 150);
   });
   function _watchViews() {
     var v = document.querySelector('.view.active');
@@ -300,13 +305,51 @@
   function _wakeWanted() { return prefs.voice_commands === 'on' && prefs.voice_wake === 'on' && !document.hidden && document.hasFocus(); }
   function _wakeArm() { if (!conv && _wakeWanted()) micOn(true); }
 
+  // V10 (item 116): the microphone chosen in Settings, or the computer's default when it is gone
+  async function _openMic() {
+    var base = { channelCount: 1, echoCancellation: true, noiseSuppression: true };
+    if (prefs.mic_device) {
+      try { return await navigator.mediaDevices.getUserMedia({ audio: Object.assign({ deviceId: { exact: prefs.mic_device } }, base) }); }
+      catch (e) { if (e && e.name !== 'OverconstrainedError' && e.name !== 'NotFoundError') throw e; }
+    }
+    return navigator.mediaDevices.getUserMedia({ audio: base });
+  }
+
+  // V10: "Test my microphone" - three seconds, how loud it heard you, and with voice commands on, what it heard
+  async function testMic() {
+    if (conv) micOff();
+    var stream, ctx, node, peak = 0, chunks = [];
+    try { stream = await _openMic(); } catch (e) { showToast('Groundwork could not use the microphone', e.message || '', 'error'); return; }
+    if (!micKept) { micKept = true; API.post('/api/voice/microphone', {}).catch(function () { micKept = false; }); }
+    showToast('Say something - listening for 3 seconds', '', 'info');
+    ctx = new window.AudioContext();
+    node = ctx.createScriptProcessor(4096, 1, 1);
+    node.onaudioprocess = function (e) {
+      var d = e.inputBuffer.getChannelData(0);
+      chunks.push(new window.Float32Array(d));
+      for (var i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i]));
+    };
+    ctx.createMediaStreamSource(stream).connect(node); node.connect(ctx.destination);
+    await new Promise(function (r) { setTimeout(r, 3000); });
+    node.disconnect(); stream.getTracks().forEach(function (t) { t.stop(); });
+    var rate = ctx.sampleRate; ctx.close();
+    if (peak < SPEECH_RMS * 2) { showToast('The microphone heard almost nothing', 'Check it is the right one, and not muted.', 'warning'); say('I heard almost nothing.'); return; }
+    if (prefs.voice_commands !== 'on') { showToast('The microphone hears you', 'Turn voice commands on to hear what it understood.', 'success'); return; }
+    try {
+      var r = await _gwFetch('/api/voice/transcribe', { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: wav(chunks, rate) });
+      var j = await r.json(), text = ((j.data || j).text || '').trim();
+      showToast(text ? 'Heard: “' + text + '”' : 'It heard sound but no words', '', text ? 'success' : 'warning');
+      say(text ? 'I heard: ' + text : 'I heard sound, but no words.');
+    } catch (e) { showToast('Voice commands could not run', e.message || '', 'error'); }
+  }
+
   async function micOn(wake) {
     if (conv) return;
     var c = { chunks: [], pre: [], speech: false, busy: 0, lastActivity: Date.now(), wake: !!wake, awakeUntil: 0 };
     conv = c;
     _micState('listening');
     try {
-      c.stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+      c.stream = await _openMic();
     } catch (e) {
       conv = null;
       _micState('idle');
@@ -640,6 +683,19 @@
         ? "Read in Groundwork's own voice, made on this computer - what it reads is never sent anywhere or kept."
         : "Read with a voice installed on this computer" + (vs && vs.speak && vs.speak.reason ? ' (' + esc(vs.speak.reason) + ')' : '') + '.')
       + '</div></div>'
+      // V9 (item 116): which of Groundwork's voices, each heard before it is chosen
+      + (vs && vs.speak && vs.speak.available && (vs.speak.voices || []).length
+        ? '<div class="field mb-4"><label>Groundwork\'s voice</label><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'
+          + '<select id="gwVoicePick" class="field-input" style="width:auto">' + vs.speak.voices.map(function (v) {
+            var on = (prefs.speak_voice || vs.speak.default) === v.key;
+            return '<option value="' + esc(v.key) + '"' + (on ? ' selected' : '') + '>' + esc(v.name) + ' (' + esc(v.accent)
+              + (v.key === vs.speak.default ? ', the default' : '') + ')</option>';
+          }).join('') + '</select><button class="btn btn-ghost btn-sm" id="gwVoiceHear">Hear it</button></div></div>'
+        : '')
+      // V12: voice first
+      + '<div class="field mb-4"><label>Voice first</label><div>' + _radios('gwVoiceFirst', prefs.voice_first, [['off', 'Off'], ['on', 'On']]) + '</div>'
+      + '<div style="' + small + '">For when the screen is hard to see: each page you open, each message, and each answer is said aloud. '
+      + 'If you use a screen reader, leave this off - it already reads the page, and everything would be said twice.</div></div>'
       + '<div class="field"><label>Voice commands</label><div>' + _radios('gwVoice', prefs.voice_commands, [['off', 'Off'], ['on', 'On (talk with Groundwork)']]) + '</div>'
       + '<div style="' + small + '">Tap the microphone in the Ask box (or Alt+V) and talk - a question, or "read this", "read the page", '
       + '"explain further", "repeat", "slower", "faster", "next", "go back", "yes", "no". It stays on until you tap it again, say "stop", '
@@ -657,6 +713,10 @@
           + '<div style="' + small + '">Say "Groundwork, open my budget" with no tap. It listens for its name only while Groundwork\'s '
           + 'window is in front, with the red microphone showing, and stops when you leave the window. What isn\'t said to '
           + 'Groundwork is let go - not acted on, not kept. Tap the microphone to talk without saying its name.</div></div>'
+          // V10 (item 116): which microphone, and a test that says what it heard
+          + '<div class="field mt-4"><label>Microphone</label><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'
+          + '<select id="gwMicPick" class="field-input" style="width:auto"><option value="">The computer\'s default</option></select>'
+          + '<button class="btn btn-ghost btn-sm" id="gwMicTest">Test my microphone</button></div></div>'
         : '');
     var forget = _el('gwMicForget');
     if (forget) forget.addEventListener('click', async function () {
@@ -685,6 +745,32 @@
         if (i.value === 'on') _wakeArm(); else if (conv && conv.wake) micOff();
       });
     });
+    var pick = _el('gwVoicePick'), hear = _el('gwVoiceHear');
+    if (pick) pick.addEventListener('change', function () { _save('speak_voice', pick.value); });
+    if (hear) hear.addEventListener('click', function () {          // V9: heard before it is kept
+      own.trying = pick ? pick.value : '';
+      say('Hello, this is Groundwork. Your debt payments are 450 dollars a month.', function () { own.trying = ''; });
+      setTimeout(function () { own.trying = ''; }, 8000);
+    });
+    card.querySelectorAll('input[name="gwVoiceFirst"]').forEach(function (i) {
+      i.addEventListener('change', function () {
+        _save('voice_first', i.value);
+        if (i.value === 'on') say('Voice first is on. I will say each page, message and answer.');
+      });
+    });
+    var micPick = _el('gwMicPick'), micTest = _el('gwMicTest');
+    if (micPick && navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+      navigator.mediaDevices.enumerateDevices().then(function (ds) {         // names show once the microphone is allowed
+        ds.filter(function (d) { return d.kind === 'audioinput' && d.deviceId && d.deviceId !== 'default'; }).forEach(function (d, n) {
+          var o = document.createElement('option');
+          o.value = d.deviceId; o.textContent = d.label || ('Microphone ' + (n + 1));
+          if (d.deviceId === prefs.mic_device) o.selected = true;
+          micPick.appendChild(o);
+        });
+      }).catch(function () { /* the default stays */ });
+      micPick.addEventListener('change', function () { _save('mic_device', micPick.value); if (conv) { micOff(); micOn(); } });
+    }
+    if (micTest) micTest.addEventListener('click', testMic);
   }
 
   async function load() {
@@ -708,7 +794,21 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load);
   else load();
 
-  window.GWVoice = { say: function (w) { return say(w); }, on: function () { return !!conv; } };   // item 114 H14
+  window.GWVoice = { say: function (w) { return say(w); }, on: function () { return !!conv; },     // item 114 H14
+                     first: function () { return prefs.voice_first === 'on'; } };                   // item 116 V12
+
+  // V12: voice first - each message is said too (not the "Heard:" echo of what was just said, and not over Groundwork
+  // already speaking about the same thing)
+  if (typeof window.showToast === 'function') {
+    var _toastShown = window.showToast;
+    window.showToast = function (title, sub) {
+      var r = _toastShown.apply(this, arguments);
+      if (prefs.voice_first === 'on' && !/^Heard: /.test(String(title || '')) && !_speaking() && !window._gwVoiceAsked) {
+        say(String(title || '') + (sub ? '. ' + sub : ''));
+      }
+      return r;
+    };
+  }
   GWTeaching.register('access', { load: load, route: route, wav: wav, readSection: readSection, answer: answer, stop: stop, prefs: prefs,
                                    talk: talkToggle, listening: function () { return !!conv; } });
 })();

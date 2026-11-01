@@ -28552,6 +28552,7 @@ function careAsk(q, p, head) {
 // V4 (item 116): a question said aloud gets its answer said aloud, whatever answers it - a command's own line, the
 // assistant, a fixed sentence, the guide. "One moment." if it takes more than a moment (V7). Typed, nothing is read.
 async function askGroundwork(question, shownAs) {
+  if (!window._gwVoiceAsked && window.GWVoice && window.GWVoice.first && window.GWVoice.first()) window._gwVoiceAsked = true;   // V12: voice first answers aloud
   const spoken = !!window._gwVoiceAsked;
   const wait = spoken ? setTimeout(() => { if (window._gwVoiceAsked && window.GWVoice) window.GWVoice.say('One moment.'); }, 1200) : null;
   try {

@@ -3731,19 +3731,26 @@ def voice_status():
     said = speak.status()
     if wanted and said['available']:
         speak.preload()           # and Groundwork's voice is ready before the first words
-    return ok({'on': on, **st, 'speak': said})
+    voices = [{'key': k, 'name': n, 'accent': a} for k, (n, a) in speak.VOICES.items()]     # V9: the choices
+    return ok({'on': on, **st, 'speak': {**said, 'voices': voices, 'default': speak.VOICE}})
 
 
 @voice_bp.route('/speak', methods=['POST'])
 def voice_speak():
-    """Groundwork's own words, said in its own voice, here (core/speak.py). The sound comes back and nothing is kept."""
+    """Groundwork's own words, said in its own voice, here (core/speak.py). The sound comes back and nothing is kept.
+    V9: in the voice chosen in Settings (speak_voice), or a voice named for "Hear it" - one of speak.VOICES only."""
     from core import speak
     st = speak.status()
     if not st['available']:
         return err(st['reason'], 503)
     body = request.get_json(silent=True) or {}
+    chosen = str(body.get('voice') or '')
+    if chosen not in speak.VOICES:
+        with db_session() as session:
+            row = _get_setting(session, 'speak_voice')
+            chosen = row.value if row and row.value in speak.VOICES else speak.VOICE
     try:
-        wav = speak.speak(str(body.get('text') or ''), speed=str(body.get('speed') or 'normal'))
+        wav = speak.speak(str(body.get('text') or ''), speed=str(body.get('speed') or 'normal'), voice=chosen)
     except speak.SpeakError as e:
         return err(str(e), 400)
     from flask import Response
