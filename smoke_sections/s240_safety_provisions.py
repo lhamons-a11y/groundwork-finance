@@ -110,9 +110,9 @@ def run(ctx):
                   'monthlyReviewAfterImport': "/api/reports/review", '_rcMonthlyGenerate': "/api/reports/review",
                   '_rcSendAI': "/api/settings"}
     CHECKS_ONLY = {'_readTripItineraryWithModel': "/api/trip/itinerary/check",   # validated, then held for a yes
-                   'askGroundwork': "/api/help/unanswered"}                      # item 102: the person's own question, never the AI's words
+                   '_askGroundwork': "/api/help/unanswered"}                      # item 102: the person's own question, never the AI's words
     KNOWN = set(TEXT_SAVES) | set(CHECKS_ONLY) | {'_learnFromPastTrip', '_readTripQuote', '_renderProjectionAI',
-                                                  '_rcFollowUp', 'askGroundwork',      # item 102: shows, saves nothing
+                                                  '_rcFollowUp', '_askGroundwork',     # item 102: shows, saves nothing (item 116: askGroundwork wraps it)
                                                   'explainPage'}                     # item 103: shows, saves nothing
     check(f's240 P3 every surface that calls the model is registered here, so a new one is reviewed (new: {sorted(callers - KNOWN)})',
           callers == KNOWN)

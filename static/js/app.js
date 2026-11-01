@@ -27619,7 +27619,7 @@ function askShowEntry(i) {
 // calendar", "show me collections", "open settings", "take me to my budget" go straight there. Anything else is a
 // question, and is answered. Most specific names first; a phrase is matched on whole words.
 const ASK_PLACES = [
-  { label: 'the Calendar', names: ['calendar', 'upcoming', 'schedule'], view: 'budget', tab: ['bud', 'calendar'] },
+  { label: 'the Calendar', names: ['calendar', 'calendars', 'upcoming', 'schedule'], view: 'budget', tab: ['bud', 'calendar'] },
   { label: 'Gifts', names: ['gift budget', 'gifts', 'gift'], view: 'budget', tab: ['bud', 'gifts'] },
   { label: 'Possible futures', names: ['possible futures', 'futures', 'what if'], view: 'budget', tab: ['bud', 'futures'] },
   { label: 'Bills and charges', names: ['bills and charges', 'recurring charges', 'subscriptions', 'sinking funds'], view: 'budget', tab: ['bud', 'bills'] },
@@ -27640,7 +27640,7 @@ const ASK_PLACES = [
   { label: 'the Budget', names: ['budget', 'my budget'], view: 'budget', tab: ['bud', 'plan'] },
   { label: 'the Trip Planner', names: ['trip planner', 'trips', 'trip', 'travel'], view: 'trip' },
   { label: 'Investments', names: ['investments', 'investment', 'portfolio', 'stocks'], view: 'investments' },
-  { label: 'Net Worth', names: ['net worth', 'networth'], view: 'networth' },
+  { label: 'Net Worth', names: ['net worth', 'networth', 'net work'], view: 'networth' },   // "net work": as heard (V8)
   { label: 'the Trophy Room', names: ['trophy room', 'trophies', 'achievements'], view: 'trophy' },
   { label: 'Categories', names: ['categories', 'category settings'], view: 'settings', tab: ['settings', 'categories'] },
   { label: 'Import rules', names: ['import rules', 'rules'], view: 'settings', tab: ['settings', 'automation'] },
@@ -27682,6 +27682,7 @@ function askPlace(question) {
 }
 
 function askGo(pl) {
+  _askLast = { kind: 'place', pl };
   closeAsk();
   const box = g('gwAskBox');
   if (box) box.value = '';
@@ -27715,6 +27716,9 @@ const _ASK_LEAD = /^(?:please|hey|ok|okay|so|um|uh|can you|could you|would you|w
 
 function _askNorm(q) {
   let t = String(q || '').toLowerCase().replace(/[’\x60]/g, "'").replace(/[?!.]+\s*$/, '').trim();
+  // Item 116 V8, measured: whisper writes "Groundwork. Open my budget.", "lantern, cafe", quotes round a phrase -
+  // punctuation after a word and double quotes go; an apostrophe and a figure's point ("24.99") stay
+  t = t.replace(/[\x22\u201c\u201d]/g, ' ').replace(/([a-z])[.,;:!?]+(?=\s|$)/g, '$1').replace(/\s+/g, ' ').trim();
   t = t.split(/\s+/).map(w => _ASK_SHORT[w] || w).join(' ');
   for (let i = 0; i < 4 && _ASK_LEAD.test(t); i++) t = t.replace(_ASK_LEAD, '');
   return t.replace(/\s+please$/, '').trim();
@@ -27805,11 +27809,104 @@ function _askSearchTerm(n) {
   return term && !/^(?:my|all|the|recent|new|latest|our|last|every)$/.test(term) ? term : null;   // "my transactions" is the Ledger
 }
 
+// V6 (item 116): control the page by voice - what its own buttons and filters do, nothing they don't. Scrolling works on
+// any page; the rest are the Ledger's own controls (sort, range, month, category, type, clear).
+const _ASK_NUM = { one: 1, three: 3, six: 6, twelve: 12, '1': 1, '3': 3, '6': 6, '12': 12 };
+function _askPageControl(n) {
+  const view = (document.querySelector('.view.active') || {}).id || '';
+  const said = (toast, words) => { _askDone(toast); _askSaid(words || `OK, ${toast.charAt(0).toLowerCase() + toast.slice(1)}.`); return true; };
+  const pane = (document.querySelector('.view.active') || document.body).closest('.content') || document.querySelector('.content');   // the page's own scroller holds the view
+  const scroll = top => { if (pane) pane.scrollTo({ top }); };
+  if (/^(?:scroll|page|go) down$/.test(n)) { if (pane) pane.scrollBy({ top: pane.clientHeight * 0.8 }); return said('Scrolled down'); }
+  if (/^(?:scroll|page|go) up$/.test(n)) { if (pane) pane.scrollBy({ top: -pane.clientHeight * 0.8 }); return said('Scrolled up'); }
+  if (/^(?:go to |scroll to )?(?:the )?top(?: of the page)?$/.test(n)) { scroll(0); return said('At the top'); }
+  if (/^(?:go to |scroll to )?(?:the )?bottom(?: of the page)?$/.test(n)) { scroll(pane ? pane.scrollHeight : 0); return said('At the bottom'); }
+  if (view !== 'view-ledger') return false;
+  let m = n.match(/^sort(?: it| them| the ledger)? by (date|amount|name|description|payee|merchant)(?: (highest|largest|biggest|newest|lowest|smallest|oldest) first)?$/);
+  if (m) {
+    const col = m[1] === 'date' ? 'date' : m[1] === 'amount' ? 'amount' : 'description';
+    _ledgerSortCol = col;
+    _ledgerSortDir = /lowest|smallest|oldest/.test(m[2] || '') || (col === 'description' && !m[2]) ? 1 : -1;
+    renderLedger();
+    return said(`Sorted by ${m[1]}`);
+  }
+  m = n.match(/^(?:show |only |just )?(?:the )?(?:last|past) (one|three|six|twelve|1|3|6|12) months?$/);
+  if (m || /^(?:show |only |just )?(?:the )?(?:last|past) year$/.test(n)) {
+    const k = m ? _ASK_NUM[m[1]] : 12;
+    setLedgerRange(k);
+    return said(`Showing the last ${k === 1 ? 'month' : k + ' months'}`);
+  }
+  if (/^(?:show |only |just )?this month$/.test(n)) {
+    setLedgerRange(1);
+    const months = _ledgerAvailableMonths();
+    if (months.length) { _ledgerMonthKey = months[0]; renderLedger(); updateLedgerStats(); }
+    return said('Showing this month');
+  }
+  if (/^(?:the )?(?:previous|last) month$|^(?:go )?back a month$/.test(n)) { ledgerMonthStep(1); return said('The month before'); }
+  if (/^(?:the )?next month$|^(?:go )?forward a month$/.test(n)) { ledgerMonthStep(-1); return said('The month after'); }
+  if (/^(?:clear|reset|remove)(?: the| all)?(?: search| filters?| everything)+$|^show (?:me )?(?:everything|all(?: of it)?)$/.test(n)) {
+    ['ledgerSearch', 'ledgerCatFilter', 'ledgerTypeFilter', 'ledgerAccountFilter'].forEach(f => { if (g(f)) g(f).value = ''; });
+    renderLedger(); updateLedgerStats();
+    return said('Showing everything', 'OK, showing everything.');
+  }
+  m = n.match(/^(?:show )?(?:only|just) (?:my |the )?(.+?)$|^filter (?:by|to) (?:my |the )?(.+?)$/);
+  if (m) {
+    const want = (m[1] || m[2]).replace(/\s+(?:transactions|purchases|spending)$/, '');
+    const type = /^(?:income|deposits|money in)$/.test(want) ? 'credit' : /^(?:expenses|spending|money out|purchases)$/.test(want) ? 'debit' : null;
+    if (type && g('ledgerTypeFilter')) {
+      g('ledgerTypeFilter').value = type; renderLedger(); updateLedgerStats();
+      return said(type === 'credit' ? 'Showing only income' : 'Showing only spending');
+    }
+    const sel = g('ledgerCatFilter');
+    const opt = sel && [...sel.options].find(o => o.value && o.value.toLowerCase() === want)
+      || sel && [...sel.options].find(o => o.value && o.value.toLowerCase().startsWith(want.replace(/ies$|s$/, '')));
+    if (opt) { sel.value = opt.value; renderLedger(); updateLedgerStats(); return said(`Showing only ${opt.value}`); }
+  }
+  return false;
+}
+
+// V5 (item 116): "add a 40 dollar grocery purchase at Kroger today" - Add transaction, filled in and read back; nothing
+// is saved until Save is pressed (H7: a change is the person's press, never a word heard)
+const _ASK_WORDNUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11,
+  twelve: 12, fifteen: 15, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+function _askAmount(t) {
+  let m = t.match(/\$?\s?(\d[\d,]*(?:\.\d{1,2})?)(?:\s*dollars?)?(?:\s*(?:and\s*)?(\d{1,2})\s*cents?)?/);
+  if (m) return Math.round((parseFloat(m[1].replace(/,/g, '')) + (m[2] ? +m[2] / 100 : 0)) * 100) / 100;
+  m = t.match(/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:[ -](one|two|three|four|five|six|seven|eight|nine))? dollars?\b/);
+  return m ? _ASK_WORDNUM[m[1]] + (m[2] ? _ASK_WORDNUM[m[2]] : 0) : null;
+}
+function _askAddTxn(n) {
+  const m = n.match(/^(?:add|enter|record|log)(?: an?| my| new)? (.+?)(?: (purchase|expense|charge|transaction|payment|deposit|refund))(?: (?:at|from|to|for) (.+?))?(?: (today|yesterday))?$/);
+  if (!m) return false;
+  const amount = _askAmount(m[1]);
+  if (amount == null) return false;
+  const catWord = m[1].replace(/\$?\s?\d[\d,]*(?:\.\d{1,2})?\s*(?:dollars?)?(?:\s*(?:and\s*)?\d{1,2}\s*cents?)?/, '')
+    .replace(/\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:[ -](?:one|two|three|four|five|six|seven|eight|nine))? dollars?\b/, '')
+    .replace(/^\s*(?:a|an)\s+/, '').trim();
+  const cats = _categoryNames();
+  const cat = catWord && (cats.find(c => c.toLowerCase() === catWord)
+    || cats.find(c => c.toLowerCase().startsWith(catWord.replace(/y$/, 'i').replace(/s$/, '')))) || '';
+  const income = /deposit|refund/.test(m[2]);
+  const day = m[4] === 'yesterday' ? _localISODate(new Date(Date.now() - 864e5)) : today();   // the computer's own date (item 109)
+  const payee = m[3] ? _askTitle(m[3]) : '';
+  showView('ledger');
+  openAddModal();
+  g('txnDate').value = day;
+  g('txnAmount').value = amount.toFixed(2);
+  g('txnType').value = income ? 'credit' : 'debit';
+  if (payee) g('txnDesc').value = payee;
+  if (cat && g('txnCategory')) g('txnCategory').value = cat;
+  const what = [`${fmt(amount)}`, cat, payee, m[4] || 'today'].filter(Boolean).join(', ');
+  _askDone(`Add ${what}? Press Save to add it.`);
+  _askSaid(`Add ${what}? Press Save to add it.`);
+  return true;
+}
+
 // Rob 2026-10-31: "show me my Kroger transactions" is the Ledger, searched for Kroger - a command, with AI on or off.
 // (\x27 not a bare quote in these patterns: s30 reads a bare one inside a regex as the start of a string.)
 function _askShowTxns(n) {
-  const m = n.match(/^(?:show|view|see|open|pull up|bring up|display|list)(?: me)?(?: all)?(?: of)?(?: my| the| our)? (.+?)(?:\x27s)? (?:transactions|purchases|charges|payments)(?: in (?:the )?ledger)?$/)
-       || n.match(/^(?:show|view|see|open|pull up|bring up|display|list)(?: me)?(?: all)?(?: of)?(?: my| the| our)? (?:transactions|purchases|charges|payments) (?:at|from|to|for|with) (.+?)(?: in (?:the )?ledger)?$/);
+  const m = n.match(/^(?:show|view|see|open|pull up|bring up|display|list)(?: me)?(?: all)?(?: of)?(?: my| the| our)? (.+?)(?:\x27s)? (?:transactions?|purchases?|charges?|payments?)(?: in (?:the )?ledger)?$/)
+       || n.match(/^(?:show|view|see|open|pull up|bring up|display|list)(?: me)?(?: all)?(?: of)?(?: my| the| our)? (?:transactions?|purchases?|charges?|payments?) (?:at|from|to|for|with) (.+?)(?: in (?:the )?ledger)?$/);
   const term = m ? m[1].replace(/^(?:my|the|all|our)\s+/, '').trim() : '';
   return term && !/^(?:my|all|the|recent|new|latest|our|last|every|pending|this month|last month|this month\x27s|last month\x27s)$/.test(term) ? term : null;
 }
@@ -27827,7 +27924,53 @@ function _askSaidFor(done) {          // a command's toast ("Opened Import") as 
 }
 const _askTitle = s => String(s).replace(/\b[a-z]/g, c => c.toUpperCase());
 
+// V4 (item 116): what the last command was about, for a follow-up - "what about Walmart?", "and last month?". Held in
+// memory for this window only; nothing is kept.
+let _askLast = null;
+
+// V4: a follow-up to the last command. "what about walmart" after a Ledger search searches Walmart; "and last month"
+// steps the Ledger back a month; "what about my debts" after a page opens that page.
+function _askFollow(n) {
+  if (!_askLast) return false;
+  const m = n.match(/^(?:and|what about|how about|and what about|now|then)\s+(.+)$/);
+  if (!m) return false;
+  const rest = m[1].replace(/^(?:my|the|our)\s+/, '').replace(/\s+(?:transactions|purchases|charges)$/, '').trim();
+  if (_askLast.kind === 'ledger' && /^(?:last|the last|previous|the previous) month$/.test(m[1])) {
+    showView('ledger');
+    ledgerMonthStep(1);
+    _askSaid('OK, the month before.');
+    return true;
+  }
+  const place = ASK_PLACES.find(pl => pl.names.includes(rest));
+  if (place) { askGo(place); return true; }
+  if (_askLast.kind === 'ledger' && rest) { askLedgerSearch(rest); return true; }
+  return false;
+}
+
+// V15 (item 116): "what's coming up this week?" - the Calendar's own dates, from the record, said aloud with how sure
+// each one is. Only when asked; Groundwork never watches for it.
+const ASK_COMING = /^(?:what(?:\x27s| is| are)?|whats) (?:coming up|coming due|due|do|upcoming|coming)(?: soon| next)?(?: for me)?(?: (this|next) (week|month))?$|^(?:what|which) (?:bills|payments) (?:are |do i have )?(?:coming up|due)(?: (this|next) (week|month))?$/;
+async function askComingUp(month) {
+  const spoken = !!window._gwVoiceAsked;
+  window._gwVoiceAsked = false;                 // spent now: the answer comes after the record is read
+  _askDone();
+  showView('budget');
+  setTimeout(() => _budShowTab('calendar'), 60);
+  let es = [];
+  try { es = ((await API.get(`/api/calendar?days=${month ? 31 : 7}`)).entries || []).filter(e => e.title); }
+  catch (e) { if (spoken && window.GWVoice) window.GWVoice.say("I couldn't read the calendar just now."); return; }
+  const when = d => new Date(d + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const one = e => `${when(e.date)}, ${e.title}` + (e.amount != null ? `, ${e.certainty === 'confirmed' ? '' : 'about '}${fmt(e.amount)}` : '')
+    + (e.certainty === 'possible' ? ', possibly' : '');
+  const span = month ? 'this month' : 'this week';
+  const words = !es.length ? `Nothing is due ${span}, from what your records show.`
+    : `Coming up ${span}: ` + es.slice(0, 6).map(one).join('. ') + (es.length > 6 ? `. And ${es.length - 6} more on the Calendar.` : '.');
+  showToast(es.length ? `${es.length} coming up ${span}` : `Nothing due ${span}`, 'On the Calendar, with how sure each one is.', 'info');
+  if (spoken && window.GWVoice) window.GWVoice.say(words);
+}
+
 function askLedgerSearch(term) {
+  _askLast = { kind: 'ledger', term };
   _askDone(`Showing your ${_askTitle(term)} transactions in the Ledger`);
   _askSaid(`OK, showing your ${_askTitle(term)} transactions in the Ledger.`);
   showView('ledger');
@@ -27846,12 +27989,18 @@ function _askBudgetCat(text) {
 function askIntent(q, p, head, assist = false) {
   const n = _askNorm(q);
   if (!n) return false;
+  if (_askFollow(n)) return true;                              // V4: "what about Walmart?", "and last month?"
+  const coming = n.match(ASK_COMING);
+  if (coming) { askComingUp((coming[2] || coming[4]) === 'month'); return true; }   // V15
   if (/^(?:hi|hello|hey there|hey|good (?:morning|afternoon|evening)|yo)$/.test(n)) {
     _askSay(p, head, `Hi! Ask a question, or tell me what to do - "how do I split a transaction?", "view my budget", "explain these numbers", "why is restaurants so high", "get my accounts".`);
     return true;
   }
   if (/^(?:thanks|thank you|thx|ty|cheers|great|perfect|ok thanks)$/.test(n)) { _askSay(p, head, "You're welcome."); return true; }
   if (/^(?:help|\?|what can you do|what can i ask|what can i say|commands)$/.test(n)) {
+    _askSaid('You can say: open my budget. Show me my Kroger transactions. What is coming up this week. Build a report. '
+      + 'Get my accounts. Read this, or read the page. Or ask a question, like how much do I owe. While I am talking, '
+      + 'say stop, next, or repeat.');                            // V7: said short; the panel below has the rest
     _askSay(p, head, `Ask how to do something ("how do I split a transaction?"), ask what a page means ("explain these numbers"), see what's behind a figure ("why is restaurants so high"), or say where to go ("view the calendar", "see my medical bills"),
       or what to do ("get my accounts", "import a statement", "add a bill", "back up"). ${assist
         ? 'Questions about your own numbers ("how much do I owe?", "what did we spend on groceries?") are answered here, from your records.'
@@ -27900,6 +28049,8 @@ function askIntent(q, p, head, assist = false) {
     return true;
   }
   if (askFetch(n)) return true;
+  if (_askAddTxn(n)) return true;                              // V5: filled in and read back; Save makes it
+  if (_askPageControl(n)) return true;                         // V6: the page's own controls
   for (const d of ASK_DO) if (d.re.test(n)) { _askDone(d.said); _askSaid(_askSaidFor(d.said)); d.run(); return true; }
   const shown = _askShowTxns(n);
   if (shown) { askLedgerSearch(shown); return true; }
@@ -28399,7 +28550,32 @@ function careAsk(q, p, head) {
   return true;
 }
 
+// V4 (item 116): a question said aloud gets its answer said aloud, whatever answers it - a command's own line, the
+// assistant, a fixed sentence, the guide. "One moment." if it takes more than a moment (V7). Typed, nothing is read.
 async function askGroundwork(question, shownAs) {
+  if (!window._gwVoiceAsked && window.GWVoice && window.GWVoice.first && window.GWVoice.first()) window._gwVoiceAsked = true;   // V12: voice first answers aloud
+  const spoken = !!window._gwVoiceAsked;
+  const wait = spoken ? setTimeout(() => { if (window._gwVoiceAsked && window.GWVoice) window.GWVoice.say('One moment.'); }, 1200) : null;
+  try {
+    await _askGroundwork(question, shownAs);
+  } finally {
+    clearTimeout(wait);
+    if (spoken && window._gwVoiceAsked) { window._gwVoiceAsked = false; _askSpeakPanel(); }
+  }
+}
+
+// The Ask panel's answer as words to say: its text, without the "You asked" line, buttons or form fields
+function _askSpeakPanel() {
+  const p = g('askPanel');
+  if (!p || !window.GWVoice) return;
+  const body = (p.querySelector('.byb-in') || p).cloneNode(true);
+  body.querySelectorAll('button, select, input, textarea, script, style').forEach(e => e.remove());
+  let t = (body.textContent || '').replace(/\s+/g, ' ').replace(/^You asked: .*?(?=[A-Z])/, '').replace(/✕/g, '').trim();
+  if (t.length > 600) { const at = t.lastIndexOf('. ', 600); t = t.slice(0, at > 200 ? at + 1 : 600); }
+  if (t) window.GWVoice.say(t);
+}
+
+async function _askGroundwork(question, shownAs) {
   const q = String(question || '').trim().slice(0, 300);
   if (!q) return;
   const p = _askPanel();
@@ -28409,8 +28585,7 @@ async function askGroundwork(question, shownAs) {
   window._askHead = head;
   if (careAsk(q, p, head)) return;            // item 104: someone struggling hears this first, from fixed words
   if (askIntent(q, p, head, aiEnabled())) {   // commands, pages - and with AI off, searches and your own figures
-    window._gwVoiceAsked = false;              // a spoken command has had its spoken reply; a typed one after it is not read
-    return;
+    return;                                    // a spoken one's reply: its own line, else askGroundwork says the panel
   }
   if (!aiEnabled()) {                         // the box is hidden with AI off; a question already typed gets the guide
     const hit = helpMatch(q);
@@ -28538,7 +28713,12 @@ async function askAssistant(q, p, head) {
   window._assistLast = { q, res };
   p.innerHTML = head + _assistHTML(res);
   // H14: asked out loud, answered out loud - Groundwork's own sentences only (P6); the microphone does not listen meanwhile
-  if (window._gwVoiceAsked) { window._gwVoiceAsked = false; if (window.GWVoice && (res.say || []).length) window.GWVoice.say(res.say.join(' ')); }
+  if (window._gwVoiceAsked) {
+    window._gwVoiceAsked = false;
+    // V5 (item 116): a change asked for aloud is read back with its figures; only the card's Yes makes it (H7)
+    const words = (res.say || []).join(' ') + (res.proposal ? ' Press Yes on the card to make the change.' : '');
+    if (window.GWVoice && words.trim()) window.GWVoice.say(words.trim());
+  }
   return true;
 }
 

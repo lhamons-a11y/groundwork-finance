@@ -38,7 +38,7 @@ let speaking = false;
 globalThis.SpeechSynthesisUtterance = function (t) { this.text = t; };
 globalThis.speechSynthesis = { get speaking() { return speaking; }, pending: false, cancel() {}, speak(u) { spoken.push(u.text); },
   getVoices: () => [{ name: 'local', lang: 'en-US', localService: true }] };
-globalThis.API = { get: async (p) => p === '/api/settings' ? { voice_commands: 'on' } : {}, patch: async () => {},
+globalThis.API = { get: async (p) => p === '/api/settings' ? { voice_commands: 'on', voice_tour: 'done' } : {}, patch: async () => {},
   post: async () => ({}) };
 globalThis.showToast = (t, s) => toasts.push([t, s]);
 globalThis.esc = (s) => String(s);
@@ -67,8 +67,14 @@ const run = async (v, ms) => { for (let t = 0; t < ms; t += 256) { now += 256; n
   await run(0.2, 1200); await run(0, 1200);                 // and again - still on
   out.secondSent = sent.length; out.stillOn = a.listening();
   out.asked = asked.slice();
-  speaking = true; await run(0.3, 3000); speaking = false; await run(0, 1200);   // its own voice is not heard
-  out.whileSpeaking = sent.length;
+  // its own voice is not taken for the person's: a clip over speech is heard, and let go - it is no short word (V2)
+  speaking = true; await run(0.3, 2000); await run(0, 1200); speaking = false; await run(0, 1200);
+  out.whileSpeaking = [sent.length, asked.length];
+  // and "stop" said over it cuts it off (item 116 V2)
+  const hushed = []; globalThis.speechSynthesis.cancel = () => hushed.push(1);
+  speaking = true; reply = 'Stop.'; await run(0.3, 600); await run(0, 1200); speaking = false;
+  out.bargeStop = [hushed.length > 0, asked.length, toasts[toasts.length - 1][1]];
+  reply = 'how much did we spend on groceries';
   window._assistProposal = { ticket: 'x' }; made.askPanel = el('askPanel');
   reply = 'yes'; await run(0.2, 600); await run(0, 1200);
   out.yesOnCard = toasts[toasts.length - 1][1]; out.yesAsked = asked.length;
@@ -96,7 +102,9 @@ const run = async (v, ms) => { for (let t = 0; t < ms; t += 256) { now += 256; n
           f"{o.get('secondSent')}, {o.get('stillOn')}, {o.get('asked')})",
           o.get('on') is True and o.get('firstSent') == 1 and o.get('secondSent') == 2 and o.get('stillOn') is True
           and o.get('asked') == [['how much did we spend on groceries', True]] * 2)
-    check(f"s266 H14 it does not listen while Groundwork is speaking ({o.get('whileSpeaking')})", o.get('whileSpeaking') == 2)
+    check(f"s266 H14 / 116 V2 while Groundwork speaks, what it hears is let go unless it is a short word; 'stop' cuts it "
+          f"off ({o.get('whileSpeaking')}, {o.get('bargeStop')})",
+          o.get('whileSpeaking') == [3, 2] and o.get('bargeStop') == [True, 2, 'Stopped reading'])
     check(f"s266 H7 a spoken yes never makes a change - the card's Yes is pressed ({o.get('yesOnCard')})",
           o.get('yesOnCard') == 'To make the change, press Yes on the card.' and o.get('yesAsked') == 2)
     check(f"s266 H14 'stop' turns the microphone off, and the microphone is released ({o.get('tracksStopped')})",
@@ -107,6 +115,7 @@ const run = async (v, ms) => { for (let t = 0; t < ms; t += 256) { now += 256; n
     srv, js = ctx.server_src, ctx.app_src
     check("s266 P6 an answer to a spoken question is read back without the model's words",
           "'say': [x for x in (out.get('shown') or []) if x not in (out.get('model_words') or [])]" in srv
-          and "window.GWVoice.say(res.say.join(' '))" in js and "out['model_words'] = w['words']"
+          and "const words = (res.say || []).join(' ') + (res.proposal ? ' Press Yes on the card to make the change.' : '');" in js
+          and "out['model_words'] = w['words']"
           in (ctx.BASE / 'core' / 'agent_hands.py').read_text(encoding='utf-8'))
     check('s266 H15 the Ask box holds the microphone', 'id="gwAskWrap"' in ctx.html_src and '#gwAskWrap.has-mic #gwMicBtn' in ctx.html_src)

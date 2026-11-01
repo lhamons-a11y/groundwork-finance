@@ -74,6 +74,41 @@ so WKWebView asks each time; the Linux window turns media on but handles no perm
 default applies - possibly a refusal. V18 answers each from the same kept yes. Untested: needs a Mac and a Linux
 machine with a microphone (as item 33 Q6).
 
+## 4b. V11 Spanish - measured, not built (2026-11-01). Rob's to rule.
+
+Speaking needs nothing new: the shipped voices file already holds Spanish voices (ef_dora, em_alex). Listening does:
+base.en hears English only. Measured with whisper.cpp's multilingual `base` (141 MB, the same size as base.en):
+
+| | result |
+|---|---|
+| Spanish, 11 commands x Dora and Alex x clean and noise (44) | 28 heard exactly (64%); mean word error 23.8%; 1.1 s each |
+| what misses | an English store name ("Kroger" heard as "crojero"), one-word commands ("Para" as "Parque", "Repite" as "Repita"), "Muéstrame" split into "Muestra me" - harmless to a router |
+| English, 50 commands, routed by the Ask bar | base.en 50/50; multilingual base 50/50 |
+
+So swapping base.en for the multilingual base would cost English nothing measured here, at no extra size, and would
+hear Spanish. **What it would not do on its own:** every command, page name, reply and fixed sentence is English. A
+Spanish Groundwork is a Spanish command layer and Spanish fixed words throughout - the real work. The questions for Rob:
+(a) swap to the multilingual model now (English unchanged, Spanish heard but only questions to the assistant work), or
+(b) the full Spanish layer as its own item, or (c) neither yet.
+
+## 4a. Measured (V8, first cut, 2026-10-31 - synthetic voices, not yet real people)
+
+`scripts/voice_measure.py`: 30 commands said by six voices - Kokoro af_heart, am_michael, bf_emma, bm_george (American
+and British) and Windows' David and Zira - clean and with noise at about 15 dB, recognised by Groundwork's whisper.cpp
+base.en with and without the household's words in the hint, then routed by the Ask bar's own code from `app.js`.
+
+| | did what was meant |
+|---|---|
+| first run, 720 commands | 677 (94%) |
+| the same recognitions after the router took whisper's punctuation ("Groundwork. Open my budget."), quotes, singular "transaction", "do" for "due", "calendars", "net work" | 698 (97%) |
+| the short words said over Groundwork's voice (84), full hint | 76 |
+| the same with only the short words as the hint (V2, `SHORT_HINT`) | 82 |
+| with the household's words in the hint (V1) / without, 360 each | 339 / 338 - no measurable gain on these payees, which whisper already hears; the hint is for names like "Meijer", which this set does not carry |
+
+Time to Groundwork's first spoken reply ("Sure, opening the Budget for you."): 0.6 to 0.9 seconds to make. Recognising a
+command: 1.0 to 1.3 seconds. What still fails is mishearing, not routing - mostly the British male voice ("Stomp!" for
+"Stop") and "my Kroger" heard as "microger". **Not the exit criterion:** that needs real people on real microphones.
+
 ## 5. Stages - one at a time, accepted between
 
 | Stage | Items | Rulings needed first |
@@ -81,6 +116,12 @@ machine with a microphone (as item 33 Q6).
 | 1 | V1 own words, V2 interrupt, V4 replies + follow-ups, V7 learnable, V8 the measured set (first cut) | none |
 | 2 | V6 page control, V5 changes read back | none beyond section 3 |
 | 3 | V3 hands-free start | none beyond section 3; its CPU while listening is measured and stated |
+
+**Built so far (2026-10-31/11-01, branch `voice-116`):** stage 1 (e673b42, s274), stage 2 (3d3062d, s276), stage 3 (s277).
+**V3's cost, as measured:** while it waits for its name nothing is recognised until someone speaks; each thing said in
+the room - for Groundwork or not - costs one recognition, 1.0 to 1.3 seconds on up to 4 processor threads (V8's
+timings). A quiet room costs nothing; a television in the room costs a recognition per sentence. It stops when the
+window is left, and is off unless chosen.
 | 4 | V9 voices, V10 microphone, V12 voice first | none |
 | 5 | V11 Spanish | measured size and accuracy, then Rob |
 | 6 | V13 spoken figures in, V14 dictation, V15 what's coming up, V16 say a name right, V17 step by step | none beyond section 4 |

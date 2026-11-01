@@ -50,6 +50,8 @@ const cases = """ + json.dumps([
         ['I need help', None],
         ['I want to know why my budget is short', None],
         ['lets talk about why restaurants is so high', None],
+        ['Groundwork. Open my budget.', 'budget'],                 # item 116 V8: as whisper writes it
+        ['"Take me to net worth."', 'networth'], ['Open the calendars.', 'budget'], ['take me to net work', 'networth'],
     ]) + """;
 console.log(JSON.stringify(cases.map(([q, want]) => {
   const n = _askNorm(q);
@@ -71,7 +73,7 @@ console.log(JSON.stringify(cases.map(([q, want]) => {
 const shows = """ + json.dumps([
         ['show me my kroger transactions', 'kroger'], ["show me kroger's transactions", 'kroger'],
         ['show my transactions at walmart', 'walmart'], ['view all the amazon purchases', 'amazon'],
-        ['show me my recent transactions', None], ['show me my transactions', None], ["show me this month's transactions", None],
+        ['show me my meijer transaction', 'meijer'], ['show me my recent transactions', None], ['show me my transactions', None], ["show me this month's transactions", None],
     ]) + """;
 const replies = """ + json.dumps([['Opened Import', 'Sure, opening Import for you.'],
                                   ['Opened the report builder', 'Sure, opening the report builder for you.'],
@@ -94,7 +96,7 @@ console.log(JSON.stringify({ shows: shows.map(([q, want]) => [q, _askShowTxns(q)
           and "_askSaid(_askSaidFor(d.said));" in intent and 'const shown = _askShowTxns(n);' in intent
           and '!assist' not in intent[intent.index('const shown = _askShowTxns(n);') - 40:intent.index('const shown = _askShowTxns(n);')]
           and "_askSaid('Sure, getting your accounts now.')" in app
-          and 'window._gwVoiceAsked = false;              // a spoken command has had its spoken reply' in ask[:2500]
+          and 'if (spoken && window._gwVoiceAsked) { window._gwVoiceAsked = false; _askSpeakPanel(); }' in ask[:1500]
           and 'if (!window._gwVoiceAsked) return;' in app)
     go = app[app.index('function askGo(pl)'):app.index('// ── Item 102 (Rob 2026-10-19: "add those four')]
     check('s271 L3/L4 opening the Ledger shows all of it, and a page opened is answered "Sure, opening ... for you."',

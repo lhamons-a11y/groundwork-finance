@@ -3731,19 +3731,30 @@ def voice_status():
     said = speak.status()
     if wanted and said['available']:
         speak.preload()           # and Groundwork's voice is ready before the first words
-    return ok({'on': on, **st, 'speak': said})
+    voices = [{'key': k, 'name': n, 'accent': a} for k, (n, a) in speak.VOICES.items()]     # V9: the choices
+    return ok({'on': on, **st, 'speak': {**said, 'voices': voices, 'default': speak.VOICE}})
 
 
 @voice_bp.route('/speak', methods=['POST'])
 def voice_speak():
-    """Groundwork's own words, said in its own voice, here (core/speak.py). The sound comes back and nothing is kept."""
+    """Groundwork's own words, said in its own voice, here (core/speak.py). The sound comes back and nothing is kept.
+    V9: in the voice chosen in Settings (speak_voice), or a voice named for "Hear it" - one of speak.VOICES only."""
     from core import speak
     st = speak.status()
     if not st['available']:
         return err(st['reason'], 503)
     body = request.get_json(silent=True) or {}
+    chosen = str(body.get('voice') or '')
+    with db_session() as session:
+        if chosen not in speak.VOICES:
+            row = _get_setting(session, 'speak_voice')
+            chosen = row.value if row and row.value in speak.VOICES else speak.VOICE
+        names = _setting_json(session, 'speak_lexicon', {}) or {}          # V16: "say Meijer like my-er"
+    if not isinstance(names, dict):
+        names = {}
     try:
-        wav = speak.speak(str(body.get('text') or ''), speed=str(body.get('speed') or 'normal'))
+        wav = speak.speak(str(body.get('text') or ''), speed=str(body.get('speed') or 'normal'), voice=chosen,
+                          names={str(k): str(v) for k, v in names.items()})
     except speak.SpeakError as e:
         return err(str(e), 400)
     from flask import Response
@@ -3760,11 +3771,50 @@ def voice_transcribe():
     if not st['available']:
         return err(st['reason'], 503)
     data = request.get_data(cache=False)
+    short = request.args.get('short') == '1'          # V2: heard while Groundwork spoke - only the short words count
     try:
-        text = voice.transcribe(data)
+        words = []
+        if not short:
+            with db_session() as session:
+                words = _voice_words(session)
+        text = voice.transcribe(data, words=words, short=short)
     except voice.VoiceError as e:
         return err(str(e), 400)
     return ok({'text': text})
+
+
+def _voice_words(session):
+    """V1 (item 116): the person's own words for the recogniser - payees, accounts, people, budget lines, categories -
+    most used first. Read from the record for each clip and kept nowhere. Health is left out (H6: a provider's or a
+    pharmacy's name goes to no model), and so is anything in an HSA or FSA account."""
+    from core import health_boundary as hb
+    from core.database import Person
+    try:
+        is_health = hb.health_rows(session)       # the one test for a row (item 92, s226)
+    except Exception:
+        return []
+    cats = {c.id: c for c in session.query(Category).all()}
+
+    def health_cat(c, hops=0):                    # a category is health by its own name or any parent's
+        return bool(c) and (hb.is_health_category(c.name) or (hops < 8 and health_cat(cats.get(c.parent_id), hops + 1)))
+    counts = {}
+    for t in (session.query(Transaction).filter(Transaction.merchant != '', Transaction.merchant.isnot(None))
+              .order_by(Transaction.date.desc()).limit(3000)):
+        if not is_health(t):
+            counts[t.merchant] = counts.get(t.merchant, 0) + 1
+    names = [m for m, _ in sorted(counts.items(), key=lambda kv: -kv[1])[:30]]
+    names += [a.name for a in session.query(Account).all() if (a.type or '').lower() not in hb.HEALTH_ACCOUNT_TYPES]
+    names += [p.display_name for p in session.query(Person).filter(Person.active.is_(True)).all()]
+    names += [b.name for b in session.query(BudgetItem).all()
+              if not hb.is_health_category(b.category) and not hb.is_health_category(b.name)]
+    names += [c.name for c in cats.values() if not health_cat(c)]
+    out, seen = [], set()
+    for n in names:
+        n = (n or '').strip()
+        if n and len(n) <= 40 and n.lower() not in seen:
+            seen.add(n.lower())
+            out.append(n)
+    return out
 
 
 # Rob 2026-10-31: "when Groundwork ask the operating system to use the microphone and the user selects yes that answer

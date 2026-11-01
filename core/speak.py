@@ -27,6 +27,10 @@ VOICES_FILE = 'voices-v1.0.bin'
 MODEL_SHA256 = '6e742170d309016e5891a994e1ce1559c702a2ccd0075e67ef7157974f6406cb'
 VOICES_SHA256 = 'bca610b8308e8d99f32e6fe4197e7ec01679264efed0cac9140fe9c29f1fbf7d'
 VOICE = 'af_heart'                       # Rob 2026-10-31: "the first voice that appears to be modern and really good"
+# V9 (item 116): the voices a person may choose, all in the shipped voices file - the default first. key -> (name, accent)
+VOICES = {'af_heart': ('Heart', 'American'), 'af_bella': ('Bella', 'American'), 'af_sarah': ('Sarah', 'American'),
+          'am_michael': ('Michael', 'American'), 'am_adam': ('Adam', 'American'), 'bf_emma': ('Emma', 'British'),
+          'bm_george': ('George', 'British')}
 SPEEDS = {'slower': 0.85, 'normal': 1.0, 'faster': 1.2}
 MAX_CHARS = 600                          # the page sends a sentence or two at a time; a whole page is refused, not cut
 
@@ -39,6 +43,12 @@ logging.getLogger('phonemizer').setLevel(logging.ERROR)
 class SpeakError(Exception):
     pass
 
+
+# ── Words the voice says wrong, said right for everyone ──────────────────────────────────────────────────────────────
+# Rob 2026-11-01: "it does miscreance copy .. it should sound like "cop-pee"". The phonemes were already kˈɑːpi; the
+# voice still blurred it. Spelled his way it gets a clear "cop" and a stressed "pee" (kˈɑːppˈiː). A person's own
+# names (V16) are applied first, so they can still change any of these.
+SAID_RIGHT = {'copy': 'cop-pee', 'copies': 'cop-pees', 'copied': 'cop-peed', 'copying': 'cop-peeing'}
 
 # ── Figures, said the way a person says them ─────────────────────────────────────────────────────────────────────────
 _ABBREV = {'APY': 'A P Y', 'HSA': 'H S A', 'FSA': 'F S A', 'EOB': 'E O B', 'IRA': 'I R A',
@@ -66,10 +76,16 @@ def _iso_date(m):
     return f'{_MONTHS[mo - 1]} {d}, {y}' if 1 <= mo <= 12 and 1 <= d <= 31 else m.group(0)
 
 
-def spoken(text):
+def spoken(text, names=None):
     """Groundwork's words, as they are to be said: money as "N dollars and N cents", a card's last four one digit at a
-    time, a percent as "percent", an abbreviation letter by letter, a date in words. Nothing is added or left out."""
+    time, a percent as "percent", an abbreviation letter by letter, a date in words. Nothing is added or left out.
+    `names`: V16 (item 116) - the person's own "say Meijer like my-er", {name: how}, applied first, whole words."""
     t = str(text or '')
+    for name, how in sorted((names or {}).items(), key=lambda kv: -len(kv[0])):
+        if name and how and len(name) <= 60 and len(how) <= 60:
+            t = re.sub(r'(?<!\w)' + re.escape(name) + r'(?!\w)', how, t, flags=re.I)
+    for word, how in SAID_RIGHT.items():                  # after the person's own, so theirs win
+        t = re.sub(r'(?<![\w-])' + word + r'(?![\w-])', how, t, flags=re.I)
     t = t.replace('→', ' to ').replace('–', ' to ').replace('—', ', ').replace('&', ' and ')
     t = re.sub(r'\b(\d{4})-(\d{2})-(\d{2})\b', _iso_date, t)
     t = re.sub(r'\b(\d{1,2})/(\d{1,2})/(\d{4})\b',
@@ -171,17 +187,20 @@ def release():
         _kokoro = None
 
 
-def speak(text, speed='normal', engine=None):
-    """The words as a 16-bit mono WAV. `engine` is for tests; otherwise the voice is loaded once."""
-    words = spoken(text)
+def speak(text, speed='normal', engine=None, voice=None, names=None):
+    """The words as a 16-bit mono WAV. `engine` is for tests; otherwise the voice is loaded once. `voice`: one of VOICES
+    (V9), else the default."""
+    words = spoken(text, names)
     if not words:
         raise SpeakError('There is nothing to say.')
     if len(words) > MAX_CHARS:
         raise SpeakError('That is more than the voice says at once.')
+    v = voice if voice in VOICES else VOICE
     import numpy as np
     with _lock:
         k = engine or _load()
-        audio, rate = k.create(words, voice=VOICE, speed=SPEEDS.get(speed, 1.0), lang='en-us')
+        audio, rate = k.create(words, voice=v, speed=SPEEDS.get(speed, 1.0),
+                               lang='en-gb' if VOICES[v][1] == 'British' else 'en-us')
     pcm = (np.clip(np.asarray(audio, dtype=np.float32), -1, 1) * 32767).astype('<i2')
     buf = io.BytesIO()
     with wave.open(buf, 'wb') as w:

@@ -114,9 +114,9 @@ def run(ctx):
     check(f's193 C7 nothing else reads the list ({holders}, {core_hits})',
           holders == ['help_unanswered_add', 'help_unanswered_clear', 'help_unanswered_list'] and core_hits == [])
 
-    ask = app.split('async function askGroundwork(')[1].split('\n}\n')[0] + app.split('function helpMatch(')[1].split('\n}\n')[0]
+    ask = app.split('async function _askGroundwork(')[1].split('\n}\n')[0] + app.split('function helpMatch(')[1].split('\n}\n')[0]
     match = app.split('function helpMatch(')[1].split('\n}\n')[0]
-    body = app.split('async function askGroundwork(')[1].split('\n}\n')[0]
+    body = app.split('async function _askGroundwork(')[1].split('\n}\n')[0]
     # Item 102 (Rob 2026-10-19: "Lets try real assistant") replaces C1: with AI on, the answer is the model's words - from
     # the guide entries it is given and nothing else, naming the one it used; the ? button's guide uses no model.
     check('s193 C1 (item 102) the guide match itself uses no model; the assistant is the only AI in the Ask box, and only with AI on',
