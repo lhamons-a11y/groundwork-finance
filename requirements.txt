@@ -50,6 +50,12 @@ llama-cpp-python==0.3.35; sys_platform != "darwin" or platform_machine == "arm64
 # it, or without the model file (models/ggml-base.en.bin, scripts/fetch_whisper_model.py), voice reports unavailable.
 pywhispercpp==1.5.1
 
+# Groundwork's own voice (core/speak.py, Rob 2026-10-31): Kokoro, said on this computer through onnxruntime, with
+# espeak-ng for pronunciation (pulled in by kokoro-onnx: onnxruntime, phonemizer, espeakng-loader). Optional: without
+# it, or without the files (models/kokoro-v1.0.int8.onnx + voices-v1.0.bin, scripts/fetch_kokoro_model.py), read aloud
+# uses the computer's own voices.
+kokoro-onnx==0.6.1
+
 # ── Platform-specific ─────────────────────────────────────────────────────────
 # Linux only: install these via your package manager, NOT pip
 #

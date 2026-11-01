@@ -196,13 +196,12 @@ def run(ctx):
     check('an import with no records creates nothing, least of all an account',
           _empty.status_code == 400 and _after == _before)
 
-    # The other direction: a route nobody calls. Four of these are real - they
+    # The other direction: a route nobody calls. Three of these are real - they
     # predate the 2.0 work and are pinned rather than deleted, because deleting
     # a route is a product decision and this is a test file. The pin is the
     # point: removing one from the app is a passing change, adding a new
     # unreachable route is a failing one.
-    UNCALLED = {
-        '/api/auto-import/delete-file',
+    UNCALLED = {                     # /api/auto-import/delete-file removed 2026-10-31 (s270)
         '/api/budget/variance',
         '/api/debug/bootstrap',      # deliberate: a debug handle, not a feature
         '/api/import/quicken',
@@ -223,7 +222,7 @@ def run(ctx):
         if stem and stem not in callers:
             unreferenced.add(stem)
     check('no route is unreachable from the client or the launcher, beyond the '
-          'pinned four', unreferenced == UNCALLED)
+          'pinned three', unreferenced == UNCALLED)
     if unreferenced != UNCALLED:
         for r in sorted(unreferenced - UNCALLED):
             print(f'        NEW unreachable route: {r}')

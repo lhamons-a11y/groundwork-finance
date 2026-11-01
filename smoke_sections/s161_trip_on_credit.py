@@ -87,7 +87,7 @@ def run(ctx):
             return
         src = ''.join(_fn(app, n) for n in ('_catParentName', '_catByName', '_kind', '_isSpend', '_isEarn', '_spendAmt', 'tripOwnSavingsRate', 'tripCardDetailHTML'))
         runner = r'''
-const esc = s => String(s); const fmt = n => '$' + Number(n).toFixed(2);
+const esc = s => String(s); const escJs = esc; const fmt = n => '$' + Number(n).toFixed(2);
 const S = {categories: []};
 ''' + src + r'''
 const p = JSON.parse(process.argv[1]); const out = {};

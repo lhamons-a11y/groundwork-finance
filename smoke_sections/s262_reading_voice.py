@@ -172,6 +172,8 @@ globalThis.GWTeaching = { register: (n, m) => { mods[n] = m; } };
   const card = { matches: () => false, querySelectorAll: () => [fig], querySelector: () => ({ innerText: 'Your debts' }),
                  closest: () => null };
   a.readSection(card);
+  // Groundwork's own voice is asked first (core/speak.py); this stub server has none, so the computer's voice reads
+  await new Promise(r => setTimeout(r, 20));
   out.read = spoken[0] && [spoken[0].text, spoken[0].voice.name];
   spoken[0].onend();
   out.question = !!made.gwReadAsk && spoken[spoken.length - 1].text;
@@ -194,7 +196,11 @@ globalThis.GWTeaching = { register: (n, m) => { mods[n] = m; } };
   console.log(JSON.stringify(out));
 })().catch(e => { console.log(JSON.stringify({ error: String(e && e.stack || e) })); });
 """
-    r = subprocess.run([node, '-e', prog], capture_output=True, text=True, encoding='utf-8', timeout=30)
+    # A file, not `node -e`: the program carries all of access.js, past Windows' 32,767-character command line
+    import os, tempfile
+    f = os.path.join(tempfile.mkdtemp(prefix='s262_'), 'read.js')
+    open(f, 'w', encoding='utf-8').write(prog)
+    r = subprocess.run([node, f], capture_output=True, text=True, encoding='utf-8', timeout=30)
     try:
         o = json.loads(r.stdout.strip().splitlines()[-1])
     except Exception:
@@ -217,6 +223,7 @@ globalThis.GWTeaching = { register: (n, m) => { mods[n] = m; } };
           and o.get('slower') == [{'read_rate': 'slower'}, 0.8] and o.get('undone') == {'read_rate': 'normal'}
           and o.get('nothing') == ['Heard: “go back”', 'There is nothing to do that with right now.']
           and o.get('asked') == ['How much do I owe on the Visa?'])
-    check(f"s262 113 the clip is a 16 kHz mono 16-bit WAV, and the page fetched nothing on its own ({o.get('wav')}, "
+    check(f"s262 113 the clip is a 16 kHz mono 16-bit WAV, and the page fetched nothing on its own - only Groundwork's "
+          f"voice, from this computer's server, once, before the computer's voice took over ({o.get('wav')}, "
           f"{o.get('fetched')})",
-          o.get('wav') == [44 + 32000, 'RIFF', 16000, 1, 16383] and o.get('fetched') == [])
+          o.get('wav') == [44 + 32000, 'RIFF', 16000, 1, 16383] and o.get('fetched') == ['/api/voice/speak'])

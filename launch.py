@@ -405,6 +405,53 @@ def _start_server(base_dir: Path):
             pass
 
 
+MAIN_PAGE = 'http://127.0.0.1:8765/'
+
+
+def microphone_answer(kind_is_microphone, uri, allowed_at):
+    """Whether the window answers a permission request itself: only the microphone, only for Groundwork's own page,
+    and only once the person's yes is on record (server.MICROPHONE_SETTING). Anything else is left to the window's own
+    question. Kept apart from the window code so s272 can hold it without a window."""
+    return bool(kind_is_microphone and str(uri or '').startswith(MAIN_PAGE) and allowed_at)
+
+
+def _keep_microphone_answer(window):
+    """Rob 2026-10-31: the microphone's yes is recorded and kept. The window opens private (pywebview's default), so
+    WebView2 forgets its own answer when Groundwork closes; the yes the page recorded answers the next request instead.
+    Windows (WebView2) only - elsewhere the window asks as it always has. Any failure leaves the question as it was."""
+    if sys.platform != 'win32':
+        return
+    hooked = []
+
+    def on_loaded(*_):
+        if hooked:
+            return
+        try:
+            from System import Func, Type
+            from Microsoft.Web.WebView2.Core import CoreWebView2PermissionKind, CoreWebView2PermissionState
+            form = window.native
+            core = form.browser.webview.CoreWebView2
+
+            def on_permission(_sender, args):
+                try:
+                    from server import microphone_allowed
+                    if microphone_answer(args.PermissionKind == CoreWebView2PermissionKind.Microphone, args.Uri,
+                                         microphone_allowed()):
+                        args.State = CoreWebView2PermissionState.Allow
+                except Exception:
+                    logging.exception('microphone answer')       # the window's own question still shows
+
+            def add():
+                core.PermissionRequested += on_permission
+
+            form.Invoke(Func[Type](add))
+            hooked.append(True)
+        except Exception:
+            logging.exception('could not keep the microphone answer')
+
+    window.events.loaded += on_loaded
+
+
 def main():
     # The bank window (BANK_BROWSER.md F1) is this same executable started with
     # --bank-window. It is dispatched before ANYTHING else - no Flask, no
@@ -482,6 +529,8 @@ def main():
         height=820,
         min_size=(900, 600),
     )
+
+    _keep_microphone_answer(window)
 
     # Groundwork exiting closes every bank window it opened (F2).
     import atexit

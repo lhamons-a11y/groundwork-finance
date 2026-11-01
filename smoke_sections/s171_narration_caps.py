@@ -71,7 +71,7 @@ let REPLY = null, STREAM = [];
 const API = { _n: 0, post: async (url, body) => { if (url === '/api/ai/chat') { API._n++; return { data: REPLY(API._n) }; } return {}; }, get: async () => ({}) };
 const _gwErr = () => () => {};
 const _GW_AUTH_HEADER = () => ({});
-const esc = s => String(s);
+const esc = s => String(s); const escJs = esc;
 // the page's top-level listeners (item 103's figure clicks, keys and hovers) register on a document node has not got
 const document = { addEventListener: () => {} };
 globalThis.fetch = async (url) => {

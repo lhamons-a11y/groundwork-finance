@@ -15,6 +15,18 @@ Versions are the ones current builds use; `requirements.txt` and the build workf
 | Phi-3.5-mini-instruct (the bundled model, Q4_0) | MIT | https://huggingface.co/microsoft/Phi-3.5-mini-instruct |
 | NumPy (bundles OpenBLAS, and on some platforms the GCC runtime libraries under the GCC Runtime Library Exception) | BSD-3-Clause and others; see its LICENSE.txt | https://numpy.org |
 
+## Groundwork's voice
+
+Read aloud is said on this computer (core/speak.py); nothing it reads is sent anywhere.
+
+| Component | License | Project |
+|---|---|---|
+| Kokoro-82M (the bundled voice model, int8, and its voices) | Apache-2.0 | https://huggingface.co/hexgrad/Kokoro-82M |
+| kokoro-onnx 0.6.1 | MIT | https://github.com/thewh1teagle/kokoro-onnx |
+| ONNX Runtime | MIT | https://onnxruntime.ai |
+| phonemizer | GPL-3.0-or-later | https://github.com/bootphon/phonemizer |
+| eSpeak NG (through espeakng-loader) | GPL-3.0-or-later | https://github.com/espeak-ng/espeak-ng |
+
 ## The app
 
 | Component | License | Project |

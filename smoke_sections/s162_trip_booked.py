@@ -144,7 +144,7 @@ def run(ctx):
         check('s162 node is available (skip the render check if not)', bool(node))
         if node:
             src = _fn(app, 'tripBookingLine')
-            run_js = r'''const esc = s => String(s); const fmt = n => '$' + Number(n).toFixed(2);
+            run_js = r'''const esc = s => String(s); const escJs = esc; const fmt = n => '$' + Number(n).toFixed(2);
 const fmtDate = s => s;''' + src + r'''
 const b = {airline: 'Delta', amount: 612.48, booked_on: '2026-10-08', status: 'booked', charged_amount: null, refund_expected: false};
 console.log(JSON.stringify([tripBookingLine(b, 'Visa'), tripBookingLine({...b, status: 'charged', charged_amount: 618}, 'Visa'),

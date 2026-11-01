@@ -38,6 +38,12 @@ _GW_TOKEN = secrets.token_hex(32)
 # a DNS-rebinding page. Enforced by _check_request_host in create_app.
 _LOCAL_HOSTNAMES = ('127.0.0.1', 'localhost')
 
+# What the page may load and where it may send anything: this server only. Set on every response by _page_policy.
+PAGE_POLICY = ("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+               "img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; "
+               "object-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'self'; "
+               "frame-ancestors 'none'")
+
 
 def _request_host_refusal(environ, path):
     """Why this request must be refused, or None if it may proceed.
@@ -358,6 +364,17 @@ def create_app(static_folder: str = None) -> Flask:
             response = Response(html, mimetype='text/html')
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         response.headers['Pragma']        = 'no-cache'
+        return response
+
+    @app.after_request
+    def _page_policy(response):
+        """The page may talk to this server and nothing else (found 2026-10-31: a category name carrying markup ran
+        as code in the page, and code there could have sent the record anywhere - straight past core/egress.py, which
+        only sees the server's own requests). connect-src, img-src and the rest keep a script that does get in from
+        reaching another host. 'unsafe-inline' stays because the page is built on inline handlers; the escaping in
+        app.js (esc, escJs, showToast) is what keeps markup out. s270 holds both."""
+        response.headers['Content-Security-Policy'] = PAGE_POLICY
+        response.headers['X-Content-Type-Options'] = 'nosniff'
         return response
 
     @app.before_request
@@ -3641,15 +3658,41 @@ def _voice_on(session):
     return bool(row) and str(row.value).lower() == 'on'
 
 
+def _speaking_wanted(session):
+    """Groundwork's voice is wanted while read aloud is on or voice commands are (a spoken answer is read back)."""
+    row = _get_setting(session, 'read_aloud')
+    return _voice_on(session) or bool(row and str(row.value).lower() not in ('', 'off'))
+
+
 @voice_bp.route('', methods=['GET'])
 def voice_status():
-    from core import voice
+    from core import voice, speak
     with db_session() as session:
         on = _voice_on(session)
+        wanted = _speaking_wanted(session)
     st = voice.status()
     if on and st['available']:
         voice.preload()           # the page asks on load; the model is ready before the first command
-    return ok({'on': on, **st})
+    said = speak.status()
+    if wanted and said['available']:
+        speak.preload()           # and Groundwork's voice is ready before the first words
+    return ok({'on': on, **st, 'speak': said})
+
+
+@voice_bp.route('/speak', methods=['POST'])
+def voice_speak():
+    """Groundwork's own words, said in its own voice, here (core/speak.py). The sound comes back and nothing is kept."""
+    from core import speak
+    st = speak.status()
+    if not st['available']:
+        return err(st['reason'], 503)
+    body = request.get_json(silent=True) or {}
+    try:
+        wav = speak.speak(str(body.get('text') or ''), speed=str(body.get('speed') or 'normal'))
+    except speak.SpeakError as e:
+        return err(str(e), 400)
+    from flask import Response
+    return Response(wav, mimetype='audio/wav', headers={'Cache-Control': 'no-store'})
 
 
 @voice_bp.route('/transcribe', methods=['POST'])
@@ -3667,6 +3710,38 @@ def voice_transcribe():
     except voice.VoiceError as e:
         return err(str(e), 400)
     return ok({'text': text})
+
+
+# Rob 2026-10-31: "when Groundwork ask the operating system to use the microphone and the user selects yes that answer
+# should be recorded and kept. The red light and the timing will keep the microphone from always listening." The page
+# records the yes once the microphone has actually opened; launch.py then answers the window's next microphone request
+# from this record (Groundwork's own page only), so the question is not asked at every launch. A no is not kept - the
+# question is asked again. Forgetting it (Settings, Reading and voice) brings the question back. s272.
+MICROPHONE_SETTING = 'microphone_allowed'
+
+
+def microphone_allowed():
+    """When the person said yes to the microphone (ISO date and time), or None. Read by launch.py's window."""
+    try:
+        with db_session() as session:
+            row = _get_setting(session, MICROPHONE_SETTING)
+            return row.value if row and row.value else None
+    except Exception:
+        return None
+
+
+@voice_bp.route('/microphone', methods=['GET', 'POST', 'DELETE'])
+def voice_microphone():
+    with db_session() as session:
+        row = _get_setting(session, MICROPHONE_SETTING)
+        if request.method == 'POST' and not (row and row.value):
+            _set_setting(session, MICROPHONE_SETTING, datetime.now().isoformat(timespec='seconds'))
+            session.commit()
+        elif request.method == 'DELETE' and row:
+            session.delete(row)
+            session.commit()
+        row = _get_setting(session, MICROPHONE_SETTING)
+        return ok({'allowed_at': row.value if row and row.value else None})
 
 
 yearly_steps_bp = Blueprint('yearly_steps', __name__)
@@ -10717,6 +10792,11 @@ def update_settings():
             voice.preload()
         else:
             voice.release()
+    if 'voice_commands' in body or 'read_aloud' in body:
+        from core import speak                       # Groundwork's voice: loaded while either wants it, else let go
+        with db_session() as session:
+            wanted = _speaking_wanted(session)
+        speak.preload() if wanted else speak.release()
     if 'ai_enabled' in body:
         from core import engine
         if str(body['ai_enabled']).lower() == 'false':
@@ -15141,30 +15221,8 @@ def auto_import_queue():
     return ok({'queued': True, 'filename': filename})
 
 
-@auto_import_bp.route('/delete-file', methods=['POST'])
-def auto_import_delete_file():
-    """
-    Delete a file that failed validation.
-    Security: only deletes files inside the user's Downloads folder.
-    """
-    body      = request.get_json(silent=True) or {}
-    file_path = (body.get('path') or '').strip()
-    if not file_path:
-        return err('No path provided', 400)
-
-    target = _in_downloads(file_path)
-    if target is None:
-        return err('File path is not within the Downloads folder', 403)
-
-    if not target.exists():
-        return ok({'deleted': False, 'reason': 'File no longer exists'})
-
-    try:
-        target.unlink()
-        print(f'[Security] Deleted invalid import file: {target.name}')
-        return ok({'deleted': True, 'filename': target.name})
-    except OSError as e:
-        return err(f'Could not delete file: {e}', 500)
+# /delete-file is gone (2026-10-31): nothing called it, and it deleted any file in Downloads outright - any kind, no
+# proof it was ever imported, no Recycle Bin. /remove-download below is the one way a Downloads file leaves. s270.
 
 
 # H2 (SOURCE_DOCUMENT_CUSTODY.md s4, s8): the user's Downloads copy, removed at

@@ -47,7 +47,7 @@
     var body = {};
     body[key] = value;
     try { await API.patch('/api/settings', body); }
-    catch (e) { showToast('Could not save that setting', esc(e.message || ''), 'error'); }
+    catch (e) { showToast('Could not save that setting', e.message || '', 'error'); }
   }
 
   // ── Reading ──────────────────────────────────────────────────────────────────────────────────────────────────
@@ -60,15 +60,67 @@
     return local.filter(function (v) { return /^en/i.test(v.lang); })[0] || local[0] || null;
   }
 
-  function stop() {
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
-    _closeQuestion();
+  // Groundwork's own voice (core/speak.py; Rob 2026-10-31: "lets add a human sounding voice"): made by this computer's
+  // Groundwork server and played here, a sentence or two at a time so the first is heard while the next is made. The
+  // computer's own voices are the fallback - the server can't speak, or the window won't play sound yet.
+  var own = { available: null, audio: null, gen: 0, playing: false };
+
+  function _chunks(words) {
+    var out = [], cur = '';
+    // only a full stop, ! or ? followed by a space ends a sentence - "$1,199.00" and "24.99%" stay whole. The first
+    // sentence goes alone, so the voice starts soon; each later piece is at most twice the one before (and 400 at
+    // most), so it is made while the one before is still being said - no gap (measured 2026-10-31: 1.2 s without)
+    String(words).split(/(?<=[.!?])\s+/).forEach(function (s) {
+      while (s.length > 500) { var at = s.lastIndexOf(' ', 500); at = at > 0 ? at : 500; out.push(s.slice(0, at)); s = s.slice(at).trim(); }
+      var room = out.length ? Math.min(400, Math.max(120, 2 * out[out.length - 1].length)) : 0;
+      if (cur && (cur + ' ' + s).length > room) { out.push(cur); cur = s; } else cur = cur ? cur + ' ' + s : s;
+    });
+    if (cur) out.push(cur);
+    return out;
   }
 
-  function say(words, then) {
-    if (!window.speechSynthesis || !words) return false;
+  async function _made(text) {
+    var r = await _gwFetch('/api/voice/speak', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text, speed: prefs.read_rate }) });
+    if (!r.ok) throw new Error('voice ' + r.status);
+    return URL.createObjectURL(await r.blob());
+  }
+
+  function _sayOwn(words, then) {
+    var gen = ++own.gen, parts = _chunks(words), next = _made(parts[0]);
+    own.playing = true;
+    (async function () {
+      for (var i = 0; i < parts.length; i++) {
+        var url = null, played = true;
+        try { url = await next; } catch (e) { played = false; }
+        if (gen !== own.gen) { if (url) URL.revokeObjectURL(url); return; }
+        if (played && i + 1 < parts.length) next = _made(parts[i + 1]);
+        if (played) played = await new Promise(function (done) {
+          var a = new window.Audio(url);
+          own.audio = a;
+          a.onended = function () { done(true); };
+          a.onerror = function () { done(false); };
+          a.play().catch(function () { done(false); });
+        });
+        if (url) URL.revokeObjectURL(url);
+        if (gen !== own.gen) return;
+        if (!played) {                    // the rest in the computer's own voice, and the next reading straight there
+          own.playing = false; own.audio = null;
+          if (i === 0) own.available = false;
+          _saySystem(parts.slice(i).join(' '), then);
+          return;
+        }
+      }
+      own.playing = false; own.audio = null;
+      if (then) then();
+    })();
+    return true;
+  }
+
+  function _saySystem(words, then) {
+    if (!window.speechSynthesis) return false;
     var v = _voice();
-    if (!v) { showToast('There is no voice on this computer to read with', 'Read aloud uses only voices installed on this computer.', 'info'); return false; }
+    if (!v) { showToast('There is no voice on this computer to read with', "Groundwork's own voice isn't in this copy, and the computer has none installed.", 'info'); return false; }
     window.speechSynthesis.cancel();
     var u = new window.SpeechSynthesisUtterance(words);
     u.voice = v;
@@ -76,6 +128,24 @@
     if (then) u.onend = then;
     window.speechSynthesis.speak(u);
     return true;
+  }
+
+  function _hush() {
+    own.gen++;
+    if (own.audio) { try { own.audio.pause(); } catch (e) { /* gone */ } }
+    own.audio = null; own.playing = false;
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+  }
+
+  function stop() {
+    _hush();
+    _closeQuestion();
+  }
+
+  function say(words, then) {
+    if (!words) return false;
+    _hush();
+    return own.available !== false ? _sayOwn(words, then) : _saySystem(words, then);
   }
 
   function _clean(t) { return String(t || '').replace(/\s+/g, ' ').trim(); }
@@ -216,8 +286,9 @@
   var MIN_SAID_MS = 250;        // shorter is a cough or a click
   var QUIET_OFF_MS = 60000;     // a minute with nothing said turns it off
   var conv = null;              // { ctx, stream, node, rate, speech, chunks, pre, start, lastVoice, lastActivity, busy }
+  var micKept = false;          // this page has recorded the microphone's yes
 
-  function _speaking() { return !!(window.speechSynthesis && (window.speechSynthesis.speaking || window.speechSynthesis.pending)); }
+  function _speaking() { return own.playing || !!(window.speechSynthesis && (window.speechSynthesis.speaking || window.speechSynthesis.pending)); }
 
   async function micOn() {
     if (conv) return;
@@ -229,9 +300,11 @@
     } catch (e) {
       conv = null;
       _micState('idle');
-      showToast('Groundwork could not use the microphone', esc(e.message || 'No microphone was found or allowed.'), 'error');
+      showToast('Groundwork could not use the microphone', e.message || 'No microphone was found or allowed.', 'error');
       return;
     }
+    // The microphone opened, so the person said yes to it: kept, and the window answers it from now on (Rob 2026-10-31)
+    if (!micKept) { micKept = true; API.post('/api/voice/microphone', {}).catch(function () { micKept = false; }); }
     if (conv !== c) { c.stream.getTracks().forEach(function (tr) { tr.stop(); }); return; }
     c.ctx = new window.AudioContext();
     c.rate = c.ctx.sampleRate;
@@ -250,7 +323,7 @@
     if (c.stream) c.stream.getTracks().forEach(function (tr) { tr.stop(); });
     if (c.ctx) c.ctx.close();
     _micState('idle');
-    if (why) showToast('The microphone is off', esc(why), 'info');
+    if (why) showToast('The microphone is off', why, 'info');
   }
 
   function _hear(c, data) {
@@ -326,7 +399,7 @@
       if (!r.ok) throw new Error(j.error || 'The voice engine did not answer.');
       var text = ((j.data || j).text || '').trim();
       if (text) route(text);                        // in a conversation, a cough is not worth a message
-    } catch (e) { showToast('Voice commands could not run', esc(e.message || ''), 'error'); }
+    } catch (e) { showToast('Voice commands could not run', e.message || '', 'error'); }
   }
 
   // ── What was said, to what it does. Every action is said first and can be undone ─────────────────────────────
@@ -376,7 +449,7 @@
 
   function route(text) {
     var t = _norm(text);
-    var heard = 'Heard: “' + esc(text) + '”';
+    var heard = 'Heard: “' + text + '”';               // a toast's text: showToast escapes it
     if (conv && MIC_OFF.indexOf(t) >= 0) {            // H14: "stop" ends the conversation (and any reading)
       stop();
       micOff();
@@ -395,7 +468,7 @@
     if (cmd) {
       var undo = cmd.run();
       if (undo === false) { showToast(heard, 'There is nothing to do that with right now.', 'info'); return; }
-      showToast(heard, esc(cmd.said), 'info', typeof undo === 'function' ? undo : null);
+      showToast(heard, cmd.said, 'info', typeof undo === 'function' ? undo : null);
       return;
     }
     // Anything else is a question or an instruction, for the Ask bar to handle as if it were typed
@@ -465,8 +538,9 @@
       card.className = 'card mb-4';
       panel.insertBefore(card, panel.firstChild);
     }
-    var vs = null;
+    var vs = null, mic = null;
     try { vs = await API.get('/api/voice'); } catch (e) { vs = { available: false, reason: 'The voice engine could not be checked.' }; }
+    try { mic = (await API.get('/api/voice/microphone')).allowed_at; } catch (e) { mic = null; }
     var small = 'font-size:var(--fs-xs);color:var(--slate-2);margin:2px 0 10px';
     card.innerHTML = '<div class="card-label">Reading and voice</div>'
       + '<div class="field mb-4"><label>Text size</label><div>' + _radios('gwTextSize', prefs.text_size, [['100', 'Standard'], ['115', 'Larger'], ['130', 'Largest']]) + '</div>'
@@ -474,7 +548,10 @@
       + '<div class="field mb-4"><label>Read aloud</label><div>' + _radios('gwReadAloud', prefs.read_aloud, [['off', 'Off'], ['key', 'When I press Alt+R'], ['hover', 'When I rest the pointer on something']]) + '</div>'
       + '<div>' + _radios('gwReadRate', prefs.read_rate, [['slower', 'Slower'], ['normal', 'Normal'], ['faster', 'Faster']]) + '</div>'
       + '<div style="' + small + '">Reads the part of the page you point at, in Groundwork\'s own words, then asks if you\'d like it explained further. '
-      + 'Esc stops. Only voices installed on this computer are used.</div></div>'
+      + 'Esc stops. ' + (vs && vs.speak && vs.speak.available
+        ? "Read in Groundwork's own voice, made on this computer - what it reads is never sent anywhere or kept."
+        : "Read with a voice installed on this computer" + (vs && vs.speak && vs.speak.reason ? ' (' + esc(vs.speak.reason) + ')' : '') + '.')
+      + '</div></div>'
       + '<div class="field"><label>Voice commands</label><div>' + _radios('gwVoice', prefs.voice_commands, [['off', 'Off'], ['on', 'On (talk with Groundwork)']]) + '</div>'
       + '<div style="' + small + '">Tap the microphone in the Ask box (or Alt+V) and talk - a question, or "read this", "read the page", '
       + '"explain further", "repeat", "slower", "faster", "next", "go back", "yes", "no". It stays on until you tap it again, say "stop", '
@@ -482,7 +559,16 @@
       + 'spoken question is read back in Groundwork\'s own words. A change is made only by pressing Yes on its card. What you say is '
       + 'recognised by Groundwork on this computer and is never sent anywhere or kept.'
       + (vs && !vs.available ? '<br><span style="color:var(--ember-text)">Not available in this copy: ' + esc(vs.reason || '') + '</span>' : '')
+      + (mic ? '<br>You allowed the microphone on ' + esc(new Date(mic).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }))
+        + ', so Groundwork doesn\'t ask again. It listens only while the microphone shows it is on. '
+        + '<button class="btn btn-ghost btn-sm" id="gwMicForget" style="font-size:var(--fs-xs)">Ask me next time</button>' : '')
       + '</div></div>';
+    var forget = _el('gwMicForget');
+    if (forget) forget.addEventListener('click', async function () {
+      try { await API.delete('/api/voice/microphone'); micKept = false; showToast('Groundwork will ask about the microphone next time', '', 'info'); }
+      catch (e) { showToast('Could not change it', e.message || '', 'error'); }
+      _card();
+    });
     card.querySelectorAll('input[name="gwTextSize"]').forEach(function (i) {
       i.addEventListener('change', function () { applySize(i.value); _save('text_size', i.value); });
     });
@@ -504,7 +590,9 @@
     } catch (e) { /* defaults: everything off, standard size */ }
     applySize(prefs.text_size);
     if (lastView === null) _watchViews();
-    if (prefs.voice_commands === 'on') API.get('/api/voice').catch(function () {});    // the server readies the model
+    if (prefs.voice_commands === 'on' || prefs.read_aloud !== 'off') {                  // the server readies the models
+      API.get('/api/voice').then(function (v) { own.available = !!(v && v.speak && v.speak.available); }).catch(function () {});
+    }
     _micButton();
     _card();
     var box = _el('gwAskBox');

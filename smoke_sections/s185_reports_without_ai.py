@@ -40,7 +40,7 @@ def run(ctx):
     node = shutil.which('node')
     out = {}
     if node:
-        js = ('const fmt = n => "$" + Number(n).toFixed(2); const esc = s => String(s);\n'
+        js = ('const fmt = n => "$" + Number(n).toFixed(2); const esc = s => String(s); const escJs = esc;\n'
               'function _rcMonthlyFallbackText(' + fn + '\n}\n' + (summ.group(0) if summ else '') +
               'console.log(JSON.stringify({kept: _rcMonthlyFallbackText("September", 3412.18, 4280, 867.82, "Housing: $1,500.00, Dining: $412.00"),'
               ' over: _rcMonthlyFallbackText("August", 4500, 4280, -220, "Housing: $1,500.00"),'

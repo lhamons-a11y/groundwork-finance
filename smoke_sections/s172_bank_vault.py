@@ -117,7 +117,7 @@ def run(ctx):
         # item 69: the accounts list is drawn as rows - its two helpers come with it
         h = ''.join(x.group(0) for x in (re.search(r'\nfunction _autoStatus\(.*?\n\}\n', app, re.S),
                                          re.search(r'\nfunction _autoRow\(.*?\n\}\n', app, re.S)) if x)
-        js = 'const esc = s => String(s);\nlet _autoOpen = null;\n' + (m.group(0) if m else '') + h + (f.group(0) if f else '') + \
+        js = 'const esc = s => String(s); const escJs = esc;\nlet _autoOpen = null;\n' + (m.group(0) if m else '') + h + (f.group(0) if f else '') + \
              "console.log(JSON.stringify([bankLoginsHtml({available: true, vault: 'Windows Credential Manager', accounts: [{key: 'account:1', name: 'Checking', has_login: false}]}), bankLoginsHtml({available: false})]));"
         p = subprocess.run([node, '-e', js], capture_output=True, text=True, encoding='utf-8', timeout=60)
         out = json.loads(p.stdout.strip() or '["",""]')

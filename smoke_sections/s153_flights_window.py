@@ -137,7 +137,7 @@ def run(ctx):
     src = _fn(app, '_tripAirportCode') + _fn(app, 'openFlightSearch')
     runner = r'''
 const els = {}; const g = id => els[id] || (els[id] = {value: '', style: {}, innerHTML: ''});
-const esc = s => String(s); const _gwErr = () => () => {};
+const esc = s => String(s); const escJs = esc; const _gwErr = () => () => {};
 const posts = []; const API = {post: async (u, b) => { posts.push([u, b]); return {result: 'opened'}; }}; const _watchGoogleFare = () => {};
 ''' + src + r'''
 (async () => {

@@ -38,7 +38,8 @@ let speaking = false;
 globalThis.SpeechSynthesisUtterance = function (t) { this.text = t; };
 globalThis.speechSynthesis = { get speaking() { return speaking; }, pending: false, cancel() {}, speak(u) { spoken.push(u.text); },
   getVoices: () => [{ name: 'local', lang: 'en-US', localService: true }] };
-globalThis.API = { get: async (p) => p === '/api/settings' ? { voice_commands: 'on' } : {}, patch: async () => {} };
+globalThis.API = { get: async (p) => p === '/api/settings' ? { voice_commands: 'on' } : {}, patch: async () => {},
+  post: async () => ({}) };
 globalThis.showToast = (t, s) => toasts.push([t, s]);
 globalThis.esc = (s) => String(s);
 globalThis.askGroundwork = (q) => asked.push([q, !!window._gwVoiceAsked]);
@@ -80,7 +81,12 @@ const run = async (v, ms) => { for (let t = 0; t < ms; t += 256) { now += 256; n
   console.log(JSON.stringify(out));
 })().catch(e => console.log(JSON.stringify({ error: String(e && e.stack || e) })));
 """
-    r = subprocess.run([node, '-e', prog], capture_output=True, text=True, encoding='utf-8', timeout=60)
+    # A file, not `node -e`: the program carries all of access.js, and Windows refuses a command line past 32,767
+    # characters (it passed that on 2026-10-31)
+    import os, tempfile
+    f = os.path.join(tempfile.mkdtemp(prefix='s266_'), 'conv.js')
+    open(f, 'w', encoding='utf-8').write(prog)
+    r = subprocess.run([node, f], capture_output=True, text=True, encoding='utf-8', timeout=60)
     try:
         o = json.loads(r.stdout.strip().splitlines()[-1])
     except Exception:

@@ -28,7 +28,7 @@ def _fn(src, name):
 
 def _node(node, src, call, data):
     runner = r'''
-const esc = s => String(s); const fmt = n => '$' + Number(n).toFixed(2);
+const esc = s => String(s); const escJs = esc; const fmt = n => '$' + Number(n).toFixed(2);
 const _joinNames = a => (a || []).map(x => x.name || x).join(', ');
 const g = () => null; const _gwErr = () => () => {}; const _payoffDateLabel = () => 'Jan 2028';
 ''' + src + '\nconsole.log(JSON.stringify(' + call + '(JSON.parse(process.argv[1]))));'

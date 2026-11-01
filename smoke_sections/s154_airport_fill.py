@@ -101,7 +101,7 @@ def run(ctx):
     src = _fn(app, '_airfareMarketId') + _fn(app, 'tripCityChanged') + _fn(app, 'tripPickAirport')
     runner = r'''
 const els = {}; const g = id => els[id] || (els[id] = {value: '', style: {}, innerHTML: '', dataset: {}});
-const esc = s => String(s); let runs = 0; const tripUpdateBudget = () => { runs++; };
+const esc = s => String(s); const escJs = esc; let runs = 0; const tripUpdateBudget = () => { runs++; };
 let _airfareMarkets = {byName: {'Chicago, IL': '1', 'Denver, CO': '2', 'Nowhere, ZZ': '9'},
   airports: {'1': [['ORD', "Chicago O'Hare International"], ['MDW', 'Chicago Midway International']], '2': [['DEN', 'Denver International']], '9': []}};
 ''' + src + r'''
@@ -144,7 +144,7 @@ console.log(JSON.stringify(out));'''
     alias = re.search(r'\nconst _AIRFARE_ALIASES = \{.*?\};\n', app.replace('\r\n', '\n'), re.S)
     runner5 = r"""
 const els = {}; const g = id => els[id] || (els[id] = {value: '', style: {}, innerHTML: '', textContent: '', dataset: {}});
-const esc = s => String(s); const tripUpdateBudget = () => {};
+const esc = s => String(s); const escJs = esc; const tripUpdateBudget = () => {};
 const byName = """ + names + r""";
 let _tripMode = 'fly'; let _airfareMarkets = {byName, airports: {}};
 """ + (alias.group(0) if alias else '') + src5 + r"""

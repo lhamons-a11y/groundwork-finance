@@ -2211,11 +2211,13 @@ function showToast(title, sub = '', type = 'success', undoFn = null) {
   }
   const el = document.createElement('div');
   el.className = `toast ${type === 'error' ? 'error' : type === 'warning' ? 'warning' : type === 'info' ? 'info' : ''}`;
+  // Plain text, always: a toast repeats names from the record - merchants, imported categories, file names - and one
+  // carrying markup ran as code in the page (found 2026-10-31). Callers pass text, never HTML.
   el.innerHTML = `
     <div class="toast-icon">${type === 'error' ? '❌' : type === 'warning' ? '⚠️' : type === 'info' ? 'ℹ️' : '✅'}</div>
     <div class="toast-body">
-      <div class="toast-title">${title}</div>
-      ${sub ? `<div class="toast-sub">${sub}</div>` : ''}
+      <div class="toast-title">${esc(title)}</div>
+      ${sub ? `<div class="toast-sub">${esc(sub)}</div>` : ''}
     </div>
     ${undoFn ? `<button class="toast-undo" onclick="_runToastUndo(${++_toastUndoN}, this)">Undo</button>` : ''}`;
   // The Undo function is kept and called, never copied into the button as text: copied, it lost every variable it
@@ -3072,7 +3074,7 @@ function _renderDashSeasonalAlert() {
   const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const monthName  = monthNames[nextMoNum - 1] || '';
 
-  el.textContent = `${esc(flag.cardName)} typically runs ${fmt(flag.avgIncrease)} higher in ${monthName}.`;
+  el.textContent = `${flag.cardName} typically runs ${fmt(flag.avgIncrease)} higher in ${monthName}.`;
   el.style.display = '';
 }
 
@@ -7257,7 +7259,14 @@ function parseRichDescription(description='') {
 }
 
 function esc(s='') {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\x22/g,'&quot;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\x22/g,'&quot;').replace(/\x27/g,'&#39;');
+}
+// A value quoted inside an on*="fn('…')" handler. The attribute is decoded before the script runs, so esc() alone
+// would hand a ' straight back to the script: a bank description or category name carrying '); could run code there.
+// The script's own escapes come first, then the attribute's.
+function escJs(s='') {
+  return esc(String(s).replace(/\\/g,'\\\\').replace(/\x27/g,"\\'").replace(/\r/g,'\\r').replace(/\n/g,'\\n')
+    .replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029'));
 }
 
 // ─── DB write helpers (Phase 0B) ─────────────────────────────────────────────
@@ -10889,7 +10898,7 @@ function tripCityChanged(side) {
   }
   if (aps.length > 1 && choice && !mine) {
     choice.innerHTML = 'Which airport? ' + aps.map(([code, name]) =>
-      `<button class="btn btn-secondary btn-sm" style="margin:2px 4px 2px 0" onclick="tripPickAirport('${side}','${esc(code)}')">${esc(code)} · ${esc(name)}</button>`).join('');
+      `<button class="btn btn-secondary btn-sm" style="margin:2px 4px 2px 0" onclick="tripPickAirport('${side}','${escJs(code)}')">${esc(code)} · ${esc(name)}</button>`).join('');
     choice.style.display = '';
   }
   tripUpdateBudget();
@@ -13090,8 +13099,8 @@ async function renderSundayCard() {
   const written = f.written && f.written.text;
   if (badge) badge.textContent = written ? '✦ written overnight on this computer' : '';
   const whose = (f.ask_whose || []).slice(0, 1).map(p => `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:8px">Whose pay is ${esc(p.replace(/\b\w/g, c => c.toUpperCase()))}?
-      ${(f.people || []).map(n => `<button class="btn btn-ghost btn-sm" onclick="checkinWhose('${esc(p)}', '${esc(n)}')">${esc(n)}</button>`).join('')}
-      <button class="btn btn-ghost btn-sm" onclick="checkinWhose('${esc(p)}', 'Someone else')">Someone else</button></div>`).join('');
+      ${(f.people || []).map(n => `<button class="btn btn-ghost btn-sm" onclick="checkinWhose('${escJs(p)}', '${escJs(n)}')">${esc(n)}</button>`).join('')}
+      <button class="btn btn-ghost btn-sm" onclick="checkinWhose('${escJs(p)}', 'Someone else')">Someone else</button></div>`).join('');
   const imp = _checkinImportLine(f);
   const notice = `<div style="font-size:var(--fs-sm);margin-bottom:8px;${imp.stale
       ? 'color:var(--gold-text);background:var(--gold-bg);border:0.5px solid var(--gold-border);border-radius:6px;padding:6px 10px'
@@ -16317,8 +16326,8 @@ async function loadRecurringDetection() {
         ${patterns.map(p => `
           <div style="display:flex;align-items:center;gap:10px;padding:4px 0;font-size:var(--fs-sm)">
             <div style="flex:1;color:var(--ink)">${esc(p.label || p.merchant)} ${fmt(p.avg_amount)} — seen ${p.frequency} times, consistently</div>
-            <button class="btn btn-secondary btn-sm" onclick="acceptRecurringDetection('${esc(p.merchant).replace(/'/g,"\\'")}', ${p.avg_amount})">Add to budget</button>
-            <button class="btn btn-ghost btn-sm" onclick="dismissRecurringDetection('${esc(p.merchant).replace(/'/g,"\\'")}', ${p.avg_amount})">Dismiss</button>
+            <button class="btn btn-secondary btn-sm" onclick="acceptRecurringDetection('${escJs(p.merchant)}', ${p.avg_amount})">Add to budget</button>
+            <button class="btn btn-ghost btn-sm" onclick="dismissRecurringDetection('${escJs(p.merchant)}', ${p.avg_amount})">Dismiss</button>
           </div>`).join('')}
       </div>`;
   } catch (e) {
@@ -17918,27 +17927,27 @@ function _renderInvPositions() {
     const er        = p.expense_ratio;   // a FRACTION of the value a year (0.0003 = 0.03%)
     // Fee flag — only shown when ER is notable (>0.5%); a ratio saved before its unit was stated asks to be confirmed
     const feeFlag = p.expense_ratio_unconfirmed != null
-      ? `<span onclick="promptExpenseRatio('${esc(p.ticker)}')"
+      ? `<span onclick="promptExpenseRatio('${escJs(p.ticker)}')"
                style="font-size:var(--fs-xs);padding:2px 6px;border-radius:20px;cursor:pointer;
                       background:var(--gold-bg);border:1px solid #FAC775;color:var(--gold-text)"
                title="Expense ratio saved without a unit — click to confirm">Confirm ER</span>`
       : er > 0.01
-      ? `<span onclick="promptExpenseRatio('${esc(p.ticker)}')"
+      ? `<span onclick="promptExpenseRatio('${escJs(p.ticker)}')"
                style="font-size:var(--fs-xs);padding:2px 6px;border-radius:20px;cursor:pointer;
                       background:#FCEBEB;border:1px solid #F7C1C1;color:var(--ember-text)"
                title="High expense ratio — click to review">${(er*100).toFixed(2)}%</span>`
       : er > 0.005
-      ? `<span onclick="promptExpenseRatio('${esc(p.ticker)}')"
+      ? `<span onclick="promptExpenseRatio('${escJs(p.ticker)}')"
                style="font-size:var(--fs-xs);padding:2px 6px;border-radius:20px;cursor:pointer;
                       background:var(--gold-bg);border:1px solid #FAC775;color:var(--gold-text)"
                title="Moderate expense ratio — click to review">${(er*100).toFixed(2)}%</span>`
       : '';
 
     const acCell = ac
-      ? `<span onclick="promptAssetClass('${esc(p.ticker)}')"
+      ? `<span onclick="promptAssetClass('${escJs(p.ticker)}')"
                style="font-size:var(--fs-xs);padding:2px 7px;border-radius:20px;cursor:pointer;
                       background:${acColor}22;border:1px solid ${acColor}55;color:${acColor}">${acLabel}</span>`
-      : `<select onchange="saveAssetClass('${esc(p.ticker)}', this.value)"
+      : `<select onchange="saveAssetClass('${escJs(p.ticker)}', this.value)"
                  style="font-size:var(--fs-xs);padding:2px 4px;border-radius:4px;cursor:pointer;
                         border:1px dashed var(--steel);
                         background:transparent;color:var(--slate)">
@@ -17954,7 +17963,7 @@ function _renderInvPositions() {
           ${feeFlag}
         </div>
         <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${esc(p.company_name||'')}</div>
-        <div onclick="promptManualPrice('${esc(p.ticker)}', ${p.current_price||0})"
+        <div onclick="promptManualPrice('${escJs(p.ticker)}', ${p.current_price||0})"
              style="font-size:var(--fs-xs);color:${p.price_stale?'var(--gold-text)':'var(--slate-2)'};margin-top:3px;cursor:pointer;
                     display:inline-flex;align-items:center;gap:3px"
              title="Click to set price manually">
@@ -23975,7 +23984,7 @@ async function renderRecordTidy() {
     + t.splits.slice(0, 8).map((s, i) => `<div style="font-size:var(--fs-sm);padding:4px 0;border-bottom:0.5px solid var(--steel-2)"><b style="color:var(--ink)">${esc(s.merchant)}</b>: ${cats(s)}.
       ${s.transfer ? '<span style="color:var(--slate)">The Transfer ones may be payments on a store card.</span>' : ''}
       <div style="margin-top:3px"><button class="btn btn-ghost btn-sm" onclick="tidySplit(${i}, 'keep')">Keep as they are</button>
-      ${s.categories.filter(c => c.name !== 'Transfer').map(c => `<button class="btn btn-ghost btn-sm" onclick="tidySplit(${i}, 'move', '${esc(c.name).replace(/'/g, "\\'")}')">All ${esc(c.name)}</button>`).join('')}</div></div>`).join('')
+      ${s.categories.filter(c => c.name !== 'Transfer').map(c => `<button class="btn btn-ghost btn-sm" onclick="tidySplit(${i}, 'move', '${escJs(c.name)}')">All ${esc(c.name)}</button>`).join('')}</div></div>`).join('')
     + (t.splits.length > 8 ? `<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:4px">${n.splits - 8} more after these.</div>` : ''));
   box.innerHTML = html + '</div>';
 }
@@ -24125,7 +24134,7 @@ function _drawCategoryManager() {
         ${isEnabled ? `
         <div style="padding:6px 12px;background:var(--mist);border-top:0.5px solid var(--steel-2)">
           <button class="btn-ghost btn-sm" style="font-size:var(--fs-xs);padding:3px 8px"
-            onclick="_catAddChild(${parent.id}, '${esc(parent.name)}')">
+            onclick="_catAddChild(${parent.id}, '${escJs(parent.name)}')">
             + Add sub-category
           </button>
         </div>` : ''}
@@ -24280,7 +24289,7 @@ function labelReviewMergeFitness() {
     async () => {
       try {
         const res = await API.post(`/api/categories/${x.id}/merge`, { target_id: x.to_id });
-        showToast('Categories merged', `${res.transactions_moved || 0} transaction${(res.transactions_moved || 0) !== 1 ? 's' : ''} moved to "${esc(x.to)}"`, 'success');
+        showToast('Categories merged', `${res.transactions_moved || 0} transaction${(res.transactions_moved || 0) !== 1 ? 's' : ''} moved to "${x.to}"`, 'success');
       } catch (e) { showToast('Could not merge categories', e.message || '', 'error'); return; }
       await renderCategoryManager();
       renderLedger(); renderDashboard(); _refreshBudgetIfActive();
@@ -24309,7 +24318,7 @@ async function _mergeGhostCategory(sourceId) {
     async () => {
       try {
         const res = await API.post(`/api/categories/${sourceId}/merge`, { target_id: parseInt(targetId) });
-        showToast('Categories merged', `${res.transactions_moved||0} transaction${(res.transactions_moved||0)!==1?'s':''} moved to "${esc(target.name)}"`, 'success');
+        showToast('Categories merged', `${res.transactions_moved||0} transaction${(res.transactions_moved||0)!==1?'s':''} moved to "${target.name}"`, 'success');
         await renderCategoryManager();
         renderLedger();
         renderDashboard();
@@ -24796,8 +24805,8 @@ async function renderImportCustody() {
       ${(() => {             // one decision for a whole import's held lines, e.g. a file imported twice
         const by = {}; held.forEach(h => { if (h.batch) by[h.batch] = (by[h.batch] || 0) + 1; });
         return Object.entries(by).filter(([, n]) => n > 1).map(([b, n]) => `<div style="font-size:var(--fs-sm);padding:4px 0">All ${n} from one import:
-          <button class="btn btn-sm btn-ghost" onclick="_heldResolveBatch('${esc(b)}', 'same')">They're all the same</button>
-          <button class="btn btn-sm btn-ghost" onclick="_heldResolveBatch('${esc(b)}', 'bring_in')">Bring them all in</button></div>`).join('');
+          <button class="btn btn-sm btn-ghost" onclick="_heldResolveBatch('${escJs(b)}', 'same')">They're all the same</button>
+          <button class="btn btn-sm btn-ghost" onclick="_heldResolveBatch('${escJs(b)}', 'bring_in')">Bring them all in</button></div>`).join('');
       })()}
       ${held.length ? held.map(h => line(h, `<button class="btn btn-sm btn-secondary" onclick="_heldResolve(${h.id}, 'bring_in')">Bring it in</button>
           <button class="btn btn-sm btn-ghost" onclick="_heldResolve(${h.id}, 'same')">It's the same</button>`)).join('')
@@ -24811,7 +24820,7 @@ async function renderImportCustody() {
       <details style="margin-top:12px"><summary style="cursor:pointer;font-size:var(--fs-sm);color:var(--ink)">Recent imports</summary>
         ${(st.batches || []).length ? st.batches.map(b => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:var(--fs-sm)">
             <span style="flex:1">${esc(b.imported_at || '')} · ${esc(b.account)} · ${b.lines} line${b.lines === 1 ? '' : 's'}</span>
-            <button class="btn btn-sm btn-ghost" onclick="_batchSetAside('${esc(b.batch)}', ${b.lines})">Set this import aside</button></div>`).join('')
+            <button class="btn btn-sm btn-ghost" onclick="_batchSetAside('${escJs(b.batch)}', ${b.lines})">Set this import aside</button></div>`).join('')
           : '<div style="font-size:var(--fs-sm);color:var(--slate)">Imports from before this change have no batch.</div>'}
       </details></div>`;
 }
@@ -25218,12 +25227,12 @@ function _autoStatus(r) {
 function _autoRow(key, name, status, details) {
   const open = _autoOpen === key;
   return `<div class="gw-auto-row${open ? ' open' : ''}" data-auto-key="${esc(key)}" tabindex="0"
-      onkeydown="if (event.key === 'Enter' && event.target === this) toggleAutoRow('${esc(key)}')">
-    <div class="gw-auto-head" onclick="toggleAutoRow('${esc(key)}')">
+      onkeydown="if (event.key === 'Enter' && event.target === this) toggleAutoRow('${escJs(key)}')">
+    <div class="gw-auto-head" onclick="toggleAutoRow('${escJs(key)}')">
       <div style="flex:1;min-width:0"><div style="font-size:var(--fs-base);color:var(--ink)">${esc(name)}</div>
         <div style="font-size:var(--fs-xs);color:var(--slate-2)">${esc(status)}</div></div>
       <button class="btn btn-ghost btn-sm" style="padding:4px 10px" aria-expanded="${open}" aria-label="Settings for ${esc(name)}" title="Settings"
-        onclick="event.stopPropagation();toggleAutoRow('${esc(key)}')"><span class="gw-auto-chev">▸</span></button></div>
+        onclick="event.stopPropagation();toggleAutoRow('${escJs(key)}')"><span class="gw-auto-chev">▸</span></button></div>
     <div class="gw-auto-details${open ? ' open' : ''}" data-auto-details ${open ? '' : 'inert'}><div class="gw-auto-inner">${details}</div></div></div>`;
 }
 
@@ -25286,13 +25295,13 @@ function bankLoginsHtml(d) {
         <button class="btn btn-secondary btn-sm" onclick="saveAutoSite('${a.kind}', ${a.id})">Save</button></div>
       <div style="font-size:var(--fs-xs);color:var(--slate-2)">This is the address Groundwork will open. Groundwork doesn't check that it belongs to your bank. Make sure it does. (The same field as in Settings → Accounts.)</div>`;
     const login = a.has_site !== false ? `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px">${a.has_login
-        ? `${a.has_steps ? `<button class="btn btn-primary btn-sm" onclick="startBankFetch('${esc(a.key)}')">Get my latest transactions</button>` : ''}
-           <button class="btn btn-secondary btn-sm" onclick="startBankRecording('${esc(a.key)}')">${a.has_steps ? 'Record the steps again' : 'Show me once'}</button>
-           ${a.has_steps ? `<button class="btn btn-ghost btn-sm" onclick="deleteBankRecipe('${esc(a.key)}')">Delete steps</button>` : ''}
+        ? `${a.has_steps ? `<button class="btn btn-primary btn-sm" onclick="startBankFetch('${escJs(a.key)}')">Get my latest transactions</button>` : ''}
+           <button class="btn btn-secondary btn-sm" onclick="startBankRecording('${escJs(a.key)}')">${a.has_steps ? 'Record the steps again' : 'Show me once'}</button>
+           ${a.has_steps ? `<button class="btn btn-ghost btn-sm" onclick="deleteBankRecipe('${escJs(a.key)}')">Delete steps</button>` : ''}
            <span style="font-size:var(--fs-xs);color:var(--slate-2)">login saved in the vault</span>
-           <button class="btn btn-ghost btn-sm" onclick="forgetBankLogin('${esc(a.key)}')">Forget</button>`
-        : `<button class="btn btn-secondary btn-sm" onclick="openBankLoginForm('${esc(a.key)}')">Save login</button>`}</div>
-      ${a.has_login ? `<label style="display:block;width:100%;font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px"><input type="checkbox" ${a.remembered ? 'checked' : ''} onchange="setBankDevice('${esc(a.key)}', this.checked)">
+           <button class="btn btn-ghost btn-sm" onclick="forgetBankLogin('${escJs(a.key)}')">Forget</button>`
+        : `<button class="btn btn-secondary btn-sm" onclick="openBankLoginForm('${escJs(a.key)}')">Save login</button>`}</div>
+      ${a.has_login ? `<label style="display:block;width:100%;font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px"><input type="checkbox" ${a.remembered ? 'checked' : ''} onchange="setBankDevice('${escJs(a.key)}', this.checked)">
         Remember this computer with the bank, so it asks for a code less often (keeps the bank's own cookies for this account; unticking forgets it)</label>` : ''}` : '';
     const details = site + login + `<div id="bankLoginForm-${box}" style="width:100%"></div>`
       + (a.has_steps ? `<div data-gw-fetch-history="${esc(a.key)}" style="width:100%;font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px"></div>` : '');
@@ -25369,7 +25378,7 @@ function openBankLoginForm(key, boxId) {
       <input type="text" id="bankLoginUser" placeholder="Username" autocomplete="off" style="flex:1;min-width:140px">
       <input type="password" id="bankLoginPass" placeholder="Password" autocomplete="new-password" style="flex:1;min-width:140px"></div>
     <label style="display:block;font-size:var(--fs-sm);color:var(--slate);margin-top:6px"><input type="checkbox" id="bankLoginAck"> I've read how fetching works, above, and want Groundwork to keep this login.</label>
-    <button class="btn btn-primary btn-sm" style="margin-top:6px" onclick="saveBankLogin('${esc(key)}')">Save to the vault</button>
+    <button class="btn btn-primary btn-sm" style="margin-top:6px" onclick="saveBankLogin('${escJs(key)}')">Save to the vault</button>
     <span id="bankLoginMsg" style="font-size:var(--fs-xs);margin-left:6px"></span>`;
 }
 
@@ -25405,7 +25414,7 @@ async function startBankRecording(key, fromStep) {
       ? 'In the window that opened, sign in and go to your bill. Then press <b>This is the amount due</b> and click the amount, and <b>This is the due date</b> and click the date. Groundwork notes where they are - never the figures, and never what you type.'
       : 'In the window that opened, sign in and do your usual download. Groundwork notes each button and choice - never what you type.'}</div>
     <ol data-gw-rec-steps style="font-size:var(--fs-sm);color:var(--ink);margin:6px 0 6px 18px"></ol>
-    <button class="btn btn-primary btn-sm" onclick="finishBankRecording('${esc(key)}')">Done</button>`;
+    <button class="btn btn-primary btn-sm" onclick="finishBankRecording('${escJs(key)}')">Done</button>`;
   clearInterval(_bankRecTimer);
   _bankRecTimer = setInterval(async () => {
     try {
@@ -25430,7 +25439,7 @@ async function finishBankRecording(key) {
   window._bankRecSteps = r.steps;
   box.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:6px">These are the steps Groundwork would repeat for you.${r.kept ? ` Steps 1 to ${r.kept} are the ones you had; the rest are new.` : ''} Saving them replaces any steps saved before for this account.</div>
     <ol style="font-size:var(--fs-sm);color:var(--ink);margin:6px 0 6px 18px">${bankStepsHtml(r.words)}</ol>
-    <button class="btn btn-primary btn-sm" onclick="saveBankRecipe('${esc(key)}')">Save these steps</button>
+    <button class="btn btn-primary btn-sm" onclick="saveBankRecipe('${escJs(key)}')">Save these steps</button>
     <button class="btn btn-ghost btn-sm" onclick="renderBankLogins()">Discard</button>`;
 }
 
@@ -25466,7 +25475,7 @@ async function renderAiLog() {
       : last.voice ? (last.voice.pass ? (n > 1 ? `passed after ${n - 1} rewrite${n > 2 ? 's' : ''}` : 'passed the voice check') : 'held back by the voice check')
       : 'sent';
     return `<div style="border-top:1px solid var(--steel-2);padding:6px 0">
-      <a href="#" onclick="toggleAiLogEntry('${esc(c.key)}');return false" style="font-size:var(--fs-sm);color:var(--ink);text-decoration:none">
+      <a href="#" onclick="toggleAiLogEntry('${escJs(c.key)}');return false" style="font-size:var(--fs-sm);color:var(--ink);text-decoration:none">
         ${_aiLogOpen === c.key ? '▾' : '▸'} ${esc(_AI_SURFACE(c.surface))} · ${esc(new Date(c.at).toLocaleString())} · <span style="color:var(--slate-2)">${esc(verdict)}</span></a>
       <div data-ai-log="${esc(c.key)}" style="${_aiLogOpen === c.key ? '' : 'display:none'}"></div></div>`;
   }).join('');
@@ -25557,15 +25566,15 @@ function _payFactsHtml(st) {
     if (p.state === 'missing') return `<div style="padding:6px 0">Your ${name(p)} pay hasn't come in since ${_billDate(p.since)}. Is it filed somewhere else, or did it stop?
       <button class="btn btn-ghost btn-sm" onclick="openWhy('income_month')">Check my records</button></div>`;
     if (p.state === 'ask') return `<div style="padding:6px 0">${name(p)}: your checks have ranged from ${fmt(p.low)} to ${fmt(p.high)}. Does this job pay overtime or holiday pay that can change the paycheck amount?
-      <button class="btn btn-secondary btn-sm" onclick="incomePayKind('${esc(p.payer)}', 'hourly')">Yes, it can</button>
-      <button class="btn btn-ghost btn-sm" onclick="incomePayKind('${esc(p.payer)}', 'salary')">No, it's the same each time</button>
+      <button class="btn btn-secondary btn-sm" onclick="incomePayKind('${escJs(p.payer)}', 'hourly')">Yes, it can</button>
+      <button class="btn btn-ghost btn-sm" onclick="incomePayKind('${escJs(p.payer)}', 'salary')">No, it's the same each time</button>
       <div style="font-size:var(--fs-xs);color:var(--slate-2)">Your answer picks how Groundwork reads this pay. Until then it watches nothing here.</div></div>`;
     // Item 112 P1: pay with no schedule (gig work), by the week - facts, never an alarm
     if (p.state === 'weekly' && p.weekly) return `<div style="padding:6px 0">${name(p)}: pay with no set schedule, so Groundwork reads it by the week.
       Over the last ${p.weekly.weeks} weeks a typical week brought in ${fmt(p.weekly.typical)}, a low week ${fmt(p.weekly.low)} and the highest ${fmt(p.weekly.high)}.</div>`;
     if (p.rule === 'hourly' && p.ordinary != null) return `<div style="padding:6px 0">${name(p)}: your ordinary ${_PAY_EVERY[p.every] || 'check'} is about ${fmt(p.ordinary)}.
       Overtime added ${fmt(p.overtime.recent)} over the last ${p.overtime.weeks} weeks; ${fmt(p.overtime.before)} the ${p.overtime.weeks} weeks before.
-      <button class="btn btn-ghost btn-sm" onclick="incomePayKind('${esc(p.payer)}', 'salary')">It doesn't pay overtime</button></div>`;
+      <button class="btn btn-ghost btn-sm" onclick="incomePayKind('${escJs(p.payer)}', 'salary')">It doesn't pay overtime</button></div>`;
     return '';
   }).filter(Boolean);
   return rows.length ? `<div class="card mt-5"><div class="card-label">Your pay</div><div style="font-size:var(--fs-sm);color:var(--ink);line-height:1.6">${rows.join('')}</div></div>` : '';
@@ -25830,7 +25839,7 @@ function _futPossibilityForm(key) {
       <input id="futPLabel" class="field-input" type="text" placeholder="What it is" style="width:140px;font-size:var(--fs-sm);padding:4px 8px">
       <input id="futPAmount" class="field-input" type="number" min="0" step="0.01" placeholder="Amount" style="width:90px;font-size:var(--fs-sm);padding:4px 8px">
       <input id="futPMonth" class="field-input" type="month" style="width:auto;font-size:var(--fs-sm);padding:4px 8px" title="For a known cost, its month; otherwise from when">
-      <button class="btn btn-secondary btn-sm" onclick="futuresAddPossibility('${esc(key)}')">Add it</button>
+      <button class="btn btn-secondary btn-sm" onclick="futuresAddPossibility('${escJs(key)}')">Add it</button>
       <button class="btn btn-ghost btn-sm" onclick="_futAsk=null;g('budgetFutures').innerHTML=futuresHtml(_fut)">Cancel</button>
     </div></div>`;
 }
@@ -25885,7 +25894,7 @@ function futuresHtml(st) {
       <span style="color:var(--ink)"> ${esc(q.a)}</span></div>`).join('');
   const poss = (st.possibilities || []).map(p => `<div style="display:flex;justify-content:space-between;align-items:center;font-size:var(--fs-sm);padding:3px 0">
       <span>${esc(p.label || '')} ${fmt(p.amount)}${p.kind !== 'cost' ? ' a month' : ''}${p.month ? ` · ${esc(p.month)}` : ''} <span style="font-size:var(--fs-xs);color:var(--slate-2)">You said</span></span>
-      ${p.from_trip ? `<span style="font-size:var(--fs-xs);color:var(--slate)">a trip you're going on</span>` : `<button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="futuresWithdraw('${esc(p.id)}')">Take back</button>`}</div>`).join('');
+      ${p.from_trip ? `<span style="font-size:var(--fs-xs);color:var(--slate)">a trip you're going on</span>` : `<button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="futuresWithdraw('${escJs(p.id)}')">Take back</button>`}</div>`).join('');
   const hidden = (st.hidden || []).map(h => `<button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="futuresAnswer('${h.key}','show')">Show "${esc(h.title)}" again</button>`).join(' ');
   const gaps = (st.gaps || []).map(x => `<li>${esc(x)}</li>`).join('');
   const goalWords = { debt: 'the debt-free date', savings: 'cash saved', goal: 'cash saved toward your goal', invest: 'what is left over', unsure: '' }[st.goal] || '';
@@ -26020,13 +26029,13 @@ function budgetBillsHtml(bills, checks) {
         <span style="color:var(--slate-2)">· read from ${esc(c.host)} on ${_billDate(c.read_at)}, confirmed · you planned ${fmt(b.planned || 0)}</span>
         ${inMonth ? `<label style="display:block;color:var(--slate);margin-top:2px"><input type="checkbox" ${c.use_for_month ? 'checked' : ''} onchange="useBillReading(${c.id}, this.checked)">
           Use the bill's amount for this month (your saved amount stays as it is)</label>` : ''}
-        <button class="btn btn-ghost btn-sm" onclick="startFetchAll(['${esc(b.key)}'])">⟳ Read it again</button>
+        <button class="btn btn-ghost btn-sm" onclick="startFetchAll(['${escJs(b.key)}'])">⟳ Read it again</button>
         ${billCheckHtml(ck(b.id), accts)}</div>`;
     }
     return `<div style="padding:8px 0;border-top:1px solid var(--steel-2);font-size:var(--fs-sm)">
       <b style="font-weight:600">${esc(b.name)}</b>: not read yet.
-      <a href="#" onclick="openAutomationRow('${esc(b.key)}');return false" style="color:var(--pine-text)">Set it up on the Assistant page →</a>
-      <button class="btn btn-ghost btn-sm" onclick="startFetchAll(['${esc(b.key)}'])">⟳ Read my bill</button></div>`;
+      <a href="#" onclick="openAutomationRow('${escJs(b.key)}');return false" style="color:var(--pine-text)">Set it up on the Assistant page →</a>
+      <button class="btn btn-ghost btn-sm" onclick="startFetchAll(['${escJs(b.key)}'])">⟳ Read my bill</button></div>`;
   }).join('');
   return `<div class="card mt-5"><div class="card-label" style="margin-bottom:2px">Bills read from their own website</div>
     <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:4px">What each company's site said, and when. Nothing here is used until you confirm it.</div>${rows}</div>`;
@@ -26183,7 +26192,7 @@ function fetchAllPanelHtml(s) {
   if (!s) return '';
   const rows = s.items.map(it => `<li style="margin:3px 0"><b style="font-weight:600">${esc(it.name)}</b>: ${esc(it.words)}${
       s.done && it.why === 'page_changed' && it.i != null
-        ? ` <a href="#" onclick="openAutomationRow('${esc(it.key)}');setTimeout(() => startBankRecording('${esc(it.key)}', ${it.i + 1}), 400);return false" style="color:var(--pine-text)">Show Groundwork again from step ${it.i + 1}</a>` : ''}</li>`).join('');
+        ? ` <a href="#" onclick="openAutomationRow('${escJs(it.key)}');setTimeout(() => startBankRecording('${escJs(it.key)}', ${it.i + 1}), 400);return false" style="color:var(--pine-text)">Show Groundwork again from step ${it.i + 1}</a>` : ''}</li>`).join('');
   const head = s.done
     ? (s.stop === 'bot_check' ? 'Stopped: a bank showed a check for automated access.' : s.stop === 'user' ? 'Stopped.' : 'Finished.')
     : 'Groundwork is visiting each bank, one at a time. If a bank asks for a code, its window comes to the front - type it there.';
@@ -26230,7 +26239,7 @@ async function startBankFetch(key) {
   }
   box.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:6px">Groundwork is following your steps in the window. Stay nearby: if your bank asks for a code, type it there.</div>
     <ol data-gw-fetch style="font-size:var(--fs-sm);color:var(--ink);margin:6px 0 6px 18px"></ol>
-    <button class="btn btn-ghost btn-sm" onclick="stopBankFetch('${esc(key)}')">Stop</button>`;
+    <button class="btn btn-ghost btn-sm" onclick="stopBankFetch('${escJs(key)}')">Stop</button>`;
   clearInterval(_bankFetchTimer);
   let afterEnd = 0;
   _bankFetchTimer = setInterval(async () => {
@@ -26243,7 +26252,7 @@ async function startBankFetch(key) {
     if (end && (evs.some(ev => ev.s === 'signed_out') || ++afterEnd > 8 || ['bot_check', 'cancelled', 'would_pay'].includes(end.why))) {
       clearInterval(_bankFetchTimer);
       if (end.why === 'page_changed' && end.i != null && !box.querySelector('[data-gw-again]'))
-        box.insertAdjacentHTML('beforeend', `<button class="btn btn-secondary btn-sm" data-gw-again onclick="startBankRecording('${esc(key)}', ${end.i + 1})">Show Groundwork again from step ${end.i + 1}</button>`);
+        box.insertAdjacentHTML('beforeend', `<button class="btn btn-secondary btn-sm" data-gw-again onclick="startBankRecording('${escJs(key)}', ${end.i + 1})">Show Groundwork again from step ${end.i + 1}</button>`);
     }
   }, 1500);
 }
@@ -26702,11 +26711,11 @@ async function loadBackupList() {
           </div>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="backupCheck('${esc(filename)}')">Check</button>
-          ${b.encrypted ? '' : `<button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="backupEncryptOld('${esc(filename)}')">Re-save protected</button>`}
-          <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="backupDelete('${esc(filename)}')">Delete</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="backupCheck('${escJs(filename)}')">Check</button>
+          ${b.encrypted ? '' : `<button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="backupEncryptOld('${escJs(filename)}')">Re-save protected</button>`}
+          <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="backupDelete('${escJs(filename)}')">Delete</button>
           <button class="btn btn-secondary btn-sm"
-            onclick="restoreFromBackup('${esc(filename)}')"
+            onclick="restoreFromBackup('${escJs(filename)}')"
             style="color:var(--pine-text);border-color:var(--pine)">
             ↩ Recover
           </button>
@@ -27020,7 +27029,7 @@ let _aiDisclosureCounter = 0;
 function _renderAIDisclosure(payload) {
   if (!payload || !payload.logCall) return '';
   return `<div style="margin-top:10px;font-size:var(--fs-xs);color:var(--slate)">Sent to AI on this computer ·
-    <a href="#" onclick="openAiLog('${esc(payload.logCall)}');return false" style="color:var(--slate);text-decoration:underline">see it in the log</a></div>`;
+    <a href="#" onclick="openAiLog('${escJs(payload.logCall)}');return false" style="color:var(--slate);text-decoration:underline">see it in the log</a></div>`;
 }
 
 // The old fold-out, kept only so nothing that still calls it breaks; nothing renders it now.
@@ -27344,10 +27353,10 @@ function _evidenceHTML(e) {
   const ans = e.answer;
   const offer = ans
     ? `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:8px">You said ${ans.answer === 'yes' ? 'yes' : 'no thanks'} on ${esc(String(ans.said_at || '').slice(0, 10))}.${ans.answer === 'yes' ? _evidenceFollow(e) : ''}
-        <button class="btn btn-ghost btn-sm" onclick="evidenceAnswer('${esc(e.id)}', '${ans.answer === 'yes' ? 'no' : 'yes'}')">Change to ${ans.answer === 'yes' ? 'no thanks' : 'yes'}</button></div>`
+        <button class="btn btn-ghost btn-sm" onclick="evidenceAnswer('${escJs(e.id)}', '${ans.answer === 'yes' ? 'no' : 'yes'}')">Change to ${ans.answer === 'yes' ? 'no thanks' : 'yes'}</button></div>`
     : `<div style="font-size:var(--fs-sm);color:var(--ink);margin-top:8px">${esc(e.offer)}
-        <button class="btn btn-secondary btn-sm" style="margin-left:6px" onclick="evidenceAnswer('${esc(e.id)}', 'yes')">Yes</button>
-        <button class="btn btn-ghost btn-sm" onclick="evidenceAnswer('${esc(e.id)}', 'no')">No thanks</button></div>`;
+        <button class="btn btn-secondary btn-sm" style="margin-left:6px" onclick="evidenceAnswer('${escJs(e.id)}', 'yes')">Yes</button>
+        <button class="btn btn-ghost btn-sm" onclick="evidenceAnswer('${escJs(e.id)}', 'no')">No thanks</button></div>`;
   return `<div class="card mt-5" data-evidence="${esc(e.id)}">${_evidenceYours(e)}
     <div class="gw-ev-intro" style="font-size:var(--fs-sm);color:var(--slate);font-style:italic;margin-bottom:4px">${esc(_evStripTags(e.intro || ''))}</div>
     <div style="font-size:var(--fs-base);color:var(--ink);line-height:1.6;margin:4px 0">${esc(e.finding)}</div>
@@ -27624,6 +27633,7 @@ const ASK_PLACES = [
   { label: 'the debt Advisor', names: ['advisor'], view: 'debt', tab: ['debt', 'advisor'] },
   { label: 'Debt Payoff', names: ['debt payoff', 'debts', 'debt', 'payoff', 'loans', 'cards'], view: 'debt', tab: ['debt', 'setup'] },
   { label: 'the Assistant page', names: ['bank logins', 'automation', 'assistant'], view: 'automation' },
+  { label: 'the report builder', names: ['report builder', 'build a report', 'build your own report'], view: 'reports', report: 'builder' },
   { label: 'Reports', names: ['reports', 'report', 'report center', 'monthly report'], view: 'reports' },
   { label: 'the Ledger', names: ['ledger', 'transactions', 'transaction', 'recent transactions', 'all transactions', 'spending'], view: 'ledger' },
   { label: 'the Budget', names: ['budget', 'my budget'], view: 'budget', tab: ['bud', 'plan'] },
@@ -27650,7 +27660,7 @@ function askFetch(question) {
   const box = g('gwAskBox');
   if (box) box.value = '';
   const btn = g('gwFetchAllBtn');
-  if (btn && btn.style.display !== 'none') { startFetchAll(); return true; }
+  if (btn && btn.style.display !== 'none') { _askSaid('Sure, getting your accounts now.'); startFetchAll(); return true; }
   showView('automation');
   showToast('No bank is set up for Get my accounts yet', 'Set one up here, once - then "get my accounts" starts it.', 'info');
   return true;
@@ -27677,7 +27687,14 @@ function askGo(pl) {
   showView(pl.view);
   const tabs = { bud: _budShowTab, health: healthShowTab, byb: bybShowTab, debt: _debtShowTab, settings: _settingsShowTab };
   if (pl.tab && tabs[pl.tab[0]]) setTimeout(() => tabs[pl.tab[0]](pl.tab[1]), 80);
+  if (pl.report) setTimeout(() => _rcOpenReport(pl.report), 80);
+  if (pl.view === 'ledger' && g('ledgerSearch')?.value) {     // "the Ledger" is all of it, not the last search
+    g('ledgerSearch').value = '';
+    ['ledgerCatFilter', 'ledgerTypeFilter'].forEach(f => { if (g(f)) g(f).value = ''; });
+    renderLedger(); updateLedgerStats();
+  }
   showToast(`Opened ${pl.label}`, '', 'info');
+  _askSaid(`Sure, opening ${pl.label} for you.`);
 }
 
 // ── Item 102 (Rob 2026-10-19: "add those four and anything else that you can think of"): what people actually type ──
@@ -27690,10 +27707,13 @@ function askGo(pl) {
 const _ASK_SHORT = { acct: 'account', accts: 'accounts', acc: 'account', txn: 'transaction', txns: 'transactions',
   trans: 'transactions', cc: 'credit card', bal: 'balance', pmt: 'payment', pmts: 'payments', nw: 'net worth',
   stmt: 'statement', stmts: 'statements', w: 'with', thru: 'through', u: 'you', pls: 'please', plz: 'please' };
-const _ASK_LEAD = /^(?:please|hey|ok|okay|so|um|uh|can you|could you|would you|will you|i need to|i'd like to|i would like to|i want to|i wanna|let me|help me|is there a way to|groundwork)[,\s]+/i;
+// Rob 2026-10-31: "let's" leads a command too - "Groundwork, let's build a report", "Groundwork lets view my budget" -
+// and "I want" with or without "to" ("Groundwork I want to see my budget", "I want my budget"). The "to" forms come
+// first, so the longer lead-in is the one taken.
+const _ASK_LEAD = /^(?:please|hey|ok|okay|so|um|uh|can you|could you|would you|will you|i need to|i\x27d like to|i would like to|i want to|i wanna|i want|i\x27d like|i would like|i need|let me|let\x27s|lets|let us|help me|is there a way to|groundwork)[,\s]+/i;
 
 function _askNorm(q) {
-  let t = String(q || '').toLowerCase().replace(/[’`]/g, "'").replace(/[?!.]+\s*$/, '').trim();
+  let t = String(q || '').toLowerCase().replace(/[’\x60]/g, "'").replace(/[?!.]+\s*$/, '').trim();
   t = t.split(/\s+/).map(w => _ASK_SHORT[w] || w).join(' ');
   for (let i = 0; i < 4 && _ASK_LEAD.test(t); i++) t = t.replace(_ASK_LEAD, '');
   return t.replace(/\s+please$/, '').trim();
@@ -27736,6 +27756,9 @@ const ASK_DO = [
     run: () => { showView('reports'); setTimeout(() => _rcOpenReport('monthly'), 80); }, said: 'Opened the monthly report' },
   { re: /^(?:run|open|show|print|make|see|view)(?: me)?(?: my| the)? (?:year.?end|year in review|tax) (?:report|packet|summary|review)?\b/,
     run: () => { showView('reports'); setTimeout(() => _rcOpenReport('year_end'), 80); }, said: 'Opened the year in review' },
+  // Rob 2026-10-31: "let's build a report" opens the report builder (item 115) - nothing is built until the person does
+  { re: /^(?:build|make|create|start|design|put together)(?: me)?(?: a| an| my| the)?(?: new| custom| own)? report\b/,
+    run: () => { showView('reports'); setTimeout(() => _rcOpenReport('builder'), 80); }, said: 'Opened the report builder' },
   { re: /^(?:reconcile|balance my (?:checkbook|account))\b/,
     run: () => { showView('ledger'); }, said: 'Reconcile is on the Ledger, beside Dedup' },
 ];
@@ -27781,8 +27804,31 @@ function _askSearchTerm(n) {
   return term && !/^(?:my|all|the|recent|new|latest|our|last|every)$/.test(term) ? term : null;   // "my transactions" is the Ledger
 }
 
+// Rob 2026-10-31: "show me my Kroger transactions" is the Ledger, searched for Kroger - a command, with AI on or off.
+// (\x27 not a bare quote in these patterns: s30 reads a bare one inside a regex as the start of a string.)
+function _askShowTxns(n) {
+  const m = n.match(/^(?:show|view|see|open|pull up|bring up|display|list)(?: me)?(?: all)?(?: of)?(?: my| the| our)? (.+?)(?:\x27s)? (?:transactions|purchases|charges|payments)(?: in (?:the )?ledger)?$/)
+       || n.match(/^(?:show|view|see|open|pull up|bring up|display|list)(?: me)?(?: all)?(?: of)?(?: my| the| our)? (?:transactions|purchases|charges|payments) (?:at|from|to|for|with) (.+?)(?: in (?:the )?ledger)?$/);
+  const term = m ? m[1].replace(/^(?:my|the|all|our)\s+/, '').trim() : '';
+  return term && !/^(?:my|all|the|recent|new|latest|our|last|every|pending|this month|last month|this month\x27s|last month\x27s)$/.test(term) ? term : null;
+}
+
+// Rob 2026-10-31: with Groundwork's voice, a command said aloud is answered aloud - "Sure, opening the Budget for you",
+// "OK, showing your Kroger transactions in the Ledger". Typed, the toast says it; nothing is read.
+function _askSaid(words) {
+  if (!window._gwVoiceAsked) return;
+  window._gwVoiceAsked = false;
+  if (words && window.GWVoice) window.GWVoice.say(words);
+}
+function _askSaidFor(done) {          // a command's toast ("Opened Import") as its spoken reply ("Sure, opening Import for you.")
+  const m = /^Opened (.+)$/.exec(done || '');
+  return m ? `Sure, opening ${m[1]} for you.` : (done ? done.replace(/[^.!?]$/, c => c + '.') : '');
+}
+const _askTitle = s => String(s).replace(/\b[a-z]/g, c => c.toUpperCase());
+
 function askLedgerSearch(term) {
-  _askDone(`Searched the Ledger for "${term}"`);
+  _askDone(`Showing your ${_askTitle(term)} transactions in the Ledger`);
+  _askSaid(`OK, showing your ${_askTitle(term)} transactions in the Ledger.`);
   showView('ledger');
   ['ledgerCatFilter', 'ledgerTypeFilter'].forEach(f => { if (g(f)) g(f).value = ''; });
   const box = g('ledgerSearch');
@@ -27853,7 +27899,9 @@ function askIntent(q, p, head, assist = false) {
     return true;
   }
   if (askFetch(n)) return true;
-  for (const d of ASK_DO) if (d.re.test(n)) { _askDone(d.said); d.run(); return true; }
+  for (const d of ASK_DO) if (d.re.test(n)) { _askDone(d.said); _askSaid(_askSaidFor(d.said)); d.run(); return true; }
+  const shown = _askShowTxns(n);
+  if (shown) { askLedgerSearch(shown); return true; }
   if (!assist) for (const r of ASK_RECORD) if (r.re.test(n)) {
     window._askPlace = r.place;
     _askSay(p, head, `${esc(r.say)}<div style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="askGo(window._askPlace)">Show me</button></div>
@@ -28359,7 +28407,10 @@ async function askGroundwork(question, shownAs) {
       <button class="btn btn-ghost btn-sm" onclick="closeAsk()" aria-label="Close">✕</button></div>`;
   window._askHead = head;
   if (careAsk(q, p, head)) return;            // item 104: someone struggling hears this first, from fixed words
-  if (askIntent(q, p, head, aiEnabled())) return;   // commands, pages - and with AI off, searches and your own figures
+  if (askIntent(q, p, head, aiEnabled())) {   // commands, pages - and with AI off, searches and your own figures
+    window._gwVoiceAsked = false;              // a spoken command has had its spoken reply; a typed one after it is not read
+    return;
+  }
   if (!aiEnabled()) {                         // the box is hidden with AI off; a question already typed gets the guide
     const hit = helpMatch(q);
     p.innerHTML = hit && !hit.choices ? _askEntryHTML(hit, head)
@@ -28373,7 +28424,7 @@ async function askGroundwork(question, shownAs) {
     if (route && route.state === 'picked') {
       window._askWhyChecks = route.checks || [];
       p.innerHTML = head + `<div style="font-size:var(--fs-base);color:var(--ink);line-height:1.65;margin-top:6px">This looks like a question for one of Groundwork's checks on your records:</div>
-        <div style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="closeAsk(); openWhyCheck('${esc(route.check)}')">${esc(route.title)}</button></div>
+        <div style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="closeAsk(); openWhyCheck('${escJs(route.check)}')">${esc(route.title)}</button></div>
         <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:8px">Picked by the AI from Groundwork's fixed list - the answer comes from your records, not from the AI.
           <button class="btn btn-ghost btn-sm" onclick="askWhyChoose()">Choose a different check</button></div>`;
       return;
@@ -28430,7 +28481,7 @@ async function askGroundwork(question, shownAs) {
 }
 
 function _askWhyChoicesHTML() {
-  return (window._askWhyChecks || []).map(c => `<div style="margin-top:6px"><button class="btn btn-secondary btn-sm" onclick="closeAsk(); openWhyCheck('${esc(c.check)}')">${esc(c.title)}</button></div>`).join('');
+  return (window._askWhyChecks || []).map(c => `<div style="margin-top:6px"><button class="btn btn-secondary btn-sm" onclick="closeAsk(); openWhyCheck('${escJs(c.check)}')">${esc(c.title)}</button></div>`).join('');
 }
 
 function askWhyChoose() {
@@ -28495,7 +28546,7 @@ function _assistHTML(res) {
   let more = '';
   if (res.confirmed_name) {
     more += `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:10px">Saved: "${esc(res.confirmed_name.said)}" means the ${esc(res.confirmed_name.means)}.
-      <button class="btn btn-ghost btn-sm" onclick="assistForget('${esc(res.confirmed_name.said)}')">Undo</button></div>`;
+      <button class="btn btn-ghost btn-sm" onclick="assistForget('${escJs(res.confirmed_name.said)}')">Undo</button></div>`;
   }
   if (res.outcome === 'clarify' && (res.choices || []).length) {
     window._assistChoices = res.choices;
@@ -28601,7 +28652,7 @@ async function renderAssistNames() {
     <div style="font-size:var(--fs-xs);color:var(--slate-2);margin:2px 0 6px">When the assistant asked what you meant, your answers are kept here so it doesn't ask again. Only your own answers are kept; remove any of them.</div>`
     + (names.length ? names.map(x => `<div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--steel-2);padding:6px 0;font-size:var(--fs-sm)">
         <span>"${esc(x.said.replace(/\b\w/g, c => c.toUpperCase()))}" means the ${esc(x.means)}</span>
-        <button class="btn btn-ghost btn-sm" onclick="assistForget('${esc(x.said)}')">Remove</button></div>`).join('')
+        <button class="btn btn-ghost btn-sm" onclick="assistForget('${escJs(x.said)}')">Remove</button></div>`).join('')
       : `<div style="font-size:var(--fs-sm);color:var(--slate)">None yet.</div>`);
 }
 
@@ -33661,9 +33712,9 @@ async function renderBybFromRecord() {
         <div style="font-size:var(--fs-sm);color:var(--ink);line-height:1.7;margin-top:4px">${lines.join('<br>') || 'Nothing on record to price it against yet.'}</div>
         <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:2px">${esc(im.assumption || '')}</div>
         <div style="margin-top:6px">
-          <button class="btn btn-secondary btn-sm" onclick="bybOfferAnswer('${esc(o.key)}', 'meant')">I meant to</button>
-          ${o.kind === 'new_recurring' ? `<button class="btn btn-secondary btn-sm" onclick="bybOfferAnswer('${esc(o.key)}', 'cancel')">I'll cancel it</button>` : ''}
-          <button class="btn btn-ghost btn-sm" onclick="bybOfferAnswer('${esc(o.key)}', 'dismiss')">Dismiss</button></div></div>`;
+          <button class="btn btn-secondary btn-sm" onclick="bybOfferAnswer('${escJs(o.key)}', 'meant')">I meant to</button>
+          ${o.kind === 'new_recurring' ? `<button class="btn btn-secondary btn-sm" onclick="bybOfferAnswer('${escJs(o.key)}', 'cancel')">I'll cancel it</button>` : ''}
+          <button class="btn btn-ghost btn-sm" onclick="bybOfferAnswer('${escJs(o.key)}', 'dismiss')">Dismiss</button></div></div>`;
     }).join('')}</div>`;
 }
 
@@ -33951,7 +34002,7 @@ function _renderBYBList() {
         </div>` : ''}
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
           ${b.decision === 'track' ? `
-          <button class="btn btn-secondary btn-sm" onclick="_bybResolveTracked(${b._dbId}, '${esc(b.name).replace(/'/g,"\\'")}', ${b.monthly||0})" style="font-size:var(--fs-xs)">Decide now</button>
+          <button class="btn btn-secondary btn-sm" onclick="_bybResolveTracked(${b._dbId}, '${escJs(b.name)}', ${b.monthly||0})" style="font-size:var(--fs-xs)">Decide now</button>
           ` : ''}
           <button class="btn btn-ghost btn-sm" onclick="_bybReEvaluate(${safeJson})" style="font-size:var(--fs-xs)">Re-evaluate</button>
           <button class="btn btn-ghost btn-sm" onclick="removeBYBItem(${b._dbId})" style="color:var(--slate-2);font-size:var(--fs-xs)">Remove</button>
@@ -33990,7 +34041,7 @@ function _renderBYBFollowUps() {
     <div style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:6px">What you said you'd wait and watch. Tell Groundwork how it turned out, and what it really cost.</div>
     ${tracked.map(b => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--steel)">
       <div style="font-size:var(--fs-base);color:var(--ink)"><b>${esc(b.name || '')}</b> <span style="font-family:var(--font-mono);color:var(--slate)">${b.monthly > 0 ? fmt(b.monthly) + '/mo' : ''}</span></div>
-      <button class="btn btn-secondary btn-sm" onclick="_bybResolveTracked(${b._dbId}, '${esc(b.name).replace(/'/g, "\\'")}', ${b.monthly || 0})">Tell it</button></div>`).join('')}</div>` : '';
+      <button class="btn btn-secondary btn-sm" onclick="_bybResolveTracked(${b._dbId}, '${escJs(b.name)}', ${b.monthly || 0})">Tell it</button></div>`).join('')}</div>` : '';
 }
 
 // Tracker — adapt to existing HTML IDs (monthSelect, trackerProgress etc)

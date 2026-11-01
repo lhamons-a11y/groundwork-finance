@@ -167,5 +167,5 @@ def run(ctx):
             s.commit()
     app = ctx.app_src
     check('s182 R3 the stop offers "Show Groundwork again from step N", in the account\'s box and in the Get my accounts panel',
-          "startBankRecording('${esc(key)}', ${end.i + 1})" in app and "startBankRecording('${esc(it.key)}', ${it.i + 1})" in app
+          "startBankRecording('${escJs(key)}', ${end.i + 1})" in app and "startBankRecording('${escJs(it.key)}', ${it.i + 1})" in app
           and "fromStep ? { key, from_step: fromStep } : { key }" in app)

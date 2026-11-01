@@ -132,7 +132,7 @@ def run(ctx):
     src = ''.join(_fn(app, n) for n in ('googleFareMessage', '_offerGoogleFare', 'tripUseGoogleFare', 'tripDeclineGoogleFare'))
     runner = r'''
 const els = {}; const g = id => els[id] || (els[id] = {value: '', style: {}, innerHTML: '', textContent: '', focus() { this.focused = true; }});
-const esc = s => String(s); const fmt = n => '$' + Number(n).toFixed(2); const _gwErr = () => () => {};
+const esc = s => String(s); const escJs = esc; const fmt = n => '$' + Number(n).toFixed(2); const _gwErr = () => () => {};
 const posts = []; const API = {post: (u) => { posts.push(u); return Promise.resolve({}); }};
 let _tripQuoteData = {label: 'your quote', hotelTotal: 900}; let budget = 0; const tripUpdateBudget = () => { budget++; };
 let _googleFareTrip = {travelers: 2, roundTrip: true};

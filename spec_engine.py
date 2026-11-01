@@ -129,3 +129,48 @@ def voice_model_data():
         raise BuildRefused(f'spec_engine: {src} is not the measured voice model (SHA-256 {got}, pinned '
                            f'{VOICE_SHA256 or "none"} in core/voice.py).')
     return [(str(src), 'models')]
+
+
+# ── Groundwork's own voice (core/speak.py, Rob 2026-10-31) ───────────────────────────────────────────────────────────
+# Optional like voice commands: without the runtime or the files, read aloud uses the computer's own voices and says
+# so. Files that are not the ones listened to and measured are refused.
+_SPEAK_SRC = (ROOT / 'core' / 'speak.py').read_text(encoding='utf-8')
+SPEAK_FILES = {re.search(r"^MODEL_FILE = '([^']+)'", _SPEAK_SRC, re.M).group(1):
+               re.search(r"^MODEL_SHA256 = '([0-9a-f]{64})'", _SPEAK_SRC, re.M).group(1),
+               re.search(r"^VOICES_FILE = '([^']+)'", _SPEAK_SRC, re.M).group(1):
+               re.search(r"^VOICES_SHA256 = '([0-9a-f]{64})'", _SPEAK_SRC, re.M).group(1)}
+
+
+def speak_parts():
+    """(binaries, datas, hiddenimports) for kokoro-onnx, onnxruntime and espeak-ng, or empty with a warning."""
+    try:
+        import kokoro_onnx  # noqa: F401
+        import espeakng_loader  # noqa: F401
+    except Exception as e:
+        print("[spec] WARNING: kokoro-onnx is not installed (%s) - this build reads with the computer's voices." % e)
+        return [], [], []
+    from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs, collect_submodules
+    return (collect_dynamic_libs('onnxruntime') + collect_dynamic_libs('espeakng_loader'),
+            collect_data_files('kokoro_onnx') + collect_data_files('espeakng_loader') + collect_data_files('phonemizer'),
+            collect_submodules('kokoro_onnx') + collect_submodules('phonemizer') + collect_submodules('onnxruntime')
+            + ['espeakng_loader'])
+
+
+def speak_model_data():
+    """[(file, 'models')] - the measured Kokoro model and voices, from GW_KOKORO_DIR or vendor/kokoro/. Missing: a
+    warning and the computer's voices. Present but not the measured files: the build is refused."""
+    env = os.environ.get('GW_KOKORO_DIR')
+    d = Path(env) if env else ROOT / 'vendor' / 'kokoro'
+    out = []
+    for name, pin in SPEAK_FILES.items():
+        src = d / name
+        if not src.is_file():
+            print("[spec] WARNING: Groundwork's voice file is missing (%s) - this build reads with the computer's "
+                  'voices. scripts/fetch_kokoro_model.py fetches it.' % src)
+            return []
+        got = _sha256(src)
+        if got != pin:
+            raise BuildRefused(f'spec_engine: {src} is not the measured voice file (SHA-256 {got}, pinned {pin} in '
+                               'core/speak.py).')
+        out.append((str(src), 'models'))
+    return out

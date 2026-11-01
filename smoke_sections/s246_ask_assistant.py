@@ -58,7 +58,7 @@ def run(ctx):
     import shutil, subprocess, tempfile, os
     nav = app[app.index('const ASK_PLACES = ['):app.index('function askGo(')]
     check('s246 A6 "view", "see", "show me", "open", "go to", "take me to" a page or tab goes straight there; "show me how" is a question',
-          'if (askIntent(q, p, head, aiEnabled())) return;' in ask and 'picture' not in nav
+          'if (askIntent(q, p, head, aiEnabled())) {' in ask and 'picture' not in nav
           and ask.index('askIntent(q, p, head, aiEnabled())') < ask.index('callAI(') and 'show me how to... is a question' in nav.replace('"', '')
           or ("show me how to..." in nav and 'askGo(place)' in ask))
     node = shutil.which('node')
@@ -85,7 +85,7 @@ def run(ctx):
     no = ['how do I get my accounts from my bank', 'where are my accounts settings', 'get my accounts page']
     check('s246 A7 "get / fetch / download my accounts" presses Get my accounts; a question about it is answered',
           all(pyrx.search(q) for q in yes) and not any(pyrx.search(q) for q in no)
-          and "if (btn && btn.style.display !== 'none') { startFetchAll(); return true; }" in fetch
+          and "if (btn && btn.style.display !== 'none') { _askSaid('Sure, getting your accounts now.'); startFetchAll(); return true; }" in fetch
           and "showView('automation');" in fetch)
 
     # Rob 2026-10-19: "add those four and anything else that you can think of" - what people actually type

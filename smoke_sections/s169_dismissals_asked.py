@@ -86,7 +86,7 @@ def run(ctx):
     node = shutil.which('node')
     pj = (BASE / 'static/js/teaching/proactive.js').read_text(encoding='utf-8')
     if node:
-        js = ('const esc = s => String(s);\n' + _fn(pj, 'dismissedHtml') + _fn(pj, 'silencedHtml')
+        js = ('const esc = s => String(s); const escJs = esc;\n' + _fn(pj, 'dismissedHtml') + _fn(pj, 'silencedHtml')
               + "console.log(JSON.stringify([dismissedHtml({cooldown_days: 60, ask_silence: null}),"
               + " dismissedHtml({cooldown_days: 60, ask_silence: 'Dining'}), silencedHtml(['Dining']), silencedHtml([])]));")
         p = subprocess.run([node, '-e', js], capture_output=True, text=True, encoding='utf-8', timeout=60)

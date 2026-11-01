@@ -133,7 +133,7 @@ def run(ctx):
     app = ctx.app_src
     yearly = (ctx.BASE / 'static/js/teaching/yearly.js').read_text(encoding='utf-8')
     check('s255 R3 the Ledger\'s patterns and the Budget card show the label; Add and Dismiss stay the payee\'s (R5)',
-          '${esc(p.label || p.merchant)}' in app and "acceptRecurringDetection('${esc(p.merchant)" in app
+          '${esc(p.label || p.merchant)}' in app and "acceptRecurringDetection('${escJs(p.merchant)" in app
           and 'merchant: r.label || r.merchant' in app)
     check('s255 R3 a price change and a yearly question name the account\'s line when they are answered',
           "{ payee: c.payee, label: c.label }" in app and 'label: x.label' in yearly

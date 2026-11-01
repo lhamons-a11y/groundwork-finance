@@ -25,6 +25,8 @@ _engine_binaries, _engine_datas, _engine_imports = spec_engine.engine_parts()
 _model_datas = spec_engine.model_data()
 _voice_binaries, _voice_datas, _voice_imports = spec_engine.voice_parts()     # item 113
 _voice_model = spec_engine.voice_model_data()
+_speak_binaries, _speak_datas, _speak_imports = spec_engine.speak_parts()     # Groundwork's own voice (core/speak.py)
+_speak_model = spec_engine.speak_model_data()
 
 try:
     import webview
@@ -37,10 +39,11 @@ icon_path = root / 'assets' / 'groundwork.icns'
 a = Analysis(
     ['launch.py'],
     pathex=[str(root)],
-    binaries=[*_engine_binaries, *_voice_binaries],
+    binaries=[*_engine_binaries, *_voice_binaries, *_speak_binaries],
     datas=[
         *_engine_datas,
         *_voice_datas, *_voice_model,
+        *_speak_datas, *_speak_model,
         *_model_datas,             # -> models/ (macOS: Contents/Resources/models), where core/engine.py looks
         ('static', 'static'),
         ('core', 'core'),
@@ -52,7 +55,7 @@ a = Analysis(
         # keyring - item 57 (BANK_AGENT.md A4): bank logins live in the operating system's vault. Imported
         # inside core/bank_vault.py's functions, and its backend is chosen at runtime, so both are named here.
         'keyring', 'keyring.backends', 'keyring.backends.macOS',
-        *_engine_imports, *_voice_imports, 'core.voice',
+        *_engine_imports, *_voice_imports, 'core.voice', *_speak_imports, 'core.speak',
         # waitress — the WSGI server every launch path now uses. Imported
         # inside server.serve() rather than at module scope, which is exactly
         # the import style PyInstaller's static analysis is least likely to

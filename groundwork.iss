@@ -48,6 +48,9 @@ Source: "dist\Groundwork\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdi
 Source: "vendor\phi3.5_model\blobs\sha256-b5374915da534cb93df39f03bd4f2cd5a0c533df0d5e21957dc9556c260be9eb"; DestDir: "{app}\models"; DestName: "phi3.5-mini-instruct-q4.gguf"; Flags: ignoreversion nocompression
 ; Item 113: the voice model, when staged (scripts/fetch_whisper_model.py); without it voice reports unavailable
 Source: "vendor\whisper\ggml-base.en.bin"; DestDir: "{app}\models"; Flags: ignoreversion nocompression skipifsourcedoesntexist
+; Groundwork's own voice (core/speak.py), when staged (scripts/fetch_kokoro_model.py); without it read aloud uses the computer's voices
+Source: "vendor\kokoro\kokoro-v1.0.int8.onnx"; DestDir: "{app}\models"; Flags: ignoreversion nocompression skipifsourcedoesntexist
+Source: "vendor\kokoro\voices-v1.0.bin"; DestDir: "{app}\models"; Flags: ignoreversion nocompression skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"

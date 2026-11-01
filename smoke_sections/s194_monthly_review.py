@@ -112,7 +112,7 @@ def run(ctx):
               'const _catParentName = c => c; const fmt = n => "$" + Number(n).toFixed(2);\n'
               + fn('_kind') + fn('_isSpend') + fn('_spendAmt') + fn('_spendCat') +      # item 111: the kind is the server's
               '\n'
-              'const esc = s => String(s); const _gwErr = () => () => {}; const renderReviewReady = () => {};\n'
+              'const esc = s => String(s); const escJs = esc; const _gwErr = () => () => {}; const renderReviewReady = () => {};\n'
               'const aiEnabled = () => ai; const callAI = async () => { calls++; return aiResult; };\n'
               'const API = { get: async () => ({ month: due }), post: async (u, b) => { posts.push(b); return {}; } };\n'
               'let _monthlyReviewBusy = false;\n'

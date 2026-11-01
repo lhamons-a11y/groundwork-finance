@@ -164,7 +164,7 @@ def run(ctx):
     # U3: the Settings lines, rendered
     hh = (BASE / 'static/js/teaching/household.js').read_text(encoding='utf-8')
     if node:
-        js = ('const esc = s => String(s);\n' + hh[hh.index('  var Q = {'):hh.index('  // The state is asked')]
+        js = ('const esc = s => String(s); const escJs = esc;\n' + hh[hh.index('  var Q = {'):hh.index('  // The state is asked')]
               + _fn(hh, '_municipalServices')
               + "console.log(JSON.stringify([_municipalServices('sewer,trash,water'), _municipalServices('none'), _municipalServices('')]));")
         p = subprocess.run([node, '-e', js], capture_output=True, text=True, encoding='utf-8', timeout=60)
