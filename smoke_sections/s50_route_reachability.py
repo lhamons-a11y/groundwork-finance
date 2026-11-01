@@ -201,7 +201,7 @@ def run(ctx):
     # a route is a product decision and this is a test file. The pin is the
     # point: removing one from the app is a passing change, adding a new
     # unreachable route is a failing one.
-    UNCALLED = {                     # /api/auto-import/delete-file removed 2026-10-31 (s270)
+    UNCALLED = {                     # /api/auto-import/delete-file removed 2026-10-31 (s275)
         '/api/budget/variance',
         '/api/debug/bootstrap',      # deliberate: a debug handle, not a feature
         '/api/import/quicken',

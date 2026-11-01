@@ -35,20 +35,20 @@ def run(ctx):
         sources[mod.name] = mod.read_text(encoding='utf-8')
 
     toast = app[app.index('function showToast('):app.index('var _toastUndo = {};')]
-    check('s270 X1 a toast writes its title and line as text, never markup',
+    check('s275 X1 a toast writes its title and line as text, never markup',
           '${esc(title)}' in toast and '${esc(sub)}' in toast
           and not re.search(r'<div class="toast-(title|sub)">\$\{(title|sub)\}', toast))
     pre = [f'{n}:{app.count(chr(10), 0, m.start()) + 1}' for n, s in sources.items()
            for m in re.finditer(r'showToast\([^;]*?\besc\(', s)]
-    check(f's270 X1 no caller escapes a toast first - it would show &amp; ({pre})', not pre)
+    check(f's275 X1 no caller escapes a toast first - it would show &amp; ({pre})', not pre)
 
     raw_esc = [f'{n}:{ln}' for n, s in sources.items() for ln, e in _handler_quotes(s) if e.startswith('esc(')]
     old = [n for n, s in sources.items() if re.search(r"esc\([^)]*\)\.replace\(/'/g", s)]
-    check(f's270 X2 a quoted value in a handler goes through escJs, never esc alone ({raw_esc[:5]}, {old})',
+    check(f's275 X2 a quoted value in a handler goes through escJs, never esc alone ({raw_esc[:5]}, {old})',
           not raw_esc and not old and len([1 for s in sources.values() for _, e in _handler_quotes(s)
                                            if e.startswith('escJs(')]) >= 50)
     esc_fn = app[app.index("function esc(s='')"):app.index('function escJs(')]
-    check('s270 X2 esc() escapes the single quote too', r".replace(/\x27/g,'&#39;')" in esc_fn)
+    check('s275 X2 esc() escapes the single quote too', r".replace(/\x27/g,'&#39;')" in esc_fn)
 
     node = shutil.which('node')
     if node:
@@ -69,25 +69,25 @@ const out = hostile.map(x => {
 });
 console.log(JSON.stringify({out, ran}));
 """
-        d = tempfile.mkdtemp(prefix='s270_')
+        d = tempfile.mkdtemp(prefix='s275_')
         f = os.path.join(d, 'esc.js')
         open(f, 'w', encoding='utf-8').write(script)
         res = json.loads(subprocess.run([node, f], capture_output=True, text=True, encoding='utf-8',
                                         timeout=30).stdout or '{}')
         bad = [x for x in res.get('out', []) if x[1] != 'ok']
-        check(f's270 X2 escJs: every hostile name reaches the handler exactly as written, and none runs ({bad})',
+        check(f's275 X2 escJs: every hostile name reaches the handler exactly as written, and none runs ({bad})',
               res.get('out') and not bad and res.get('ran') is False)
 
     for path in ('/', '/api/health', '/api/accounts'):
         r = c.get(path, headers=H)
         csp = r.headers.get('Content-Security-Policy', '')
         parts = dict((p.split(' ', 1) + [''])[:2] for p in (x.strip() for x in csp.split(';')) if p)
-        check(f's270 X3 {path}: the page may connect only to this server, load nothing from elsewhere, and frame nothing',
+        check(f's275 X3 {path}: the page may connect only to this server, load nothing from elsewhere, and frame nothing',
               parts.get('connect-src') == "'self'" and parts.get('default-src') == "'self'"
               and parts.get('object-src') == "'none'" and parts.get('frame-ancestors') == "'none'"
               and 'http' not in csp and '*' not in csp and r.headers.get('X-Content-Type-Options') == 'nosniff')
 
     gone = c.post('/api/auto-import/delete-file', headers=ctx.HJ, data=json.dumps({'path': 'anything.csv'}))
     import server
-    check('s270 X4 /api/auto-import/delete-file is gone, and nothing in the server unlinks a Downloads file',
+    check('s275 X4 /api/auto-import/delete-file is gone, and nothing in the server unlinks a Downloads file',
           gone.status_code in (404, 405) and not hasattr(server, 'auto_import_delete_file'))

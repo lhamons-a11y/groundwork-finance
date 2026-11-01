@@ -26,12 +26,16 @@ Measured on the real stack when it was built (not re-run here - it needs a windo
 
 
 def _cases(c, H, server):
+    pc = c.application.test_client()                       # the window's page cookie: the host guard is what is tested
+    for name in server._LOCAL_HOSTNAMES:                   # the jar matches the cookie to the Host each case sends
+        pc.set_cookie(server._PAGE_COOKIE, server._GW_PAGE_KEY, domain=name)
+
     def req(path, host, port, origin=None, token=True, method='get', **kw):
         headers = dict(H) if token else {}
         headers['Host'] = host
         if origin is not None:
             headers['Origin'] = origin
-        r = getattr(c, method)(path, headers=headers, environ_overrides={'SERVER_PORT': port}, **kw)
+        r = getattr(pc, method)(path, headers=headers, environ_overrides={'SERVER_PORT': port}, **kw)
         return r.status_code, (b'GW_SESSION_TOKEN' in r.data or server._GW_TOKEN.encode() in r.data)
 
     refused = {

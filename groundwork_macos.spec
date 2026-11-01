@@ -34,7 +34,27 @@ try:
 except ImportError:
     webview_path = None
 
-icon_path = root / 'assets' / 'groundwork.icns'
+icon_path = root / 'assets' / 'groundwork.icns'      # committed; build_icns.py + iconutil remake it (issue 10)
+
+# HTTPS needs a certificate list the frozen Python can find (Mac check 2026-10-31, issue 6): certifi's, pointed at by
+# launch._use_bundled_certificates. Without it every update check and price lookup failed.
+import certifi
+_certifi_datas = [(certifi.where(), 'certifi')]
+
+# Which build this is (issue 9). GW_VERSION is the release stamp the update feed compares, and it changes only with
+# a release; this tells two builds of the same release apart - in Info.plist's CFBundleVersion and in the log.
+import json, subprocess, datetime
+try:
+    _commit = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], capture_output=True, text=True,
+                             cwd=str(root)).stdout.strip() or 'unknown'
+    _dirty = bool(subprocess.run(['git', 'status', '--porcelain', '--untracked-files=no'], capture_output=True,
+                                 text=True, cwd=str(root)).stdout.strip())
+except OSError:
+    _commit, _dirty = 'unknown', False
+_built = datetime.datetime.now().strftime('%Y%m%d.%H%M')
+_build_id = f"{_built}-{_commit}{'+' if _dirty else ''}"
+(root / 'build').mkdir(exist_ok=True)
+(root / 'build' / 'build_info.json').write_text(json.dumps({'build': _build_id, 'commit': _commit, 'dirty': _dirty}))
 
 a = Analysis(
     ['launch.py'],
@@ -45,6 +65,8 @@ a = Analysis(
         *_voice_datas, *_voice_model,
         *_speak_datas, *_speak_model,
         *_model_datas,             # -> models/ (macOS: Contents/Resources/models), where core/engine.py looks
+        *_certifi_datas,
+        (str(root / 'build' / 'build_info.json'), '.'),
         ('static', 'static'),
         ('core', 'core'),
         ('bank_importer.py', '.'),
@@ -55,6 +77,7 @@ a = Analysis(
         # keyring - item 57 (BANK_AGENT.md A4): bank logins live in the operating system's vault. Imported
         # inside core/bank_vault.py's functions, and its backend is chosen at runtime, so both are named here.
         'keyring', 'keyring.backends', 'keyring.backends.macOS',
+        'certifi',
         *_engine_imports, *_voice_imports, 'core.voice', *_speak_imports, 'core.speak',
         # waitress — the WSGI server every launch path now uses. Imported
         # inside server.serve() rather than at module scope, which is exactly
@@ -222,6 +245,11 @@ app = BUNDLE(
         'CFBundleName': 'Groundwork',
         'CFBundleDisplayName': 'Groundwork',
         'CFBundleShortVersionString': '1.1.1',
+        'CFBundleVersion': _build_id,
+        # Issue 1: what macOS shows when it asks about Downloads. The watcher only reads the folder after the window
+        # is open, so the question never holds up starting.
+        'NSDownloadsFolderUsageDescription': 'Groundwork watches Downloads for bank files you save, and offers to '
+                                             'import them. Nothing is imported unless you say yes.',
         'NSHighResolutionCapable': True,
         # Item 113: push-to-talk voice commands. macOS asks the first time; the words are recognised on this Mac.
         'NSMicrophoneUsageDescription': 'Groundwork listens only while you hold Talk, for voice commands. What you say '

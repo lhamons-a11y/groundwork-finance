@@ -182,6 +182,7 @@ HEALTH_SINKS = {
     ('gas_price.py', '*', 'log'): LOG, ('core/airfare.py', '*', 'log'): LOG, ('core/per_diem.py', '*', 'log'): LOG,
     ('trip_distance.py', '*', 'log'): LOG, ('core/engine_fit.py', '*', 'log'): LOG,
     ('core/voice.py', '*', 'log'): LOG,     # item 113: a model that would not load - never a clip or its words
+    ('core/speak.py', '*', 'log'): LOG,     # Groundwork's voice: a voice that would not load - never the words it said
 }
 
 
@@ -199,6 +200,8 @@ for _f, _fn in (('bank_agent_window.py', 'child_main'), ('bank_agent_window.py',
 HEALTH_SINKS.update({
     ('core/engine_fit.py', 'write_fit', 'file'): ('item 95: device timings, R8 figure lists from the fixed voice cases '
                                                   'and graphics chip names - no transaction or health record'),
+    ('core/speak.py', 'speak', 'file'): ("Groundwork's voice: the sound of one reply, built in memory (io.BytesIO) and "
+                                          'handed back to the page - never written to disk, never kept'),
     ('core/airfare.py', '_write', 'file'): 'public fare tables only (DOT), no personal data',
     ('core/airfare.py', 'refresh', 'file'): 'public fare tables only (DOT), no personal data',
     ('core/per_diem.py', 'refresh', 'file'): 'public per-diem tables only (GSA), no personal data',
