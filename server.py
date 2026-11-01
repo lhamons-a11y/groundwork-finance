@@ -3760,10 +3760,13 @@ def voice_transcribe():
     if not st['available']:
         return err(st['reason'], 503)
     data = request.get_data(cache=False)
+    short = request.args.get('short') == '1'          # V2: heard while Groundwork spoke - only the short words count
     try:
-        with db_session() as session:
-            words = _voice_words(session)
-        text = voice.transcribe(data, words=words)
+        words = []
+        if not short:
+            with db_session() as session:
+                words = _voice_words(session)
+        text = voice.transcribe(data, words=words, short=short)
     except voice.VoiceError as e:
         return err(str(e), 400)
     return ok({'text': text})

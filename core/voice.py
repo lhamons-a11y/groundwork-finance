@@ -127,15 +127,22 @@ def hint_for(words=None):
     return hint if hint == HINT else hint + '.'
 
 
-def transcribe(data, model=None, words=None):
+# V2 (item 116): a clip heard while Groundwork speaks can only be one of a few short words, so whisper is told only those
+# (measured 2026-10-31: with the full hint, a British voice's "Stop" came back "Stomp!" and "Slower" as "Slow earn")
+SHORT_HINT = 'Stop. Next. Repeat. Slower. Faster. Stop it. That is enough. Say that again. Slow down. Speed up.'
+
+
+def transcribe(data, model=None, words=None, short=False):
     """The words in a clip, recognised here. `model` is for tests; otherwise the base.en model is loaded once.
-    `words`: the person's own names for the hint (hint_for); the hint is set on every clip, so none carries over."""
+    `words`: the person's own names for the hint (hint_for); the hint is set on every clip, so none carries over.
+    `short`: heard while Groundwork spoke - the hint is the short words only (SHORT_HINT)."""
     samples = read_wav(data)
     if len(samples) < RATE // 4:
         return ''
     with _lock:
         m = model or _load()
-        segments = m.transcribe(samples, initial_prompt=hint_for(words)) if model is None else m.transcribe(samples)
+        prompt = SHORT_HINT if short else hint_for(words)
+        segments = m.transcribe(samples, initial_prompt=prompt) if model is None else m.transcribe(samples)
     text = ' '.join((getattr(s, 'text', s) or '').strip() for s in segments).strip()
     # whisper marks silence and noise in brackets ("[BLANK_AUDIO]", "(wind)"); those are not words
     if text.startswith(('[', '(')) and text.endswith((']', ')')):

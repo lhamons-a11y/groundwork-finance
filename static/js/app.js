@@ -27618,7 +27618,7 @@ function askShowEntry(i) {
 // calendar", "show me collections", "open settings", "take me to my budget" go straight there. Anything else is a
 // question, and is answered. Most specific names first; a phrase is matched on whole words.
 const ASK_PLACES = [
-  { label: 'the Calendar', names: ['calendar', 'upcoming', 'schedule'], view: 'budget', tab: ['bud', 'calendar'] },
+  { label: 'the Calendar', names: ['calendar', 'calendars', 'upcoming', 'schedule'], view: 'budget', tab: ['bud', 'calendar'] },
   { label: 'Gifts', names: ['gift budget', 'gifts', 'gift'], view: 'budget', tab: ['bud', 'gifts'] },
   { label: 'Possible futures', names: ['possible futures', 'futures', 'what if'], view: 'budget', tab: ['bud', 'futures'] },
   { label: 'Bills and charges', names: ['bills and charges', 'recurring charges', 'subscriptions', 'sinking funds'], view: 'budget', tab: ['bud', 'bills'] },
@@ -27639,7 +27639,7 @@ const ASK_PLACES = [
   { label: 'the Budget', names: ['budget', 'my budget'], view: 'budget', tab: ['bud', 'plan'] },
   { label: 'the Trip Planner', names: ['trip planner', 'trips', 'trip', 'travel'], view: 'trip' },
   { label: 'Investments', names: ['investments', 'investment', 'portfolio', 'stocks'], view: 'investments' },
-  { label: 'Net Worth', names: ['net worth', 'networth'], view: 'networth' },
+  { label: 'Net Worth', names: ['net worth', 'networth', 'net work'], view: 'networth' },   // "net work": as heard (V8)
   { label: 'the Trophy Room', names: ['trophy room', 'trophies', 'achievements'], view: 'trophy' },
   { label: 'Categories', names: ['categories', 'category settings'], view: 'settings', tab: ['settings', 'categories'] },
   { label: 'Import rules', names: ['import rules', 'rules'], view: 'settings', tab: ['settings', 'automation'] },
@@ -27715,6 +27715,9 @@ const _ASK_LEAD = /^(?:please|hey|ok|okay|so|um|uh|can you|could you|would you|w
 
 function _askNorm(q) {
   let t = String(q || '').toLowerCase().replace(/[’\x60]/g, "'").replace(/[?!.]+\s*$/, '').trim();
+  // Item 116 V8, measured: whisper writes "Groundwork. Open my budget.", "lantern, cafe", quotes round a phrase -
+  // punctuation after a word and double quotes go; an apostrophe and a figure's point ("24.99") stay
+  t = t.replace(/[\x22\u201c\u201d]/g, ' ').replace(/([a-z])[.,;:!?]+(?=\s|$)/g, '$1').replace(/\s+/g, ' ').trim();
   t = t.split(/\s+/).map(w => _ASK_SHORT[w] || w).join(' ');
   for (let i = 0; i < 4 && _ASK_LEAD.test(t); i++) t = t.replace(_ASK_LEAD, '');
   return t.replace(/\s+please$/, '').trim();
@@ -27808,8 +27811,8 @@ function _askSearchTerm(n) {
 // Rob 2026-10-31: "show me my Kroger transactions" is the Ledger, searched for Kroger - a command, with AI on or off.
 // (\x27 not a bare quote in these patterns: s30 reads a bare one inside a regex as the start of a string.)
 function _askShowTxns(n) {
-  const m = n.match(/^(?:show|view|see|open|pull up|bring up|display|list)(?: me)?(?: all)?(?: of)?(?: my| the| our)? (.+?)(?:\x27s)? (?:transactions|purchases|charges|payments)(?: in (?:the )?ledger)?$/)
-       || n.match(/^(?:show|view|see|open|pull up|bring up|display|list)(?: me)?(?: all)?(?: of)?(?: my| the| our)? (?:transactions|purchases|charges|payments) (?:at|from|to|for|with) (.+?)(?: in (?:the )?ledger)?$/);
+  const m = n.match(/^(?:show|view|see|open|pull up|bring up|display|list)(?: me)?(?: all)?(?: of)?(?: my| the| our)? (.+?)(?:\x27s)? (?:transactions?|purchases?|charges?|payments?)(?: in (?:the )?ledger)?$/)
+       || n.match(/^(?:show|view|see|open|pull up|bring up|display|list)(?: me)?(?: all)?(?: of)?(?: my| the| our)? (?:transactions?|purchases?|charges?|payments?) (?:at|from|to|for|with) (.+?)(?: in (?:the )?ledger)?$/);
   const term = m ? m[1].replace(/^(?:my|the|all|our)\s+/, '').trim() : '';
   return term && !/^(?:my|all|the|recent|new|latest|our|last|every|pending|this month|last month|this month\x27s|last month\x27s)$/.test(term) ? term : null;
 }
@@ -27852,7 +27855,7 @@ function _askFollow(n) {
 
 // V15 (item 116): "what's coming up this week?" - the Calendar's own dates, from the record, said aloud with how sure
 // each one is. Only when asked; Groundwork never watches for it.
-const ASK_COMING = /^(?:what(?:\x27s| is| are)?|whats) (?:coming up|coming due|due|upcoming|coming)(?: soon| next)?(?: for me)?(?: (this|next) (week|month))?$|^(?:what|which) (?:bills|payments) (?:are |do i have )?(?:coming up|due)(?: (this|next) (week|month))?$/;
+const ASK_COMING = /^(?:what(?:\x27s| is| are)?|whats) (?:coming up|coming due|due|do|upcoming|coming)(?: soon| next)?(?: for me)?(?: (this|next) (week|month))?$|^(?:what|which) (?:bills|payments) (?:are |do i have )?(?:coming up|due)(?: (this|next) (week|month))?$/;
 async function askComingUp(month) {
   const spoken = !!window._gwVoiceAsked;
   window._gwVoiceAsked = false;                 // spent now: the answer comes after the record is read

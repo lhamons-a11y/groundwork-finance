@@ -335,7 +335,7 @@
   // over speech must be louder and short, and anything but those words is let go unread.
   var BARGE_RMS = SPEECH_RMS * 2.5;
   var BARGE_MAX_MS = 2500;
-  var BARGE = { 'stop': 'stop', 'quiet': 'stop', 'be quiet': 'stop', 'stop reading': 'stop', 'stop talking': 'stop',
+  var BARGE = { 'stop': 'stop', 'stop it': 'stop', 'stop in': 'stop', 'quiet': 'stop', 'be quiet': 'stop', 'stop reading': 'stop', 'stop talking': 'stop',
                 'that s enough': 'stop', "that's enough": 'stop', 'enough': 'stop', 'pause': 'stop', 'no': 'stop',
                 'nope': 'stop', 'next': 'next', 'next one': 'next', 'next part': 'next', 'skip': 'next',
                 'repeat': 'repeat', 'again': 'repeat', 'say that again': 'repeat', 'slower': 'slower',
@@ -410,7 +410,7 @@
 
   async function _send(buf, over) {
     try {
-      var r = await _gwFetch('/api/voice/transcribe', { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: buf });
+      var r = await _gwFetch('/api/voice/transcribe' + (over ? '?short=1' : ''), { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: buf });
       var j = await r.json();
       if (!r.ok) throw new Error(j.error || 'The voice engine did not answer.');
       var text = ((j.data || j).text || '').trim();

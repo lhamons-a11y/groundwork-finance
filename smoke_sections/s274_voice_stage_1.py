@@ -62,11 +62,18 @@ def run(ctx):
     c.patch('/api/settings', headers=HJ, data=json.dumps({'voice_commands': 'on'}))
     try:
         r = c.post('/api/voice/transcribe', headers={**H, 'Content-Type': 'audio/wav'}, data=buf.getvalue())
+        full_prompt = (getattr(fake, 'params', {}) or {}).get('initial_prompt') or ''
+        c.post('/api/voice/transcribe?short=1', headers={**H, 'Content-Type': 'audio/wav'}, data=buf.getvalue())
+        short_prompt = (getattr(fake, 'params', {}) or {}).get('initial_prompt') or ''
     finally:
         voice.status, voice._model, voice.preload = real
         c.patch('/api/settings', headers=HJ, data=json.dumps({'voice_commands': 'off'}))
     check('s274 V1 each clip is recognised with the household\'s own words as whisper\'s prompt',
-          r.status_code == 200 and 'Meijer' in (getattr(fake, 'params', {}).get('initial_prompt') or ''))
+          r.status_code == 200 and 'Meijer' in full_prompt)
+    acc0 = (ctx.BASE / 'static' / 'js' / 'teaching' / 'access.js').read_text(encoding='utf-8')
+    check('s274 V2 a clip heard over Groundwork\'s voice is recognised against the short words only (measured: 82/84 '
+          'against 76/84 with the full hint)', short_prompt == voice.SHORT_HINT
+          and "'/api/voice/transcribe' + (over ? '?short=1' : '')" in acc0)
 
     app = ctx.app_src if 'function _askFollow(' in ctx.app_src else (ctx.BASE / 'static/js/app.js').read_text(encoding='utf-8')
     acc = (ctx.BASE / 'static' / 'js' / 'teaching' / 'access.js').read_text(encoding='utf-8')
@@ -102,7 +109,7 @@ out.month = follow('and last month?');
 out.page = follow('what about my debts');
 out.question = follow('what is my balance');
 const coming = ['what\x27s coming up this week', 'what is coming up', 'whats due this month', 'what bills are due this week',
-                'what\x27s coming up next month', 'what is coming up for me'].map(q => [q, ASK_COMING.test(_askNorm(q))]);
+                'what\x27s coming up next month', 'what is coming up for me', 'what\x27s do this month'].map(q => [q, ASK_COMING.test(_askNorm(q))]);
 out.coming = coming; out.notComing = ['what is my net worth', 'how much do i owe'].map(q => ASK_COMING.test(_askNorm(q)));
 out.barge = ['Stop.', 'Groundwork, stop', "That's enough.", 'Okay, next please', 'Repeat', 'What is my balance?']
   .map(h => BARGE[_norm(h).replace(/^(?:groundwork|ok|okay|hey|please)\s+/, '').replace(/\s+please$/, '')] || null);

@@ -50,6 +50,8 @@ const cases = """ + json.dumps([
         ['I need help', None],
         ['I want to know why my budget is short', None],
         ['lets talk about why restaurants is so high', None],
+        ['Groundwork. Open my budget.', 'budget'],                 # item 116 V8: as whisper writes it
+        ['"Take me to net worth."', 'networth'], ['Open the calendars.', 'budget'], ['take me to net work', 'networth'],
     ]) + """;
 console.log(JSON.stringify(cases.map(([q, want]) => {
   const n = _askNorm(q);
@@ -71,7 +73,7 @@ console.log(JSON.stringify(cases.map(([q, want]) => {
 const shows = """ + json.dumps([
         ['show me my kroger transactions', 'kroger'], ["show me kroger's transactions", 'kroger'],
         ['show my transactions at walmart', 'walmart'], ['view all the amazon purchases', 'amazon'],
-        ['show me my recent transactions', None], ['show me my transactions', None], ["show me this month's transactions", None],
+        ['show me my meijer transaction', 'meijer'], ['show me my recent transactions', None], ['show me my transactions', None], ["show me this month's transactions", None],
     ]) + """;
 const replies = """ + json.dumps([['Opened Import', 'Sure, opening Import for you.'],
                                   ['Opened the report builder', 'Sure, opening the report builder for you.'],
