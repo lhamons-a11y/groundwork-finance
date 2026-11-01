@@ -39,12 +39,12 @@ _LOCAL_HOSTNAMES = ('127.0.0.1', 'localhost')
 
 # Sent with every response. The page leans on inline handlers (onclick=...), so inline script stays allowed; what the
 # policy takes away is somewhere to send data: connect, images and media come only from this server, the page cannot
-# be framed, and no form or <base> can point elsewhere. 1.1 loads its fonts from Google, so those two hosts stay allowed
-# for styles and fonts only (2.0 ships its fonts with the app).
+# be framed, and no form or <base> can point elsewhere. The fonts ship with the app (static/fonts), so no outside host
+# is allowed at all (Rob 2026-11-01: "move the fonts off of Google").
 _SECURITY_HEADERS = {
     'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; "
-                               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; "
-                               "font-src 'self' data: https://fonts.gstatic.com; media-src 'self' data: blob:; "
+                               "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
+                               "font-src 'self' data:; media-src 'self' data: blob:; "
                                "worker-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; "
                                "form-action 'self'; frame-ancestors 'none'",
     'X-Frame-Options':        'DENY',

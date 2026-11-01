@@ -5,7 +5,7 @@
     X2  esc() left ' alone, and handlers quoted record text with it inside on*="fn('...')": the attribute is decoded
         before the script runs. escJs() quotes for the script first, then the attribute; esc() escapes ' too.
     X3  every response carries the security headers: the page may connect only to this server, load nothing but its
-        own files (and Google's fonts, which 1.1 uses), and cannot be framed.
+        own files (the fonts ship with the app since 2026-11-01), and cannot be framed.
     X4  /api/auto-import/delete-file is gone: nothing called it, and it deleted any file in Downloads outright.
     X5  1.1 had no host check: a DNS-rebinding page (its name made to resolve to 127.0.0.1) could read the token from
         index.html and use every route. The Host must name 127.0.0.1 or localhost on this port, and an /api/* request
@@ -78,11 +78,11 @@ console.log(JSON.stringify({out, ran}));
         csp = r.headers.get('Content-Security-Policy', '')
         parts = dict((p.split(' ', 1) + [''])[:2] for p in (x.strip() for x in csp.split(';')) if p)
         outside = set(re.findall(r'https?://[^\s;]+', csp))
-        check(f's234 X3 {path}: connect only to this server, no frames, nosniff; the only outside hosts are Google\'s '
-              f'fonts ({sorted(outside)})',
+        check(f's234 X3 {path}: connect only to this server, no frames, nosniff; no outside host at all - the '
+              f'fonts ship with the app ({sorted(outside)})',
               parts.get('connect-src') == "'self'" and parts.get('default-src') == "'self'"
               and parts.get('object-src') == "'none'" and parts.get('frame-ancestors') == "'none'"
-              and outside <= {'https://fonts.googleapis.com', 'https://fonts.gstatic.com'} and '*' not in csp
+              and not outside and '*' not in csp
               and r.headers.get('X-Content-Type-Options') == 'nosniff' and r.headers.get('X-Frame-Options') == 'DENY')
 
     gone = c.post('/api/auto-import/delete-file', headers=ctx.HJ, data=json.dumps({'path': 'anything.csv'}))
