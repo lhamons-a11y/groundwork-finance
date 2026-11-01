@@ -450,7 +450,27 @@ rather than solve it.
 
 *(a) recommended.*
 
-### 9.4 Not here
+### 9.4 Ruled (2026-11-01)
+
+Rob: *"As recommended"*. X11, X12, X13 (a), X15 (a), X16, X17 (b), X18, X19 and X20 (a) are ruled as recommended.
+
+**X14 carried no recommendation, so it is not ruled.** It stays as built (Income, as filed) until Rob rules it.
+
+**Not yet authorised to build.**
+
+**Rob's ledger measured under X11, X12 and X16** (read-only, on a copy of this computer's database, 1,751
+transactions):
+
+- **X11:** all **7** pairs from §6 are still found, with no pair lost and none new.
+  - The six Capital One payments reached the Cashback card.
+  - The $5,000 *Home Banking Transfer* reached Superior Savings.
+  - No month's spending changes.
+- **X16:** no $0 pairs on record.
+- **X12:** one refund of 41 moves category. Lowe's $140.27 (*Adjustment Credit Voucher*, 2026-05-15) nets in Rent /
+  Mortgage today, taken from a later Lowe's purchase. Under X12 it nets in Home Improvement, the Lowe's purchase
+  before it. Total spending is unchanged; two category totals for May move by $140.27.
+
+### 9.5 Not here
 
 The review's findings on item 115 (report sections ignoring their periods, required settings not enforced on the
 server, the net-worth fallback, R19 against G4) are item 115's, and are not reopened here.
