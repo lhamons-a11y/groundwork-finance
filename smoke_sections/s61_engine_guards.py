@@ -284,3 +284,65 @@ def run(ctx):
     check('33 Q7 the website says what is true: Mac local AI is built in on Metal from macOS 12; Linux local AI is coming',
           "Local AI: built in, on Apple's graphics (Metal)." in site and 'macOS 12 Monterey or later' in site
           and 'Tahoe' not in site and 'Local AI: coming to Linux.' in site)
+
+    # ── 33 Q6 (ENGINE_OTHER_PLATFORMS.md section 7): SIGTERM closes Groundwork as its close button does ────────────
+    # Measured on Linux 2026-11-01: before, SIGTERM ended the process in 0.5 s with the model left to teardown (R-a).
+    # The gate runs on Windows, where the function returns at once, so it is driven here as Linux with a stand-in
+    # window, a recorded engine release and a recorded exit.
+    import signal
+    import socket
+    import threading
+    import time
+    import types
+    import launch
+    main_src = launch_src[launch_src.index('def main():'):]
+    check('33 Q6 main() wires SIGTERM to the window after it is made and before the window loop starts',
+          main_src.index('webview.create_window(') < main_src.index('_close_on_sigterm(window)') < main_src.index('webview.start(')
+          and main_src.index('webview.start(') < main_src.index('_stop_engine()', main_src.index('webview.start(')))
+
+    def drive(shown, closes, via_socket=False):
+        rec = {'destroyed': 0, 'released': 0, 'exited': []}
+
+        class Window:
+            events = types.SimpleNamespace(shown=threading.Event())
+
+            def destroy(self):
+                rec['destroyed'] += 1
+        win = Window()
+        if shown:
+            win.events.shown.set()
+        saved = (launch.sys, launch.os, launch._stop_engine, launch._SIGTERM_GRACE_S,
+                 signal.getsignal(signal.SIGTERM), signal.set_wakeup_fd(-1))
+        launch.sys = types.SimpleNamespace(platform='linux')
+        launch.os = types.SimpleNamespace(_exit=lambda code: rec['exited'].append(code))
+        launch._stop_engine = lambda: rec.__setitem__('released', rec['released'] + 1)
+        launch._SIGTERM_GRACE_S = 0.3
+        try:
+            launch._close_on_sigterm(win)
+            if via_socket:                                  # macOS: the signal number arrives on the wakeup socket
+                fd = signal.set_wakeup_fd(-1)
+                w = socket.socket(fileno=fd)                # the handler's own socket, sent on and handed back
+                w.send(bytes([int(signal.SIGTERM)]) * 2)
+                w.detach()
+            else:                                           # Linux: PyGObject lets the Python handler run
+                signal.getsignal(signal.SIGTERM)(signal.SIGTERM, None)
+                signal.getsignal(signal.SIGTERM)(signal.SIGTERM, None)
+            time.sleep(0.8)
+            if closes and rec['destroyed']:
+                rec['released_before_exit'] = rec['released']
+        finally:
+            launch.sys, launch.os, launch._stop_engine, launch._SIGTERM_GRACE_S = saved[:4]
+            signal.signal(signal.SIGTERM, saved[4])
+            signal.set_wakeup_fd(saved[5])
+        return rec
+
+    if hasattr(signal, 'SIGTERM'):
+        r = drive(shown=True, closes=True)
+        check(f'33 Q6 SIGTERM closes the shown window once, even sent twice ({r})', r['destroyed'] == 1)
+        r = drive(shown=True, closes=False, via_socket=True)
+        check(f'33 Q6 the wakeup-socket path (macOS) closes the window, and a window that never closes is not '
+              f'waited on forever: the engine is released and the process exits ({r})',
+              r['destroyed'] == 1 and r['released'] == 1 and r['exited'] == [0])
+        r = drive(shown=False, closes=False)
+        check(f'33 Q6 SIGTERM before the window is shown releases the engine and exits, closing nothing ({r})',
+              r['destroyed'] == 0 and r['released'] == 1 and r['exited'] == [0])

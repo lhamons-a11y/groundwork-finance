@@ -3745,10 +3745,12 @@ def voice_speak():
     """Groundwork's own words, said in its own voice, here (core/speak.py). The sound comes back and nothing is kept.
     V9: in the voice chosen in Settings (speak_voice), or a voice named for "Hear it" - one of speak.VOICES only."""
     from core import speak
+    body = request.get_json(silent=True) or {}
+    if not str(body.get('text') or '').strip():          # nothing to say is refused first, voice or no voice
+        return err('There is nothing to say.', 400)
     st = speak.status()
     if not st['available']:
         return err(st['reason'], 503)
-    body = request.get_json(silent=True) or {}
     chosen = str(body.get('voice') or '')
     with db_session() as session:
         if chosen not in speak.VOICES:
