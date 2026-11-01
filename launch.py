@@ -387,6 +387,9 @@ def _stop_engine():
         logging.exception('local AI engine did not stop cleanly')
 
 
+_SIGTERM_GRACE_S = 15            # how long a closing window may take before the engine is released and the process exits
+
+
 def _close_on_sigterm(window):
     """SIGTERM closes Groundwork the way its close button does (item 33 Q6, ENGINE_OTHER_PLATFORMS.md section 7).
 
@@ -410,13 +413,15 @@ def _close_on_sigterm(window):
             logging.info('SIGTERM before the window was shown: releasing the engine and exiting')
             _stop_engine()
             os._exit(0)
+            return
         logging.info('SIGTERM: closing the window, as its close button does')
 
         def stuck():                                  # a window that never closes must not make SIGTERM a no-op
-            logging.warning('the window did not close within 15 s of SIGTERM: releasing the engine and exiting')
+            logging.warning('the window did not close within %s s of SIGTERM: releasing the engine and exiting',
+                            _SIGTERM_GRACE_S)
             _stop_engine()
             os._exit(0)
-        timer = threading.Timer(15, stuck)
+        timer = threading.Timer(_SIGTERM_GRACE_S, stuck)
         timer.daemon = True
         timer.start()
         try:
@@ -429,6 +434,9 @@ def _close_on_sigterm(window):
     signal.signal(signal.SIGTERM, lambda _signum, _frame: close())
     reader, writer = socket.socketpair()
     writer.setblocking(False)
+    # Both ends kept for the life of the process: as locals they were closed when this returned, leaving the wakeup fd
+    # pointing at a closed (and on Linux reusable) descriptor - found by s61 driving the macOS path.
+    _close_on_sigterm.sockets = (reader, writer)
     signal.set_wakeup_fd(writer.fileno())
 
     def watch():
