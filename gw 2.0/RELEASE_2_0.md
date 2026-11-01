@@ -61,6 +61,16 @@ Opened 2026-10-12. R1 built (awaiting acceptance). R3 is the next build, if Rob 
 - **P4 ADDED:** the model download is checked before release, when the installers are built.
 - Item 98 is tried during the beta; nothing needed now.
 - The open-source release (the cleaned public copy, `scripts/export_public.py`) waits for the 2.0 release.
+- **RULED 2026-10-31 / 2026-11-01 (Rob): Groundwork goes open source with the 2.0 release** (*"I have decided that I
+  will open source this with 2.0 release. I believe that I took this project as far as I can alone."*), and the clean
+  copy is published **only on release day** (*"don't publish the clean copy yet. only when 2.0 release day"*).
+  - Not by making `lhamons-a11y/Groundwork` public: its history holds the real-ledger results, family names and a bank
+    trace number. A new public repository is made from `scripts/export_public.py`; this one stays private.
+  - A trial export (2026-10-31, from 839957a, not pushed) is at `~/Documents/Groundwork-public-2.0`: 568 files, one
+    commit, GPL v3, no private names or keys found. Release day: export again from the release commit, then publish.
+  - Before publishing, Rob checks the old `screenshot/01-10_*.png` set (August): `02_ledger.png` shows Harbor /
+    Discover / Capital One rows without the sample-household label. The text scan can't read images.
+  - The website says "open source" only once `RELEASED_20` is true.
 - Order: s174 A8 fixed (2026-10-19), then the release-day lines.
 
 **R3 / L3c, the one-way test - RUN 2026-10-31** (`scripts/l3c_one_way.py`, a worktree of `v1.1.1`; Rob: *"go ahead with
