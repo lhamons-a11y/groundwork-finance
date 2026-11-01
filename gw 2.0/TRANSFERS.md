@@ -323,3 +323,134 @@ s131 (the ninth kind and its endpoints) and s166 (refunds by merchant) were upda
 ## 8. Accepted (2026-10-29)
 
 Rob: *"I accept item 111"*. Built at `374c623` (gate 3987/0), accepted as built. **Item 111 CLOSED.**
+
+## 9. Reopened (2026-11-01)
+
+Rob, after an outside review: *"the issue that I would focus on this review is with item 111 still. I think we may
+have a few issues that I would like to look over before I put it to rest."* Every case the review named was replayed
+against `core/money_kind.py` on master `3977fc1` (a scratch script, synthetic rows in s257's shape). No code has
+changed. **Item 111 is open again for X11-X20 below.**
+
+### 9.1 What the replay found
+
+| Case | Today | What it is |
+|---|---|---|
+| $100 *OHIO EDISON AUTOPAY* (filed Utilities) and an unrelated, unfiled $100 deposit to savings two days later | both `own_move`; spending $100 → $0 | **defect** (X11) |
+| $142.17 *STATE FARM PAYMENT* (filed Insurance) and a $142.17 deposit filed Transfer the next day | both `own_move` | **defect** (X11) |
+| control: $100 *KROGER #12* and the same unfiled deposit | spending stays; no pair | as intended |
+| Kroger refund on Sept 4; Kroger purchases Sept 1 (Groceries) and Sept 21 (Shopping) | refund nets against Shopping | **defect** (X12) |
+| unmatched *TARGET REFUND* filed Transfer | `refund`, category *Other* | for ruling (X13) |
+| *KROGER REFUND* filed under Income | `income` | for ruling (X14) |
+| *ZELLE TO SAM* filed under Debt | `debt_payment` | for ruling (X15) |
+| two $0 rows filed Transfer on two accounts | paired, a $0 question in Needs attention | small (X16) |
+| one $300 transfer, two $300 deposits on two accounts | the nearer, then the lower row id; the other never named | for ruling (X17) |
+
+**Why the tests passed.**
+- The null model (s257 X10) compares only debits.
+- Every generated row is called *STORE n*, so no household has a payment word in it. The path behind X11 is never
+  exercised.
+- The store credits are generated, but the spending total they now change is never compared.
+
+**Where the cause sits.**
+- *X11:* `_evidence` accepts the bank's payment words on **either** side. So a bill the person filed as spending
+  pairs with any same-amount deposit that is unfiled or filed as a move.
+- *X12:* `bought` (the refund's category) is built over the whole history, newest purchase winning, with no date
+  limit.
+
+### 9.2 Readers that still decide for themselves
+
+X1 said every reader reads the one kind. These still decide by category, in `server.py` unless named:
+
+| Reader | What it does | Reading |
+|---|---|---|
+| `_willingness_inputs` | spending by category and month, leaving out only Transfer-type categories | debt payments and cash counted as spending - **probably wrong** |
+| `reallocation_candidates` | raw debits summed by category | a non-spending category can feed the pool - **probably wrong** |
+| `_futures_inputs` | the spending record leaves out only Transfer-type categories; the budget side separates debt lines | history and plan may count debt payments differently - **probably wrong**, needs a test |
+| `_bills_ctx` (the reserve's leanest month) | money out less Transfer categories | debt payments and cash *are* money out, so this is defensible as cash flow. Only the unfiled side of a found pair still counts - narrow |
+| `_price_changes`, `_yearly_steps` | leave out non-spending categories by name (`not_a_price`), not by the row's kind | a linked debt payment filed under a spending category could read as a recurring charge - **needs a test** |
+| `_first_import_findings` | yearly renewals by category, beside a `money_kind.kinds` read | **needs a test** |
+| `_category_months` | one category's raw debits by month | **needs a test** |
+| `core/ask_why.py` | `check_own_transfers` pairs an income deposit with any same-amount debit within two days, with no other sign needed; two checks find Transfer by the exact name *transfer* | a **second definition**. It only offers a fix the person taps, so it writes nothing |
+
+s257's "no second definition anywhere" scan looks for five names, so it does not see `ask_why`'s.
+`scripts/transfer_measure.py` still pairs on amount and date alone. It was the pre-build measurement and is not a
+check of the build.
+
+### 9.3 Points for ruling
+
+**X11. The bank's word "payment" is not enough on the leaving side.**
+- A pair needs one of these:
+  - either side **filed** as a move or payment;
+  - the bank's **move** words (*transfer*, *xfer*, *savings*) on either side;
+  - the bank's **payment** words on the **arriving** side (*payment thank you*);
+  - the arriving account is a card or loan.
+- A leaving side the person filed as spending pairs only when the money reached a card or loan.
+- **Before building:** re-measure Rob's ledger. §6 found 7 pairs, and each one must still be found.
+
+*Recommended.*
+
+**X12. A refund nets against a purchase that came before it.**
+- The same payee's latest spending purchase **on or before** the refund's date.
+- None before it: X5's second half (X13).
+
+*Recommended.*
+
+**X13. A refund with no purchase, filed under a category that isn't spending.**
+- X5 says "else the one it was filed in". Read literally, that nets a refund against Transfer or Debt.
+- (a) *Other*, as built, with X5's words amended to "else the one it was filed in, when that is a spending category;
+  else *Other*".
+- (b) the filed category, literally.
+
+*(a) recommended.*
+
+**X14. A credit filed under Income that the bank calls a refund.**
+- (a) Income, as filed - X8, the category is the person's. As built.
+- (b) A refund - the bank's own word wins.
+
+Imports file rows too, so the filing may not be the person's choice. No recommendation.
+
+**X15. Venmo / Zelle / Cash App / PayPal filed under Debt.**
+- (a) `debt_payment`, as filed - paying back a friend can be a debt. As built.
+- (b) Spending, by X7.
+
+*(a) recommended.*
+
+**X16. A $0 row never pairs.** *Recommended.*
+
+**X17. More than one row could be the other side.**
+- (a) The nearest date, then the lower row id, as built. The other candidate is never named.
+- (b) The same rule, and the question in Needs attention names the other candidate, so a *no* moves to it knowingly.
+
+Debits are also paired oldest first, so an earlier debit can take a later one's deposit. Name this in the question
+rather than solve it.
+
+*(b) recommended.*
+
+**X18. s257 widened.**
+- The null model's households get bills in the bank's payment words (utility and insurance autopays) beside
+  unrelated deposits of the same amounts.
+- Credits are compared in the spending total.
+- Each row of §9.1 becomes an adversarial check.
+- The X1 scan also catches `ask_why`'s exact-name test.
+
+*Recommended.*
+
+**X19. Every reader in §9.2 reads the kind.**
+- Each one says which figure it means:
+  - **spending:** the `spending` kind less refunds;
+  - **money out:** every debit, with each kind named.
+- Then it reads `money_kind`, never a category.
+- The four marked *needs a test* get one first, so the change is measured, not assumed.
+
+*Recommended.*
+
+**X20. Ask why's *own transfers* check.**
+- (a) It uses `find_pairs`, so it finds exactly what the Ledger counts, and its fix becomes the X3 question.
+- (b) It stays a separate finder of evidence, with its rule named in its own words.
+
+*(a) recommended.*
+
+### 9.4 Not here
+
+The review's findings on item 115 (report sections ignoring their periods, required settings not enforced on the
+server, the net-worth fallback, R19 against G4) are item 115's, and are not reopened here.
