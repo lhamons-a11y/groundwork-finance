@@ -237,4 +237,62 @@ memory returned to 14.7 GB.
 2. **On Linux and macOS, SIGTERM skips the explicit engine release.** The process ends in 0.5 s and the operating
    system frees the memory, but `_stop_engine()` and the `atexit` hooks do not run. R-a says the model is released
    *"explicitly, not left to process teardown"*. Closing the window with its own close button takes the normal path.
-   SIGTERM is what a desktop sends at log-out, and what the kit uses. Not fixed; Rob's call.
+   SIGTERM is what a desktop sends at log-out, and what the kit uses. **FIXED 2026-11-01** (Rob: *"Yes, fix it"*;
+   `7ffd04a`, `3a4a045`).
+   - **What changed.** `launch._close_on_sigterm` makes SIGTERM close the window the way its close button does.
+     `webview.start()` returns, `_stop_engine()` releases the model (it now logs *"local AI engine released"*), and the
+     `atexit` hooks run.
+   - **How the signal arrives.** On Linux, PyGObject wakes the GTK loop, so the Python handler runs. On macOS, the Cocoa
+     loop runs no Python handler, so a thread reads the signal from the wakeup socket.
+   - **Edge cases.**
+     - A SIGTERM before the window is shown releases the engine and exits.
+     - A window that has not closed after 15 s is no longer waited on: the engine is released and the process exits.
+     - Windows is unchanged: it closes with a window message, not a signal.
+   - **Measured on Linux (WSL, from source, on a throwaway database).** In three launches (AI off, then the model
+     loaded, then a second launch), each log reads *"SIGTERM: closing the window, as its close button does"*, then
+     *"local AI engine released"*. Each exit was code 0 within 0.6 s.
+   - **The test (s61).** The gate runs on Windows, so s61 drives the code as Linux. It uses a stand-in window, a
+     recorded release and a recorded exit, and covers three paths: the handler (sent twice, closes once), the wakeup
+     socket with a window that never closes, and before the window. Driving the macOS path found a bug in the first
+     version: the wakeup socket was a local variable, so it closed when the function returned, leaving the wakeup fd
+     on a closed and reusable descriptor. Fixed in `3a4a045`.
+   - **Not measured.** The macOS path on a real Mac.
+3. **The page's security policy stopped pywebview's bridge on Linux.** Found 2026-11-01; **FIXED** the same day (Rob: *"Allow unsafe-eval"*,
+   `3aa8e49`). The original finding follows, then the fix.
+   - **Cause.** Since `dfa82f5` (the Mac check, issue 4), every response carries `script-src 'self' 'unsafe-inline'`
+     with no `'unsafe-eval'`. pywebview builds `window.pywebview.api` in its `js/api.js` with `new Function(...)`
+     (line 75). WebKitGTK refuses that on every Linux launch: *"EvalError: Refused to evaluate a string as JavaScript
+     because 'unsafe-eval' ... is not an allowed source of script"*.
+   - **Effect on Linux.** The page's two calls into Python are lost:
+     - `open_external` falls back to `window.open`, so a `tel:`/`sms:` crisis or help line (item 104) has nothing to
+       open it;
+     - `pick_folder` says *"Folder picker requires the desktop app"*.
+   - **Windows.** Logged no such error, but its WebView2 backend may not report a refused script, so Windows is not
+     shown to be clear.
+   - **macOS.** Uses WebKit too and is expected to behave like Linux. The Mac check tested the policy in a browser
+     preview, where pywebview is not loaded.
+   - **The options are a security ruling:**
+     - allow `'unsafe-eval'` (the page already allows inline script);
+     - keep the policy and give those two calls another way to Python;
+     - or something else Rob names.
+   - **The fix.** `script-src 'self' 'unsafe-inline' 'unsafe-eval'`. Every other directive is unchanged: connect,
+     images, fonts and media come only from this server, there is no framing, and `base-uri 'none'` stays. s270
+     checks the directive on the page, on an API answer and on a script file.
+   - **Proof on Linux (WSL).** A probe started the server and window as `main()` does, with the page key and
+     `js_api`, then asked the page what it had:
+     - old policy (put back in memory): the `EvalError`. Even the probe's own `evaluate_js` failed, because pywebview
+       routes that through eval too, so on Linux Python could not run any script in the page;
+     - new policy: `window.pywebview` is an object, `open_external` and `pick_folder` are functions, and the page is
+       *"Groundwork - Personal Finance"*.
+   - **Windows was never affected.** A Groundwork already running from `C:\Groundwork` served its refusal page with
+     the old policy. Its WebView2 window still built `window.pywebview.api` with both functions: WebView2 does not
+     hold pywebview's injected script to the page's policy.
+   - **Caution.** The Windows probe could not run against this branch, because that app held port 8765. Probe windows
+     there talk to whichever Groundwork owns the port.
+4. **The 8 GB kit cannot reach the page since `dfa82f5`.** Not fixed; Rob's call (found 2026-11-01).
+   - **Cause.** The page now needs the one-time key that only the app's own window holds (issue 2). The kit reads the
+     session token from `/` and gets 403 instead, so it cannot turn AI on or time requests against today's master.
+   - **The section 7 run.** Used `43f9129`, before the key, so it stands.
+   - **Getting the kit back in is a security choice.** For example, the process that starts Groundwork could pass the
+     key it should accept, as the window does.
+   - **This round.** The SIGTERM run avoided the page: it turned AI on in the throwaway database and read the log.

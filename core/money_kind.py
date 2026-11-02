@@ -18,7 +18,8 @@ moving between the person's own accounts. Every row gets ONE kind, worked out he
         confirmed (a). A yes can stand for that pair of accounts and that payee; a no ends the pair. Appended, never
         written over, each withdrawable (item 107's D8 pattern).
     X4  paying a card or loan is never spending; the purchases were. Interest and fees are the cost of debt.
-    X5  a refund nets against the category of the purchase it reverses (the same payee's), else the one it was filed in.
+    X5  a refund nets against the category of the purchase it reverses (the same payee's), else the one it was filed in
+        when that is a spending category, else Other (X13 (a)). The purchase came before the refund (X12).
     X6  cash taken out is said as cash; what it was spent on isn't on record (a).
     X7  Venmo, Zelle, Cash App and PayPal are spending (or income) unless they pair with one of the person's accounts.
     X8  the kind sits beside the category and never overwrites it: nothing here writes a row.
@@ -26,6 +27,13 @@ moving between the person's own accounts. Every row gets ONE kind, worked out he
 Null model (X10 stage 2): a pair needs evidence beyond the amount - a side filed as a move or payment, or the bank's
 own words for one - and its arriving side filed as a move or payment (or not filed), so a purchase and an unrelated
 deposit, paycheck or store credit of the same amount never pair, and a household with no moves reads as before.
+
+Reopened 2026-11-01 (TRANSFERS.md section 9, Rob: "As recommended"):
+    X11 the bank's payment words count on the arriving side only (a card's *payment thank you*), never on the
+        leaving side - a bill says "payment" too. A leaving side filed as spending pairs only when it reached a card
+        or loan, and then still needs a sign on the arriving side.
+    X16 a $0 row never pairs.
+    X17 when another row could also have been the arriving side, the question names it.
 
 Derived on every read. Only what the person said is stored.
 """
@@ -114,38 +122,47 @@ def standing_key(out_row, in_row):
 
 
 def _evidence(d, c, ck, acct_type):
-    filed = {ck.get(d.category_id), ck.get(c.category_id)}
-    if filed & {'own_move', 'debt_payment'}:
+    # X11: a bill filed as spending and an unrelated deposit of the same amount are not a move - filed as spending,
+    # the leaving side pairs only when it reached a card or loan
+    if ck.get(d.category_id) == 'spending' and acct_type.get(c.account_id) not in DEBT_ACCOUNTS:
+        return False
+    if {ck.get(d.category_id), ck.get(c.category_id)} & {'own_move', 'debt_payment'}:
         return True
-    return any(rx.search(_text(t)) for t in (d, c) for rx in (MOVE_RX, PAYMENT_RX))
+    if any(MOVE_RX.search(_text(t)) for t in (d, c)):
+        return True
+    return bool(PAYMENT_RX.search(_text(c)))                  # X11: "payment" on the arriving side only
 
 
-def find_pairs(rows, ck, acct_type, said=()):
+def _amount(t):
+    return round(abs(float(t.amount or 0)), 2)
+
+
+def find_pairs(rows, ck, acct_type, said=(), others=None):
     """[(out_row, in_row)]: each debit paired with at most one credit of the same amount on another account within
-    PAIR_DAYS, nearest date first. A pair the person said is not a move is skipped (X3)."""
+    PAIR_DAYS, nearest date first. A pair the person said is not a move is skipped (X3). `others`, when given, gets
+    {debit id: [the other credits that could have been its arriving side]} (X17)."""
     rejected = rejected_pairs(said)
     credits = {}
     for t in rows:
         # the arriving side is filed as a move or a payment, or not filed at all: money filed as income, as a refund
         # or under a spending category is something else that happens to match (the null model's store credit)
         if t.type == 'credit' and t.account_id and t.date and ck.get(t.category_id) in ARRIVING \
-                and not REFUND_RX.search(_text(t)):
-            credits.setdefault(round(abs(float(t.amount or 0)), 2), []).append(t)
+                and not REFUND_RX.search(_text(t)) and _amount(t) > 0:       # X16
+            credits.setdefault(_amount(t), []).append(t)
     used, out = set(), []
     for d in sorted((t for t in rows if t.type == 'debit' and t.account_id and t.date), key=lambda t: (t.date, t.id)):
-        if ck.get(d.category_id) == 'income' or REFUND_RX.search(_text(d)):
+        if ck.get(d.category_id) == 'income' or REFUND_RX.search(_text(d)) or _amount(d) == 0:
             continue
-        best = None
-        for c in credits.get(round(abs(float(d.amount or 0)), 2), []):
-            if c.id in used or c.account_id == d.account_id or abs((c.date - d.date).days) > PAIR_DAYS:
-                continue
-            if pair_key(d, c) in rejected or not _evidence(d, c, ck, acct_type):
-                continue
-            if best is None or (abs((c.date - d.date).days), c.id) < (abs((best.date - d.date).days), best.id):
-                best = c
-        if best is not None:
-            used.add(best.id)
-            out.append((d, best))
+        fits = [c for c in credits.get(_amount(d), [])
+                if c.id not in used and c.account_id != d.account_id and abs((c.date - d.date).days) <= PAIR_DAYS
+                and pair_key(d, c) not in rejected and _evidence(d, c, ck, acct_type)]
+        if not fits:
+            continue
+        best = min(fits, key=lambda c: (abs((c.date - d.date).days), c.id))
+        used.add(best.id)
+        out.append((d, best))
+        if others is not None and len(fits) > 1:
+            others[d.id] = [c for c in fits if c is not best]
     return out
 
 
@@ -209,18 +226,25 @@ def classify(rows, cats, acct_type, linked=(), said=(), income_ids=(), debt_name
     ck = category_kinds(cats, income_ids)
     name = {cid: c.name for cid, c in cats.items()}
     linked = set(linked)
-    out = {}
-    for d, c in find_pairs(rows, ck, acct_type, said):
+    out, others = {}, {}
+    for d, c in find_pairs(rows, ck, acct_type, said, others):
         ans = answer_for(said, d, c)
         conf = ans in ('yes', 'always')
         out_kind = 'debt_payment' if acct_type.get(c.account_id) in DEBT_ACCOUNTS else 'own_move'
         out[d.id] = {'kind': out_kind, 'category': name.get(d.category_id), 'pair': c.id, 'confirmed': conf}
         out[c.id] = {'kind': 'own_move', 'category': name.get(c.category_id), 'pair': d.id, 'confirmed': conf}
-    # X5: the category a refund nets against - the same payee's latest purchase category
+        if d.id in others:
+            out[d.id]['others'] = [x.id for x in others[d.id]]                   # X17
+    # X5 / X12: the category a refund nets against - the same payee's latest purchase on or before the refund
     bought = {}
     for t in sorted(rows, key=lambda t: (t.date or datetime.min.date(), t.id)):
         if t.type == 'debit' and ck.get(t.category_id) == 'spending':
-            bought[payee_key(t)] = name.get(t.category_id)
+            bought.setdefault(payee_key(t), []).append((t.date or datetime.min.date(), name.get(t.category_id)))
+
+    def bought_before(t):
+        when = t.date or datetime.max.date()
+        before = [cat for d, cat in bought.get(payee_key(t), []) if d <= when]
+        return before[-1] if before else None
     for t in rows:
         if t.id in out:
             continue
@@ -259,7 +283,7 @@ def classify(rows, cats, acct_type, linked=(), said=(), income_ids=(), debt_name
             else:
                 k = 'unknown'
             if k == 'refund':                                        # X5
-                cat = bought.get(payee_key(t)) or (cat if f == 'spending' else None) or 'Other'
+                cat = bought_before(t) or (cat if f == 'spending' else None) or 'Other'
             out[t.id] = {'kind': k, 'category': cat, 'pair': None, 'confirmed': None}
         else:
             out[t.id] = {'kind': 'unknown', 'category': name.get(t.category_id), 'pair': None, 'confirmed': None}
@@ -310,8 +334,8 @@ LABEL = 'Money between your accounts'
 SOURCE = ('From your Ledger: the same amount left one of your accounts and reached another within three days. '
           'Until you answer, Groundwork counts it as a move, not as spending.')
 ESTABLISHES = ('That the same amount left one of your accounts and reached another of your accounts within three days, '
-               'with a sign it was a move: it was filed as a transfer or payment, the bank called it one, or it reached '
-               'a card or loan.')
+               'with a sign it was a move: it was filed as a transfer or payment, the bank called it a transfer, or the '
+               'arriving side was called a payment.')
 CANNOT = ('Whether it really was one move - two unrelated amounts can match. A move to an account that is not in '
           'Groundwork has only one side here, and is counted as you filed it.')
 
@@ -320,10 +344,12 @@ def _day(d):
     return f'{d.strftime("%b")} {d.day}'
 
 
-def sentence(out_row, in_row, accounts):
+def sentence(out_row, in_row, accounts, others=()):
     amt = f'${abs(float(out_row.amount or 0)):,.2f}'
+    also = ''.join(f' {amt} also reached {accounts.get(o.account_id, "another account")} on {_day(o.date)}.'
+                   for o in others)                                              # X17: the other side it could be
     return (f'{amt} left {accounts.get(out_row.account_id, "one account")} on {_day(out_row.date)} and {amt} reached '
-            f'{accounts.get(in_row.account_id, "another")} on {_day(in_row.date)}. '
+            f'{accounts.get(in_row.account_id, "another")} on {_day(in_row.date)}.{also} '
             'Is this money moving between your accounts?')
 
 
@@ -334,6 +360,7 @@ def asking(session):
     said = _said(session)
     accounts = {a.id: a.name for a in session.query(Account).all()}
     ids = {i for i, v in k.items() if v['pair'] and not v['confirmed']}
+    ids |= {o for i in ids for o in (k[i].get('others') or [])}
     rows = {t.id: t for t in session.query(Transaction).filter(Transaction.id.in_(ids)).all()} if ids else {}
     out = []
     for i in ids:
@@ -345,7 +372,8 @@ def asking(session):
             continue
         out.append({'kind': 'own_move', 'subject': pair_key(t, c), 'pair': pair_key(t, c),
                     'title': (t.merchant or t.description or '').strip()[:60] or 'A move', 'date': t.date.isoformat(),
-                    'amount': round(abs(float(t.amount or 0)), 2), 'sentence': sentence(t, c, accounts),
+                    'amount': round(abs(float(t.amount or 0)), 2),
+                    'sentence': sentence(t, c, accounts, [rows[o] for o in k[i].get('others') or [] if o in rows]),
                     'label': LABEL, 'source': SOURCE, 'fact': pair_key(t, c)})
     return sorted(out, key=lambda x: (x['date'], x['pair']), reverse=True)
 
@@ -361,6 +389,24 @@ def rows_of(session, pk):
     if (k.get(a) or {}).get('pair') != b:
         return None
     return session.get(Transaction, a), session.get(Transaction, b)
+
+
+def money_out(t, k):
+    """X19: a debit that left the household - spending, interest, cash, a payment to a debt whose purchases aren't on
+    record. A move between the person's own accounts is not, and neither is a payment to a card that is in Groundwork:
+    the card's purchases are already counted (the double count X4 ended)."""
+    v = k.get(t.id) or {}
+    if t.type != 'debit' or v.get('kind') == 'own_move':
+        return False
+    return not (v.get('kind') == 'debt_payment' and v.get('pair'))
+
+
+def filed_income_pairs(rows, ck, acct_type, said=()):
+    """X20: deposits filed as income that would pair as a move if they weren't - [(out_row, in_row)]. The Ledger
+    never counts them as a move (a paycheck isn't one); Ask why's own-transfers check asks, by the same rule."""
+    inc = {cid for cid, kd in ck.items() if kd == 'income'}
+    as_unfiled = {cid: (None if cid in inc else kd) for cid, kd in ck.items()}
+    return [(d, c) for d, c in find_pairs(rows, as_unfiled, acct_type, said) if c.category_id in inc]
 
 
 def moved_by(rows, k):

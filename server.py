@@ -63,9 +63,13 @@ _ASSET_FILES = ('groundwork.png', 'groundwork_256.png', 'groundwork.ico')
 
 # Sent with every response (issue 4). The page leans on inline handlers (onclick=...), so inline script stays
 # allowed; what the policy takes away is somewhere to send data: connect, images, fonts and media come only from
-# this server, the page cannot be framed, and no form or <base> can point elsewhere.
+# this server, the page cannot be framed, and no form or <base> can point elsewhere. 'unsafe-eval' is allowed
+# because pywebview builds window.pywebview.api with new Function (its js/api.js): without it WebKit on Linux
+# refused the bridge, and links, the crisis lines' Call/Text and the folder picker had no way to Python (Rob
+# 2026-11-01: "Allow unsafe-eval"; ENGINE_OTHER_PLATFORMS.md section 7). With inline script already allowed it
+# opens no new door; connect-src 'self' still leaves injected script nowhere to send data.
 _SECURITY_HEADERS = {
-    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
                                "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; "
                                "media-src 'self' data: blob:; worker-src 'self' blob:; connect-src 'self'; "
                                "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
@@ -1595,16 +1599,17 @@ def _bills_ctx(session):
     alloc = session.query(ReserveAllocation).order_by(ReserveAllocation.seq.desc()).first()
     reserve = float(alloc.amount) if alloc else 0.0
     floor = sum(v['month_amount'] for v in budget_month_amounts(session).values())
-    # L8: the leanest of the last twelve complete months - money in by the one income definition, money out less transfers
+    # L8: the leanest of the last twelve complete months - money in by the one income definition, money out by
+    # item 111's (X19: no move between the person's own accounts, no payment to a card whose purchases are counted)
     month_start = date.today().replace(day=1)
     since = (month_start - timedelta(days=366)).replace(day=1)
-    inc_ids, tr_ids = income_category_ids(session), _transfer_category_ids(session)
+    inc_ids, kinds = income_category_ids(session), money_kind.kinds(session)
     months = {}
     for t in session.query(Transaction).filter(Transaction.date >= since, Transaction.date < month_start).all():
         m = months.setdefault(t.date.strftime('%Y-%m'), [0.0, 0.0])
         if t.type == 'credit' and t.category_id in inc_ids:
             m[0] += float(t.amount or 0)
-        elif t.type == 'debit' and t.category_id not in tr_ids:
+        elif money_kind.money_out(t, kinds):
             m[1] += float(t.amount or 0)
     from core.health_reserve import _setting as _hr_setting
     choice = (_hr_setting(session, 'reserve_order_json', []) or [None])[-1] or {}
@@ -2419,15 +2424,16 @@ def reallocation_candidates(session, months: int = 6) -> list:
     if len(ledger_months) < MIN_MONTHS_OBSERVED:
         return []
 
-    rows = session.query(
-        Category.name,
-        func.strftime('%Y-%m', Transaction.date).label('m'),
-        func.sum(Transaction.amount)
-    ).join(Transaction, Transaction.category_id == Category.id).filter(
-        Transaction.type == 'debit',
-        Transaction.date >= cutoff, Transaction.date < month_start
-    ).group_by(Category.name, 'm').all()
-    spend = {(r[0], r[1]): float(r[2] or 0) for r in rows}
+    # Item 111 X19: what a category spent - the spending kind only, so a card payment or a move filed under a
+    # budgeted category never shows as money a lever could free
+    kinds = money_kind.kinds(session)
+    spend = {}
+    for tid, name, d, amount in session.query(Transaction.id, Category.name, Transaction.date, Transaction.amount).join(
+            Category, Transaction.category_id == Category.id).filter(
+            Transaction.type == 'debit', Transaction.date >= cutoff, Transaction.date < month_start).all():
+        if d and (kinds.get(tid) or {}).get('kind') == 'spending':
+            key = (name, d.strftime('%Y-%m'))
+            spend[key] = spend.get(key, 0.0) + float(amount or 0)
 
     out = []
     for item in session.query(BudgetItem).filter_by(is_active=True, type='expense').all():
@@ -2548,22 +2554,23 @@ def _willingness_inputs(session, months: int = 12) -> dict:
                       'shared_answer': said_shared.get(e.id)})
 
     # Spending by category and month, over complete months only - the current month is half-recorded by
-    # definition. Transfers are money moving between the user's own accounts, not spending.
-    rows = session.query(
-        Category.name, Category.type, func.strftime('%Y-%m', Transaction.date), func.sum(Transaction.amount)
-    ).outerjoin(Category, Transaction.category_id == Category.id).filter(
-        Transaction.type == 'debit', Transaction.date >= cutoff, Transaction.date < month_start
-    ).group_by(Category.name, Category.type, func.strftime('%Y-%m', Transaction.date)).all()
+    # definition. Item 111 X19: `spend` is spending (the one kind); `debits` is money out of the household - a move
+    # between the person's own accounts, or a payment to a card whose purchases are on record, is neither.
+    kinds = money_kind.kinds(session)
+    rows = session.query(Transaction.id, Transaction.type, Category.name, Transaction.date, Transaction.amount).outerjoin(
+        Category, Transaction.category_id == Category.id).filter(
+        Transaction.type == 'debit', Transaction.date >= cutoff, Transaction.date < month_start).all()
     spend, debits, ledger_months = {}, {}, set()
-    for name, ctype, m, total in rows:
-        if not m:
+    for r in rows:
+        if not r.date:
             continue
+        m = r.date.strftime('%Y-%m')
         ledger_months.add(m)
-        if (ctype or '').lower() == 'transfer':
+        if not money_kind.money_out(r, kinds):
             continue
-        debits[m] = debits.get(m, 0.0) + float(total or 0)
-        if name:
-            spend[(name, m)] = spend.get((name, m), 0.0) + float(total or 0)
+        debits[m] = debits.get(m, 0.0) + float(r.amount or 0)
+        if r.name and (kinds.get(r.id) or {}).get('kind') == 'spending':
+            spend[(r.name, m)] = spend.get((r.name, m), 0.0) + float(r.amount or 0)
 
     # Income by month - only months with income on record appear, so a month with none is unknown rather
     # than zero (absence is not zero).
@@ -2835,15 +2842,14 @@ def _futures_inputs(session, today=None):
         Transaction.date >= start, Transaction.date < end).group_by(func.strftime('%Y-%m', Transaction.date)).all())
     inc_months = [m for m in months12[-6:] if m in ledger and (inc.get(m) or 0) > 0][-3:]
     income = round(median(float(inc[m]) for m in inc_months), 2) if len(inc_months) >= fu.MIN_INCOME_MONTHS else None
-    spend_rows = session.query(Category.type, func.strftime('%Y-%m', Transaction.date), func.sum(Transaction.amount)) \
-        .outerjoin(Category, Transaction.category_id == Category.id).filter(
-        Transaction.type == 'debit', Transaction.date >= start, Transaction.date < end) \
-        .group_by(Category.type, func.strftime('%Y-%m', Transaction.date)).all()
+    # item 111 X19: the spending record is the spending kind, as the plan's `spend` leaves the debt lines out
+    kinds = money_kind.kinds(session)
     spent = {}
-    for ctype, m, total in spend_rows:
-        if (ctype or '').lower() == 'transfer' or not m:
-            continue
-        spent[m] = spent.get(m, 0.0) + abs(float(total or 0))
+    for tid, d, amount in session.query(Transaction.id, Transaction.date, Transaction.amount).filter(
+            Transaction.type == 'debit', Transaction.date >= start, Transaction.date < end).all():
+        if d and (kinds.get(tid) or {}).get('kind') == 'spending':
+            m = d.strftime('%Y-%m')
+            spent[m] = spent.get(m, 0.0) + abs(float(amount or 0))
     spend_record = [(m, round(spent.get(m, 0.0), 2)) for m in months12 if m in ledger]
 
     month_amts = budget_month_amounts(session)
@@ -3495,9 +3501,12 @@ def _price_changes(session, today=None):
     from core import recurring_groups as rg
     today = today or date.today()
     rows = session.query(Transaction.merchant, Transaction.account_id, Transaction.date, Transaction.amount,
-                         Category.name).outerjoin(Category, Category.id == Transaction.category_id).filter(
+                         Category.name, Transaction.id).outerjoin(Category, Category.id == Transaction.category_id).filter(
         Transaction.type == 'debit', Transaction.merchant != '', Transaction.date >= today - timedelta(days=396),
         Transaction.date <= today).all()
+    # item 111 X19: only spending has a price - a debt payment filed under a spending category is not a charge
+    kinds = money_kind.kinds(session)
+    rows = [r[:5] for r in rows if (kinds.get(r[5]) or {}).get('kind') == 'spending']
     names = {a.id: a.name for a in session.query(Account).all()}
     out = []
     # item 108: a price steps on one account's charges; `payee` matches the budget line and the tap (R5), `label`
@@ -3742,10 +3751,12 @@ def voice_speak():
     """Groundwork's own words, said in its own voice, here (core/speak.py). The sound comes back and nothing is kept.
     V9: in the voice chosen in Settings (speak_voice), or a voice named for "Hear it" - one of speak.VOICES only."""
     from core import speak
+    body = request.get_json(silent=True) or {}
+    if not str(body.get('text') or '').strip():          # nothing to say is refused first, voice or no voice
+        return err('There is nothing to say.', 400)
     st = speak.status()
     if not st['available']:
         return err(st['reason'], 503)
-    body = request.get_json(silent=True) or {}
     chosen = str(body.get('voice') or '')
     with db_session() as session:
         if chosen not in speak.VOICES:
@@ -4036,8 +4047,10 @@ def _yearly_steps(session, today=None):
     from core.price_change import USAGE_CATEGORIES
     today = today or date.today()
     rows = session.query(Transaction.merchant, Transaction.account_id, Transaction.date, Transaction.amount,
-                         Category.name).outerjoin(Category, Category.id == Transaction.category_id).filter(
+                         Category.name, Transaction.id).outerjoin(Category, Category.id == Transaction.category_id).filter(
         Transaction.type == 'debit', Transaction.merchant != '', Transaction.date <= today).all()
+    kinds = money_kind.kinds(session)                       # item 111 X19: only spending steps in price
+    rows = [r[:5] for r in rows if (kinds.get(r[5]) or {}).get('kind') == 'spending']
     names = {a.id: a.name for a in session.query(Account).all()}
     answers = _yearly_answers(session)
     follow = set(_setting_json(session, 'yearly_step_follow', []) or [])
@@ -4246,8 +4259,11 @@ def _first_import_findings(session):
     said_h = [e for e in _setting_json(session, 'heavy_months_json', []) or [] if isinstance(e, dict)]
     # item 108: a renewal is one payee from one account, named by its label; the answer is the payee's (R5)
     names = {a.id: a.name for a in session.query(Account).all()}
+    kinds = money_kind.kinds(session)
     by, cat, of = {}, {}, {}
-    for grp in rg.groups([(m, acct, d, a, c) for m, d, a, _, c, acct, _id in rows], names):
+    # item 111 X19: a renewal is spending - a yearly transfer to savings or a loan payment is not a bill that renews
+    for grp in rg.groups([(m, acct, d, a, c) for m, d, a, _, c, acct, _id in rows
+                          if (kinds.get(_id) or {}).get('kind') == 'spending'], names):
         by[grp['label']] = [(d, a) for d, a, _ in grp['rows']]
         cat[grp['label']] = grp['rows'][-1][2] or ''
         of[grp['label']] = grp
@@ -4261,7 +4277,6 @@ def _first_import_findings(session):
         ren.append(f)
     # heavy months: spending by complete month (item 111: spending is the one kind - no move, payment or cash),
     # and each category's usual month
-    kinds = money_kind.kinds(session)
     keep = set(months)
     totals, cats = {k: 0.0 for k in months}, {}
     for _, d, a, cid, c, _acct, tid in rows:
@@ -6563,11 +6578,15 @@ def _category_months(session, name, months=12):
     cutoff = start - timedelta(days=30 * months)
     held = sorted({r[0] for r in session.query(func.strftime('%Y-%m', Transaction.date)).filter(
         Transaction.type == 'debit', Transaction.date >= cutoff, Transaction.date < start).distinct().all() if r[0]})
-    rows = session.query(func.strftime('%Y-%m', Transaction.date), func.sum(Transaction.amount)).join(
-        Category, Transaction.category_id == Category.id).filter(
-        func.lower(Category.name) == name.lower(), Transaction.type == 'debit',
-        Transaction.date >= cutoff, Transaction.date < start).group_by(func.strftime('%Y-%m', Transaction.date)).all()
-    seen = {m: round(float(v or 0), 2) for m, v in rows if m}
+    # item 111 X19: the category's spending - a card payment or a move filed in it is not
+    kinds = money_kind.kinds(session)
+    seen = {}
+    for tid, d, amount in session.query(Transaction.id, Transaction.date, Transaction.amount).join(
+            Category, Transaction.category_id == Category.id).filter(
+            func.lower(Category.name) == name.lower(), Transaction.type == 'debit',
+            Transaction.date >= cutoff, Transaction.date < start).all():
+        if d and (kinds.get(tid) or {}).get('kind') == 'spending':
+            seen[d.strftime('%Y-%m')] = round(seen.get(d.strftime('%Y-%m'), 0.0) + float(amount or 0), 2)
     return held, seen
 assert tuple(e['id'] for e in TILE_CATALOGUE if e['default']) == DASHBOARD_TILES   # one list, not two (R1)
 _REQUEST_MAX_CHARS = 200        # R5

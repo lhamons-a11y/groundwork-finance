@@ -20,6 +20,7 @@ import statistics
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
+from core import money_kind
 from core import two_accounts
 
 PERIOD_MONTHS = 12
@@ -143,7 +144,7 @@ def check_inputs_income(session, today, data):
     cats, accts, rows = data
     start, end = _period(today)
     counted, left = defaultdict(float), defaultdict(lambda: defaultdict(float))
-    transfer = {cid for cid, c in cats.items() if (c.name or '').lower() == 'transfer'}
+    transfer = money_kind.category_ids(cats, {'own_move'}, _INCOME_IDS)     # item 111 X20: the one word list
     for t in rows:
         if t.type != 'credit' or not (start <= t.date < end):
             continue
@@ -207,6 +208,7 @@ def check_wrong_kind(session, today, data):
         if t.category_id in cats and t.type in ('credit', 'debit'):
             by[t.category_id][t.type].append(t)
     income_cats = [c for c in cats.values() if (c.type or '') == 'income']
+    moves = money_kind.category_ids(cats, {'own_move'}, _INCOME_IDS)        # item 111 X20: the one word list
     out = []
     # D2: a category named for a budget income line already counts as income (core/income_def.py), so the check no
     # longer offers to retype it - nothing in the figures would change (Rob 2026-10-11: "make check my records skip
@@ -215,7 +217,7 @@ def check_wrong_kind(session, today, data):
         c = cats[cid]
         cr, db = d['credit'], d['debit']
         crs, dbs = sum(t.amount or 0 for t in cr), sum(t.amount or 0 for t in db)
-        if (c.type or 'expense') == 'expense' and (c.name or '').lower() != 'transfer' \
+        if (c.type or 'expense') == 'expense' and cid not in moves \
                 and cid not in _INCOME_IDS and len(cr) >= WRONG_KIND_MIN and crs > dbs:
             text = (f'"{c.name}" is a spending category, and it holds {len(cr)} deposits (${crs:,.2f})'
                     + (f' and {len(db)} charges (${dbs:,.2f})' if db else '') + '.')
@@ -294,20 +296,21 @@ def check_duplicates(session, today, data):
 
 
 def check_own_transfers(session, today, data):
+    """Item 111 X20: a deposit counted as income that pairs, by the Ledger's own rule (money_kind.find_pairs), with
+    money leaving another of the person's accounts. Moved to a Transfer category, it becomes the Ledger's X3 question."""
     cats, accts, rows = data
-    debits = [t for t in rows if t.type == 'debit']
+    ck = money_kind.category_kinds(cats, _INCOME_IDS)
+    acct_type = {i: (a.type or '').lower() for i, a in accts.items()}
+    moves = sorted(money_kind.category_ids(cats, {'own_move'}, _INCOME_IDS))
+    transfer = cats[min(moves, key=lambda i: ((cats[i].name or '').strip() != 'Transfer', i))] if moves else None
     out = []
-    for t in rows:
-        if t.type != 'credit' or not _is_income_cat(cats, t.category_id):
+    for d, t in money_kind.filed_income_pairs(rows, ck, acct_type, money_kind._said(session)):
+        if d.account_id not in accts:
             continue
-        match = [d for d in debits if d.account_id != t.account_id and abs((d.date - t.date).days) <= 2
-                 and abs((d.amount or 0) - (t.amount or 0)) < 0.005 and d.account_id in accts]
-        if match:
-            transfer = next((c for c in cats.values() if (c.name or '').lower() == 'transfer'), None)
-            text = (f'A ${t.amount:,.2f} deposit on {t.date.isoformat()} is counted as income, and the same amount left '
-                    f'{accts[match[0].account_id].name} on {match[0].date.isoformat()}.')
-            fixes = [_recat_fix('Move the deposit to "Transfer"', [t.id], transfer.id, None, 'credit')] if transfer else []
-            out.append(_finding('own_transfers', text, [_row(x, cats, accts) for x in [t] + match[:1]], fixes))
+        text = (f'A ${t.amount:,.2f} deposit on {t.date.isoformat()} is counted as income, and the same amount left '
+                f'{accts[d.account_id].name} on {d.date.isoformat()}.')
+        fixes = [_recat_fix(f'Move the deposit to "{transfer.name}"', [t.id], transfer.id, None, 'credit')] if transfer else []
+        out.append(_finding('own_transfers', text, [_row(x, cats, accts) for x in (t, d)], fixes))
     return out
 
 

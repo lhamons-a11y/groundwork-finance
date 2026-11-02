@@ -69,6 +69,8 @@ def run(ctx):
               "connect-src 'self'" in csp and "frame-ancestors 'none'" in csp and "default-src 'self'" in csp
               and "img-src 'self' data: blob:" in csp and r.headers.get('X-Frame-Options') == 'DENY'
               and r.headers.get('X-Content-Type-Options') == 'nosniff')
+        check(f"s270 #4 {label}: script may be evaluated, as pywebview's bridge needs (Rob 2026-11-01), and still"
+              f" only from this server", "script-src 'self' 'unsafe-inline' 'unsafe-eval';" in csp)
 
     # ── 7. what is served ──────────────────────────────────────────────────────
     gone = {p: c.get(p).status_code for p in ('/core/database.py', '/server.py', '/LICENSE', '/bank_importer.py',
