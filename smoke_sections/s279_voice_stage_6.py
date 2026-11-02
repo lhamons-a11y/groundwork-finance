@@ -101,7 +101,7 @@ console.log(JSON.stringify(out));
     finally:
         speak._load, speak.status = real
     check(f"s279 V16 a name taught is said that way, whole words only, and forgotten when removed ({heard})",
-          heard == ['my-er: 40 dollars, at my-er #12.', 'Meijer: 40 dollars.'])
+          heard == ['my-er: 40 dollars, at my-er #12.', 'Myer: 40 dollars.'])   # removed: back to the built-in MY-er (2026-11-01)
     check('s279 V16 taught by voice, with Undo; shown in Settings with Remove; never learned without being told',
           "_save('speak_lexicon', JSON.stringify(lex))" in acc and 'data-gw-unsay' in acc
           and "say\\s+(.+?)\\s+(?:like|as)\\s+" in acc)

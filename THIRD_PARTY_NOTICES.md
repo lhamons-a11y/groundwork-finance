@@ -23,6 +23,8 @@ Read aloud is said on this computer (core/speak.py); nothing it reads is sent an
 |---|---|---|
 | Kokoro-82M (the bundled voice model, int8, and its voices) | Apache-2.0 | https://huggingface.co/hexgrad/Kokoro-82M |
 | kokoro-onnx 0.6.1 | MIT | https://github.com/thewh1teagle/kokoro-onnx |
+| The names of United States supermarket chains (core/data/grocery_chains.json), from Wikipedia's "List of supermarket chains in the United States", revision 1375454291 (2026-09-17), by its contributors; names only, with Groundwork's own kinds and respellings | CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0/ | https://en.wikipedia.org/wiki/List_of_supermarket_chains_in_the_United_States |
+| WeSpeaker ResNet34-LM trained on VoxCeleb (the bundled voiceprint model for "Only voices it knows"), by the WeNet community, used unchanged | CC BY 4.0, https://creativecommons.org/licenses/by/4.0/ | https://huggingface.co/Wespeaker/wespeaker-voxceleb-resnet34-LM |
 | ONNX Runtime | MIT | https://onnxruntime.ai |
 | phonemizer | GPL-3.0-or-later | https://github.com/bootphon/phonemizer |
 | eSpeak NG (through espeakng-loader) | GPL-3.0-or-later | https://github.com/espeak-ng/espeak-ng |

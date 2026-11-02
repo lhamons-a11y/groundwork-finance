@@ -1,0 +1,1881 @@
+{
+ "source": "https://en.wikipedia.org/wiki/List_of_supermarket_chains_in_the_United_States",
+ "revision": 1375454291,
+ "revision_time": "2026-09-17T21:46:29Z",
+ "retrieved": "2026-11-01",
+ "licence": "CC BY-SA 4.0 (Wikipedia); the names are facts, credited in THIRD_PARTY_NOTICES.md",
+ "chains": [
+  {
+   "name": "Albertsons",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Acme Markets",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Haggen",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Jewel Osco",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Market Street",
+   "section": "National chains",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Randalls",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Tom Thumb",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Safeway",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Shaw's and Star Market",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Vons",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Pavilions",
+   "section": "National chains",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Amazon",
+   "section": "National chains",
+   "kind": "mixed"
+  },
+  {
+   "name": "Whole Foods Market",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Kroger",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Baker's",
+   "section": "National chains",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "City Market",
+   "section": "National chains",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Dillons",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Food 4 Less",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Fred Meyer",
+   "section": "National chains",
+   "kind": "grocery",
+   "say": "Fred Myer"
+  },
+  {
+   "name": "Fry's",
+   "section": "National chains",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Gerbes",
+   "section": "National chains",
+   "kind": "grocery",
+   "say": "Gurbees"
+  },
+  {
+   "name": "Harris Teeter",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "JayC",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "King Soopers",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Mariano's",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Pay Less",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "QFC",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Ralphs",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Roundy's",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Ruler Foods",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Smith's Food and Drug",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Costco",
+   "section": "National chains",
+   "kind": "mixed"
+  },
+  {
+   "name": "BJ's Wholesale Club",
+   "section": "National chains",
+   "kind": "mixed"
+  },
+  {
+   "name": "Target",
+   "section": "National chains",
+   "kind": "mixed"
+  },
+  {
+   "name": "Walmart",
+   "section": "National chains",
+   "kind": "mixed"
+  },
+  {
+   "name": "Walmart Neighborhood Market",
+   "section": "National chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Sam's Club",
+   "section": "National chains",
+   "kind": "mixed"
+  },
+  {
+   "name": "Ahold Delhaize",
+   "section": "Regional chains / East",
+   "kind": "company"
+  },
+  {
+   "name": "Food Lion",
+   "section": "Regional chains / East",
+   "kind": "grocery"
+  },
+  {
+   "name": "Giant",
+   "section": "Regional chains / East",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Giant Food",
+   "section": "Regional chains / East",
+   "kind": "grocery"
+  },
+  {
+   "name": "Hannaford",
+   "section": "Regional chains / East",
+   "kind": "grocery"
+  },
+  {
+   "name": "Stop & Shop",
+   "section": "Regional chains / East",
+   "kind": "grocery"
+  },
+  {
+   "name": "Raley's Supermarkets",
+   "section": "Regional chains / West",
+   "kind": "grocery"
+  },
+  {
+   "name": "Bel Air Markets",
+   "section": "Regional chains / West",
+   "kind": "grocery"
+  },
+  {
+   "name": "Nob Hill Foods",
+   "section": "Regional chains / West",
+   "kind": "grocery"
+  },
+  {
+   "name": "Bashas'",
+   "section": "Regional chains / West",
+   "kind": "grocery"
+  },
+  {
+   "name": "AJ's Fine Foods",
+   "section": "Regional chains / West",
+   "kind": "grocery"
+  },
+  {
+   "name": "Save Mart",
+   "section": "Regional chains / West",
+   "kind": "grocery"
+  },
+  {
+   "name": "Lucky",
+   "section": "Regional chains / West",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Lucky California",
+   "section": "Regional chains / West",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "FoodMaxx",
+   "section": "Regional chains / West",
+   "kind": "grocery"
+  },
+  {
+   "name": "Maxx Value Foods",
+   "section": "Regional chains / West",
+   "kind": "grocery"
+  },
+  {
+   "name": "Smart & Final",
+   "section": "Regional chains / West",
+   "kind": "grocery"
+  },
+  {
+   "name": "Stater Bros.",
+   "section": "Regional chains / West",
+   "kind": "grocery",
+   "say": "Stater Brothers"
+  },
+  {
+   "name": "WinCo Foods",
+   "section": "Regional chains / West",
+   "kind": "grocery"
+  },
+  {
+   "name": "Lin's Fresh Market",
+   "section": "Regional chains / West",
+   "kind": "grocery"
+  },
+  {
+   "name": "Coborn's, Inc.",
+   "section": "Regional chains / Midwest",
+   "kind": "company"
+  },
+  {
+   "name": "Coborn's",
+   "section": "Regional chains / Midwest",
+   "kind": "grocery"
+  },
+  {
+   "name": "Cash Wise",
+   "section": "Regional chains / Midwest",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "MarketPlace Foods",
+   "section": "Regional chains / Midwest",
+   "kind": "grocery"
+  },
+  {
+   "name": "Hornbacher's",
+   "section": "Regional chains / Midwest",
+   "kind": "grocery"
+  },
+  {
+   "name": "Tadych's MarketPlace",
+   "section": "Regional chains / Midwest",
+   "kind": "grocery"
+  },
+  {
+   "name": "Sullivan's Foods",
+   "section": "Regional chains / Midwest",
+   "kind": "grocery"
+  },
+  {
+   "name": "Captain Jack's Liquor Land",
+   "section": "Regional chains / Midwest",
+   "kind": "grocery"
+  },
+  {
+   "name": "Andy's Liquor",
+   "section": "Regional chains / Midwest",
+   "kind": "grocery"
+  },
+  {
+   "name": "Hy-Vee",
+   "section": "Regional chains / Midwest",
+   "kind": "grocery"
+  },
+  {
+   "name": "Dollar Fresh's",
+   "section": "Regional chains / Midwest",
+   "kind": "grocery"
+  },
+  {
+   "name": "Meijer",
+   "section": "Regional chains / Midwest",
+   "kind": "grocery"
+  },
+  {
+   "name": "Fresh Thyme Market",
+   "section": "Regional chains / Midwest",
+   "kind": "grocery"
+  },
+  {
+   "name": "Schnucks",
+   "section": "Regional chains / Midwest",
+   "kind": "grocery"
+  },
+  {
+   "name": "Fareway",
+   "section": "Regional chains / Midwest",
+   "kind": "grocery"
+  },
+  {
+   "name": "KJ's Fresh Market",
+   "section": "Regional chains / Midwest",
+   "kind": "grocery"
+  },
+  {
+   "name": "Harps Food Stores",
+   "section": "Regional chains / Midwest",
+   "kind": "grocery"
+  },
+  {
+   "name": "10Box Cost Plus",
+   "section": "Regional chains / Midwest",
+   "kind": "grocery"
+  },
+  {
+   "name": "Warehouse Market",
+   "section": "Regional chains / Midwest",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "The Markets",
+   "section": "Regional chains / Midwest",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "CashSave",
+   "section": "Regional chains / Midwest",
+   "kind": "grocery"
+  },
+  {
+   "name": "ShopRite",
+   "section": "Regional chains / Northeast",
+   "kind": "grocery"
+  },
+  {
+   "name": "Price Rite",
+   "section": "Regional chains / Northeast",
+   "kind": "grocery"
+  },
+  {
+   "name": "Price Chopper",
+   "section": "Regional chains / Northeast",
+   "kind": "grocery"
+  },
+  {
+   "name": "Market 32",
+   "section": "Regional chains / Northeast",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Weis Markets",
+   "section": "Regional chains / Northeast",
+   "kind": "grocery"
+  },
+  {
+   "name": "Wegmans",
+   "section": "Regional chains / Northeast",
+   "kind": "grocery"
+  },
+  {
+   "name": "Tops",
+   "section": "Regional chains / Northeast",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Giant Eagle",
+   "section": "Regional chains / Northeast",
+   "kind": "grocery"
+  },
+  {
+   "name": "Giant Eagle Express",
+   "section": "Regional chains / Northeast",
+   "kind": "grocery"
+  },
+  {
+   "name": "Market District",
+   "section": "Regional chains / Northeast",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Market District Express",
+   "section": "Regional chains / Northeast",
+   "kind": "grocery"
+  },
+  {
+   "name": "Market Basket",
+   "section": "Regional chains / Northeast",
+   "kind": "grocery"
+  },
+  {
+   "name": "Foodtown",
+   "section": "Regional chains / Northeast",
+   "kind": "grocery"
+  },
+  {
+   "name": "Greenway Markets",
+   "section": "Regional chains / Northeast",
+   "kind": "grocery"
+  },
+  {
+   "name": "Alex Lee Inc.",
+   "section": "Regional chains / South",
+   "kind": "company"
+  },
+  {
+   "name": "Lowes Foods",
+   "section": "Regional chains / South",
+   "kind": "grocery"
+  },
+  {
+   "name": "KJ's Market",
+   "section": "Regional chains / South",
+   "kind": "grocery"
+  },
+  {
+   "name": "IGA Southeast",
+   "section": "Regional chains / South",
+   "kind": "grocery"
+  },
+  {
+   "name": "Brookshire's",
+   "section": "Regional chains / South",
+   "kind": "grocery"
+  },
+  {
+   "name": "Super 1 Foods",
+   "section": "Regional chains / South",
+   "kind": "grocery"
+  },
+  {
+   "name": "Fresh by Brookshire's",
+   "section": "Regional chains / South",
+   "kind": "grocery"
+  },
+  {
+   "name": "Spring Market",
+   "section": "Regional chains / South",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Reasor's",
+   "section": "Regional chains / South",
+   "kind": "grocery",
+   "say": "Reezers"
+  },
+  {
+   "name": "Food City",
+   "section": "Regional chains / South",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Ingles Markets",
+   "section": "Regional chains / South",
+   "kind": "grocery",
+   "say": "Ingulls Markets"
+  },
+  {
+   "name": "Piggly Wiggly",
+   "section": "Regional chains / South",
+   "kind": "grocery"
+  },
+  {
+   "name": "Publix",
+   "section": "Regional chains / South",
+   "kind": "grocery"
+  },
+  {
+   "name": "GreenWise Market",
+   "section": "Regional chains / South",
+   "kind": "grocery"
+  },
+  {
+   "name": "Winn-Dixie",
+   "section": "Regional chains / South",
+   "kind": "grocery"
+  },
+  {
+   "name": "Acme Fresh Market",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Amigo Supermarkets",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Associated Supermarkets",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Berkeley Bowl",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Big Y",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Boyer's Food Markets",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Bristol Farms",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Brookshire Brothers",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Buehler's",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "say": "Beulers"
+  },
+  {
+   "name": "Busch's Fresh Food Market",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Cee Bee Food Stores",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Central Market",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Crest Foods",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Cub Foods",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "D'Agostino Supermarkets",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Dave's Markets",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Dierbergs Markets",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Erewhon",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "say": "Air-wahn"
+  },
+  {
+   "name": "Fairway Market",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Festival Foods",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Food Bazaar",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "The Food Emporium",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Food Town",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Foodarama",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Foodfair",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Foodland",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "FoodLand Supermarkets",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Food King",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Food Rite",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Fresh Encounters",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Gelson's Markets",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "say": "Ghelson's Markets"
+  },
+  {
+   "name": "Gristedes",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "say": "Griss-tee-dees"
+  },
+  {
+   "name": "Harding's",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Harmons",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "H-E-B",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Heinen's",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Highland Park Markets",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Hitchcock's Markets",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Homeland",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Houchens Markets",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Hugo's",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Jerry's Foods",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Jewel-Osco",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Jon's Marketplace",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Karns Quality Foods",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Key Food",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "King Kullen",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Kowalski's Markets",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "say": "Ko-wall-skis Markets"
+  },
+  {
+   "name": "Kuhn's Quality Foods",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Lowe's Market",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Lunds & Byerlys",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Magruder's",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "say": "Muh-grooders"
+  },
+  {
+   "name": "Marc's",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Mardens",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Market of Choice",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Met Foodmarkets",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Morton Williams",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Moser's Foods",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Mother's Market & Kitchen",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Mr. Special",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "say": "Mister Special"
+  },
+  {
+   "name": "No Frills Supermarkets",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "New Seasons Market",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Nugget Markets",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Pueblo",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Pac n Save",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Quality Dairy Company",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Redner's Markets",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Remke Markets",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "say": "Rem-kee Markets"
+  },
+  {
+   "name": "Ridley's Family Markets",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Riesbeck's",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Roche Bros",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "say": "Roach Brothers"
+  },
+  {
+   "name": "Rosauers Supermarkets",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "say": "Rose-hours Supermarkets"
+  },
+  {
+   "name": "Rouses",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Scolari's Food and Drug",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Seabra Foods",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Seller's Brothers",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Sendik's Food Market",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Sentry Foods",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Shoppers Food & Pharmacy",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Sleeper's Supermarket",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Stew Leonard's",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Strack & Van Til",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Straub's Markets",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "SuperFresh",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Super One Foods",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Super King Markets",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Supermercados Selectos",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "The Fresh Grocer",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Times Supermarkets",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Trucchi's",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "say": "Troo-keys"
+  },
+  {
+   "name": "United Grocery Outlet",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Westborn Market",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Western Beef",
+   "section": "Notable local chains",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Woodman's Markets",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Yoke's Fresh Market",
+   "section": "Notable local chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Associated Food Stores",
+   "section": "Retailers' cooperatives",
+   "kind": "company"
+  },
+  {
+   "name": "Lee's Marketplace",
+   "section": "Retailers' cooperatives",
+   "kind": "grocery"
+  },
+  {
+   "name": "Associated Grocers of New England",
+   "section": "Retailers' cooperatives",
+   "kind": "company"
+  },
+  {
+   "name": "Associated Grocers of the South",
+   "section": "Retailers' cooperatives",
+   "kind": "company"
+  },
+  {
+   "name": "Associated Wholesale Grocers",
+   "section": "Retailers' cooperatives",
+   "kind": "company"
+  },
+  {
+   "name": "Apple Market",
+   "section": "Retailers' cooperatives",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Cash Saver",
+   "section": "Retailers' cooperatives",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Country Mart",
+   "section": "Retailers' cooperatives",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Price Mart",
+   "section": "Retailers' cooperatives",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "SunFresh",
+   "section": "Retailers' cooperatives",
+   "kind": "grocery"
+  },
+  {
+   "name": "ThriftWay",
+   "section": "Retailers' cooperatives",
+   "kind": "grocery"
+  },
+  {
+   "name": "C-Town",
+   "section": "Retailers' cooperatives",
+   "kind": "grocery"
+  },
+  {
+   "name": "Great Valu",
+   "section": "Retailers' cooperatives",
+   "kind": "grocery",
+   "say": "Great Value",
+   "generic": true
+  },
+  {
+   "name": "IGA",
+   "section": "Retailers' cooperatives",
+   "kind": "grocery",
+   "say": "I G A"
+  },
+  {
+   "name": "Thrift Way",
+   "section": "Retailers' cooperatives",
+   "kind": "grocery"
+  },
+  {
+   "name": "Shop n Bag",
+   "section": "Retailers' cooperatives",
+   "kind": "grocery"
+  },
+  {
+   "name": "Topco Associates LLC",
+   "section": "Retailers' cooperatives",
+   "kind": "company"
+  },
+  {
+   "name": "Affiliated Foods",
+   "section": "Retailers' cooperatives",
+   "kind": "company"
+  },
+  {
+   "name": "Associated Grocers",
+   "section": "Retailers' cooperatives",
+   "kind": "company"
+  },
+  {
+   "name": "Wakefern Food Corporation",
+   "section": "Retailers' cooperatives",
+   "kind": "company"
+  },
+  {
+   "name": "Gerrity's Supermarkets",
+   "section": "Retailers' cooperatives",
+   "kind": "grocery",
+   "say": "Gair-itty's Supermarkets"
+  },
+  {
+   "name": "Nicholas Markets",
+   "section": "Retailers' cooperatives",
+   "kind": "grocery"
+  },
+  {
+   "name": "Aldi",
+   "section": "Deep-discount and limited-assortment chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Big Lots",
+   "section": "Deep-discount and limited-assortment chains",
+   "kind": "mixed"
+  },
+  {
+   "name": "Dollar General",
+   "section": "Deep-discount and limited-assortment chains",
+   "kind": "mixed"
+  },
+  {
+   "name": "Family Dollar",
+   "section": "Deep-discount and limited-assortment chains",
+   "kind": "mixed"
+  },
+  {
+   "name": "Five Below",
+   "section": "Deep-discount and limited-assortment chains",
+   "kind": "mixed"
+  },
+  {
+   "name": "Grocery Outlet",
+   "section": "Deep-discount and limited-assortment chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Lidl",
+   "section": "Deep-discount and limited-assortment chains",
+   "kind": "grocery",
+   "say": "Leedle"
+  },
+  {
+   "name": "Save A Lot",
+   "section": "Deep-discount and limited-assortment chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "Trader Joe's",
+   "section": "Deep-discount and limited-assortment chains",
+   "kind": "grocery"
+  },
+  {
+   "name": "99 Ranch Market",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Ai Hoa Supermarket",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery",
+   "say": "Eye Wah Supermarket"
+  },
+  {
+   "name": "Asian Food Center",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "CAM Asian Market",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "C-Mart Supermarket",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Food Maxx International",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Fei Long Market",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Fresh International Market",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Global Food International",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Good Fortune Supermarket",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Great Wall Supermarket",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Hoa Binh Supermarket",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery",
+   "say": "Wah Bin Supermarket"
+  },
+  {
+   "name": "H K Market",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Hong Kong Food Market",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Hong Kong Supermarket",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "J-mart",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Kam Man Food",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Lion Food",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Metro Supermarket",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "O-Mart",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Ocean Mart",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Pacific Ocean Marketplace",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Sieu Thi ABC",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery",
+   "say": "Syoo Tee A-B-C"
+  },
+  {
+   "name": "Skyfood Supermarket",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Shun Fat Supermarket",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "zTao Marketplace",
+   "section": "Ethnic chains / Chinese/Vietnamese or Pan-Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Arirang Market",
+   "section": "Ethnic chains / Korean",
+   "kind": "grocery",
+   "say": "Ah-ree-rahng Market"
+  },
+  {
+   "name": "ASSI Plaza",
+   "section": "Ethnic chains / Korean",
+   "kind": "grocery"
+  },
+  {
+   "name": "Galleria Market",
+   "section": "Ethnic chains / Korean",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Greenland Market",
+   "section": "Ethnic chains / Korean",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Grand Mart",
+   "section": "Ethnic chains / Korean",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Hannam",
+   "section": "Ethnic chains / Korean",
+   "kind": "grocery"
+  },
+  {
+   "name": "Hanyang Mart",
+   "section": "Ethnic chains / Korean",
+   "kind": "grocery"
+  },
+  {
+   "name": "H Mart",
+   "section": "Ethnic chains / Korean",
+   "kind": "grocery"
+  },
+  {
+   "name": "Lotte Plaza",
+   "section": "Ethnic chains / Korean",
+   "kind": "grocery",
+   "say": "Lot-teh Plaza"
+  },
+  {
+   "name": "Nam Dae Mun Farmers Market",
+   "section": "Ethnic chains / Korean",
+   "kind": "grocery",
+   "say": "Nam Deh Moon Farmers Market"
+  },
+  {
+   "name": "Super G Mart",
+   "section": "Ethnic chains / Korean",
+   "kind": "grocery"
+  },
+  {
+   "name": "Zion Market",
+   "section": "Ethnic chains / Korean",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Marukai",
+   "section": "Ethnic chains / Japanese",
+   "kind": "grocery"
+  },
+  {
+   "name": "Mitsuwa",
+   "section": "Ethnic chains / Japanese",
+   "kind": "grocery",
+   "say": "Meet-soo-wah"
+  },
+  {
+   "name": "Nijiya Market",
+   "section": "Ethnic chains / Japanese",
+   "kind": "grocery",
+   "say": "Nee-jee-yah Market"
+  },
+  {
+   "name": "Seiwa Market",
+   "section": "Ethnic chains / Japanese",
+   "kind": "grocery"
+  },
+  {
+   "name": "Uwajimaya",
+   "section": "Ethnic chains / Japanese",
+   "kind": "grocery",
+   "say": "Oo-wah-jee-mah-yah"
+  },
+  {
+   "name": "88 Ranch Marketplace",
+   "section": "Ethnic chains / Filipino",
+   "kind": "grocery"
+  },
+  {
+   "name": "Island Pacific Supermarket",
+   "section": "Ethnic chains / Filipino",
+   "kind": "grocery"
+  },
+  {
+   "name": "Seafood City",
+   "section": "Ethnic chains / Filipino",
+   "kind": "grocery"
+  },
+  {
+   "name": "India Bazaar",
+   "section": "Ethnic chains / Indian/South Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "IndiaCo",
+   "section": "Ethnic chains / Indian/South Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Indopak Supermarket and Cafe",
+   "section": "Ethnic chains / Indian/South Asian",
+   "kind": "grocery",
+   "say": "Indo-pak Supermarket and Cafe"
+  },
+  {
+   "name": "New India Bazar",
+   "section": "Ethnic chains / Indian/South Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Patel Brothers",
+   "section": "Ethnic chains / Indian/South Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Rani's World Foods",
+   "section": "Ethnic chains / Indian/South Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Subzi Bazaar",
+   "section": "Ethnic chains / Indian/South Asian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Bravo",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "El Ahorro Supermarket",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "say": "El Ah-orro Supermarket"
+  },
+  {
+   "name": "Fiesta Mart",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery"
+  },
+  {
+   "name": "Mi Pueblo Food Center",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "say": "Mee Pueblo Food Center"
+  },
+  {
+   "name": "Mi Tienda",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "say": "Mee Tee-enda"
+  },
+  {
+   "name": "La Michoacana Meat Market",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "say": "Lah Mee-cho-ah-kah-nah Meat Market"
+  },
+  {
+   "name": "Número Uno Market",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "say": "Noo-meh-ro Oono Market"
+  },
+  {
+   "name": "Ideal Market",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "La Perla Tapatía Supermarkets",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "say": "La Perla Tapa-tee-ah Supermarkets"
+  },
+  {
+   "name": "La Placita",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Presidente",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "say": "Preh-see-den-teh",
+   "generic": true
+  },
+  {
+   "name": "Pro's Ranch Market",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery"
+  },
+  {
+   "name": "Los Altos Ranch Market",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery"
+  },
+  {
+   "name": "Publix Sabor",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "say": "Publix Sah-bor"
+  },
+  {
+   "name": "El Pueblo",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery"
+  },
+  {
+   "name": "R Ranch Markets",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery"
+  },
+  {
+   "name": "El Ranchito",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery"
+  },
+  {
+   "name": "El Rancho",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Rancho Liborio",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery"
+  },
+  {
+   "name": "Rancho Markets",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery"
+  },
+  {
+   "name": "El Rey",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "El Río Grande Latin Market",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery"
+  },
+  {
+   "name": "Northgate González Market",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery"
+  },
+  {
+   "name": "Rio Ranch Markets",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery"
+  },
+  {
+   "name": "Saver's Cost Plus",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery"
+  },
+  {
+   "name": "Sedano's",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery"
+  },
+  {
+   "name": "Seller's Bros.",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "say": "Seller's Brothers"
+  },
+  {
+   "name": "El Super",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "La Bonita",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Super Market México",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery"
+  },
+  {
+   "name": "Superior Super Warehouse",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery"
+  },
+  {
+   "name": "Supermercado El Rancho",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery"
+  },
+  {
+   "name": "Supermercados Teloloapan",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery"
+  },
+  {
+   "name": "Supersaver Foods",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery"
+  },
+  {
+   "name": "Super A Foods",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "say": "Super Ay Foods",
+   "generic": true
+  },
+  {
+   "name": "Talpa Supermercardos",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery"
+  },
+  {
+   "name": "Tenochtitlán Market",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "say": "Teh-noch-teet-lahn Market"
+  },
+  {
+   "name": "Terry's",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "El Mariachi Supermarkets",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery"
+  },
+  {
+   "name": "Tresierras Supermarkets",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "say": "Tress-see-air-ahs Supermarkets"
+  },
+  {
+   "name": "Twin City Supermarket",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Vallarta Supermarkets",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "say": "Vy-yarta Supermarkets"
+  },
+  {
+   "name": "Viva Markets",
+   "section": "Ethnic chains / Hispanic/Latino",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Caraluzzi's",
+   "section": "Ethnic chains / Italian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Livoti's Old World Market",
+   "section": "Ethnic chains / Italian",
+   "kind": "grocery"
+  },
+  {
+   "name": "Uncle Giuseppe's",
+   "section": "Ethnic chains / Italian",
+   "kind": "grocery",
+   "say": "Uncle Joo-seppies"
+  },
+  {
+   "name": "Motty's",
+   "section": "Ethnic chains / Kosher",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "New Day",
+   "section": "Ethnic chains / Kosher",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Wesley Kosher",
+   "section": "Ethnic chains / Kosher",
+   "kind": "grocery"
+  },
+  {
+   "name": "Evergreen",
+   "section": "Ethnic chains / Kosher",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Seasons",
+   "section": "Ethnic chains / Kosher",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Seven Mile Market",
+   "section": "Ethnic chains / Kosher",
+   "kind": "grocery"
+  },
+  {
+   "name": "Breadberry",
+   "section": "Ethnic chains / Kosher",
+   "kind": "grocery"
+  },
+  {
+   "name": "Rockland Kosher",
+   "section": "Ethnic chains / Kosher",
+   "kind": "grocery"
+  },
+  {
+   "name": "Grand & Essex",
+   "section": "Ethnic chains / Kosher",
+   "kind": "grocery"
+  },
+  {
+   "name": "Western Kosher",
+   "section": "Ethnic chains / Kosher",
+   "kind": "grocery"
+  },
+  {
+   "name": "The Market Place",
+   "section": "Ethnic chains / Kosher",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Kosher Konnection",
+   "section": "Ethnic chains / Kosher",
+   "kind": "grocery"
+  },
+  {
+   "name": "Gourmet Glatt",
+   "section": "Ethnic chains / Kosher",
+   "kind": "grocery"
+  },
+  {
+   "name": "Gleiberman's Gourmet",
+   "section": "Ethnic chains / Kosher",
+   "kind": "grocery",
+   "say": "Glyberman's Gourmet"
+  },
+  {
+   "name": "Bingo Wholesale",
+   "section": "Ethnic chains / Kosher",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "The Fresh Market",
+   "section": "Specialty and natural foods",
+   "kind": "grocery",
+   "generic": true
+  },
+  {
+   "name": "Publix Green Wise",
+   "section": "Specialty and natural foods",
+   "kind": "grocery"
+  },
+  {
+   "name": "Sprouts Farmers Market",
+   "section": "Specialty and natural foods",
+   "kind": "grocery"
+  },
+  {
+   "name": "Whole Foods",
+   "section": "Specialty and natural foods",
+   "kind": "grocery"
+  },
+  {
+   "name": "Natural Grocers",
+   "section": "Specialty and natural foods",
+   "kind": "grocery"
+  },
+  {
+   "name": "Earth Fare",
+   "section": "Specialty and natural foods",
+   "kind": "grocery"
+  }
+ ]
+}

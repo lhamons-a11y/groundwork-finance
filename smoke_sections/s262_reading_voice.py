@@ -207,7 +207,7 @@ globalThis.GWTeaching = { register: (n, m) => { mods[n] = m; } };
         o = {'error': (r.stdout + r.stderr)[-400:]}
     check(f"s262 P6/113 everything is off by default at the standard size, and the browser's recognition is gone "
           f"({o.get('defaults')}, {o.get('recognition')}, {o.get('error')})",
-          o.get('defaults') == {'text_size': '100', 'read_aloud': 'off', 'read_rate': 'normal', 'voice_commands': 'off', 'voice_tour': '', 'voice_wake': 'off', 'speak_voice': '', 'mic_device': '', 'voice_first': 'off'}
+          o.get('defaults') == {'text_size': '100', 'read_aloud': 'off', 'read_rate': 'normal', 'voice_commands': 'off', 'voice_tour': '', 'voice_wake': 'off', 'speak_voice': '', 'mic_device': '', 'voice_first': 'off', 'heard_as': ''}
           and o.get('recognition') == ['undefined', 'undefined'])
     check(f"s262 P6 a section is read in Groundwork's words with a voice on this computer, then 'Would you like this "
           f"explained further?'; yes reads what the figure means ({o.get('read')}; {o.get('question')}; "

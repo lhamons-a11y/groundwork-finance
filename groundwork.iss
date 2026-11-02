@@ -51,6 +51,8 @@ Source: "vendor\whisper\ggml-base.en.bin"; DestDir: "{app}\models"; Flags: ignor
 ; Groundwork's own voice (core/speak.py), when staged (scripts/fetch_kokoro_model.py); without it read aloud uses the computer's voices
 Source: "vendor\kokoro\kokoro-v1.0.int8.onnx"; DestDir: "{app}\models"; Flags: ignoreversion nocompression skipifsourcedoesntexist
 Source: "vendor\kokoro\voices-v1.0.bin"; DestDir: "{app}\models"; Flags: ignoreversion nocompression skipifsourcedoesntexist
+; Whose voice it is (core/voiceprint.py, item 116 V19), when staged (scripts/fetch_voiceprint_model.py)
+Source: "vendor\voiceprint\voxceleb_resnet34_LM.onnx"; DestDir: "{app}\models"; Flags: ignoreversion nocompression skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"

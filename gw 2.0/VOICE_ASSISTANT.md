@@ -116,6 +116,148 @@ two engines; Portuguese is weaker; Hindi, Japanese and Mandarin are not ready wi
 pronunciation tool before Groundwork can speak it at all). A larger multilingual whisper ("small", about 465 MB)
 hears other languages far better than base - a size Rob would weigh. Real speakers decide all of it.
 
+## 4c. V19 Only voices it knows - BUILT 2026-11-01, awaiting acceptance
+
+Rob 2026-11-01, after the microphone kept picking up the television: *"lets have it recognize your voice.. Since we
+are dealing with people finance and health information."* Background sound was handled first (an adaptive room level
+and a minimum length of sound, s281); a television's speech is speech, so only knowing the voice keeps it out.
+
+**As built** (`core/voiceprint.py`, routes in `server.py`, Settings in `access.js`, s282):
+- **The model**: WeSpeaker ResNet34-LM trained on VoxCeleb, 26.5 MB, **CC BY 4.0** (commercial use with credit;
+  credited in `THIRD_PARTY_NOTICES.md`), run by the ONNX Runtime Groundwork's voice already ships. Pinned by SHA-256,
+  fetched by `scripts/fetch_voiceprint_model.py`, placed by all three installers and the Mac/Linux specs. Kaldi's
+  80-band filterbank is computed in NumPy, as WeSpeaker computes it, with the silence trimmed first.
+- **Enrolling**: Settings -> Reading & Voice -> *Only voices it knows* -> *Teach it my voice*. Five everyday sentences,
+  one at a time, each ended by a pause. The server makes the voiceprint (256 numbers, not a recording) and keeps it in
+  the record under its own setting; *Only voices it knows* turns on. A reading that does not sound like the others is
+  refused and nothing is kept. Each person in the household can add their own, by name; enrolling again under the
+  same name replaces it. *Forget* deletes it; with none left the setting turns off.
+- **The gate**: with it on, each clip is scored against the voices it knows before whisper runs. Below the bar the clip
+  is let go - no words recognised, no toast, nothing kept. A clip it cannot score is no one it knows (fail closed).
+  **Anyone may say "stop" while Groundwork reads** - stopping can only hide; "next", "repeat" and the rest are gated.
+- **Never sent to the page**: `/api/settings` leaves the voiceprints out and PATCH cannot write them; the page sees
+  names and dates only. **Never learned from listening** (the no-silent-learning rule): only enrolling changes it.
+- **Test my microphone** says whose voice it heard, with the score and the bar ("Scored 0.71; it needs 0.45").
+- **Said plainly in Settings**: it keeps other voices from using Groundwork; it is **not a lock** - a recording of the
+  person's voice could pass it, and it does nothing about someone reading the screen.
+
+**Measured** (`scripts/voiceprint_measure.py`, 2026-11-01): 30 synthetic voices - every English Kokoro voice and
+Windows' David and Zira - each enrolled in turn, then V8's 30 commands said by it and by the 29 others, clean, with
+noise at 15 dB, and with a 60 Hz hum at 10 dB. 2,690 same-voice and 78,010 other-voice clips.
+
+| bar | the enrolled voice refused | another voice taken |
+|---|---|---|
+| 0.35 | 4.2% | 3.0% |
+| 0.40 | 7.6% | 1.7% |
+| **0.45 (as built)** | **11.0%** | **0.87%** |
+| 0.55 | 25% | 0.17% |
+
+- Equal error rate 3.6%. A voiceprint takes 40 ms for a 3 s clip (143 ms at most).
+- **Trimming the silence is what makes it work**: without it the equal error rate was 29%.
+- **Short commands are the weak point**: under a second of speech ("Stop", "Next"), the enrolled voice's median score is
+  0.50 against 0.67-0.75 for longer commands - most of the 11% refused are one-word commands.
+- Enrolment's agreement bar (0.65): every voice's own readings agreed at 0.794 or more; with one reading swapped for
+  another voice's, 4,344 of 4,350 were caught.
+- The null model: noise, hum and silence alone scored at most 0.11.
+- An error in the first run, caught: "Microsoft Mark" is not installed, so Windows kept speaking as Zira - the "two
+  voices" scored 0.909. Only installed voices are used now.
+
+**Not the exit criterion**: Kokoro's voices are one model's styles and may sit closer together, or further apart, than
+people do. The bar is settled only on real people - Rob, and someone else - on the Windows laptop's microphone, with a
+television on.
+
+**Rob's to rule** (built as recommended, each one constant or line to change):
+
+| # | Question | As built |
+|---|---|---|
+| K-a | The bar | 0.45: about 1 in 9 commands from the enrolled voice refused (mostly one word), under 1 in 100 from other voices taken. Lower is friendlier, higher is stricter. |
+| K-b | "Stop" from anyone while it reads | allowed - stopping only hides. Gate it too, or allow "pause" only? |
+| K-c | What a refused clip shows | nothing - the television would otherwise toast every sentence. The enrolled person finds out from Test my microphone. |
+| K-d | Turned on by enrolling | yes - that is why someone enrols. |
+
+## 4d. V20 Several commands in one ask - BUILT 2026-11-01, awaiting acceptance
+
+Rob 2026-11-01: *"Groundwork to open the ledger, and then show me all of Chiefs Supermarket transactions" ... "It should
+be able to understand a multiple ask."* The ask is split at "and then", "then", "after that", "and also", "and" and
+commas - **only where every part is itself a command Groundwork knows** (a page, an action, a Ledger search, what's
+coming up); otherwise it stays one ask, so "my Kroger and Walmart transactions" is still one search and a question is
+still a question. Up to four parts, done in the order said, each given a moment for its page to open; a spoken ask
+hears one reply naming them all ("Sure, opening the Ledger for you. Then, OK, showing your Chiefs Supermarket
+transactions in the Ledger."). Typed asks get the same. A leftover "to" ("Groundwork to open ...") is dropped. s283.
+
+**Several stores in one search** (Rob: *"it fails on asking for two stores"*): "my Kroger and Walmart transactions",
+"Kroger, Walmart and Aldi" - each store searched, when each is in the record and the whole phrase is not ("Barnes and
+Noble" stays one name). The Ledger search takes "kroger or walmart", typed too.
+
+**A store said as it sounds** (Rob: *"meyer is meijer"*): a name that matches nothing is taken as the record's store it
+sounds like - compared by sound (ij/y, ph/f, ck/k, double letters, a plural s), against the store's whole name and its
+first words, same first letter, one sound different at most (two in a long name) - and the toast says what was heard.
+Measured on Rob's 295 stores: Meyer and Meijers -> Meijer, Chiefs Supermarket -> Chief Supermarket 2 Millbrook, Aldis,
+Wallmart found; 40 everyday words that are not stores ("dinner", "milk", "rent") taken for none - the first cut took
+"dinner" for Disney+ and missed "Chiefs" entirely, and was tightened before it shipped.
+
+**In a list, a name that is no store** is named as not found and the rest are shown (whisper wrote "my Meijer and
+Walmart" as "admire and walmart": Walmart shown, "nothing in your record is called 'admire'").
+
+**"When I say admire, I mean Meijer"** (Rob: *"Yes, add that"*): what Groundwork hears, taken the person's way from then
+on - whole words only, spoken words only (typed words are already the person's). Said back with an Undo, kept in
+Settings -> Reading & Voice -> *Words it hears your way*, each with Remove; never learned without being told (the
+no-silent-learning rule, as V16 for how names are said).
+
+## 4e. V21 Groundwork's voice learns from the person, and can be taught - RULED 2026-11-01, BUILT
+
+Rob 2026-11-01: *"the voice assistant should be able to learn from the user and I think we will need to have a way that
+the user can teach the voice assistant. Lets make that the call."* It came from whisper hearing "Meijer" as "admire"
+every time - even in "I mean Meijer", so the word meant could not be said.
+
+**How it stays inside the no-silent-learning rule** (*an observation not surfaced to the person cannot become
+persistent memory*): nothing is kept until it is said. The counting lives in the window's memory only; when a word is
+learned, Groundwork says so then - *"I noticed that when I hear admire, you mean Meijer. I will take it that way from now
+on"* - with an Undo, and it is listed in Settings with Remove. A one-time notice alone was considered and set aside: it
+says learning happens, not what was learned.
+
+- **Taught**: Settings -> Reading & Voice -> *Words it hears your way*: *Teach it a word* (say it; Groundwork shows what
+  it heard; type what was said), the typed form *When I say [ ] I mean [ ]*, or saying "when I say admire, I mean
+  Meijer". Saying it with the same word twice ("I mean admire") is answered, not dropped.
+- **Learned**: a spoken search word that finds nothing, then - within a minute, said or typed - one store looked for
+  instead. **The third time**, the word is taken as that store.
+- **Measured before it was built** (null model on Rob's stores and how often he shops at each, 20,000 sessions): with no
+  link between the two searches, learning after one pairing was wrong in 48% of sessions, after two 0.04%, after three
+  none. The hard case is habit - a store not found, then the usual one: with the same usual store 80% of the time, two
+  was wrong in 2.3% of sessions and three in 0.08%. Hence three.
+- The voiceprint (4c) is unchanged: it is never adapted from listening, only by enrolling again.
+- **Settings has its own tab, Reading & Voice** (Rob: *"in settings I would like a tab all voice and reading assistance
+  should get moved to"*): text size, read aloud, Groundwork's voice, voice first, voice commands, start by saying
+  Groundwork, the microphone, words it hears your way, only voices it knows. "Accessibility" was offered; Reading & Voice
+  was chosen because voice commands are not only an accessibility feature, and the section already had that name.
+
+## 4f. V22 The country's supermarket chains - BUILT 2026-11-01
+
+Rob 2026-11-01: *"here is a website to grab all of the major national Grocery Stores that is in the United States"*
+(Wikipedia, *List of supermarket chains in the United States*). Asked what Groundwork should do with it, he chose all
+three: say every name right, hear the names right, know they are grocery stores.
+
+- **The list**: `core/data/grocery_chains.json`, built by `scripts/build_grocery_chains.py` from the page's raw text
+  (revision 1375454291, 2026-09-17) - 353 names: 332 grocery, 10 mixed (Walmart, Target, Costco, Amazon, Sam's Club,
+  BJ's, the dollar stores), 11 parent companies and cooperatives. Wholesalers and defunct chains are left out. It ships
+  with the app; Groundwork never fetches it. Credited (CC BY-SA 4.0) in THIRD_PARTY_NOTICES.md.
+- **Said right**: every name was run through Groundwork's voice and its phonemes read; 45 it says wrong are respelled
+  (Fred Meyer was "Fred MAY-er", IGA "igga", Lidl "LID-ul", Ingles "ing-LEZ", Gelson's and Gerrity's a soft g,
+  Stater Bros. "Brose", and the Spanish, Japanese, Korean and Vietnamese names read as English). The store's own words
+  alone are respelled too ("GELSON'S #12"). The person's own "say X like Y" still wins. Rob is to listen to these.
+- **Heard right**: the sound-alike matching (4d) tries the person's own stores first, then the chains - "wegmen's" is
+  Wegmans before a first visit. Measured: 16 mishearings found (Wegmans, Hy-Vee, Lidl, Schnucks, Trader Joe's, Fred
+  Meyer...), and of 76 everyday words none taken for a different store.
+- **Known as grocery**: right after the importer's own Groceries rule, on the server (`bank_importer.auto_category`)
+  and the page (`clientAutoCategory`) alike, a bank line naming a grocery chain - or saying "supermarket" /
+  "supermercado" - is Groceries. Before this, "food" filed Food Lion, Cub Foods, Harps and Food 4 Less as Restaurants.
+  Never moved: 62 chains named by an everyday word or phrase (Giant, Lucky, Tops, Seasons, Market Street, City
+  Market - "LUCKY DRAGON" is not a supermarket, "123 MARKET STREET" is an address), the mixed stores (their own rules
+  stand), and the precise rules before it (Meijer Express is fuel, Walgreens is Prescriptions).
+- **Measured on Rob's record** (1,751 transactions): the rules now file 66 differently - Chief Supermarket 2 Millbrook (65,
+  $2,574.08: Other -> Groceries; saved today under the parent Food) and one Jim's Thriftway. Only new imports are
+  filed by the rules; nothing saved moves, and the category review offers any move only on a Yes. s284.
+
 ## 4a. Measured (V8, first cut, 2026-10-31 - synthetic voices, not yet real people)
 
 `scripts/voice_measure.py`: 30 commands said by six voices - Kokoro af_heart, am_michael, bf_emma, bm_george (American

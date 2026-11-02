@@ -2889,6 +2889,9 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <div style="display:flex;align-items:center;flex:1;gap:0;flex-wrap:wrap">
             <button id="settingsTab-general" onclick="_settingsShowTab('general')"
               style="font-size:var(--fs-base);padding:8px 18px;background:none;border:none;cursor:pointer;color:var(--pine-text);border-bottom:2px solid var(--pine);margin-bottom:-1px;font-family:var(--font-sans);font-weight:500">General</button>
+            <!-- Rob 2026-11-01: all voice and reading help in a tab of its own, text size with it -->
+            <button id="settingsTab-voice" onclick="_settingsShowTab('voice')"
+              style="font-size:var(--fs-base);padding:8px 18px;background:none;border:none;cursor:pointer;color:var(--slate);border-bottom:2px solid transparent;margin-bottom:-1px;font-family:var(--font-sans)">Reading &amp; Voice</button>
             <button id="settingsTab-automation" onclick="_settingsShowTab('automation')"
               style="font-size:var(--fs-base);padding:8px 18px;background:none;border:none;cursor:pointer;color:var(--slate);border-bottom:2px solid transparent;margin-bottom:-1px;font-family:var(--font-sans)">Automation</button>
             <button id="settingsTab-categories" onclick="_settingsShowTab('categories')"
@@ -3018,6 +3021,9 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 
         </div><!-- end core settings grid -->
         </div><!-- end settingsPanel-general -->
+
+        <!-- ── READING & VOICE TAB (filled by teaching/access.js) ───────── -->
+        <div id="settingsPanel-voice" style="display:none"></div><!-- end settingsPanel-voice -->
 
         <!-- ── AUTOMATION TAB ──────────────────────────────────────────── -->
         <div id="settingsPanel-automation" style="display:none">

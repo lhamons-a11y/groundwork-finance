@@ -1520,6 +1520,7 @@ async function bootFromDB() {
   const data = bootstrapRes.data || bootstrapRes;
   if (!data) throw new Error('Empty bootstrap response');
   restoreFromBootstrap(data);
+  _gwLoadChains();          // the supermarket chains, for an import's categories and the voice (core/data/grocery_chains.json)
   // The debts' balance history is what tells the Dashboard the balances are kept up - read at boot, not only when the
   // Budget page opens (until then the Dashboard said "balances unverified" whatever the history held)
   await _budgetLoadDebtHistory();
@@ -3341,6 +3342,25 @@ function _renderLedgerMonthSwitcher() {
 // The rows the Ledger shows: every month while a search or filter is on, else the selected month; then the search,
 // category, type, account and uncleared-only filters. renderLedger() lists these rows and updateLedgerStats() counts and
 // totals the same ones - the header once counted every row while a search showed nine.
+// Search: check merchant (canonical clean name) first, then description,
+// then category. Normalize special chars so "at&t" matches "AT&T",
+// "att", "at & t" — the & is the common failure case.
+function _ledgerTermMatch(t, search) {
+  const normalize = s => (s||'').toLowerCase()
+    .replace(/&/g, 'and')      // at&t → atand t; also accept "and" version
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const normSearch = normalize(search);
+  // Also try the raw search for exact-match users who type the & themselves
+  const rawSearch  = String(search).toLowerCase();
+  return normalize(t.merchant || '').includes(normSearch)
+      || normalize(t.description || '').includes(normSearch)
+      || (t.category||'').toLowerCase().includes(normSearch)
+      || (t.merchant||'').toLowerCase().includes(rawSearch)
+      || (t.description||'').toLowerCase().includes(rawSearch);
+}
+
 function _ledgerFilteredTxns() {
   let txns = _ledgerHasActiveFilter() ? S.transactions.slice() : _ledgerTxnsForSelectedMonth().slice();
   const search = (g('ledgerSearch')?.value||'').toLowerCase();
@@ -3348,28 +3368,10 @@ function _ledgerFilteredTxns() {
   const type   = g('ledgerTypeFilter')?.value||'';
   const acct   = g('ledgerAccountFilter')?.value||'';
 
-  // Search: check merchant (canonical clean name) first, then description,
-  // then category. Normalize special chars so "at&t" matches "AT&T",
-  // "att", "at & t" — the & is the common failure case.
-  if (search) {
-    const normalize = s => (s||'').toLowerCase()
-      .replace(/&/g, 'and')      // at&t → atand t; also accept "and" version
-      .replace(/[^a-z0-9 ]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    const normSearch = normalize(search);
-    // Also try the raw search for exact-match users who type the & themselves
-    const rawSearch  = search.toLowerCase();
-    txns = txns.filter(t => {
-      const merchant = normalize(t.merchant || '');
-      const desc     = normalize(t.description || '');
-      const cat      = (t.category||'').toLowerCase();
-      return merchant.includes(normSearch)
-          || desc.includes(normSearch)
-          || cat.includes(normSearch)
-          || (t.merchant||'').toLowerCase().includes(rawSearch)
-          || (t.description||'').toLowerCase().includes(rawSearch);
-    });
+  if (search) {                // _ledgerTermMatch: merchant, description, category
+    // Item 116 (Rob 2026-11-01: two stores in one ask): "kroger or walmart" shows either
+    const terms = search.split(/\s+or\s+/).map(s => s.trim()).filter(Boolean);
+    txns = txns.filter(t => terms.some(term => _ledgerTermMatch(t, term)));
   }
   if (cat) {
     // If filtering by a parent category, include all its child categories
@@ -4056,9 +4058,16 @@ function _initLedgerColResize() {
 let _ledgerShowAll = false;        // Phase 3 row cap — per-filter
 let _ledgerLastFilterSig = '';
 let _ledgerSearchTimer = null;
+let _ledgerTypedTimer = null;
 function ledgerSearchInput() {
   clearTimeout(_ledgerSearchTimer);
   _ledgerSearchTimer = setTimeout(renderLedger, 180);
+  // a search typed after a spoken one found nothing - once the typing settles (item 116, _askNoteFound)
+  clearTimeout(_ledgerTypedTimer);
+  _ledgerTypedTimer = setTimeout(() => {
+    const terms = (g('ledgerSearch')?.value || '').toLowerCase().split(/\s+or\s+/).map(s => s.trim()).filter(Boolean);
+    if (terms.length && terms.every(t => (S.transactions || []).some(x => _ledgerTermMatch(x, t)))) _askNoteFound(terms);
+  }, 1500);
 }
 
 function renderLedger() {
@@ -7164,6 +7173,7 @@ function clientAutoCategory(desc='') {
   if (/\bmortgage\b|\brent (payment|check)\b|\blandlord\b|\bhoa fees?\b|\bproperty tax\b|\bhome depot\b|\blowe.?s\b|\bmenards|\bmnrd\b/.test(d)) return 'Rent / Mortgage';
   if (/\bsherwin.?williams\b|\bbenjamin moore\b|\broto.rooter\b|\bplumb(er|ing)\b|\bhvac\b|\belectrician\b|\blawn (care|service|mow)\b|\bpest control\b|\borkin\b|\bterminix\b|\bcontractor\b|\bcleaning service\b/.test(d)) return 'Home Maintenance';
   if (/\bwalmart\b|\bwal-?mart\b|\bwm supercenter\b|\bkroger\b|\bmeijer\b|\bsam.?s\s*club\b|\bsamsclub\b|\bcostco\b|\baldi\b|\bruler foods\b|\bwhole foods\b|\bsprouts\b|\btrader joe.?s\b|\bsafeway\b|\bpublix\b|\bgrocery\b/.test(d)) return 'Groceries';
+  if (typeof _gwGroceryChain === 'function' && _gwGroceryChain(d)) return 'Groceries';   // Rob 2026-11-01: the country's supermarket chains - bank_importer.py asks the same list here
   if (/\bstarbucks\b|\btropical smoothie\b|\bdunkin\b|\btim hortons\b|\bpeet.?s coffee\b|\bblue bottle\b|\bcaribou (coffee)?\b|\bcoffee (shop|house|company)\b/.test(d)) return 'Coffee Shops';
   if (/\bbuffalo wild|\bbwr\b|\bwingstop|\braising canes?|\b5\s*guys|\bfive guys|\bdomino|\bpapa john|\bchipotle|\btaco bell|\bmcdonald|\bburger king|\bwendy|\bsubway\b|\bdairy queen|\bsonic\b|\bchick.?fil.?a|\bpopeye|\bkfc\b|\bjimmy john|\bpanera bread|\bquizno|\bdoordash|\bgrubhub|\bubereats|\buber eats/.test(d)) return 'Fast Food / Takeout';
   if (/\btexas roadhouse\b|\bolive garden\b|\bapplebee|\bred lobster\b|\bcheesecake (factory)?\b|\bbob evans\b|\bibuy\b|\bdenny.?s\b|\bcracker barrel\b/.test(d)) return 'Restaurants';
@@ -13460,7 +13470,7 @@ const HELP_FAQ = [
   {"q": "What can I ask the assistant?", "a": "With AI on, type in the Ask box at the top - or say it, with voice on. It answers from your own records: what you spent and where, your budget against your spending, your debts and \"what if I paid more on this card\", bills coming up, your savings goals and what is available in an account. Every figure in an answer is Groundwork's own, worked out on this computer; the AI only chooses which to show. When your records hold too little to answer, it says so and what would let it know.", "keys": ["ask", "assistant", "question", "questions", "chat", "talk", "answer", "help"]},
   {"q": "Can the assistant change my records?", "a": "Only with your Yes. Ask it to file transactions under a category, make an import rule, add or change a budget line, or mark a charge as a recurring bill (or not), and it shows a card saying exactly what would change, with Yes and No. Nothing changes until you press Yes, and Undo puts it back. It never moves money, pays a bill, deletes anything or changes your settings - those stay yours, in the app or at your bank.", "keys": ["assistant", "change", "file", "move", "rule", "budget", "line", "recurring", "yes", "card", "proposal"]},
   {"q": "Why did the assistant ask \"Did you mean...?\"", "a": "When the name you used isn't one in your records - say \"Chase Visa\" when the card is the Cashback Visa - it asks about the closest one instead of guessing. Your Yes is kept so it doesn't ask again, and you can see or remove these in Settings → General → Names you use.", "keys": ["did", "mean", "name", "names", "assistant", "ask", "chase", "card"], "open": {"view": "settings", "tab": "general", "el": "settingsNames"}},
-  {"q": "How do I talk to Groundwork?", "a": "Turn on Settings → General → Reading and voice → Voice commands. Then tap the microphone in the Ask box (or press Alt+V) and talk. It stays on until you tap it again, say \"stop\", say nothing for a minute, or leave Groundwork's window, and it doesn't listen while Groundwork is reading aloud. What you say is recognised on this computer and never sent anywhere or kept. An answer to a spoken question is read back in Groundwork's own words. A change is made only by pressing Yes on its card.", "keys": ["talk", "voice", "speak", "microphone", "mic", "say", "listen", "conversation"], "open": {"view": "settings", "tab": "general"}},
+  {"q": "How do I talk to Groundwork?", "a": "Turn on Settings → Reading & Voice → Voice commands. Then tap the microphone in the Ask box (or press Alt+V) and talk. It stays on until you tap it again, say \"stop\", say nothing for a minute, or leave Groundwork's window, and it doesn't listen while Groundwork is reading aloud. What you say is recognised on this computer and never sent anywhere or kept. An answer to a spoken question is read back in Groundwork's own words. A change is made only by pressing Yes on its card.", "keys": ["talk", "voice", "speak", "microphone", "mic", "say", "listen", "conversation"], "open": {"view": "settings", "tab": "voice"}},
   {"q": "What does \"available\" mean on an account?", "a": "The account's balance, less the money set aside in it for your savings goals. If Car repairs ($640) and Holidays ($420) are kept in a savings account holding $1,800, $740 is available. Settings → Accounts shows each account's set-aside goals and what is available, and says so if more is set aside than the account holds. The trip planner and Before You Buy use available, so money set aside is not offered for something else.", "keys": ["available", "set", "aside", "balance", "account", "goal", "goals", "savings"], "open": {"view": "settings", "tab": "accounts"}},
   {"q": "Can I pay for something from a savings goal?", "a": "Yes - when the trip planner or Before You Buy (or the assistant) works out how to pay for something, it asks \"Have you set money aside for this?\" and lists your goals, the one that fits first. A goal covers what it holds; the rest is shown against each account's available money or a card's available credit, with what it would add to your debt on a card. Nothing moves - the goal is reduced when the purchase happens.", "keys": ["pay", "goal", "goals", "set", "aside", "fund", "trip", "buy", "afford"]},
   {"q": "Does the assistant keep my questions?", "a": "No. A question to the assistant is answered and then forgotten - nothing of it is stored. The AI log (Settings → General) keeps only which parts of your records were looked up, and when. The help guide's own list of questions it couldn't answer is separate, and you can clear it.", "keys": ["keep", "kept", "questions", "history", "privacy", "log", "assistant", "stored"]},
@@ -25139,7 +25149,7 @@ function _showHeldAfterImport(held) {
 function _settingsShowTab(tab) {
   _settingsActiveTab = tab;
   if (tab === 'data') renderImportCustody();   // item 93 B5/B7
-  ['general', 'automation', 'categories', 'accounts', 'data'].forEach(t => {
+  ['general', 'voice', 'automation', 'categories', 'accounts', 'data'].forEach(t => {
     const btn   = g(`settingsTab-${t}`);
     const panel = g(`settingsPanel-${t}`);
     const active = t === tab;
@@ -27647,6 +27657,7 @@ const ASK_PLACES = [
   { label: 'Backups', names: ['backups', 'backup', 'data'], view: 'settings', tab: ['settings', 'data'] },
   { label: 'Accounts', names: ['accounts', 'account settings'], view: 'settings', tab: ['settings', 'accounts'] },
   { label: 'the Dashboard', names: ['dashboard', 'home', 'overview'], view: 'dashboard' },
+  { label: 'Reading & Voice', names: ['reading and voice', 'voice settings', 'voice', 'text size', 'read aloud', 'microphone settings', 'accessibility'], view: 'settings', tab: ['settings', 'voice'] },
   { label: 'Settings', names: ['settings', 'preferences'], view: 'settings', tab: ['settings', 'general'] },
 ];
 const ASK_GO = /^\s*(?:please\s+)?(?:can\s+you\s+|could\s+you\s+)?(?:view|see|show(?:\s+me)?|open|go\s+to|goto|take\s+me\s+to|bring\s+up|pull\s+up|display|navigate\s+to|let\s+me\s+see|i\s+want\s+to\s+see|jump\s+to)\b\s*(.*)$/i;
@@ -27721,6 +27732,8 @@ function _askNorm(q) {
   t = t.replace(/[\x22\u201c\u201d]/g, ' ').replace(/([a-z])[.,;:!?]+(?=\s|$)/g, '$1').replace(/\s+/g, ' ').trim();
   t = t.split(/\s+/).map(w => _ASK_SHORT[w] || w).join(' ');
   for (let i = 0; i < 4 && _ASK_LEAD.test(t); i++) t = t.replace(_ASK_LEAD, '');
+  // "Groundwork to open the ledger" (Rob 2026-11-01): a "to" left before the command goes too
+  t = t.replace(/^to\s+(?=(?:open|show|view|see|go|take|bring|pull|build|get|add|import|back|look)\b)/, '');
   return t.replace(/\s+please$/, '').trim();
 }
 
@@ -27969,14 +27982,162 @@ async function askComingUp(month) {
   if (spoken && window.GWVoice) window.GWVoice.say(words);
 }
 
+// Item 116 (Rob 2026-11-01: asking for two stores failed): "kroger and walmart", "kroger, walmart or aldi" are several
+// stores when each one is in the record and the whole phrase is not - so "Barnes and Noble" and "AT&T" stay one name
+function _askStores(term) {
+  const pieces = String(term || '').split(/\s*,\s*(?:and\s+|or\s+)?|\s+(?:and|or|&)\s+/).map(s => s.trim()).filter(Boolean);
+  if (pieces.length < 2 || pieces.length > 6) return null;
+  const has = s => (S.transactions || []).some(t => _ledgerTermMatch(t, s));
+  if (has(term)) return null;
+  // the Ask's own tidying takes a list's commas away ("kroger, walmart and aldi" -> "kroger walmart and aldi"), so a
+  // piece that is no store is tried as several in a row, each a store in the record
+  const run = s => {
+    const w = s.split(/\s+/), best = [[]];
+    for (let i = 1; i <= w.length; i++) for (let j = 0; j < i; j++) {
+      const part = w.slice(j, i).join(' ');
+      if (best[j] && !best[i] && (has(part) || _askSoundsLike(part))) best[i] = [...best[j], has(part) ? part : _askSoundsLike(part)];
+    }
+    return best[w.length] || null;
+  };
+  const named = [];
+  // Rob 2026-11-01: "my Meijer and Walmart" came back from whisper as "admire and walmart" - the stores that are in the
+  // record are shown, and the one that is not is named, rather than nothing at all
+  const missing = [];
+  for (const s of pieces) {
+    const one = has(s) ? [s] : (_askSoundsLike(s) ? [_askSoundsLike(s)] : run(s));
+    if (one) named.push(...one); else missing.push(s);
+  }
+  if (!named.length || named.length + missing.length < 2) return null;
+  named.missing = missing;
+  return named;
+}
+
+// Rob 2026-11-01: "meyer is meijer" - whisper writes a store as it sounds. A name that matches nothing in the record is
+// taken as the store in the record it sounds most like, and the toast says what was heard. Compared by sound (ij and y,
+// ph and f, ck and k, a double letter, a plural s), against the store's whole name and its first words ("chiefs
+// supermarket" is "Chief Supermarket 2 Millbrook"): the same first letter, and at most one sound different (two in a long
+// name). Measured on Rob's 295 stores: Meyer, Meijers, Chiefs, Aldis, Wallmart found; 40 everyday words ("dinner",
+// "milk", "rent") taken for none. A name like nothing there is left as said (and finds nothing).
+function _askSoundsLike(term) {
+  const key = s => String(s || '').toLowerCase().replace(/[\x27’]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
+    .replace(/ij/g, 'y').replace(/ph/g, 'f').replace(/ck/g, 'k').replace(/([a-z])\1+/g, '$1')
+    .split(' ').map(w => w.length > 3 ? w.replace(/s$/, '') : w).join(' ');
+  const t = key(term);
+  if (t.length < 3) return null;
+  const words = t.split(' ').length;
+  const dist = (a, b) => {
+    let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) {
+      const cur = [i];
+      for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = cur;
+    }
+    return prev[b.length];
+  };
+  let best = null, bestD = Infinity;
+  const scan = names => {
+    for (const name of new Set(names)) {
+      const whole = key(name);
+      if (!whole || whole[0] !== t[0]) continue;
+      const head = whole.split(' ').slice(0, words).join(' ');
+      for (const m of new Set([whole, head])) {
+        // run together too: "hyvee" is "hy-vee", "walmart" is "wal mart"
+        const d = Math.min(dist(t, m), dist(t.replace(/ /g, ''), m.replace(/ /g, '')));
+        const allowed = Math.max(t.length, m.length) <= 4 ? 0 : Math.max(t.length, m.length) <= 10 ? 1 : 2;
+        // the search is by what the name begins with, so "chief supermarket" finds "Chief Supermarket 2 Millbrook"
+        if (d <= allowed && d < bestD) { best = m === whole ? String(name).toLowerCase() : String(name).toLowerCase().split(/\s+/).slice(0, words).join(' '); bestD = d; }
+      }
+    }
+  };
+  scan((S.transactions || []).map(x => x.merchant).filter(Boolean));       // the person's own stores first
+  // then the country's supermarket chains (Rob 2026-11-01: "Hear the names right") - "wegmen's" is Wegmans even before
+  // a first visit; the toast says what was heard, and a chain not in the record finds nothing
+  if (!best) scan(((typeof window !== 'undefined' && window._gwChains) || []).map(c => c.name));
+  return best;
+}
+
+// "Know they are grocery stores" (Rob 2026-11-01): the page's half of core/grocery_chains.py - the same list, the same
+// tidying, the same rule. A generic name ("Giant", "Market Street") never decides a category. Before the list has
+// loaded, no chain is found and the other rules decide, as before.
+function _gwChainNorm(text) {
+  const t = String(text || '').toLowerCase().replace(/&/g, ' and ').replace(/[\x27’]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  return t.split(' ').map(w => w.length > 3 && w.endsWith('s') ? w.slice(0, -1) : w).join(' ');
+}
+function _gwGroceryChain(description) {
+  const d = _gwChainNorm(description);
+  if (!d) return null;
+  const pad = ' ' + d + ' ';
+  for (const c of (typeof window !== 'undefined' && window._gwChains) || []) {
+    if (c.kind !== 'grocery' || c.generic) continue;
+    const n = _gwChainNorm(c.name);
+    if (n && pad.includes(' ' + n + ' ')) return c.name;
+  }
+  const m = String(description || '').toLowerCase().match(/\b(?:supermarkets?|supermercados?)\b/);
+  return m ? m[0] : null;
+}
+
+// The chains, from this computer's own server (core/data/grocery_chains.json) - once, when first needed
+function _gwLoadChains() {
+  if (window._gwChains) return;
+  window._gwChains = [];
+  API.get('/api/voice/chains').then(d => { window._gwChains = (d && d.chains) || []; }).catch(_gwErr('_gwLoadChains'));
+}
+
+// Rob 2026-11-01: "the voice assistant should be able to learn from the user". When a spoken search finds nothing and,
+// within a minute, the person looks for one store instead - said or typed - that pair is counted, in this window's
+// memory only. The third time, Groundwork takes the word as that store from then on, and says so, with an Undo; it is
+// listed in Settings, Reading & Voice, with Remove. Nothing is kept until it is said (the no-silent-learning rule).
+// Three, measured (VOICE_ASSISTANT.md 4e): with no link between the two searches, learning after one pairing was wrong
+// in 48% of sessions, after two 0.04%, after three none; when the person always goes to the same usual store instead
+// (habit 0.8), two was wrong in 2.3% of sessions and three in 0.08%.
+const ASK_LEARN_AFTER = 3, ASK_LEARN_WITHIN_MS = 60000;
+let _askUnheard = null;                       // { words, found, at }: the last spoken search's unfound words
+const _askLearnSeen = {};                     // "word|store" -> times, this window only
+function _askNoteFound(terms) {
+  const u = _askUnheard;
+  if (!u || Date.now() - u.at > ASK_LEARN_WITHIN_MS || u.words.length !== 1) return;
+  const fresh = terms.filter(t => !u.found.includes(t) && t !== u.words[0]);
+  if (fresh.length !== 1) return;
+  _askUnheard = null;
+  const key = u.words[0] + '|' + fresh[0];
+  _askLearnSeen[key] = (_askLearnSeen[key] || 0) + 1;
+  if (_askLearnSeen[key] >= ASK_LEARN_AFTER && window.GWVoice && window.GWVoice.learn) {
+    delete _askLearnSeen[key];
+    window.GWVoice.learn(u.words[0], fresh[0], ASK_LEARN_AFTER);
+  }
+}
+
 function askLedgerSearch(term) {
+  const spokenSearch = !!window._gwVoiceAsked;
+  let stores = _askStores(term), heard = '';
+  if (!stores && !(S.transactions || []).some(t => _ledgerTermMatch(t, term))) {
+    const like = _askSoundsLike(term);
+    if (like) { heard = ` (heard “${term}”)`; term = like; }
+  }
+  const list = a => a.length > 1 ? a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1] : a[0];
+  const named = stores ? list(stores.map(_askTitle)) : _askTitle(term);
+  const notFound = stores && stores.missing.length ? list(stores.missing.map(s => `“${s}”`)) : '';
+  if (notFound) heard = ` - nothing in your record is called ${notFound}`;
   _askLast = { kind: 'ledger', term };
-  _askDone(`Showing your ${_askTitle(term)} transactions in the Ledger`);
-  _askSaid(`OK, showing your ${_askTitle(term)} transactions in the Ledger.`);
+  // Rob 2026-11-01: asked for Fred Meyer, which he has never shopped at, it said "Sure, showing your Fred Meyer
+  // transactions" - "If it query the transaction and get not response the voice assistant should show that."
+  const any = !!stores || (S.transactions || []).some(t => _ledgerTermMatch(t, term));
+  if (!any) {
+    _askDone(`No ${named} transactions in the Ledger${heard}`);
+    _askSaid(`I didn't find any ${named} transactions in the Ledger.`);
+  } else {
+    _askDone(`Showing your ${named} transactions in the Ledger${heard}`);
+    _askSaid(`OK, showing your ${named} transactions in the Ledger.` + (notFound ? ` I didn't find ${notFound.replace(/[“”]/g, '')}.` : ''));
+  }
   showView('ledger');
   ['ledgerCatFilter', 'ledgerTypeFilter'].forEach(f => { if (g(f)) g(f).value = ''; });
   const box = g('ledgerSearch');
-  if (box) { box.value = term; renderLedger(); updateLedgerStats(); }
+  if (box) { box.value = stores ? stores.join(' or ') : term; renderLedger(); updateLedgerStats(); }
+  // what to learn from: a spoken word that found nothing, then the store looked for next (_askNoteFound)
+  const found = stores ? stores.slice() : ((S.transactions || []).some(t => _ledgerTermMatch(t, term)) ? [term] : []);
+  const unfound = stores ? stores.missing : (found.length ? [] : [term]);
+  if (found.length) _askNoteFound(found);
+  if (spokenSearch && unfound.length) _askUnheard = { words: unfound.map(w => String(w).toLowerCase()), found, at: Date.now() };
 }
 
 // A budget line or category the person named, as they named it (Rob 2026-10-20: the transactions behind a figure)
@@ -28552,7 +28713,40 @@ function careAsk(q, p, head) {
 
 // V4 (item 116): a question said aloud gets its answer said aloud, whatever answers it - a command's own line, the
 // assistant, a fixed sentence, the guide. "One moment." if it takes more than a moment (V7). Typed, nothing is read.
+// Item 116 (Rob 2026-11-01: "Groundwork to open the ledger, and then show me all of Chiefs Supermarket transactions" -
+// "It should be able to understand a multiple ask"): one ask, several commands, done in the order said. It is split only
+// where every part is itself a command Groundwork knows; otherwise the ask stays whole, so "my Kroger and Walmart
+// transactions" is still one search.
+const _ASK_JOIN = /\s*,?\s+(?:and then|and after that|after that|and also|then|and)\s+|\s*,\s+/;
+function _askIsCommand(n) {
+  return !!n && (ASK_COMING.test(n) || ASK_DO.some(d => d.re.test(n)) || !!_askShowTxns(n) || !!askPlace(n)
+    || ASK_PLACES.some(pl => pl.names.includes(n.replace(/^(?:my|the|our|all)\s+/, ''))));
+}
+function _askParts(q) {
+  const pieces = String(q || '').trim().split(_ASK_JOIN).map(s => s.trim()).filter(Boolean);
+  if (pieces.length < 2 || pieces.length > 4) return null;
+  return pieces.every(s => _askIsCommand(_askNorm(s))) ? pieces : null;
+}
+
 async function askGroundwork(question, shownAs) {
+  _gwLoadChains();
+  const parts = _askParts(question);
+  if (parts) {                                 // each in turn; a spoken ask hears one reply that names them all
+    const spokenAll = !!window._gwVoiceAsked, said = [], voice = window.GWVoice, was = voice && voice.say;
+    if (voice) voice.say = w => { said.push(String(w).replace(/[.!?]+$/, '')); };
+    try {
+      for (const part of parts) {
+        window._gwVoiceAsked = spokenAll;
+        await _askGroundwork(part);
+        await new Promise(r => setTimeout(r, 450));            // the page opens before the next part acts on it
+      }
+    } finally {
+      if (voice) voice.say = was;
+      window._gwVoiceAsked = false;
+    }
+    if (spokenAll && voice && said.length) voice.say(said.join('. Then, ') + '.');
+    return;
+  }
   if (!window._gwVoiceAsked && window.GWVoice && window.GWVoice.first && window.GWVoice.first()) window._gwVoiceAsked = true;   // V12: voice first answers aloud
   const spoken = !!window._gwVoiceAsked;
   const wait = spoken ? setTimeout(() => { if (window._gwVoiceAsked && window.GWVoice) window.GWVoice.say('One moment.'); }, 1200) : null;

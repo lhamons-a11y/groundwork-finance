@@ -156,6 +156,30 @@ def speak_parts():
             + ['espeakng_loader'])
 
 
+# ── Whose voice it is (core/voiceprint.py, item 116 V19) ────────────────────────────────────────────────────────────
+# Runs on the ONNX Runtime the voice already brings; only the model file is added. Optional: without it "Only voices it
+# knows" is not offered. A file that is not the one measured is refused.
+_VOICEPRINT_SRC = (ROOT / 'core' / 'voiceprint.py').read_text(encoding='utf-8')
+VOICEPRINT_FILE = re.search(r"^MODEL_FILE = '([^']+)'", _VOICEPRINT_SRC, re.M).group(1)
+VOICEPRINT_SHA256 = re.search(r"^MODEL_SHA256 = '([0-9a-f]{64})'", _VOICEPRINT_SRC, re.M).group(1)
+
+
+def voiceprint_model_data():
+    """[(file, 'models')] - the measured voiceprint model, from GW_VOICEPRINT_PATH or vendor/voiceprint/. Missing: a
+    warning, and this build does not offer "Only voices it knows". Present but not the measured file: refused."""
+    env = os.environ.get('GW_VOICEPRINT_PATH')
+    src = Path(env) if env else ROOT / 'vendor' / 'voiceprint' / VOICEPRINT_FILE
+    if not src.is_file():
+        print('[spec] WARNING: the voiceprint model is missing (%s) - this build does not offer "Only voices it knows". '
+              'scripts/fetch_voiceprint_model.py fetches it.' % src)
+        return []
+    got = _sha256(src)
+    if got != VOICEPRINT_SHA256:
+        raise BuildRefused(f'spec_engine: {src} is not the measured voiceprint model (SHA-256 {got}, pinned '
+                           f'{VOICEPRINT_SHA256} in core/voiceprint.py).')
+    return [(str(src), 'models')]
+
+
 def speak_model_data():
     """[(file, 'models')] - the measured Kokoro model and voices, from GW_KOKORO_DIR or vendor/kokoro/. Missing: a
     warning and the computer's voices. Present but not the measured files: the build is refused."""

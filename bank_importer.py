@@ -507,6 +507,13 @@ def auto_category(description: str, mcc: str = '') -> str:
     for category, pattern in _CATEGORY_PATTERNS:
         if re.search(pattern, d):
             return category
+        # Rob 2026-11-01 ("Know they are grocery stores"): right after the Groceries rule, the country's supermarket
+        # chains (core/grocery_chains.py) - before "food" files Food Lion or Cub Foods as Restaurants. The page's
+        # clientAutoCategory asks the same list at the same point.
+        if category == 'Groceries':
+            from core import grocery_chains
+            if grocery_chains.grocery_chain(description):
+                return 'Groceries'
     return 'Other'
 
 

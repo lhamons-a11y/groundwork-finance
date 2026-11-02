@@ -48,7 +48,37 @@ class SpeakError(Exception):
 # Rob 2026-11-01: "it does miscreance copy .. it should sound like "cop-pee"". The phonemes were already kˈɑːpi; the
 # voice still blurred it. Spelled his way it gets a clear "cop" and a stressed "pee" (kˈɑːppˈiː). A person's own
 # names (V16) are applied first, so they can still change any of these.
-SAID_RIGHT = {'copy': 'cop-pee', 'copies': 'cop-pees', 'copied': 'cop-peed', 'copying': 'cop-peeing'}
+# Rob 2026-11-01: "it pronounce meijer and major ... it shoud pronouce that word as My-Your". The voice's dictionary gives
+# Meijer exactly major's sounds (mˈeɪdʒɚ). "Myer" is mˈaɪɚ - MY-er, stressed on "my", as the store is said; spelled
+# "My-Your" it came out maɪjʊɹ, "my-yoor", with no stress.
+SAID_RIGHT = {'copy': 'cop-pee', 'copies': 'cop-pees', 'copied': 'cop-peed', 'copying': 'cop-peeing',
+              'meijer': 'Myer'}
+
+# Rob 2026-11-01: the United States' supermarket chains (core/data/grocery_chains.json, from Wikipedia's list; built by
+# scripts/build_grocery_chains.py). The ones the voice says wrong carry a respelling ("say"), each checked on the voice's
+# own phonemes - Fred Meyer was "Fred MAY-er", IGA "igga", Lidl "LID-ul", Gelson's a soft g.
+_CHAINS_SAY = None
+
+
+def _chains_say():
+    global _CHAINS_SAY
+    if _CHAINS_SAY is None:
+        try:
+            import json
+            d = json.loads((Path(__file__).parent / 'data' / 'grocery_chains.json').read_text(encoding='utf-8'))
+            pairs = [(c['name'], c['say']) for c in d.get('chains', []) if c.get('say')]
+        except Exception:
+            pairs = []
+        # a bank line says "GELSON'S #12", not "Gelson's Markets": the store's own words alone, when the respelling
+        # leaves the generic tail as it was
+        tail = re.compile(r'\s+(?:Markets?|Supermarkets?|Foods?|Food Center|Plaza|Gourmet|Supermarket and Cafe)$')
+        for n, how in list(pairs):
+            m, h = tail.search(n), tail.search(how)
+            if m and h and m.group(0) == h.group(0) and len(n[:m.start()]) >= 4:
+                pairs.append((n[:m.start()], how[:h.start()]))
+        _CHAINS_SAY = [(re.compile(r'(?<![\w-])' + re.escape(n) + r'(?![\w-])', re.I), how)
+                       for n, how in sorted(pairs, key=lambda p: -len(p[0]))]
+    return _CHAINS_SAY
 
 # ── Figures, said the way a person says them ─────────────────────────────────────────────────────────────────────────
 _ABBREV = {'APY': 'A P Y', 'HSA': 'H S A', 'FSA': 'F S A', 'EOB': 'E O B', 'IRA': 'I R A',
@@ -86,6 +116,8 @@ def spoken(text, names=None):
             t = re.sub(r'(?<!\w)' + re.escape(name) + r'(?!\w)', how, t, flags=re.I)
     for word, how in SAID_RIGHT.items():                  # after the person's own, so theirs win
         t = re.sub(r'(?<![\w-])' + word + r'(?![\w-])', how, t, flags=re.I)
+    for name_re, how in _chains_say():                    # the supermarket chains it says wrong, after theirs too
+        t = name_re.sub(how, t)
     t = t.replace('→', ' to ').replace('–', ' to ').replace('—', ', ').replace('&', ' and ')
     t = re.sub(r'\b(\d{4})-(\d{2})-(\d{2})\b', _iso_date, t)
     t = re.sub(r'\b(\d{1,2})/(\d{1,2})/(\d{4})\b',

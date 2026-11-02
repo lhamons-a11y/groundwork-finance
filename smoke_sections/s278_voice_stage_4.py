@@ -54,7 +54,7 @@ def run(ctx):
     check('s278 V9/V10/V12 Settings offers the voice with "Hear it", the microphone with a test, and voice first - off '
           'by default, with the screen-reader warning',
           'id="gwVoicePick"' in acc and 'id="gwVoiceHear"' in acc and 'id="gwMicPick"' in acc and 'id="gwMicTest"' in acc
-          and "voice_first: 'off' }" in acc and 'If you use a screen reader, leave this off' in acc)
+          and "voice_first: 'off'" in acc and 'If you use a screen reader, leave this off' in acc)
     node = shutil.which('node')
     if not node:
         return

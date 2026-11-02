@@ -9,6 +9,7 @@ One engine, off by default (the voice_commands setting). Without pywhispercpp or
 and says why; the rest of Groundwork is untouched.
 """
 import io
+import re
 import logging
 import os
 import threading
@@ -144,7 +145,15 @@ def transcribe(data, model=None, words=None, short=False):
         prompt = SHORT_HINT if short else hint_for(words)
         segments = m.transcribe(samples, initial_prompt=prompt) if model is None else m.transcribe(samples)
     text = ' '.join((getattr(s, 'text', s) or '').strip() for s in segments).strip()
-    # whisper marks silence and noise in brackets ("[BLANK_AUDIO]", "(wind)"); those are not words
-    if text.startswith(('[', '(')) and text.endswith((']', ')')):
+    # whisper marks silence and noise in brackets ("[BLANK_AUDIO]", "(wind)", "*coughs*", "♪"), alone or among words;
+    # those are not words
+    text = ' '.join(NOISE_MARKS.sub(' ', text).split())
+    # and on background sound alone it makes up a few stock lines; heard on their own, they are not the person's
+    if re.sub(r'[^a-z ]+', '', text.lower()).strip() in NOISE_LINES:
         return ''
     return text
+
+
+NOISE_MARKS = re.compile(r'\[[^\]]*\]|\([^)]*\)|\*[^*]*\*|[♪♫]+')
+NOISE_LINES = {'you', 'thank you', 'thanks for watching', 'thank you for watching', 'thank you so much for watching',
+               'please subscribe', 'bye', 'okay', 'oh', 'um', 'uh', 'hmm'}

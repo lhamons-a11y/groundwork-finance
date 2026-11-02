@@ -3732,7 +3732,9 @@ def voice_status():
     if wanted and said['available']:
         speak.preload()           # and Groundwork's voice is ready before the first words
     voices = [{'key': k, 'name': n, 'accent': a} for k, (n, a) in speak.VOICES.items()]     # V9: the choices
-    return ok({'on': on, **st, 'speak': {**said, 'voices': voices, 'default': speak.VOICE}})
+    with db_session() as session:
+        known = _voices_view(session)                                                       # V19: names, never prints
+    return ok({'on': on, **st, 'speak': {**said, 'voices': voices, 'default': speak.VOICE}, 'known': known})
 
 
 @voice_bp.route('/speak', methods=['POST'])
@@ -3773,14 +3775,181 @@ def voice_transcribe():
     data = request.get_data(cache=False)
     short = request.args.get('short') == '1'          # V2: heard while Groundwork spoke - only the short words count
     try:
+        # V19: with "Only voices it knows" on, a voice that is not one of them is let go before a word is recognised -
+        # except "stop" while Groundwork reads: stopping can only hide, so anyone may stop it
+        with db_session() as session:
+            known = _known_voices(session) if _voice_gate_on(session) else None
+        heard = None
+        if known is not None:
+            heard = _whose_voice(data, known)
+            if heard is None and not short:
+                return ok({'text': '', 'voice': None})
         words = []
         if not short:
             with db_session() as session:
                 words = _voice_words(session)
         text = voice.transcribe(data, words=words, short=short)
+        if known is not None and heard is None and _norm_words(text) not in VOICE_ANYONE_MAY_SAY:
+            return ok({'text': '', 'voice': None})
     except voice.VoiceError as e:
         return err(str(e), 400)
-    return ok({'text': text})
+    return ok({'text': text, **({'voice': heard['name']} if heard else {})})
+
+
+# ── V19 (item 116): only voices it knows (core/voiceprint.py; VOICE_ASSISTANT.md 4c) ────────────────────────────────
+# The voiceprints are kept under their own setting, never sent to the page (get_settings leaves them out, and
+# update_settings never writes them). The page sees each voice's name and when it was enrolled, nothing more.
+VOICEPRINTS_SETTING = 'voiceprints'
+VOICE_GATE_SETTING = 'voice_only_known'
+VOICE_ANYONE_MAY_SAY = {'stop', 'stop it', 'quiet', 'be quiet', 'stop reading', 'stop talking', 'that s enough',
+                        "that's enough", 'enough', 'pause'}
+
+
+def _norm_words(t):
+    return re.sub(r'\s+', ' ', re.sub(r"[^a-z0-9' ]+", ' ', str(t or '').lower())).strip()
+
+
+def _voiceprint_rows(session):
+    rows = _setting_json(session, VOICEPRINTS_SETTING, []) or []
+    return [r for r in rows if isinstance(r, dict) and r.get('id') and r.get('print')]
+
+
+def _known_voices(session):
+    from core import voiceprint
+    out = []
+    for r in _voiceprint_rows(session):
+        try:
+            out.append({'id': r['id'], 'name': r.get('name') or 'Me', 'print': voiceprint.from_text(r['print'])})
+        except Exception:
+            continue                                   # a print that cannot be read matches nothing
+    return out
+
+
+def _voice_gate_on(session):
+    """On only while it is chosen and a voice is kept; with no voice kept there is nothing to tell voices apart by."""
+    row = _get_setting(session, VOICE_GATE_SETTING)
+    return bool(row) and str(row.value).lower() == 'on' and bool(_voiceprint_rows(session))
+
+
+def _whose_voice(data, known):
+    """The known voice in a WAV clip, or None - fail closed: a clip that cannot be scored is no one it knows."""
+    from core import voice, voiceprint
+    if not voiceprint.status()['available']:
+        return None
+    try:
+        p = voiceprint.embed(voice.read_wav(data))
+    except Exception:
+        return None
+    if p is None:
+        return None
+    return voiceprint.best(p, known)[0]
+
+
+def _voices_view(session):
+    from core import voiceprint
+    st = voiceprint.status()
+    return {**st, 'on': _voice_gate_on(session), 'sentences': voiceprint.SENTENCES,
+            'voices': [{'id': r['id'], 'name': r.get('name') or 'Me', 'enrolled_at': r.get('enrolled_at')}
+                       for r in _voiceprint_rows(session)]}
+
+
+@voice_bp.route('/voices', methods=['GET', 'POST'])
+def voice_voices():
+    """GET: the voices Groundwork knows (names and dates only). POST {name, clips: [base64 WAV of each sentence read]}:
+    enrol one - its voiceprint is made here and kept in the record, and "Only voices it knows" is turned on."""
+    import base64
+    import uuid
+    from core import voice, voiceprint
+    if request.method == 'GET':
+        with db_session() as session:
+            return ok(_voices_view(session))
+    st = voiceprint.status()
+    if not st['available']:
+        return err(st['reason'], 503)
+    body = request.get_json(silent=True) or {}
+    name = ' '.join(str(body.get('name') or '').split())[:40] or 'Me'
+    clips = body.get('clips') or []
+    if not isinstance(clips, list) or not 1 <= len(clips) <= len(voiceprint.SENTENCES):
+        return err('Read each of the sentences, then try again.', 400)
+    try:
+        # each reading, in order, must say its sentence - the television never does (Rob 2026-11-01: enrolled with
+        # it on, the voiceprint was the television's). Unread or unheard ones are left out; enrol() counts what is left.
+        readings, not_read = [], 0
+        listen = voice.status()['available']
+        for sentence, c in zip(voiceprint.SENTENCES, clips):
+            if not c:
+                continue
+            data = base64.b64decode(str(c))
+            if listen and voiceprint.said_share(sentence, voice.transcribe(data)) < voiceprint.ENROL_SAID:
+                not_read += 1
+                continue
+            readings.append(voice.read_wav(data))
+        if not_read:
+            return err('%d of the sentences did not sound like they were read - is a television or someone else talking? '
+                       'Make the room quiet, then try again.' % not_read, 400)
+        p = voiceprint.enrol(readings)
+    except (voice.VoiceError, voiceprint.VoiceprintError, ValueError) as e:
+        return err(str(e), 400)
+    with db_session() as session:
+        rows = _voiceprint_rows(session)
+        rows = [r for r in rows if (r.get('name') or 'Me').lower() != name.lower()]     # enrolling again replaces it
+        rows.append({'id': uuid.uuid4().hex[:12], 'name': name, 'print': voiceprint.to_text(p),
+                     'enrolled_at': datetime.now().isoformat(timespec='seconds')})
+        _set_setting(session, VOICEPRINTS_SETTING, json.dumps(rows))
+        _set_setting(session, VOICE_GATE_SETTING, 'on')
+        session.commit()
+        return ok(_voices_view(session))
+
+
+@voice_bp.route('/voices/<vid>', methods=['DELETE'])
+def voice_voice_delete(vid):
+    """Forget one voice: its voiceprint is deleted from the record. With none left, "Only voices it knows" is off."""
+    with db_session() as session:
+        rows = [r for r in _voiceprint_rows(session) if r.get('id') != vid]
+        if rows:
+            _set_setting(session, VOICEPRINTS_SETTING, json.dumps(rows))
+        else:
+            row = _get_setting(session, VOICEPRINTS_SETTING)
+            if row:
+                session.delete(row)
+            _set_setting(session, VOICE_GATE_SETTING, 'off')
+        session.commit()
+        return ok(_voices_view(session))
+
+
+@voice_bp.route('/voices/check', methods=['POST'])
+def voice_voice_check():
+    """Test my microphone: whose voice a clip is, and the score that says so (the transparency standard: the figure
+    with its working). Nothing is kept."""
+    from core import voice, voiceprint
+    st = voiceprint.status()
+    if not st['available']:
+        return err(st['reason'], 503)
+    with db_session() as session:
+        known = _known_voices(session)
+    try:
+        p = voiceprint.embed(voice.read_wav(request.get_data(cache=False)))
+    except voice.VoiceError as e:
+        return err(str(e), 400)
+    if p is None:
+        return ok({'voice': None, 'score': None, 'threshold': voiceprint.THRESHOLD, 'too_short': True})
+    who, s = voiceprint.best(p, known) if known else (None, None)
+    return ok({'voice': who['name'] if who else None, 'score': None if s is None else round(s, 2),
+               'threshold': voiceprint.THRESHOLD, 'too_short': False})
+
+
+@voice_bp.route('/chains', methods=['GET'])
+def voice_chains():
+    """Rob 2026-11-01: the United States' supermarket chains (core/data/grocery_chains.json), so a name whisper writes
+    as it sounds ("Wegmen's") is heard as the chain. Names and kinds only; shipped with the app, nothing fetched."""
+    try:
+        import core
+        d = json.loads((Path(core.__file__).parent / 'data' / 'grocery_chains.json').read_text(encoding='utf-8'))
+    except Exception:
+        return ok({'chains': []})
+    return ok({'chains': [{'name': c['name'], 'kind': c['kind'], **({'generic': True} if c.get('generic') else {})}
+                          for c in d.get('chains', []) if c.get('kind') != 'company'],
+               'source': d.get('source'), 'revision_time': d.get('revision_time')})
 
 
 def _voice_words(session):
@@ -3821,7 +3990,7 @@ def _voice_words(session):
 # should be recorded and kept. The red light and the timing will keep the microphone from always listening." The page
 # records the yes once the microphone has actually opened; launch.py then answers the window's next microphone request
 # from this record (Groundwork's own page only), so the question is not asked at every launch. A no is not kept - the
-# question is asked again. Forgetting it (Settings, Reading and voice) brings the question back. s272.
+# question is asked again. Forgetting it (Settings, Reading & Voice) brings the question back. s272.
 MICROPHONE_SETTING = 'microphone_allowed'
 
 
@@ -10966,6 +11135,7 @@ def get_settings():
     """
     with db_session() as session:
         settings = {s.key: s.value for s in session.query(AppSetting).all()}
+    settings.pop(VOICEPRINTS_SETTING, None)    # item 116 V19: a voiceprint never goes to the page
 
     # Panel I-07: a choice never made reads as off
     if 'ai_enabled' not in settings:
@@ -10984,6 +11154,11 @@ def update_settings():
     # Item 107 D8: what the person said about a pair of accounts is appended by its own route, never written over
     body.pop('two_accounts_said_json', None)
     body.pop(money_kind.SETTING, None)        # item 111 X3: the same - a move's answer has its own route
+    body.pop(VOICEPRINTS_SETTING, None)       # item 116 V19: a voiceprint is made only by enrolling, here
+    if VOICE_GATE_SETTING in body:            # and "only voices it knows" turns on only with a voice to know
+        with db_session() as session:
+            if str(body[VOICE_GATE_SETTING]).lower() == 'on' and not _voiceprint_rows(session):
+                body.pop(VOICE_GATE_SETTING)
     # Cloud AI is gone (CLOUD_AI_REMOVAL.md): there is no provider to choose and
     # no key to store, so neither setting is ever written.
     body.pop('api_key', None)
@@ -11019,6 +11194,8 @@ def update_settings():
             voice.preload()
         else:
             voice.release()
+            from core import voiceprint
+            voiceprint.release()
     if 'voice_commands' in body or 'read_aloud' in body:
         from core import speak                       # Groundwork's voice: loaded while either wants it, else let go
         with db_session() as session:

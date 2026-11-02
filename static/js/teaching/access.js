@@ -22,7 +22,7 @@
   var RATES = { slower: 0.8, normal: 1, faster: 1.25 };
   var RATE_ORDER = ['slower', 'normal', 'faster'];
   var prefs = { text_size: '100', read_aloud: 'off', read_rate: 'normal', voice_commands: 'off', voice_tour: '', voice_wake: 'off',
-                speak_voice: '', mic_device: '', voice_first: 'off' };
+                speak_voice: '', mic_device: '', voice_first: 'off', heard_as: '' };
   var last = null;          // { words, section } - what was read last, for "repeat" and "explain further"
   var asking = null;        // the open "explained further?" question: { section }
   var hoverTimer = null, pointerAt = null, lastView = null, viewStack = [];
@@ -291,7 +291,13 @@
   var MAX_SAID_MS = 14000;      // the server takes at most 15 seconds a clip
   var MIN_SAID_MS = 250;        // shorter is a cough or a click
   var QUIET_OFF_MS = 60000;     // a minute with nothing said turns it off
-  var conv = null;              // { ctx, stream, node, rate, speech, chunks, pre, start, lastVoice, lastActivity, busy }
+  // Background sound (Rob 2026-11-01: "microphone needs to disregard the background sounds"): the room's own level -
+  // a fan, a TV, traffic - is measured as it goes, the quietest tenth of the last few seconds, and only sound well above
+  // it counts as someone talking. Words have gaps between them, so talking over a fan still shows the fan's level.
+  var FLOOR_MS = 6000;          // the last six seconds say how loud the room is
+  var FLOOR_TRUST_MS = 1500;    // before this much is heard, the room is taken as quiet
+  var ABOVE_FLOOR = 2.5;        // talking is this many times louder than the room (about 8 dB)
+  var conv = null;              // { ctx, stream, node, rate, speech, chunks, pre, start, lastVoice, lastActivity, busy, levels, loudMs }
   var micKept = false;          // this page has recorded the microphone's yes
 
   function _speaking() { return own.playing || !!(window.speechSynthesis && (window.speechSynthesis.speaking || window.speechSynthesis.pending)); }
@@ -316,6 +322,7 @@
   }
 
   // V10: "Test my microphone" - three seconds, how loud it heard you, and with voice commands on, what it heard
+  var lastTest = '';                                // kept for this window, so the Settings card shows it when redrawn
   async function testMic() {
     if (conv) micOff();
     var stream, ctx, node, peak = 0, chunks = [];
@@ -333,19 +340,131 @@
     await new Promise(function (r) { setTimeout(r, 3000); });
     node.disconnect(); stream.getTracks().forEach(function (t) { t.stop(); });
     var rate = ctx.sampleRate; ctx.close();
-    if (peak < SPEECH_RMS * 2) { showToast('The microphone heard almost nothing', 'Check it is the right one, and not muted.', 'warning'); say('I heard almost nothing.'); return; }
-    if (prefs.voice_commands !== 'on') { showToast('The microphone hears you', 'Turn voice commands on to hear what it understood.', 'success'); return; }
+    // The result stays under the button until the next test - a toast is gone before it is read across a room
+    var lines = [], note = function (t) { lines.push(t); lastTest = 'Last test: ' + lines.join(' '); var n = _el('gwMicNote'); if (n) n.textContent = lastTest; };
+    if (peak < SPEECH_RMS * 2) { note('Heard almost nothing - check it is the right microphone, and not muted.'); showToast('The microphone heard almost nothing', 'Check it is the right one, and not muted.', 'warning'); say('I heard almost nothing.'); return; }
+    if (prefs.voice_commands !== 'on') { note('The microphone hears you.'); showToast('The microphone hears you', 'Turn voice commands on to hear what it understood.', 'success'); return; }
+    var stranger = false;
+    try {                                           // V19: whose voice it heard, with the score that says so
+      var wr = await _gwFetch('/api/voice/voices/check', { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: wav(chunks, rate) });
+      var who = wr.ok ? ((await wr.json()).data || null) : null;
+      if (who && who.score != null && who.voice) {
+        note('It knows the voice: ' + who.voice + ' (scored ' + who.score + '; it needs ' + who.threshold + ').');
+        showToast('It knows your voice: ' + who.voice, 'Scored ' + who.score + '; it needs ' + who.threshold + '.', 'success');
+      } else if (who && who.score != null) {
+        stranger = true;
+        note('Not a voice Groundwork knows (scored ' + who.score + '; it needs ' + who.threshold + '), so its words were not listened to.');
+        showToast('Not a voice Groundwork knows', 'Scored ' + who.score + '; it needs ' + who.threshold + '. Its words were not listened to.', 'warning');
+      } else if (who && who.too_short) {
+        note('Too little speech to tell whose voice it is.');
+      }
+    } catch (e) { /* no voices kept, or voice recognition not installed: nothing to say */ }
+    if (stranger) { say('That is not a voice I know, so I did not listen to the words.'); return; }   // the gate would blank them
     try {
       var r = await _gwFetch('/api/voice/transcribe', { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: wav(chunks, rate) });
       var j = await r.json(), text = ((j.data || j).text || '').trim();
+      note(text ? 'Heard: “' + text + '”.' : 'It heard sound but no words.');
       showToast(text ? 'Heard: “' + text + '”' : 'It heard sound but no words', '', text ? 'success' : 'warning');
       say(text ? 'I heard: ' + text : 'I heard sound, but no words.');
     } catch (e) { showToast('Voice commands could not run', e.message || '', 'error'); }
   }
 
+  // V19 (item 116): only voices it knows. The person reads five sentences, one at a time; each ends at a pause. The
+  // readings go to this computer's own server, which makes the voiceprint and keeps it - the page never holds one.
+  var ENROL_PAUSE_MS = 1200, ENROL_MAX_MS = 12000;
+  function _readOne(stream, show) {
+    return new Promise(function (resolve) {
+      var ctx = new window.AudioContext(), node = ctx.createScriptProcessor(4096, 1, 1), chunks = [], levels = [];
+      var started = 0, lastVoice = 0, t0 = Date.now(), done = false;
+      function finish() {
+        if (done) return; done = true;
+        try { node.disconnect(); } catch (e) { /* already */ }
+        var rate = ctx.sampleRate; ctx.close();
+        // a reading that never paused ran into something that doesn't - a television - and is not used
+        resolve(started && Date.now() - t0 <= ENROL_MAX_MS ? wav(chunks, rate) : null);
+      }
+      node.onaudioprocess = function (e) {
+        var d = e.inputBuffer.getChannelData(0), sum = 0, now = Date.now();
+        for (var i = 0; i < d.length; i++) sum += d[i] * d[i];
+        var rms = Math.sqrt(sum / d.length);
+        levels.push(rms); if (levels.length > 40) levels.shift();
+        var floor = levels.slice().sort(function (a, b) { return a - b; })[Math.floor(levels.length * 0.1)] || 0;
+        chunks.push(new window.Float32Array(d));
+        if (rms > Math.max(SPEECH_RMS, floor * ABOVE_FLOOR) && now - t0 > 300) { if (!started) { started = now; show('Listening…'); } lastVoice = now; }
+        if (!started && chunks.length > 2) chunks.shift();
+        if (started && now - lastVoice > ENROL_PAUSE_MS) finish();
+        else if (now - t0 > ENROL_MAX_MS) { t0 = -Infinity; finish(); }
+      };
+      ctx.createMediaStreamSource(stream).connect(node); node.connect(ctx.destination);
+    });
+  }
+
+  // Rob 2026-11-01: enrolled with the television on, the voiceprint was the television's. So the room is listened to for
+  // two seconds first, and enrolling waits for quiet: steady sound (a fan) is fine; sound that comes and goes like
+  // speech is not.
+  var ROOM_MS = 2000;
+  function _roomTalking(stream) {
+    return new Promise(function (resolve) {
+      var ctx = new window.AudioContext(), node = ctx.createScriptProcessor(4096, 1, 1), levels = [], t0 = Date.now();
+      node.onaudioprocess = function (e) {
+        var d = e.inputBuffer.getChannelData(0), sum = 0;
+        for (var i = 0; i < d.length; i++) sum += d[i] * d[i];
+        levels.push(Math.sqrt(sum / d.length));
+        if (Date.now() - t0 < ROOM_MS) return;
+        try { node.disconnect(); } catch (x) { /* already */ }
+        ctx.close();
+        var s = levels.slice().sort(function (a, b) { return a - b; });
+        var low = s[Math.floor(s.length * 0.1)], high = s[Math.floor(s.length * 0.9)];
+        resolve(high > Math.max(SPEECH_RMS, low * ABOVE_FLOOR));
+      };
+      ctx.createMediaStreamSource(stream).connect(node); node.connect(ctx.destination);
+    });
+  }
+
+  async function enrolVoice(box, sentences, done) {
+    if (conv) micOff();
+    var name = ((_el('gwVoiceName') || {}).value || '').trim() || 'Me';
+    var stream;
+    try { stream = await _openMic(); } catch (e) { showToast('Groundwork could not use the microphone', e.message || '', 'error'); return; }
+    box.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--slate-2)">Listening to the room - stay quiet for two seconds…</div>';
+    if (await _roomTalking(stream)) {
+      stream.getTracks().forEach(function (t) { t.stop(); });
+      box.innerHTML = '';
+      showToast('Something in the room is talking', 'Turn off the television or music, then teach it your voice. Only your voice should be heard.', 'warning');
+      done();
+      return;
+    }
+    var clips = [];
+    for (var i = 0; i < sentences.length; i++) {
+      var line = function (s) {
+        box.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--slate-2)">Sentence ' + (i + 1) + ' of ' + sentences.length
+          + ' - read it aloud, then pause. ' + esc(s) + '</div><div style="font-size:var(--fs-lg);margin:6px 0">“' + esc(sentences[i]) + '”</div>';
+      };
+      line('');
+      var b = await _readOne(stream, line);
+      clips.push(b ? _b64(b) : null);                // in order: the server checks each against its sentence
+    }
+    stream.getTracks().forEach(function (t) { t.stop(); });
+    box.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--slate-2)">Making your voiceprint on this computer…</div>';
+    try {
+      await API.post('/api/voice/voices', { name: name, clips: clips });
+      showToast('Groundwork knows your voice now', 'It answers only voices it knows. Settings can forget it.', 'success');
+      say('Thanks, ' + name + '. I know your voice now.');
+    } catch (e) {
+      showToast('Your voice was not kept', e.message || '', 'warning');
+    }
+    done();
+  }
+
+  function _b64(buf) {
+    var s = '', a = new window.Uint8Array(buf);
+    for (var i = 0; i < a.length; i += 0x8000) s += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000));
+    return window.btoa(s);
+  }
+
   async function micOn(wake) {
     if (conv) return;
-    var c = { chunks: [], pre: [], speech: false, busy: 0, lastActivity: Date.now(), wake: !!wake, awakeUntil: 0 };
+    var c = { chunks: [], pre: [], speech: false, busy: 0, lastActivity: Date.now(), wake: !!wake, awakeUntil: 0, levels: [], loudMs: 0 };
     conv = c;
     _micState('listening');
     try {
@@ -392,6 +511,13 @@
                 'repeat': 'repeat', 'again': 'repeat', 'say that again': 'repeat', 'slower': 'slower',
                 'slow down': 'slower', 'faster': 'faster', 'speed up': 'faster' };
 
+  // The room's level: the quietest tenth of the last FLOOR_MS, or nothing until enough has been heard
+  function _floor(c, frameMs) {
+    if (c.levels.length * frameMs < FLOOR_TRUST_MS) return 0;
+    var s = c.levels.slice().sort(function (a, b) { return a - b; });
+    return s[Math.floor(s.length * 0.1)];
+  }
+
   function _hear(c, data) {
     if (conv !== c) return;
     var now = Date.now();
@@ -399,12 +525,16 @@
     if (over) c.lastActivity = now;                 // a long reading is not a quiet minute
     var sum = 0;
     for (var i = 0; i < data.length; i++) sum += data[i] * data[i];
-    var loud = Math.sqrt(sum / data.length) > (over ? BARGE_RMS : SPEECH_RMS);
+    var rms = Math.sqrt(sum / data.length), frameMs = data.length / (c.rate || 48000) * 1000;
+    c.levels.push(rms);
+    if (c.levels.length * frameMs > FLOOR_MS) c.levels.shift();
+    var loud = rms > Math.max(over ? BARGE_RMS : SPEECH_RMS, _floor(c, frameMs) * ABOVE_FLOOR);
     var copy = new window.Float32Array(data);
     if (loud) {
-      if (!c.speech) { c.speech = true; c.over = over; c.start = now; c.chunks = c.pre.slice(); }
+      if (!c.speech) { c.speech = true; c.over = over; c.start = now; c.chunks = c.pre.slice(); c.loudMs = 0; }
       c.lastVoice = now;
       c.lastActivity = now;
+      c.loudMs += frameMs;
     }
     if (c.speech) {
       c.chunks.push(copy);
@@ -414,7 +544,8 @@
         c.speech = false;
         c.chunks = [];
         c.pre = [];
-        if (long >= MIN_SAID_MS) _said(c, said, c.over);
+        // a door, a clap, a dish: loud for a moment, not for as long as a word
+        if (long >= MIN_SAID_MS && c.loudMs >= MIN_SAID_MS) _said(c, said, c.over);
       }
     } else {
       c.pre.push(copy);
@@ -644,11 +775,94 @@
     var was = lex[name];
     lex[name] = how;
     await _save('speak_lexicon', JSON.stringify(lex));
-    showToast('Groundwork will say ' + name + ' like ' + how, 'Change it in Settings, Reading and voice.', 'success', async function () {
+    showToast('Groundwork will say ' + name + ' like ' + how, 'Change it in Settings, Reading & Voice.', 'success', async function () {
       if (was === undefined) delete lex[name]; else lex[name] = was;
       await _save('speak_lexicon', JSON.stringify(lex));
     });
     say('OK. ' + name + '.');
+  }
+
+  // Rob 2026-11-01: whisper heard "my Meijer" as "admire". "When I say admire, I mean Meijer" - what Groundwork hears,
+  // taken the person's way from then on. Kept in Settings where it can be seen and taken back; never learned without
+  // being told. Spoken words only: what is typed is already the person's own.
+  function _heardList() {
+    try { var h = JSON.parse(prefs.heard_as || '{}'); return h && typeof h === 'object' ? h : {}; } catch (e) { return {}; }
+  }
+  function _heardAs(text) {
+    var h = _heardList();
+    Object.keys(h).sort(function (a, b) { return b.length - a.length; }).forEach(function (k) {
+      var re = new window.RegExp('(^|[^a-z0-9])' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=$|[^a-z0-9])', 'gi');
+      text = text.replace(re, function (all, before) { return before + h[k]; });
+    });
+    return text;
+  }
+  // Rob 2026-11-01: "we will need to have a way that the user can teach the voice assistant". Teach it a word: say it
+  // once; Groundwork shows what it heard; if that is not what was said, the person types what they said, and from then on
+  // that is how it is heard. Recognised here, like every clip; nothing of the sound is kept.
+  async function teachWord(box) {
+    if (conv) micOff();
+    var stream;
+    try { stream = await _openMic(); } catch (e) { showToast('Groundwork could not use the microphone', e.message || '', 'error'); return; }
+    box.innerHTML = '<div style="font-size:var(--fs-sm)">Say the word or name once, then pause…</div>';
+    var b = await _readOne(stream, function () { box.innerHTML = '<div style="font-size:var(--fs-sm)">Listening…</div>'; });
+    stream.getTracks().forEach(function (t) { t.stop(); });
+    if (!b) { box.innerHTML = '<div style="font-size:var(--fs-sm)">Nothing was heard. Try again a little closer to the microphone.</div>'; return; }
+    var heard = '';
+    try {
+      var r = await _gwFetch('/api/voice/transcribe', { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: b });
+      var j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'The voice engine did not answer.');
+      heard = ((j.data || j).text || '').toLowerCase().replace(/[^a-z0-9\x27 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+    } catch (e) { box.innerHTML = ''; showToast('Voice commands could not run', e.message || '', 'error'); return; }
+    if (!heard) { box.innerHTML = '<div style="font-size:var(--fs-sm)">It heard sound but no words - or not a voice it knows. Try again.</div>'; return; }
+    box.innerHTML = '<div style="font-size:var(--fs-sm)">Groundwork heard: <b>“' + esc(heard) + '”</b>. If that is what you said, there is nothing to teach. '
+      + 'If not, what did you say?</div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px">'
+      + '<input id="gwTeachMeant" class="field-input" style="width:12em" maxlength="40" aria-label="What you said">'
+      + '<button class="btn btn-ghost btn-sm" id="gwTeachSave">Teach it</button></div>';
+    var save = _el('gwTeachSave');
+    if (save) save.addEventListener('click', async function () {
+      var m = ((_el('gwTeachMeant') || {}).value || '').trim();
+      if (!m) return;
+      await _meanThis(heard, m);
+      _card();
+    });
+  }
+
+  // Learned from the person (app.js _askNoteFound): said when it is learned, with an Undo, and listed in Settings
+  async function learnHeard(heard, meant, times) {
+    var h = _heardList();
+    heard = String(heard).toLowerCase().trim();
+    if (!heard || h[heard]) return;
+    h[heard] = meant;
+    await _save('heard_as', JSON.stringify(h));
+    var why = times + ' times Groundwork heard “' + heard + '”, found nothing, and you looked for ' + meant + ' next.';
+    showToast('Groundwork will take “' + heard + '” as ' + meant + ' from now on', why + ' Remove it in Settings, Reading & Voice.', 'info', async function () {
+      var back = _heardList();
+      delete back[heard];
+      await _save('heard_as', JSON.stringify(back));
+    });
+    say('I noticed that when I hear ' + heard + ', you mean ' + meant + '. I will take it that way from now on.');
+    if (_el('gwAccessCard')) _card();
+  }
+
+  async function _meanThis(heard, meant) {
+    heard = heard.toLowerCase().replace(/^[“\x22\x27]+|[”\x22\x27.,!?]+$/g, '').trim();      // (\x22 \x27: s30 reads a
+    meant = meant.replace(/^[“\x22\x27]+|[”\x22\x27.,!?]+$/g, '').trim();                    // bare quote as a string)
+    if (!heard || !meant) return;
+    if (heard === meant.toLowerCase()) {      // "when I say admire, I mean admire": whisper heard the meant word wrong too
+      showToast('Groundwork heard “' + heard + '” both times', 'Type it instead: Settings, Reading & Voice, Words it hears your way.', 'info');
+      say('I heard ' + heard + ' both times. You can type it in Settings, under words it hears your way.');
+      return;
+    }
+    var h = _heardList(), was = h[heard];
+    h[heard] = meant;
+    await _save('heard_as', JSON.stringify(h));
+    showToast('When you say “' + heard + '”, Groundwork takes it as ' + meant, 'Change it in Settings, Reading & Voice.', 'success', async function () {
+      var back = _heardList();
+      if (was === undefined) delete back[heard]; else back[heard] = was;
+      await _save('heard_as', JSON.stringify(back));
+    });
+    say('OK. When you say ' + heard + ', I will take it as ' + meant + '.');
   }
 
   // V17 (item 116): step by step - a job said one step at a time; "next step", "previous step", "repeat", "stop".
@@ -701,6 +915,10 @@
   }
 
   function route(text) {
+    // whisper's punctuation as measured ("Groundwork. When I say admire. I mean Meijer."), and "said" for "say"
+    var mean = text.match(/^(?:(?:hey |ok |okay )?groundwork[,.!]?\s+)?when i (?:say|said)[,.]?\s+(.+?)[,.]?\s+i mean[,.:]?\s+(.+?)[.!]?$/i);
+    if (mean) { _meanThis(mean[1], mean[2]); return; }                                    // what it hears, the person's way
+    text = _heardAs(text);
     text = _figures(text);                             // V13: "four hundred fifty dollars" -> "450 dollars"
     var t = _norm(text);
     var heard = 'Heard: “' + text + '”';               // a toast's text: showToast escapes it
@@ -789,7 +1007,7 @@
   }
 
   async function _card() {
-    var panel = _el('settingsPanel-general');
+    var panel = _el('settingsPanel-voice') || _el('settingsPanel-general');     // its own tab (Rob 2026-11-01)
     if (!panel) return;
     var card = _el('gwAccessCard');
     if (!card) {
@@ -804,7 +1022,7 @@
     var lex = {};                                      // V16: names said the person's way
     try { lex = JSON.parse((await API.get('/api/settings')).speak_lexicon || '{}') || {}; } catch (e) { lex = {}; }
     var small = 'font-size:var(--fs-xs);color:var(--slate-2);margin:2px 0 10px';
-    card.innerHTML = '<div class="card-label">Reading and voice</div>'
+    card.innerHTML = '<div class="card-label">Reading & Voice</div>'
       + '<div class="field mb-4"><label>Text size</label><div>' + _radios('gwTextSize', prefs.text_size, [['100', 'Standard'], ['115', 'Larger'], ['130', 'Largest']]) + '</div>'
       + '<div style="' + small + '">Every page, at once.</div></div>'
       + '<div class="field mb-4"><label>Read aloud</label><div>' + _radios('gwReadAloud', prefs.read_aloud, [['off', 'Off'], ['key', 'When I press Alt+R'], ['hover', 'When I rest the pointer on something']]) + '</div>'
@@ -851,7 +1069,45 @@
           // V10 (item 116): which microphone, and a test that says what it heard
           + '<div class="field mt-4"><label>Microphone</label><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'
           + '<select id="gwMicPick" class="field-input" style="width:auto"><option value="">The computer\'s default</option></select>'
-          + '<button class="btn btn-ghost btn-sm" id="gwMicTest">Test my microphone</button></div></div>'
+          + '<button class="btn btn-ghost btn-sm" id="gwMicTest">Test my microphone</button></div>'
+          + '<div id="gwMicNote" role="status" style="font-size:var(--fs-sm);margin-top:6px">' + esc(lastTest) + '</div></div>'
+          // what it hears, taken the person's way ("when I say admire, I mean Meijer")
+          + '<div class="field mt-4"><label>Words it hears your way</label><div style="' + small + '">Teach one by saying '
+          + '"when I say admire, I mean Meijer", or with Teach it a word below. It also learns one by itself when, three times, '
+          + 'a word it heard found nothing and you looked for the same store next - and it tells you when it does.'
+          + (Object.keys(_heardList()).length ? Object.keys(_heardList()).map(function (k) {
+              return '<div>“' + esc(k) + '” - taken as ' + esc(_heardList()[k]) + ' <button class="btn btn-ghost btn-sm" data-gw-unhear="' + esc(k) + '" aria-label="Stop taking ' + esc(k) + ' as ' + esc(_heardList()[k]) + '">Remove</button></div>';
+            }).join('') : ' None yet.') + '</div>'
+          // typed too: whisper heard "I mean Meijer" as "I mean admire" (Rob 2026-11-01), so the word meant can't always
+          // be said
+          + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:var(--fs-sm)">When I say '
+          + '<input id="gwHeardWord" class="field-input" style="width:9em" maxlength="40" placeholder="admire" aria-label="What it hears">'
+          + ' I mean <input id="gwMeantWord" class="field-input" style="width:9em" maxlength="40" placeholder="Meijer" aria-label="What you mean">'
+          + '<button class="btn btn-ghost btn-sm" id="gwHeardAdd">Add</button></div>'
+          + '<div style="margin-top:6px"><button class="btn btn-ghost btn-sm" id="gwTeachWord">Teach it a word</button> '
+          + '<span style="' + small + '">Say a word or name it gets wrong; it shows what it heard, and you type what you said.</span></div>'
+          + '<div id="gwTeachBox" style="margin-top:4px"></div></div>'
+          // V19 (item 116): only voices it knows
+          + (vs && vs.known && vs.known.available
+            ? '<div class="field mt-4"><label>Only voices it knows</label>'
+              + ((vs.known.voices || []).length
+                ? '<div>' + _radios('gwVoiceGate', vs.known.on ? 'on' : 'off', [['on', 'On'], ['off', 'Off (any voice)']]) + '</div>'
+                  + vs.known.voices.map(function (v) {
+                    return '<div style="font-size:var(--fs-sm)">' + esc(v.name) + ' - enrolled '
+                      + esc(new Date(v.enrolled_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }))
+                      + ' <button class="btn btn-ghost btn-sm" data-gw-unvoice="' + esc(v.id) + '" aria-label="Forget the voice of ' + esc(v.name) + '">Forget</button></div>';
+                  }).join('')
+                : '')
+              + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px">'
+              + '<input id="gwVoiceName" class="field-input" style="width:auto" maxlength="40" placeholder="Your name" aria-label="Whose voice">'
+              + '<button class="btn btn-ghost btn-sm" id="gwVoiceEnrol">' + ((vs.known.voices || []).length ? 'Add a voice' : 'Teach it my voice') + '</button></div>'
+              + '<div id="gwEnrolBox" style="margin-top:6px"></div>'
+              + '<div style="' + small + '">You read five sentences once. Groundwork makes a voiceprint from them - numbers that describe '
+              + 'how your voice sounds, not a recording - keeps it on this computer, and from then on acts only on voices it knows. '
+              + 'A television or another person is let go, unrecognised. Anyone can still say "stop" while it reads. It never '
+              + 'learns your voice from listening; only by enrolling again. It keeps other voices from using Groundwork - it is '
+              + 'not a lock: a recording of your voice could pass it.</div></div>'
+            : '')
         : '');
     var forget = _el('gwMicForget');
     if (forget) forget.addEventListener('click', async function () {
@@ -906,6 +1162,38 @@
       micPick.addEventListener('change', function () { _save('mic_device', micPick.value); if (conv) { micOff(); micOn(); } });
     }
     if (micTest) micTest.addEventListener('click', testMic);
+    var enrolBtn = _el('gwVoiceEnrol');
+    if (enrolBtn) enrolBtn.addEventListener('click', function () {
+      enrolBtn.disabled = true;
+      enrolVoice(_el('gwEnrolBox'), vs.known.sentences || [], function () { _card(); });
+    });
+    card.querySelectorAll('input[name="gwVoiceGate"]').forEach(function (i) {
+      i.addEventListener('change', function () { _save('voice_only_known', i.value); });
+    });
+    var teachBtn = _el('gwTeachWord');
+    if (teachBtn) teachBtn.addEventListener('click', function () { teachWord(_el('gwTeachBox')); });
+    var heardAdd = _el('gwHeardAdd');
+    if (heardAdd) heardAdd.addEventListener('click', async function () {
+      var w = (_el('gwHeardWord') || {}).value || '', m = (_el('gwMeantWord') || {}).value || '';
+      if (!w.trim() || !m.trim()) { showToast('Type what it hears and what you mean', '', 'info'); return; }
+      await _meanThis(w, m);
+      _card();
+    });
+    card.querySelectorAll('[data-gw-unhear]').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        var h = _heardList();
+        delete h[b.getAttribute('data-gw-unhear')];
+        await _save('heard_as', JSON.stringify(h));
+        _card();
+      });
+    });
+    card.querySelectorAll('[data-gw-unvoice]').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        try { await API.delete('/api/voice/voices/' + encodeURIComponent(b.getAttribute('data-gw-unvoice'))); showToast('That voice is forgotten', 'Its voiceprint is deleted from this computer.', 'info'); }
+        catch (e) { showToast('Could not forget it', e.message || '', 'error'); }
+        _card();
+      });
+    });
     card.querySelectorAll('[data-gw-unsay]').forEach(function (b) {
       b.addEventListener('click', async function () {
         delete lex[b.getAttribute('data-gw-unsay')];
@@ -937,7 +1225,8 @@
   else load();
 
   window.GWVoice = { say: function (w) { return say(w); }, on: function () { return !!conv; },     // item 114 H14
-                     first: function () { return prefs.voice_first === 'on'; } };                   // item 116 V12
+                     first: function () { return prefs.voice_first === 'on'; },                     // item 116 V12
+                     learn: function (h, m, n) { return learnHeard(h, m, n); } };                  // learned, and said
 
   // V12: voice first - each message is said too (not the "Heard:" echo of what was just said, and not over Groundwork
   // already speaking about the same thing)

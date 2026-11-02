@@ -28,6 +28,7 @@ _voice_binaries, _voice_datas, _voice_imports = spec_engine.voice_parts()     # 
 _voice_model = spec_engine.voice_model_data()
 _speak_binaries, _speak_datas, _speak_imports = spec_engine.speak_parts()     # Groundwork's own voice (core/speak.py)
 _speak_model = spec_engine.speak_model_data()
+_voiceprint_model = spec_engine.voiceprint_model_data()     # item 116 V19
 
 try:
     import webview
@@ -42,7 +43,7 @@ a = Analysis(
     datas=[
         *_engine_datas,
         *_voice_datas, *_voice_model,
-        *_speak_datas, *_speak_model,
+        *_speak_datas, *_speak_model, *_voiceprint_model,
         *_model_datas,             # -> models/ (macOS: Contents/Resources/models), where core/engine.py looks
         ('static', 'static'),
         ('core', 'core'),
