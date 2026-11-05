@@ -26,6 +26,14 @@ def _only_clicks(app, html):
     return all('async function startFetchAll(' in ln or 'onclick=' in ln for ln in lines)
 
 
+
+def _Driver(window, *a, **k):
+    """The Driver on the bank's own site: the login guard has its own section (s286)."""
+    import bank_agent_window as baw
+    window.get_current_url = lambda: 'https://www.superiorcu.com/'
+    return baw.Driver(window, *a, home='https://www.superiorcu.com/', **k)
+
+
 def run(ctx):
     check, c, H, HJ, BASE = ctx.check, ctx.c, ctx.H, ctx.HJ, ctx.BASE
     import bank_agent_window as baw
@@ -99,7 +107,7 @@ def run(ctx):
     from smoke_sections import s174_bank_fetch as s174   # noqa: F401  (its stand-in page)
     fronts = []
     page, clock, lines = s174._Page(['code', 'code', 'ok']), s174._Clock(), []
-    baw.Driver(page, [{'k': 'click', 'text': 'Download'}], ('u', 'p'), lines.append, now=clock.now, sleep=clock.sleep,
+    _Driver(page, [{'k': 'click', 'text': 'Download'}], ('u', 'p'), lines.append, now=clock.now, sleep=clock.sleep,
                to_front=lambda: fronts.append(1)).run()
     check('s176 G5 a code page brings the bank\'s window to the front, once', fronts == [1])
     srv = (BASE / 'server.py').read_text(encoding='utf-8')

@@ -80,6 +80,11 @@ def run(ctx):
     check('s247 K4 the guide has an entry anyone can find: who to talk to when money worries feel like too much',
           'Money worries feel like too much. Who can I talk to?' in app)
     launch = (ctx.BASE / 'launch.py').read_text(encoding='utf-8')
+    import link_guard
+
+    def _opens(url):
+        return link_guard.decide(url) == link_guard.OPEN
     check('s247 K5 only web links and tel:/sms: with digits open outside Groundwork',
-          r"re.fullmatch(r'(?:tel|sms):\d{3,11}', url)" in launch
+          'link_guard.decide(url)' in launch and _opens('tel:988') and _opens('sms:741741')
+          and not _opens('tel:988?body=x') and not _opens('file:///C:/x')
           and r"/^(?:https:\/\/[\w.-]+\/[\w./-]*|tel:\d{3,11}|sms:\d{3,11})$/.test(url)" in care)

@@ -38,6 +38,14 @@ class _Clock:
         self.t += s
 
 
+
+def _Driver(window, *a, **k):
+    """The Driver on the bank's own site: the login guard has its own section (s286)."""
+    import bank_agent_window as baw
+    window.get_current_url = lambda: 'https://www.superiorcu.com/'
+    return baw.Driver(window, *a, home='https://www.superiorcu.com/', **k)
+
+
 def run(ctx):
     check, c, H, HJ, BASE = ctx.check, ctx.c, ctx.H, ctx.HJ, ctx.BASE
     import bank_agent_window as baw
@@ -83,7 +91,7 @@ def run(ctx):
                 return 'missing'                 # the link led to a page with neither a sign-in nor the step
             return super().evaluate_js(js)
     page, clock, lines = _Late(['ok', 'ok']), _Clock(), []
-    r = baw.Driver(page, steps, ('u', 'p'), lines.append, now=clock.now, sleep=clock.sleep, open_signin=opened.append).run()
+    r = _Driver(page, steps, ('u', 'p'), lines.append, now=clock.now, sleep=clock.sleep, open_signin=opened.append).run()
     check('s182 R1 the link leads nowhere: the recorded sign-in page is opened once, and the run carries on',
           opened == ['https://online.superiorcu.com/auth/login'] and r == 'done')
     opened.clear()
@@ -96,16 +104,16 @@ def run(ctx):
                 return 'missing'
             return super().evaluate_js(js)
     page = _Never([])
-    r = baw.Driver(page, steps, ('u', 'p'), lines.append, now=clock.now, sleep=clock.sleep, open_signin=opened.append).run()
+    r = _Driver(page, steps, ('u', 'p'), lines.append, now=clock.now, sleep=clock.sleep, open_signin=opened.append).run()
     check('s182 R1 at most once: still nothing there, and the run stops as before', len(opened) == 1 and r == 'page_changed')
     page, clock, lines = _Never([]), _Clock(), []
-    r = baw.Driver(page, [{'k': 'click', 'text': 'Download'}], ('u', 'p'), lines.append, now=clock.now, sleep=clock.sleep,
+    r = _Driver(page, [{'k': 'click', 'text': 'Download'}], ('u', 'p'), lines.append, now=clock.now, sleep=clock.sleep,
                    open_signin=opened.append).run()
     check('s182 R1 nothing recorded, nothing opened', len(opened) == 1 and r == 'page_changed')
 
     # ── R2: the stop says where the bank was ──
     page, clock, lines = _Never([], path='/auth/login'), _Clock(), []
-    baw.Driver(page, [{'k': 'click', 'text': 'Download', 'page': '/accounts/history'}], ('u', 'p'), lines.append,
+    _Driver(page, [{'k': 'click', 'text': 'Download', 'page': '/accounts/history'}], ('u', 'p'), lines.append,
                now=clock.now, sleep=clock.sleep).run()
     end = baw.parse_fetch_line(lines[-1])
     words = baw.fetch_words(end, [{'k': 'click', 'text': 'Download', 'page': '/accounts/history'}])
@@ -120,12 +128,12 @@ def run(ctx):
 
     # ── R5: sign out ──
     page, clock, lines = _Page([], signout='pressed'), _Clock(), []
-    d = baw.Driver(page, [], ('u', 'p'), lines.append, now=clock.now, sleep=clock.sleep)
+    d = _Driver(page, [], ('u', 'p'), lines.append, now=clock.now, sleep=clock.sleep)
     check('s182 R5 the bank\'s own Sign out is pressed, the bank is given a moment, and the line says so',
           d.sign_out() == 'pressed' and clock.t >= 5 and baw.parse_fetch_line(lines[-1]) == {'s': 'signed_out', 'found': 'pressed'}
           and baw.fetch_words({'s': 'signed_out', 'found': 'pressed'}, []) == 'Signed out of the bank.')
     page, clock, lines = _Page([], signout='none'), _Clock(), []
-    baw.Driver(page, [], ('u', 'p'), lines.append, now=clock.now, sleep=clock.sleep).sign_out()
+    _Driver(page, [], ('u', 'p'), lines.append, now=clock.now, sleep=clock.sleep).sign_out()
     check('s182 R5 no Sign out on the page: said plainly, nothing else touched',
           "couldn't find Sign out" in baw.fetch_words(baw.parse_fetch_line(lines[-1]), []) and clock.t == 0)
     ds = baw.DO_SCRIPT

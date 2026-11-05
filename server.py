@@ -67,7 +67,8 @@ _ASSET_FILES = ('groundwork.png', 'groundwork_256.png', 'groundwork.ico')
 # because pywebview builds window.pywebview.api with new Function (its js/api.js): without it WebKit on Linux
 # refused the bridge, and links, the crisis lines' Call/Text and the folder picker had no way to Python (Rob
 # 2026-11-01: "Allow unsafe-eval"; ENGINE_OTHER_PLATFORMS.md section 7). With inline script already allowed it
-# opens no new door; connect-src 'self' still leaves injected script nowhere to send data.
+# opens no new door. This policy closes fetch, images and forms; it cannot close the system browser or the window's
+# own navigation, which are link_guard.py's in launch.py (security audit 2026-11-05, gap 3).
 _SECURITY_HEADERS = {
     'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
                                "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; "

@@ -36,6 +36,14 @@ class _Clock:
         self.t += s
 
 
+
+def _Driver(window, *a, **k):
+    """The Driver on the bank's own site: the login guard has its own section (s286)."""
+    import bank_agent_window as baw
+    window.get_current_url = lambda: 'https://www.superiorcu.com/'
+    return baw.Driver(window, *a, home='https://www.superiorcu.com/', **k)
+
+
 def run(ctx):
     check, c, H, HJ, BASE, srv, app = ctx.check, ctx.c, ctx.H, ctx.HJ, ctx.BASE, ctx.server_src, ctx.app_src
     import bank_agent_window as baw
@@ -49,7 +57,7 @@ def run(ctx):
         page, clock, lines = _Page(answers), _Clock(), []
         seq = list(downloads_seq) if downloads_seq is not None else None
         dl = (lambda: seq.pop(0) if len(seq) > 1 else seq[0]) if seq is not None else None
-        d = baw.Driver(page, steps, login, lines.append, now=clock.now, sleep=clock.sleep, downloads=dl)
+        d = _Driver(page, steps, login, lines.append, now=clock.now, sleep=clock.sleep, downloads=dl)
         return d.run(), lines, page, clock
 
     r, lines, page, _ = drive(['ok', 'ok', 'ok', 'ok'], downloads_seq=[set(), set(), {'stmt.csv'}])
@@ -130,16 +138,16 @@ def run(ctx):
     OPT = [{'k': 'sign_in'}, {'k': 'choose', 'option': 'Trust Device', 'opt': True}, {'k': 'click', 'text': 'Submit', 'opt': True},
            {'k': 'click', 'text': 'Accounts'}, {'k': 'click', 'text': 'Download'}]
     page, clock, lines = _Page(['ok', 'missing', 'present', 'ok', 'ok']), _Clock(), []
-    r = baw.Driver(page, OPT, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
+    r = _Driver(page, OPT, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
     evs = [baw.parse_fetch_line(l) for l in lines]
     check('s174 A6 an optional step the bank did not show is skipped when the next real step is on the page',
           r == 'done' and [(e['s'], e.get('i')) for e in evs] == [('step', 0), ('skipped', 1), ('skipped', 2), ('step', 3), ('step', 4), ('done', None)]
           and LOGIN[1] not in page.sent[2] and ', true)' in page.sent[2])
     page, clock, lines = _Page(['ok'] + ['missing'] * 100), _Clock(), []
-    r = baw.Driver(page, OPT, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
+    r = _Driver(page, OPT, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
     check('s174 A6 when neither the optional step nor the next real one is there, it still stops - nothing guessed', r == 'page_changed')
     page, clock, lines = _Page(['missing'] * 100), _Clock(), []
-    r = baw.Driver(page, [{'k': 'click', 'text': 'Accounts'}], LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
+    r = _Driver(page, [{'k': 'click', 'text': 'Accounts'}], LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
     check('s174 A6 a step that is not optional is never skipped', r == 'page_changed')
     rec_src = src.split('def child_main(mode)')[1].split("# ── Groundwork's side")[0]
     check('s174 A7 the recording window uses the same remembered-device folder when ticked, so "Trust this device" carries into the fetch; private otherwise',
@@ -183,7 +191,7 @@ def run(ctx):
     # Rob's third real run: recorded while already signed in (no sign-in step); the fetch met the login page
     STEPS3 = [{'k': 'click', 'text': 'Checking'}, {'k': 'click', 'text': 'Download'}]
     page, clock, lines = _Page(['login:sign_in', 'ok', 'ok', 'ok']), _Clock(), []
-    r = baw.Driver(page, STEPS3, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
+    r = _Driver(page, STEPS3, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
     evs = [baw.parse_fetch_line(l)['s'] for l in lines]
     check('s174 A6 the login form appears with no sign-in recorded: it signs in from the vault, then carries on',
           r == 'done' and evs == ['signed_in', 'step', 'step', 'done'] and LOGIN[1] in page.sent[1] and LOGIN[1] not in page.sent[0])
@@ -194,15 +202,15 @@ def run(ctx):
             self.sent.append(js)
             return 'ok' if '"k": "sign_in"' in js else 'login:sign_in'
     page, clock, lines = _StuckLogin([]), _Clock(), []
-    r = baw.Driver(page, STEPS3, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
+    r = _Driver(page, STEPS3, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
     check('s174 A6 still on the login page after two sign-ins: it stops and says so - no loop', r == 'sign_in_failed' and sum(LOGIN[1] in js for js in page.sent) == 2)
     page, clock, lines = _Page(['login:sign_in']), _Clock(), []
-    r = baw.Driver(page, STEPS3, None, lines.append, now=clock.now, sleep=clock.sleep).run()
+    r = _Driver(page, STEPS3, None, lines.append, now=clock.now, sleep=clock.sleep).run()
     check('s174 A4 a login form with no saved login: it stops and says so', r == 'no_login')
     check('s174 A6 a "trust this device" / "verify your identity" page waits for the user like a code',
           'trust (this )?(device|computer|browser)|remember (this )?(device|computer|browser)|verify (your )?identity' in baw.DO_SCRIPT.split('function codeAsked')[1].split('function loginForm')[0])
     page, clock, lines = _Page(['code', 'code', 'ok', 'ok']), _Clock(), []
-    baw.Driver(page, [{'k': 'click', 'text': 'Download'}, {'k': 'click', 'text': 'CSV'}], LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
+    _Driver(page, [{'k': 'click', 'text': 'Download'}, {'k': 'click', 'text': 'CSV'}], LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
     bars = page.bars
     check('s174 A6 the fetch window says what is happening on the page: fetching, and when the bank asks the user something',
           any('Your bank is asking you something' in b for b in bars) and any('Groundwork is fetching your download' in b for b in bars)
@@ -211,12 +219,12 @@ def run(ctx):
     # Rob's fourth real run: Superior CU's sign-in sits in an embedded frame from another address
     opened = []
     page, clock, lines = _Page(['frame:https://online.example.com/auth/signin', 'login:sign_in', 'ok', 'ok', 'ok']), _Clock(), []
-    r = baw.Driver(page, STEPS3, LOGIN, lines.append, now=clock.now, sleep=clock.sleep, open_url=opened.append).run()
+    r = _Driver(page, STEPS3, LOGIN, lines.append, now=clock.now, sleep=clock.sleep, open_url=opened.append).run()
     check('s174 A6 a sign-in in an embedded frame: the window opens the frame\'s address as the page, signs in there, then carries on',
           r == 'done' and opened == ['https://online.example.com/auth/signin'])
     opened = []
     page, clock, lines = _Page(['frame:https://a.example.com/login'] * 3 + ['missing'] * 400), _Clock(), []
-    r = baw.Driver(page, STEPS3, LOGIN, lines.append, now=clock.now, sleep=clock.sleep, open_url=opened.append).run()
+    r = _Driver(page, STEPS3, LOGIN, lines.append, now=clock.now, sleep=clock.sleep, open_url=opened.append).run()
     check('s174 A6 the frame is opened once per step at most - no loop', len(opened) == 1 and r == 'page_changed')
     check('s174 A6 only an https frame address is opened, and only by the window\'s own https check',
           "u.protocol === 'https:'" in baw.DO_SCRIPT and 'if not bw.portal_url_problem(u):' in (BASE / 'bank_agent_window.py').read_text(encoding='utf-8'))
@@ -232,7 +240,7 @@ def run(ctx):
     # Rob's seventh run: a recorded 'Click "Sign In"' (no form on the page); the fetch signed in, then hunted for it
     STEPS7 = [{'k': 'click', 'text': 'Sign In'}, {'k': 'click', 'text': 'Checking'}]
     page, clock, lines = _Page(['login:sign_in', 'ok', 'login:sign_in', 'login:sign_in', 'missing', 'ok']), _Clock(), []
-    r = baw.Driver(page, STEPS7, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
+    r = _Driver(page, STEPS7, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
     evs = [baw.parse_fetch_line(l)['s'] for l in lines]
     check('s174 A6 a recorded "Sign In" click counts as done once signed in; the old login page showing for a moment is waited out, not signed into again',
           r == 'done' and evs == ['signed_in', 'step', 'step', 'done'] and sum(LOGIN[1] in js for js in page.sent) == 1)
@@ -252,11 +260,11 @@ def run(ctx):
     ds = baw.DO_SCRIPT
     POP = [{'k': 'click', 'text': 'Close', 'opt': True, 'pop': True}, {'k': 'click', 'text': 'Download'}]
     page, clock, lines = _Page(['ok', 'ok']), _Clock(), []
-    r = baw.Driver(page, POP, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
+    r = _Driver(page, POP, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
     check('s174 A13.1 the pop-up is there: the agent closes it, says so on the bar, and carries on',
           r == 'done' and any('Closed your bank' in b and 'pop-up' in b for b in page.bars))
     page, clock, lines = _Page(['missing', 'present', 'ok']), _Clock(), []
-    r = baw.Driver(page, POP, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
+    r = _Driver(page, POP, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
     check('s174 A13.1 no pop-up this time: the step is skipped and the run carries on',
           r == 'done' and [baw.parse_fetch_line(l)['s'] for l in lines][:1] == ['skipped'])
     check('s174 A13.1 a pop-up step is pressed only inside a pop-up, never a same-named control on the page beneath',

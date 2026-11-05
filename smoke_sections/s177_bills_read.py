@@ -15,6 +15,14 @@ import re
 from datetime import date, timedelta
 
 
+
+def _Driver(window, *a, **k):
+    """The Driver on the bank's own site: the login guard has its own section (s286)."""
+    import bank_agent_window as baw
+    window.get_current_url = lambda: 'https://www.superiorcu.com/'
+    return baw.Driver(window, *a, home='https://www.superiorcu.com/', **k)
+
+
 def run(ctx):
     check, c, H, HJ, BASE = ctx.check, ctx.c, ctx.H, ctx.HJ, ctx.BASE
     import bank_agent_window as baw
@@ -59,7 +67,7 @@ def run(ctx):
           and baw.parse_fetch_line('fetch {"s":"read","what":"amount","val":"' + 'x' * 41 + '"}') is None
           and baw.parse_fetch_line('fetch {"s":"read","what":"amount","val":"$1","password":"p"}') is None)
     page, clock, lines = s174._Page(['ok', 'read:{"what":"amount","text":"$142.37"}', 'read:{"what":"due","text":"Oct 24, 2026"}']), s174._Clock(), []
-    r = baw.Driver(page, [{'k': 'click', 'text': 'View bill'}, {'k': 'read', 'what': 'amount', 'field': 'Amount Due'},
+    r = _Driver(page, [{'k': 'click', 'text': 'View bill'}, {'k': 'read', 'what': 'amount', 'field': 'Amount Due'},
                           {'k': 'read', 'what': 'due', 'field': 'Due Date'}], ('u', 'p'), lines.append, now=clock.now, sleep=clock.sleep).run()
     reads = [baw.parse_fetch_line(l) for l in lines if '"read"' in l]
     check('s177 B3 a bill\'s run reads both figures and ends without waiting for a download',

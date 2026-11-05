@@ -26260,7 +26260,7 @@ async function startBankFetch(key) {
     if (ol) ol.innerHTML = bankStepsHtml(s.words);
     const evs = s.events || [], end = evs.find(ev => ['stopped', 'downloaded', 'no_download', 'done'].includes(ev.s));
     // item 70: keep listening a little after the outcome, for the sign-out line (R5)
-    if (end && (evs.some(ev => ev.s === 'signed_out') || ++afterEnd > 8 || ['bot_check', 'cancelled', 'would_pay'].includes(end.why))) {
+    if (end && (evs.some(ev => ev.s === 'signed_out') || ++afterEnd > 8 || ['bot_check', 'cancelled', 'would_pay', 'other_site'].includes(end.why))) {
       clearInterval(_bankFetchTimer);
       if (end.why === 'page_changed' && end.i != null && !box.querySelector('[data-gw-again]'))
         box.insertAdjacentHTML('beforeend', `<button class="btn btn-secondary btn-sm" data-gw-again onclick="startBankRecording('${escJs(key)}', ${end.i + 1})">Show Groundwork again from step ${end.i + 1}</button>`);

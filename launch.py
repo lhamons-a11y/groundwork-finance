@@ -169,11 +169,28 @@ def _flash_taskbar(w):
         logging.info('flash_taskbar: %s', e)
 
 
+def _person_says_yes(url):
+    """The person's Yes to an address, in the window's own dialog. No window or no answer is a no."""
+    try:
+        import link_guard
+        import webview
+        windows = getattr(webview, 'windows', None) or []
+        return bool(windows) and windows[0].create_confirmation_dialog(*link_guard.ask_words(url)) is True
+    except Exception:
+        logging.exception('could not ask about an address')
+        return False
+
+
 class GroundworkAPI:
     def open_external(self, url: str):
         # Item 104: a crisis or help line's "Call" / "Text" button is tel: or sms: with digits only - the Mac hands it
-        # to FaceTime or Messages (an iPhone nearby places it); nothing else but a web link opens
-        if not url or not (url.startswith(('http://', 'https://')) or re.fullmatch(r'(?:tel|sms):\d{3,11}', url)):
+        # to FaceTime or Messages (an iPhone nearby places it); nothing else but a web link opens.
+        # Security audit 2026-11-05: an address can carry data out, so link_guard decides here, where the page's own
+        # script cannot reach - Groundwork's known sites open, anything else waits for the person's Yes.
+        import link_guard
+        verdict = link_guard.decide(url)
+        if verdict == link_guard.REFUSE or (verdict == link_guard.ASK and not _person_says_yes(url)):
+            logging.info('open_external: an address was not opened')      # never the address: it may be the data
             return
         try:
             if sys.platform == 'win32':
@@ -521,6 +538,63 @@ def microphone_answer(kind_is_microphone, uri, allowed_at):
     return bool(kind_is_microphone and str(uri or '').startswith(MAIN_PAGE) and allowed_at)
 
 
+def _keep_window_home(window, api):
+    """Security audit 2026-11-05, gap 3: the main window stays on Groundwork's own pages, and every other way out goes
+    through open_external. The page's policy cannot do this: no CSP rule limits navigation.
+
+    Two ways out. A new window (window.open, target=_blank): pywebview hands it to webbrowser.open, so that is sent to
+    open_external, on its own thread because pywebview calls it on the window's thread and a dialog must not block
+    that. The window itself going elsewhere (location=, a plain link): on Windows it is cancelled before anything is
+    sent. On a Mac and Linux, for now, the window is brought back when the page has loaded - after the request has gone,
+    so this is a way home and not the guard Windows has (not tested there; gw 2.0/SECURITY_AUDIT_2026_11.md)."""
+    import threading
+    import webbrowser
+    import link_guard
+    port = 8765
+
+    def outside(url, *_a, **_k):
+        threading.Thread(target=api.open_external, args=(url,), daemon=True).start()
+        return True
+    webbrowser.open = outside
+
+    hooked = []
+
+    def on_loaded(*_):
+        if sys.platform != 'win32':
+            try:
+                here = window.get_current_url()
+                if here and not link_guard.stays_home(here, port):
+                    window.load_url(f'http://127.0.0.1:{port}/')
+            except Exception:
+                logging.exception('could not bring the window home')
+            return
+        if hooked:
+            return
+        try:
+            from System import Func, Type
+            form = window.native
+            core = form.browser.webview.CoreWebView2
+
+            def on_navigating(_sender, args):
+                try:
+                    if not link_guard.stays_home(str(args.Uri), port):
+                        args.Cancel = True
+                        logging.warning('the window was stopped from leaving Groundwork')   # never the address
+                except Exception:
+                    args.Cancel = True          # a guard that cannot read the address says no
+                    logging.exception('window navigation check')
+
+            def add():
+                core.NavigationStarting += on_navigating
+
+            form.Invoke(Func[Type](add))
+            hooked.append(True)
+        except Exception:
+            logging.exception('could not keep the window on its own pages')
+
+    window.events.loaded += on_loaded
+
+
 def _keep_microphone_answer(window):
     """Rob 2026-10-31: the microphone's yes is recorded and kept. The window opens private (pywebview's default), so
     WebView2 forgets its own answer when Groundwork closes; the yes the page recorded answers the next request instead.
@@ -703,6 +777,7 @@ def main():
     )
 
     _keep_microphone_answer(window)
+    _keep_window_home(window, api)
     _close_on_sigterm(window)
 
     # Groundwork exiting closes every bank window it opened (F2).

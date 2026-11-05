@@ -61,15 +61,37 @@ def clean_signin_at(url):
     return f'https://{u.hostname.lower()}{path}'
 
 
+# Endings anyone can register a name under, so the two labels before the end do not say whose site it is:
+# bank.co.uk and evil.co.uk are strangers, as are two sites on one hosting service. A short list, not the whole
+# public-suffix list: same_site is asked only about a bank's own addresses.
+_SHARED_ENDINGS = frozenset((
+    'co.uk', 'org.uk', 'ac.uk', 'gov.uk', 'com.au', 'net.au', 'org.au', 'co.nz', 'co.jp', 'co.in', 'co.za', 'com.br',
+    'com.mx', 'github.io', 'gitlab.io', 'pages.dev', 'workers.dev', 'web.app', 'firebaseapp.com', 'netlify.app',
+    'vercel.app', 'herokuapp.com', 'azurewebsites.net', 'cloudfront.net', 'amazonaws.com', 'appspot.com',
+    'blogspot.com', 'wixsite.com', 'weebly.com',
+))
+
+
+def _site_of(host):
+    """The labels that say whose site a host is, or None if it has too few to say (a bare co.uk is nobody's)."""
+    labels = host.rstrip('.').lower().split('.')
+    n = 3 if '.'.join(labels[-2:]) in _SHARED_ENDINGS else 2
+    return labels[-n:] if len(labels) >= n else None
+
+
 def same_site(a, b):
     """Item 70 R1: two https addresses on the same site - their hosts' last two labels agree
-    (online.superiorcu.com and www.superiorcu.com do; superiorcu.com.evil.example does not)."""
+    (online.superiorcu.com and www.superiorcu.com do; superiorcu.com.evil.example does not), three labels on an
+    ending anyone can register under (bank.co.uk and evil.co.uk do not)."""
     from urllib.parse import urlsplit
     try:
         ha, hb = (urlsplit(x).hostname or '' for x in (a, b))
     except ValueError:
         return False
-    return bool(ha) and bool(hb) and ha.split('.')[-2:] == hb.split('.')[-2:] and len(ha.split('.')) >= 2
+    if not ha or not hb:
+        return False
+    site = _site_of(ha)
+    return site is not None and site == _site_of(hb)
 
 
 def _clean_text(v):
@@ -510,12 +532,18 @@ def begin_for_test(key):
 # CAPTCHA or "unusual activity" page appears (automation stops for good); the download doesn't arrive in 2 minutes.
 # Nothing is guessed and nothing is retried on its own. The password never leaves this process except into the
 # page's own login boxes, and is never written to a line, a log or a file.
+#
+# And only on the bank's own site (security audit 2026-11-05, gap 1). Before a login goes anywhere near a page, the
+# window's own address - read from the window, not asked of the page, which could lie - must be https on the site of
+# the account's link or of a sign-in the person recorded. A login box anywhere else stops the run, nothing filled,
+# and the window is the person's: if they know the page, they sign in themselves.
 
 FETCH_STATUSES = ('step', 'skipped', 'signed_in', 'waiting_code', 'stopped', 'downloaded', 'no_download', 'done', 'read',
                   'signed_out')
 SIGN_OUT_AFTER = ('downloaded', 'done', 'no_download', 'page_changed', 'code_timeout')   # item 70 R5: never bot_check
 SIGN_OUT_FOUND = ('pressed', 'none', 'already')
-STOP_REASONS = ('page_changed', 'bot_check', 'no_login', 'code_timeout', 'cancelled', 'sign_in_failed', 'would_pay')
+STOP_REASONS = ('page_changed', 'bot_check', 'no_login', 'code_timeout', 'cancelled', 'sign_in_failed', 'would_pay',
+                'other_site')
 STEP_WAIT = 15.0          # seconds for a step's control to appear after a page load
 SIGN_IN_SETTLE = 12.0     # seconds the old login page may still show after Sign In is pressed
 CLOSE_PAUSE = 8.0         # seconds the finished window stays before closing: the file finishes writing, and the
@@ -782,9 +810,13 @@ class Driver:
     or None; `say` writes one line; `now`/`sleep` are injectable for the gate. Never says the password."""
 
     def __init__(self, window, steps, login, say, now=None, sleep=None, downloads=None, open_url=None, to_front=None,
-                 open_signin=None):
+                 open_signin=None, home=None):
         import time
         self.w, self.steps, self.login, self.say = window, steps, login, say
+        # The sites a login may be typed on: the account's own link, and any sign-in the person recorded. No link
+        # given, no recording: nowhere.
+        self.login_sites = [home] if home else []
+        self.login_sites += [s['at'] for s in steps if s.get('at')]
         # item 70 R1: the recorded sign-in address, opened once when the link leads nowhere (the window checks it)
         self.open_signin = open_signin
         self.sign_in_at = next((s['at'] for s in steps if s.get('at')), None)
@@ -821,14 +853,39 @@ class Driver:
         except Exception:
             pass
 
-    def _try(self, step, probe=False):
-        uses_login = step.get('k') in ('sign_in', 'sign_in_user') and self.login and not probe
-        js = DO_SCRIPT + ';window.__gwDo ? window.__gwDo(' + json.dumps(step) + ', ' + \
-             (json.dumps(list(self.login)) if uses_login else 'null') + ', ' + ('true' if probe else 'false') + ') : "missing";'
+    def _login_host(self):
+        """The host a login may be typed on right now, or None. Read from the window itself: anything the page says
+        about its own address passes through the page's own JavaScript, and that page is what is being checked."""
+        from urllib.parse import urlsplit
         try:
-            return self.w.evaluate_js(js)
+            here = self.w.get_current_url()
+            parts = urlsplit(here)
+            host = parts.hostname
+        except Exception:
+            return None
+        if parts.scheme != 'https' or not host or not any(same_site(here, s) for s in self.login_sites):
+            return None
+        return host
+
+    def _try(self, step, probe=False):
+        wants_login = step.get('k') in ('sign_in', 'sign_in_user') and self.login and not probe
+        host = self._login_host() if wants_login else None
+        # The username step gets the username and nothing else; the password goes only to the box that takes it.
+        login = None
+        if host:
+            login = list(self.login) if step['k'] == 'sign_in' else [self.login[0], '']
+        call = 'window.__gwDo ? window.__gwDo(' + json.dumps(step) + ', ' + (json.dumps(login) if login else 'null') + \
+               ', ' + ('true' if probe else 'false') + ') : "missing"'
+        if login:
+            # The page can move between the check above and this call. === and location.hostname are the two things
+            # here a page cannot redefine, so a page that has moved gets no login.
+            call = 'location.protocol === "https:" && location.hostname === ' + json.dumps(host) + ' ? (' + call + ') : "missing"'
+        try:
+            r = self.w.evaluate_js(DO_SCRIPT + ';' + call + ';')
         except Exception:
             return 'missing'
+        # With no login the agent answers no_login at a login box. Here a login is saved, so it is the site that said no.
+        return 'other_site' if wants_login and not login and r == 'no_login' else r
 
     def run(self):
         before = self.downloads() if self.downloads else set()
@@ -842,6 +899,9 @@ class Driver:
                     self.say(fetch_line('stopped', i=i, why='cancelled'))
                     return 'cancelled'
                 r = self._try(step)
+                if r == 'other_site':
+                    self.say(fetch_line('stopped', i=i, why='other_site'))
+                    return 'other_site'
                 if isinstance(r, str) and r.startswith('read:'):
                     # Item 68 B3: a bill's figure, as the page shows it; Groundwork parses and shows it for a yes
                     try:
@@ -879,7 +939,11 @@ class Driver:
                         self.say(fetch_line('stopped', i=i, why='sign_in_failed'))
                         return 'sign_in_failed'
                     sign_ins += 1
-                    if self._try({'k': r.split(':', 1)[1]}) == 'ok':
+                    filled = self._try({'k': r.split(':', 1)[1]})
+                    if filled == 'other_site':
+                        self.say(fetch_line('stopped', i=i, why='other_site'))
+                        return 'other_site'
+                    if filled == 'ok':
                         self.say(fetch_line('signed_in', i=i))
                         signed_in = True
                     settle = self.now() + SIGN_IN_SETTLE
@@ -1037,7 +1101,7 @@ def fetch_child_main():
             window.load_url(u)
     driver = Driver(window, steps_, _read_login(login_key), lambda l: (sys.stdout.write(l + '\n'), sys.stdout.flush()),
                     downloads=None if key.startswith(('bill:', 'pay:')) else _downloads_lister(),   # read or taken there; no file
-                    open_url=_go_to, to_front=_front, open_signin=_signin)
+                    open_url=_go_to, to_front=_front, open_signin=_signin, home=url)
 
     def _close_when_parent_goes():
         try:
@@ -1195,6 +1259,7 @@ def fetch_words(ev, steps_):
                 'code_timeout': 'Stopped: no code was entered in 5 minutes.',
                 'sign_in_failed': "Stopped: signing in didn't get past the login page twice. Check the saved login (Forget, then Save login again).",
                 'would_pay': "Stopped: the next step looked like making a payment. Groundwork never pays - that is your click.",
+                'other_site': "Stopped: this login page isn't on your bank's own site, so Groundwork didn't fill it in. If you know the page, you can sign in yourself; if not, close the window.",
                 'cancelled': 'Stopped.'}.get(ev.get('why'), 'Stopped.')
     if s == 'downloaded':
         return f"Downloaded {ev.get('file', '')} to your Downloads folder. It's waiting for you in the import review."
@@ -1316,6 +1381,7 @@ def batch_words(it, live=None):
             'sign_in_failed': "Stopped: signing in didn't get past the login page",
             'already_open': 'Stopped: a window for this account was already open',
             'would_pay': 'Stopped: the next step looked like making a payment - Groundwork never pays',
+            'other_site': "Stopped: the login page wasn't on the bank's own site, so nothing was filled in",
             'refused_url': "Stopped: the bank link isn't an https address",
             'engine_unavailable': "Stopped: the window couldn't open",
             'cancelled': 'Stopped'}.get(why, 'Stopped')

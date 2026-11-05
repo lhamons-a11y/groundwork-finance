@@ -16,6 +16,14 @@ NAV = ['Bill Pay', 'Payments', 'Pay bills menu', 'AEP Ohio', 'Submit', 'Continue
        'Download', 'Spreadsheet (CSV)']
 
 
+
+def _Driver(window, *a, **k):
+    """The Driver on the bank's own site: the login guard has its own section (s286)."""
+    import bank_agent_window as baw
+    window.get_current_url = lambda: 'https://www.superiorcu.com/'
+    return baw.Driver(window, *a, home='https://www.superiorcu.com/', **k)
+
+
 def run(ctx):
     check, c, H, HJ, BASE = ctx.check, ctx.c, ctx.H, ctx.HJ, ctx.BASE
     import bank_agent_window as baw
@@ -47,7 +55,7 @@ console.log(JSON.stringify({pays: %s.filter(function (t) { return !paysMoney(el(
           "function press(el) {\n    if (paysMoney(el)) return false;" in ds
           and "if (paysMoney(els[0])) return 'would_pay'; if (probe) return 'present'; press(els[0]);" in ds)
     page, clock, lines = s174._Page(['ok', 'would_pay']), s174._Clock(), []
-    r = baw.Driver(page, [{'k': 'click', 'text': 'Bill Pay'}, {'k': 'click', 'text': 'AEP Ohio'}], ('u', 'p'), lines.append,
+    r = _Driver(page, [{'k': 'click', 'text': 'Bill Pay'}, {'k': 'click', 'text': 'AEP Ohio'}], ('u', 'p'), lines.append,
                    now=clock.now, sleep=clock.sleep).run()
     check('s179 B9 a run that reaches a payment button stops and says why', r == 'would_pay'
           and baw.parse_fetch_line(lines[-1]) == {'s': 'stopped', 'i': 1, 'why': 'would_pay'}
