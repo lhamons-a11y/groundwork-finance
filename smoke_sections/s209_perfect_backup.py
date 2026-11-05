@@ -166,7 +166,7 @@ def run(ctx):
         check('s209 B3 the recovery key prints: from its own sheet outside every window, which the print rules let through',
               len(body_level) == 2 and '</body>' in body_level[1] and body_level[1].index('</body>') < 200
               and 'body.bk-printing > *:not(#bkPrintSheet){display:none!important}' in html
-              and ':not(#gwFeedbackModal):not(#bkPrintSheet){display:none!important}' in html
+              and ':not(#gwFeedbackModal):not(#bkPrintSheet):not(#gwPrintSheet){display:none!important}' in html
               and "const sheet = g('bkPrintSheet');" in app and "sheet.innerHTML = ''" in app)
         # Rob 2026-10-12: Settings' backup card and the top bar's Backups window had drifted apart. One window holds
         # everything; Settings shows the same protection state, and its Create opens that window when setup is needed.

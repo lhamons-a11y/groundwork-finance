@@ -13660,6 +13660,19 @@ def _log_byb_decision(session, item):
     )
 
 
+@byb_bp.route('/projection', methods=['POST'])
+def byb_projection():
+    """The printed report's possible future budget (core/budget_projection.py). Worked out and handed back; not stored."""
+    from core import budget_projection as bp
+    body = request.get_json(silent=True) or {}
+    try:
+        return ok(bp.project(body.get('income'), body.get('budget'), body.get('debt_minimums'), body.get('set_asides'),
+                             body.get('monthly'), kind=body.get('kind') or 'fixed', term_months=body.get('term_months'),
+                             replaces_monthly=body.get('replaces_monthly') or 0))
+    except ValueError as e:
+        return err(str(e))
+
+
 @byb_bp.route('/memory', methods=['GET'])
 def byb_memory():
     """What this user's own decision history says (Pillar 5, §7).
@@ -14389,6 +14402,18 @@ def trip_distance_estimate():
     if not destination:
         return err('destination required')
     return ok(trip_distance.get_drive_distance(origin, destination))
+
+
+@trip_bp.route('/route-points', methods=['GET'])
+def trip_route_points():
+    """The printed itinerary's map: where the drive starts and ends. Only the two place names go to the geocoder, the
+    same two the distance above already sent, and a cached place sends nothing."""
+    import trip_distance
+    origin      = (request.args.get('origin') or '').strip()
+    destination = (request.args.get('destination') or '').strip()
+    if not origin or not destination:
+        return err('origin and destination required')
+    return ok(trip_distance.get_route_points(origin, destination))
 
 
 def _trip_credit_cards(session):

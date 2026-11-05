@@ -208,7 +208,7 @@ def run(ctx):
     }
     from pathlib import Path as _Path
     callers = ''
-    for rel in ('static/js/app.js', 'static/index.html', 'launch.py'):
+    for rel in ('static/js/app.js', 'static/js/print.js', 'static/index.html', 'launch.py'):
         callers += (ctx.BASE / rel).read_text(encoding='utf-8')
     for mod in sorted((ctx.BASE / 'static' / 'js' / 'teaching').glob('*.js')):
         callers += mod.read_text(encoding='utf-8')

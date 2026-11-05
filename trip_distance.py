@@ -96,6 +96,18 @@ def _haversine_miles(lat1, lon1, lat2, lon2) -> float:
     return 2 * r * math.asin(math.sqrt(a))
 
 
+def get_route_points(origin: str, destination: str) -> dict:
+    """The two ends of the drive, for the printed itinerary's map, with the same one-way estimate the trip budget uses.
+    Uses the same cache and the same place names as get_drive_distance, so a trip already priced sends nothing new."""
+    o = _geocode(origin)
+    d = _geocode(destination)
+    if not o or not d:
+        return {'found': False, 'miles': None, 'origin': None, 'destination': None}
+    great_circle = _haversine_miles(o['lat'], o['lon'], d['lat'], d['lon'])
+    return {'found': True, 'miles': round(great_circle * ROAD_DISTANCE_FACTOR), 'origin': o, 'destination': d,
+            'road_factor': ROAD_DISTANCE_FACTOR}
+
+
 def get_drive_distance(origin: str, destination: str) -> dict:
     """
     One-way estimated driving distance in miles. Returns

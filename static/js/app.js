@@ -9423,7 +9423,7 @@ function _budgetRenderDebtRow(card) {
   row.style.cssText = `padding:10px 0 10px 10px;border-bottom:1px solid var(--steel);cursor:pointer;${schedStyle}`;
   row.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px">
-      <div><div class="cat-icon" style="background:var(--ember-bg);border-color:var(--ember-border);color:var(--ember-text)">${_renderCatIcon(isLease ? 'car' : isLoan ? 'bank' : 'credit-card', 'var(--ember-text)', 18)}</div></div>
+      <div><div class="cat-icon" style="background:var(--ember-bg);border-color:var(--ember-border);color:var(--ember-text)">${_renderCatIcon(isLease ? 'car' : isLoan ? 'dollar' : 'credit-card', 'var(--ember-text)', 18)}</div></div>
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
           <span style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">${esc(card.name||'Debt account')}${decayBadge}</span>
@@ -13444,6 +13444,7 @@ const HELP_FAQ = [
   {"q": "How do I import my bank transactions?", "a": "In the Ledger, click ↑ Import, pick the account the file belongs to, then choose the CSV, OFX, QFX or QIF file you downloaded from your bank's website. If you save the file to your Downloads folder, Groundwork notices it and offers a one-click import. To have Groundwork fetch it for you, see \"How do I get my accounts from my bank?\".", "keys": ["import", "bank", "transactions", "upload", "file", "statement", "csv", "ofx", "qfx", "download"], "open": {"view": "ledger"}, "labels": ["↑ Import"]},
   {"q": "What should I do in my first week?", "a": "Five steps: set your monthly income in Budget, set your expense categories, add your debt cards under Debt Payoff, import your first bank statement, then run your first monthly report. After those five things the app knows enough to give you real guidance.", "keys": ["first", "week", "start", "begin", "setup", "new"]},
   {"q": "How do I add a debt card or loan?", "a": "Go to Debt Payoff and tap \"Add card or loan.\" Enter the name, current balance, APR, and minimum payment. The app immediately calculates your payoff timeline, total interest cost, and debt-free date.", "keys": ["add", "debt", "card", "loan", "credit"], "open": {"view": "debt"}, "labels": ["Add card or loan"]},
+  {"q": "How do I print a page?", "a": "With AI on, say or type \"print this page\". With AI off, press Print at the top of the page, where the Ask box usually is. Every page prints as a report. Trip Planner prints as an itinerary, Before You Buy adds a possible future budget, Net Worth prints its timeline report, and the Ledger asks whether you want a detail or an overview page.", "keys": ["print", "printing", "printer", "pdf", "report", "itinerary", "paper"]},
   {"h": "Debt payoff"},
   {"q": "What does the debt-free date mean?", "a": "The month and year your last balance reaches zero at your current payment rate. Every extra dollar above the minimum moves this date earlier. The app recalculates it in real time as you update balances.", "keys": ["debt", "free", "date", "payoff"]},
   {"q": "Can a debt card update its own balance from my bank?", "a": "Yes. Open the debt card and link it to an imported account. From then on, importing a statement brings the bank's reported balance along, and the card shows a cross-check whenever your entered balance and the bank's number drift apart — usually interest or a fee. You choose which number to keep; Groundwork never changes your balance without asking.", "keys": ["debt", "card", "balance", "link", "update", "bank"]},
@@ -22511,7 +22512,7 @@ function _bybSandboxCalc() {
   const debtMins = _activeDebtCards()
     .filter(c => c.id !== replId)
     .reduce((s,c) => s+(parseFloat(c.minimum)||0), 0);
-  const sinking  = (_sinkingFunds||[]).reduce((s,f)=>s+(parseFloat(f.monthly)||0),0);
+  const sinking  = (_sinkingFunds||[]).reduce((s,f)=>s+(parseFloat(f.monthlyContrib)||0),0);
   const newPmt   = _byb.monthly;
 
   const whatsLeft   = income - expenses - debtMins - sinking - newPmt;
@@ -26344,6 +26345,8 @@ function updateAIFeatureVisibility() {
   document.querySelectorAll('.ai-feature').forEach(el => {
     el.style.display = enabled ? '' : 'none';
   });
+  const printBtn = g('gwPrintBtn');                   // Rob 2026-11-05: Print stands where the Ask box was
+  if (printBtn) printBtn.style.display = enabled ? 'none' : '';
 
   // Update topbar status indicator
   const status = g('aiStatus');
@@ -28249,6 +28252,7 @@ function askIntent(q, p, head, assist = false) {
     return true;
   }
   const n = _askCanon(_askRepaired(said));
+  if (typeof gwPrintIntent === 'function' && gwPrintIntent(said, n)) return true;   // "print this page" (js/print.js)
   if (_askFollow(n)) return true;                              // V4: "what about Walmart?", "and last month?"
   const coming = n.match(ASK_COMING);
   if (coming) { askComingUp(/\bmonth$/.test(n), /\bnext (?:week|month)$/.test(n)); return true; }   // V15
@@ -30733,7 +30737,7 @@ function _rcMonthlyDisplayNarrative(text, label, isSaved, note) {
       <div style="font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);font-weight:600">
         Groundwork's analysis${isSaved?` · <span style="color:var(--slate-2)">Saved — ${esc(label)}</span>`:''}${note?` · <span style="color:var(--gold-text)">${esc(note)}</span>`:''}
       </div>
-      <button onclick="window.print()" style="background:none;border:1px solid var(--steel);border-radius:var(--r-sm);padding:4px 10px;font-size:var(--fs-xs);cursor:pointer;color:var(--slate)">⎙ Print</button>
+      <button onclick="gwPrintPage()" style="background:none;border:1px solid var(--steel);border-radius:var(--r-sm);padding:4px 10px;font-size:var(--fs-xs);cursor:pointer;color:var(--slate)">⎙ Print</button>
     </div>
     ${pullquote?`<div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-2xl);color:var(--ink);line-height:1.5;padding:20px 0;border-top:2px solid var(--steel);border-bottom:2px solid var(--steel);margin-bottom:20px">${esc(pullquote)}</div>`:''}
     <div style="font-size:var(--fs-md);color:var(--ink);line-height:1.8">${rest.map(p=>`<p style="margin:0 0 14px">${esc(p)}</p>`).join('')}</div>
@@ -31106,7 +31110,7 @@ async function _rcRenderYearEnd() {
         <select onchange="_yeYear = +this.value; _rcRenderYearEnd()" class="field-input" style="width:auto;font-size:var(--fs-sm);padding:4px 8px">
           ${p.years.map(y => `<option value="${y}" ${y === p.year ? 'selected' : ''}>${y}</option>`).join('')}</select>
         <label style="font-size:var(--fs-sm);color:var(--slate)"><input type="checkbox" ${p.include_health ? 'checked' : ''} onchange="_yeHealth = this.checked; _rcRenderYearEnd()"> Include health spending</label>
-        <button class="btn btn-secondary btn-sm" onclick="window.print()">Print or save as PDF</button>
+        <button class="btn btn-secondary btn-sm" onclick="gwPrintPage()">Print or save as PDF</button>
         <button class="btn btn-secondary btn-sm" onclick="yearEndCsv()">Save as CSV</button>
       </div>
       ${p.health_left_out ? `<div style="font-size:var(--fs-sm);color:var(--slate);margin-top:6px">${p.health_left_out} health spending transaction${p.health_left_out === 1 ? ' is' : 's are'} left out. Tick "Include health spending" to include ${p.health_left_out === 1 ? 'it' : 'them'}.</div>` : ''}
@@ -31290,7 +31294,7 @@ async function _vrMake() {
     ${list('HSA and FSA', r.accounts)}
     ${list('Health reserve', r.reserve)}
     <div style="font-size:var(--fs-xs);color:var(--slate);margin-bottom:10px">${esc(r.not_included)}</div>
-    <button class="btn btn-secondary btn-sm" onclick="window.print()">Print or save as PDF</button>`;
+    <button class="btn btn-secondary btn-sm" onclick="gwPrintPage()">Print or save as PDF</button>`;
 }
 
 async function yearEndCsv() {
@@ -33127,7 +33131,12 @@ async function _rcRenderNetWorthTimeline() {
     body.innerHTML = `<div style="color:var(--slate);font-size:var(--fs-base)">No net worth snapshots yet.</div><button onclick="showView('networth')" style="margin-top:12px;font-size:var(--fs-sm);background:none;border:1px solid var(--steel);border-radius:var(--r-sm);padding:5px 12px;cursor:pointer;color:var(--ink)">Go to Net Worth</button>`;
     return;
   }
-  const sorted     = [...history].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  body.innerHTML = _rcNetWorthTimelineHTML(history);
+}
+
+// The one Net Worth report: the Report Center shows it, and printing the Net Worth page prints it (Rob 2026-11-05)
+function _rcNetWorthTimelineHTML(history) {
+  const sorted    = [...history].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   const first      = sorted[0], last = sorted[sorted.length-1];
   const totalGain  = last.net_worth - first.net_worth;
   const debtContrib = Math.max(0, (first.total_liabilities||0)-(last.total_liabilities||0));
@@ -33144,7 +33153,7 @@ async function _rcRenderNetWorthTimeline() {
   const zero=toY(0), pts=sorted.map((s,i)=>`${toX(i)},${toY(s.net_worth)}`).join(' ');
   const areaD=`M${toX(0)},${zero} ${sorted.map((s,i)=>`L${toX(i)},${toY(s.net_worth)}`).join(' ')} L${toX(sorted.length-1)},${zero} Z`;
   const clr=last.net_worth>=0?'var(--pine-text)':'var(--ember-text)';
-  body.innerHTML = `
+  const html = `
     <div style="margin-bottom:24px">
       <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:var(--fs-3xl);font-weight:600;color:var(--ink);margin-bottom:4px">Net Worth Timeline</h2>
       <div style="font-size:var(--fs-base);color:var(--slate)">All-time trajectory from first snapshot to today.</div>
@@ -33170,6 +33179,7 @@ async function _rcRenderNetWorthTimeline() {
         <tbody>${[...sorted].reverse().map(s=>`<tr style="border-bottom:1px solid var(--steel)"><td style="padding:6px 8px;color:var(--ink)">${s.month_label||s.date}</td><td style="padding:6px 8px;font-family:var(--font-mono);text-align:right;color:var(--pine-text)">${fmt(s.total_assets)}</td><td style="padding:6px 8px;font-family:var(--font-mono);text-align:right;color:var(--ember-text)">${fmt(s.total_liabilities)}</td><td style="padding:6px 8px;font-family:var(--font-mono);text-align:right;font-weight:600;color:${s.net_worth>=0?'var(--pine-text)':'var(--ember-text)'}">${fmt(s.net_worth)}</td></tr>`).join('')}</tbody>
       </table>
     </div>`;
+  return html;
 }
 
 // ── Item 115 stages 2-3 (ASK_FOR_A_REPORT.md P10-P15; Rob 2026-10-31): build a report from sections ─────────────────
@@ -33490,7 +33500,7 @@ function _rbDelete() {
 async function _rbPrint() {
   document.body.classList.add('rb-printing');
   await _rbRun('print');
-  window.print();
+  await gwPrintPage();
   document.body.classList.remove('rb-printing');
   _rbRun();
 }
