@@ -300,6 +300,72 @@ phenetic spelling to train Whisper. Also feel free to add anything else that you
   page and does not change how Groundwork's voice says a name. s285.
 - **Not the exit criterion**: these are synthetic voices; real people on real microphones will mishear differently.
 
+## 4h. V24 Understanding how people talk - BUILT 2026-11-05
+
+Rob 2026-11-05: *"Let's push everything that makes the voice addition stronger and feel more natural talking and
+understanding of the user asks."* What was failing was not hearing but understanding: whisper wrote the words, and the
+Ask bar only knew them in a few set shapes.
+
+**Measured first** (`scripts/voice_natural_measure.py`, phrases in `scripts/voice_natural_asks.json`, written by hand, run
+through the Ask bar's own code as a spoken ask with AI off):
+
+| | before | after |
+|---|---|---|
+| the build set, fixed against (165) | 80 | 165 |
+| held out: only its total was looked at while fixing (75) | 23 | 74 |
+| real questions and passing remarks left for the assistant (87, 18 of them added before the fix) | 2 of the first 69 wrongly taken | 87 |
+
+**Said aloud** (Kokoro's voice into Groundwork's whisper, then the router; before the last small fixes for "due" heard as
+"do" and "budgets"):
+
+| | af_heart before / after | bm_george before / after |
+|---|---|---|
+| build (165) | 80 / 162 | 78 / 159 |
+| held out (75) | 24 / 67 | 23 / 66 |
+| not commands left alone (87) | 81 / 87 | 81 / 87 |
+
+What still misses is mostly mishearing ("Yeah, I open the budget", "from Shep"), which is what V21's teaching and V23's forms
+are for.
+
+- **Said any ordinary way**: "where's my budget", "check my debts", "pull my budget up", "would you mind opening the
+  calendar", "the budget page please". A loose form opens a page only if what is left is exactly a page's name, so "check my
+  math" and "take me out to dinner" stay questions.
+- **A store, however it is put**: "show me Kroger", "everything from Costco", "my Costco purchases from this month". Only
+  if it is in the record or sounds like a known store: "show me the money" searches nothing.
+- **Answered, AI off** (Rob's to rule, below): "what did I spend at Kroger", "how much last month", "when did I last go to
+  Costco" hear the record's own sum, worked out in the page from the same charges the Ledger then shows.
+- **People put themselves right**: "open the budget, no wait, the ledger", "show me Kroger, I mean Walmart", then "no, I
+  meant Walmart", "Walmart instead". Only when what came before was a command and what comes after names something real.
+- **Pausing to think**: "show me my ... Kroger transactions" is one ask. What stops on a word that cannot end a sentence
+  waits 2.6 seconds for the rest, and is asked as it stands if nothing comes, so nothing is lost. What sounds like
+  someone struggling never waits (care first, item 104).
+- **What's coming, as it's said**: "anything due this week", "do I have any bills due", then "and next week?". "Next week"
+  used to answer with this week's dates and call them this week; it now looks up the week after.
+- **The small words**: "never mind", "forget it", "thanks Groundwork", "hello Groundwork", "what do you do". To cut in: "hold
+  on", "wait", "one more time", "what did you say", "too fast". To end it: "I'm done", "all done". "Groundwork, stop." and
+  "okay stop please" were not understood as stop; they are now.
+- **"Say that again" works on a reply.** It only knew readings, so it could not repeat an answer Groundwork had just spoken.
+- **V4 finished**: AI off, a spoken question about a figure says where it is and opens the page, as approved; it had
+  stopped at a "Show me" button the person could not press by voice. Nothing to answer it: "Sorry, I didn't get that. You
+  could say ...", not "Ask is AI help, and AI is off."
+- **Replies**: Rob's "Sure, opening the Budget for you" is the first; pages opened in the next five minutes are "OK, here's
+  the Ledger", "Here's the Calendar". Nothing about this is kept.
+- **Two wrong answers found and fixed**: "show me how to split a transaction" searched the Ledger for "how to split a", and
+  "why is my net worth down" opened the page instead of being a question.
+
+With AI on, everything here that is a command acts the same; spending questions go to the assistant, as before (s286 N3).
+
+**Rob's to rule** (built as recommended):
+
+| # | Question | As built |
+|---|---|---|
+| N-a | Saying a figure with AI off | yes, only when asked, from the record's lines, by code. The old note read "the assistant never states a figure"; this is not the assistant, and the lines are on screen under it. |
+| N-b | Which store total | a store's charges, all time unless a month or year is said; refunds are not netted. |
+| N-c | The shorter replies | on; one line to turn off. |
+
+**Not the exit criterion**: the phrases are one author's idea of how people talk, and the audio check is synthetic voices.
+Real people will say things no list has. s286.
+
 ## 4a. Measured (V8, first cut, 2026-10-31 - synthetic voices, not yet real people)
 
 `scripts/voice_measure.py`: 30 commands said by six voices - Kokoro af_heart, am_michael, bf_emma, bm_george (American

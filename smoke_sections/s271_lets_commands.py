@@ -69,7 +69,7 @@ console.log(JSON.stringify(cases.map(([q, want]) => {
     wrong = [(q, got) for q, got, want in out if got != want]
     check(f's271 L1/L2 each phrase lands where it means; "make my monthly report" and "view reports" are unchanged ({wrong})',
           out and not wrong)
-    js2 = (app[app.index('function _askShowTxns(n) {'):app.index('function askLedgerSearch(term) {')] + """
+    js2 = (app[app.index('function _askShowTxns(n) {'):app.index('function askLedgerSearch(term, ask) {')] + """
 const shows = """ + json.dumps([
         ['show me my kroger transactions', 'kroger'], ["show me kroger's transactions", 'kroger'],
         ['show my transactions at walmart', 'walmart'], ['view all the amazon purchases', 'amazon'],
@@ -79,7 +79,7 @@ const replies = """ + json.dumps([['Opened Import', 'Sure, opening Import for yo
                                   ['Opened the report builder', 'Sure, opening the report builder for you.'],
                                   ["Here's the AI switch", "Here's the AI switch."], ['', '']]) + """;
 console.log(JSON.stringify({ shows: shows.map(([q, want]) => [q, _askShowTxns(q), want]),
-                             replies: replies.map(([d, want]) => [d, _askSaidFor(d), want]) }));
+                             replies: replies.map(([d, want]) => { _askOpenedAt = 0; return [d, _askSaidFor(d), want]; }) }));
 """)
     f2 = os.path.join(d, 'replies.js')
     open(f2, 'w', encoding='utf-8').write(js2)
@@ -87,7 +87,7 @@ console.log(JSON.stringify({ shows: shows.map(([q, want]) => [q, _askShowTxns(q)
     bad = [x for x in o2.get('shows', []) if x[1] != x[2]] + [x for x in o2.get('replies', []) if x[1] != x[2]]
     check(f's271 L3/L4 "show me my Kroger transactions" searches the Ledger for Kroger; a command\'s spoken reply is "Sure, '
           f'opening ... for you." ({bad})', o2.get('shows') and not bad)
-    ledger = app[app.index('function askLedgerSearch(term) {'):app.index('// A budget line or category the person named')]
+    ledger = app[app.index('function askLedgerSearch(term, ask) {'):app.index('// A budget line or category the person named')]
     intent = app[app.index('function askIntent(q, p, head, assist = false) {'):app.index('// ─── Item 103: Explain this page')]
     ask = app[app.index('async function askGroundwork('):]
     check('s271 L3/L4 the Ledger search says "OK, showing your Kroger transactions in the Ledger"; pages, commands and '
@@ -100,7 +100,8 @@ console.log(JSON.stringify({ shows: shows.map(([q, want]) => [q, _askShowTxns(q)
           and 'if (!window._gwVoiceAsked) return;' in app)
     go = app[app.index('function askGo(pl)'):app.index('// ── Item 102 (Rob 2026-10-19: "add those four')]
     check('s271 L3/L4 opening the Ledger shows all of it, and a page opened is answered "Sure, opening ... for you."',
-          "_askSaid(`Sure, opening ${pl.label} for you.`);" in go and "g('ledgerSearch').value = '';" in go)
+          "_askSaid(_askOpenWords(pl.label));" in go and "return `Sure, opening ${label} for you.`;" in app
+          and "g('ledgerSearch').value = '';" in go)
     check('s271 L2 a place that names a report opens that report on the Reports page',
           'if (pl.report) setTimeout(() => _rcOpenReport(pl.report), 80);' in go
           and "{ label: 'the report builder', names: ['report builder', 'build a report', 'build your own report'], view: 'reports', report: 'builder' }" in app)

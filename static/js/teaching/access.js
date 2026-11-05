@@ -507,9 +507,14 @@
   var BARGE_MAX_MS = 2500;
   var BARGE = { 'stop': 'stop', 'stop it': 'stop', 'stop in': 'stop', 'quiet': 'stop', 'be quiet': 'stop', 'stop reading': 'stop', 'stop talking': 'stop',
                 'that s enough': 'stop', "that's enough": 'stop', 'enough': 'stop', 'pause': 'stop', 'no': 'stop',
-                'nope': 'stop', 'next': 'next', 'next one': 'next', 'next part': 'next', 'skip': 'next',
+                'nope': 'stop', 'next': 'next', 'next one': 'next', 'next part': 'next', 'skip': 'next', 'skip it': 'next',
                 'repeat': 'repeat', 'again': 'repeat', 'say that again': 'repeat', 'slower': 'slower',
-                'slow down': 'slower', 'faster': 'faster', 'speed up': 'faster' };
+                'slow down': 'slower', 'faster': 'faster', 'speed up': 'faster',
+                // V24: how people cut in
+                'wait': 'stop', 'hold on': 'stop', 'hang on': 'stop', 'never mind': 'stop', 'nevermind': 'stop', 'cancel': 'stop',
+                'shut up': 'stop', 'got it': 'stop', 'thanks': 'stop', 'all right': 'stop', 'alright': 'stop', 'i got it': 'stop',
+                'one more time': 'repeat', 'say it again': 'repeat', 'repeat that': 'repeat', 'what': 'repeat', 'pardon': 'repeat',
+                'come again': 'repeat', 'what did you say': 'repeat', 'sorry what': 'repeat', 'too fast': 'slower', 'too slow': 'faster' };
 
   // The room's level: the quietest tenth of the last FLOOR_MS, or nothing until enough has been heard
   function _floor(c, frameMs) {
@@ -628,8 +633,41 @@
           conv.awakeUntil = at + WAKE_FOLLOW_MS;    // a follow-up, a few seconds after the last
         }
       }
-      if (text) route(text);                        // in a conversation, a cough is not worth a message
+      if (text) _routeWhole(text);                  // in a conversation, a cough is not worth a message
     } catch (e) { showToast('Voice commands could not run', e.message || '', 'error'); }
+  }
+
+  // V24: people stop to think mid-sentence - "show me my ... Kroger transactions". What ends on a word that cannot end a
+  // sentence waits a moment for the rest. It is never lost (the moment passes and it is asked as it stands), and what
+  // sounds like someone struggling never waits. In memory only, like everything heard.
+  var HOLD_MS = 2600, HOLD_MAX_MS = 8000;
+  var UNFINISHED = /\b(?:the|my|our|a|an|to|at|for|from|of|and|or|with|in|on|show me|then|um|uh|like)[\s.,…-]*$/i;
+  var held = null;                                   // { text, since, timer }
+  function _unfinished(text) {
+    var t = String(text).trim();
+    if (/[?!]$/.test(t) || t.split(/\s+/).length < 2) return false;
+    if (typeof window.careLevel === 'function' && window.careLevel(t)) return false;
+    return UNFINISHED.test(t);
+  }
+  function _heldGo() {
+    if (!held) return;
+    var c = conv, t = held.text;
+    if (c && (c.speech || c.busy > 0) && Date.now() - held.since < HOLD_MAX_MS) { held.timer = setTimeout(_heldGo, 300); return; }   // still talking
+    held = null;
+    route(t);
+  }
+  function _routeWhole(text) {
+    if (held) {
+      clearTimeout(held.timer);
+      text = held.text.replace(/[\s.,…-]+$/, '') + ' ' + text;
+      var since = held.since;
+      held = null;
+      if (_unfinished(text) && Date.now() - since < HOLD_MAX_MS) { held = { text: text, since: since, timer: setTimeout(_heldGo, HOLD_MS) }; return; }
+    } else if (_unfinished(text)) {
+      held = { text: text, since: Date.now(), timer: setTimeout(_heldGo, HOLD_MS) };
+      return;
+    }
+    route(text);
   }
 
   // V7 (item 116): the first time the microphone is turned on, a short spoken tour - once; Settings records that it was
@@ -670,7 +708,7 @@
     { words: ['yes', 'yeah', 'yes please', 'sure'], said: 'Explaining further', run: function () { return answer(true) ? stop : false; } },
     { words: ['no', 'nope', 'no thanks', 'no thank you'], said: 'Not explaining further', run: function () { return answer(false) ? function () {} : false; } },
     { words: ['stop', 'quiet', 'be quiet', 'stop reading'], said: 'Stopped reading', run: function () { stop(); return function () { if (last) say(last.words); }; } },
-    { words: ['repeat', 'say that again', 'again'], said: 'Reading it again', run: function () { return last && say(last.words) ? stop : false; } },
+    { words: ['repeat', 'repeat that', 'say that again', 'say it again', 'again', 'one more time', 'what did you say', 'come again', 'pardon'], said: 'Saying it again', run: function () { return last && say(last.words) ? stop : false; } },
     { words: ['slower', 'slow down', 'read slower'], said: 'Reading slower', run: function () { return _step(-1); } },
     { words: ['faster', 'speed up', 'read faster'], said: 'Reading faster', run: function () { return _step(1); } },
     { words: ['read this', 'read that', 'read it'], said: 'Reading this part', run: function () { return readSection(sectionAt(pointerAt)) ? stop : false; } },
@@ -705,7 +743,7 @@
     return function () { showView(from); };
   }
 
-  var MIC_OFF = ['stop', 'stop listening', 'that s all', "that's all", 'mic off', 'microphone off', 'turn off the microphone', 'goodbye', 'thank you that s all'];
+  var MIC_OFF = ['stop', 'stop listening', 'that s all', "that's all", 'that is all', 'mic off', 'microphone off', 'turn off the microphone', 'turn off the mic', 'goodbye', 'good bye', 'bye groundwork', 'thank you that s all', "thank you that's all", "thanks that's all", 'thanks that s all', "i'm done", 'i m done', "we're done", 'we re done', 'all done'];
   var YES_NO = /^(yes|yeah|yep|sure|no|nope|no thanks|no thank you)$/;
 
   // V13 (item 116): spoken figures in - "four hundred fifty dollars" is 450 dollars before anything reads it, so "set
@@ -920,7 +958,8 @@
     if (mean) { _meanThis(mean[1], mean[2]); return; }                                    // what it hears, the person's way
     text = _heardAs(text);
     text = _figures(text);                             // V13: "four hundred fifty dollars" -> "450 dollars"
-    var t = _norm(text);
+    // "Groundwork, stop." and "okay stop please" are "stop": the short commands below are matched whole
+    var t = _norm(text).replace(/^(?:(?:hey |ok |okay )?groundwork|ok|okay|hey|please|um|uh)\s+(?=\S)/, '').replace(/\s+please$/, '');
     var heard = 'Heard: “' + text + '”';               // a toast's text: showToast escapes it
     if (_guideRoute(t, heard)) return;                 // V17
     var dict = text.match(/^(?:groundwork,?\s+)?(?:type|write|note|dictate)[:,]?\s+(.+)$/i);
@@ -1224,7 +1263,8 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load);
   else load();
 
-  window.GWVoice = { say: function (w) { return say(w); }, on: function () { return !!conv; },     // item 114 H14
+  // V24: "say that again" means the last thing it said, a reply as much as a reading (not "One moment")
+  window.GWVoice = { say: function (w) { if (w && w !== 'One moment.') last = { words: w, section: null }; return say(w); }, on: function () { return !!conv; },     // item 114 H14
                      first: function () { return prefs.voice_first === 'on'; },                     // item 116 V12
                      learn: function (h, m, n) { return learnHeard(h, m, n); } };                  // learned, and said
 
