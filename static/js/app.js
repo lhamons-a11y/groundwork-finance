@@ -28027,9 +28027,9 @@ function _askSoundsLike(term) {
   const key = s => String(s || '').toLowerCase().replace(/[\x27’]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
     .replace(/ij/g, 'y').replace(/ph/g, 'f').replace(/ck/g, 'k').replace(/([a-z])\1+/g, '$1')
     .split(' ').map(w => w.length > 3 ? w.replace(/s$/, '') : w).join(' ');
-  const t = key(term);
+  let t = key(term);
   if (t.length < 3) return null;
-  const words = t.split(' ').length;
+  let words = t.split(' ').length;
   const dist = (a, b) => {
     let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
     for (let i = 1; i <= a.length; i++) {
@@ -28040,12 +28040,12 @@ function _askSoundsLike(term) {
     return prev[b.length];
   };
   let best = null, bestD = Infinity;
-  const scan = names => {
+  const scan = (names, wholeOnly) => {
     for (const name of new Set(names)) {
       const whole = key(name);
-      if (!whole || whole[0] !== t[0]) continue;
+      if (!whole || whole[0] !== t[0] || (wholeOnly && whole.length < 7)) continue;
       const head = whole.split(' ').slice(0, words).join(' ');
-      for (const m of new Set([whole, head])) {
+      for (const m of new Set(wholeOnly ? [whole] : [whole, head])) {
         // run together too: "hyvee" is "hy-vee", "walmart" is "wal mart"
         const d = Math.min(dist(t, m), dist(t.replace(/ /g, ''), m.replace(/ /g, '')));
         const allowed = Math.max(t.length, m.length) <= 4 ? 0 : Math.max(t.length, m.length) <= 10 ? 1 : 2;
@@ -28054,10 +28054,29 @@ function _askSoundsLike(term) {
       }
     }
   };
-  scan((S.transactions || []).map(x => x.merchant).filter(Boolean));       // the person's own stores first
-  // then the country's supermarket chains (Rob 2026-11-01: "Hear the names right") - "wegmen's" is Wegmans even before
-  // a first visit; the toast says what was heard, and a chain not in the record finds nothing
-  if (!best) scan(((typeof window !== 'undefined' && window._gwChains) || []).map(c => c.name));
+  const own = (S.transactions || []).map(x => x.merchant).filter(Boolean);
+  const chains = (typeof window !== 'undefined' && window._gwChains) || [];
+  scan(own);       // the person's own stores first
+  // Item 116 V23: then what whisper writes for a store (core/data/us_stores.json) - "coals" is Kohl's, whose first letter
+  // the comparison above could never reach. One sound can be two stores (QuikTrip, Kwik Trip): the one in the record wins.
+  if (!best) {
+    const said = t;
+    const meant = chains.filter(c => (c.heard || []).some(h => key(h) === said)).map(c => c.name);
+    for (const name of meant) {
+      t = key(name); words = t.split(' ').length;
+      scan(own);
+      if (best) return best;
+    }
+    if (meant.length) return meant[0].toLowerCase();
+    t = said; words = t.split(' ').length;
+  }
+  // then the country's stores (Rob 2026-11-01: "Hear the names right") - "wegmen's" is Wegmans even before a first
+  // visit; the toast says what was heard, and a store not in the record finds nothing
+  const measured = c => c.kind === 'grocery' || c.kind === 'mixed';
+  if (!best) scan(chains.filter(measured).map(c => c.name));
+  // the other stores by their whole name only, and no short ones: with them all in, "hotel" came back Hooters, "pets"
+  // Peet's Coffee and "school" Scheels (s285 N4). Their heard forms, above, are how a short or first-word name is reached.
+  if (!best) scan(chains.filter(c => !measured(c)).map(c => c.name), true);
   return best;
 }
 

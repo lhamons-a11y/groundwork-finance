@@ -19,6 +19,7 @@ import re
 from pathlib import Path
 
 DATA = Path(__file__).parent / 'data' / 'grocery_chains.json'
+STORES = Path(__file__).parent / 'data' / 'us_stores.json'
 # a bank line that says what kind of store it is
 GROCERY_WORDS = re.compile(r'\b(?:supermarkets?|supermercados?)\b')
 
@@ -38,6 +39,15 @@ def load():
         return json.loads(DATA.read_text(encoding='utf-8')).get('chains', [])
     except Exception:
         return []
+
+
+def load_stores():
+    """The other major stores and payees, {group: [[name, phonetic, heard], ...]} (core/data/us_stores.json) - for the
+    voice to hear them. Nothing here decides a category."""
+    try:
+        return json.loads(STORES.read_text(encoding='utf-8')).get('groups', {})
+    except Exception:
+        return {}
 
 
 def _patterns():

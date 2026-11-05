@@ -263,6 +263,43 @@ three: say every name right, hear the names right, know they are grocery stores.
   $2,574.08: Other -> Groceries; saved today under the parent Food) and one Jim's Thriftway. Only new imports are
   filed by the rules; nothing saved moves, and the category review offers any move only on a Yes. s284.
 
+## 4g. V23 The other major stores, with how they are said - BUILT 2026-11-04
+
+Rob 2026-11-04: *"lets grab all of the Department stores, pharmacies, all major shopping stores in the United States with
+phenetic spelling to train Whisper. Also feel free to add anything else that you can think of maybe gas stations etc."*
+
+- **The list**: `core/data/us_stores.json`, written by hand - 585 rows in 31 groups: department, discount, warehouse,
+  major supermarkets, pharmacies, home improvement, electronics, clothing, shoes, jewelry, sporting, craft, furniture,
+  pet, beauty, books and toys, office and shipping, auto parts, tires and service, farm stores, gas and convenience, fast
+  food, coffee, casual dining, online, phone and internet, streaming, rides and delivery, travel, banks and cards,
+  insurance. Each row: name, phonetic spelling, what is heard instead. Closed chains stay (Rite Aid, JOANN, Party City):
+  their names are still in people's records. A store on the V22 list keeps its kind and gains its heard forms.
+- **whisper is not trained by a list.** The model file is fixed. What can be done is to nudge it with the prompt, and to
+  correct what it writes afterwards. Both were measured (`scripts/store_names_measure.py`: "Show me my <store>
+  transactions" said from the phonetic spelling by Kokoro af_heart and am_michael, whose forms were merged, then scored
+  on bm_george, which was held out):
+
+  | bm_george, 585 names | reached the store |
+  |---|---|
+  | whisper wrote the name itself | 397 |
+  | with the V22 supermarket list only | 406 |
+  | with the hand-written heard forms | 501 |
+  | with the forms measured on the other two voices too | 524 |
+
+  **The prompt**: of the 52 names that fit its 800 characters, exact went from 33 to 43; of the 533 that did not fit, from
+  370 to 364. It helps what it holds and costs the rest a little, and it would push out the person's own words (V1), so
+  no store goes into it. Pharmacies would stay out regardless (H6).
+- **Corrected, not rewritten**: `_askSoundsLike` tries the person's own stores first, then the heard forms ("coals" is
+  Kohl's, a first letter the sound comparison can never reach), then the V22 list, then the other stores by whole name
+  only. One sound can be two stores (QuikTrip, Kwik Trip): the one in the record wins. It runs only when what was heard
+  matches nothing in the record, and the toast says what was heard.
+- **Null model**: with every name in the sound comparison, "hotel" came back Hooters, "pets" Peet's Coffee, "school"
+  Scheels. Hence whole name only and 7 letters or more for these rows; of 125 everyday words none is taken for a store
+  (s285 N4). Measured forms that are everyday words ("golf" for Gulf, "belt" for Belk) were left out by hand.
+- **Hearing only**: no row decides a category (only kind `grocery` does), and the phonetic spelling is not served to the
+  page and does not change how Groundwork's voice says a name. s285.
+- **Not the exit criterion**: these are synthetic voices; real people on real microphones will mishear differently.
+
 ## 4a. Measured (V8, first cut, 2026-10-31 - synthetic voices, not yet real people)
 
 `scripts/voice_measure.py`: 30 commands said by six voices - Kokoro af_heart, am_michael, bf_emma, bm_george (American

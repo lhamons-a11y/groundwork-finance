@@ -3952,15 +3952,28 @@ def voice_voice_check():
 @voice_bp.route('/chains', methods=['GET'])
 def voice_chains():
     """Rob 2026-11-01: the United States' supermarket chains (core/data/grocery_chains.json), so a name whisper writes
-    as it sounds ("Wegmen's") is heard as the chain. Names and kinds only; shipped with the app, nothing fetched."""
+    as it sounds ("Wegmen's") is heard as the chain. Names and kinds only; shipped with the app, nothing fetched.
+    Item 116 V23: the other major stores and everyday payees join them (core/data/us_stores.json), each with what whisper
+    writes for it ("coals" is Kohl's). A kind of its own decides no category: only 'grocery' does."""
+    from core import grocery_chains
     try:
         import core
         d = json.loads((Path(core.__file__).parent / 'data' / 'grocery_chains.json').read_text(encoding='utf-8'))
     except Exception:
         return ok({'chains': []})
-    return ok({'chains': [{'name': c['name'], 'kind': c['kind'], **({'generic': True} if c.get('generic') else {})}
-                          for c in d.get('chains', []) if c.get('kind') != 'company'],
-               'source': d.get('source'), 'revision_time': d.get('revision_time')})
+    chains = [{'name': c['name'], 'kind': c['kind'], **({'generic': True} if c.get('generic') else {})}
+              for c in d.get('chains', []) if c.get('kind') != 'company']
+    by_name = {grocery_chains.norm(c['name']): c for c in chains}
+    for group, rows in grocery_chains.load_stores().items():
+        for name, _phonetic, heard in rows:
+            entry = by_name.get(grocery_chains.norm(name))
+            if entry is None:
+                entry = {'name': name, 'kind': group}
+                by_name[grocery_chains.norm(name)] = entry
+                chains.append(entry)
+            if heard:
+                entry['heard'] = heard
+    return ok({'chains': chains, 'source': d.get('source'), 'revision_time': d.get('revision_time')})
 
 
 def _voice_words(session):

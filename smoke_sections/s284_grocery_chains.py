@@ -62,7 +62,7 @@ def run(ctx):
     check(f"s284 G3 the page reads the chains from this computer - names and kinds, no parent companies "
           f"({len(served)} served)",
           'Wegmans' in served and 'Ahold Delhaize' not in served and served['Giant'].get('generic') is True
-          and set(next(iter(served.values()))) <= {'name', 'kind', 'generic'})
+          and set(next(iter(served.values()))) <= {'name', 'kind', 'generic', 'heard'})
 
     # ── G4 ───────────────────────────────────────────────────────────────────────────────────────────────────────────
     server = {line: bi.auto_category(line) for line in LINES}
