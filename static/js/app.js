@@ -27632,7 +27632,7 @@ const ASK_PLACES = [
   { label: 'the Calendar', names: ['calendar', 'calendars', 'upcoming', 'schedule'], view: 'budget', tab: ['bud', 'calendar'] },
   { label: 'Gifts', names: ['gift budget', 'gifts', 'gift'], view: 'budget', tab: ['bud', 'gifts'] },
   { label: 'Possible futures', names: ['possible futures', 'futures', 'what if'], view: 'budget', tab: ['bud', 'futures'] },
-  { label: 'Bills and charges', names: ['bills and charges', 'recurring charges', 'subscriptions', 'sinking funds'], view: 'budget', tab: ['bud', 'bills'] },
+  { label: 'Bills and charges', names: ['bills and charges', 'recurring charges', 'recurring bills', 'bills', 'subscriptions', 'sinking funds'], view: 'budget', tab: ['bud', 'bills'] },
   { label: 'Medical bills', names: ['medical bills', 'medical bill', 'collections', 'collection', 'hospital bills', 'doctor bills'], view: 'health', tab: ['health', 'bills'] },
   { label: 'Plan and reserve', names: ['health plan', 'plan year', 'deductible', 'health reserve', 'reserve', 'hsa', 'fsa'], view: 'health', tab: ['health', 'plan'] },
   { label: 'Health spending', names: ['health spending', 'medical spending', 'medical expenses', 'health expenses'], view: 'health', tab: ['health', 'spending'] },
@@ -27642,13 +27642,13 @@ const ASK_PLACES = [
   { label: 'Before You Buy', names: ['before you buy', 'byb', 'purchase'], view: 'byb', tab: ['byb', 'before'] },
   { label: 'the Month Tracker', names: ['month tracker', 'tracker'], view: 'debt', tab: ['debt', 'tracker'] },
   { label: 'the debt Advisor', names: ['advisor'], view: 'debt', tab: ['debt', 'advisor'] },
-  { label: 'Debt Payoff', names: ['debt payoff', 'debts', 'debt', 'payoff', 'loans', 'cards'], view: 'debt', tab: ['debt', 'setup'] },
+  { label: 'Debt Payoff', names: ['debt payoff', 'debt payoff plan', 'payoff plan', 'debts', 'debt', 'payoff', 'loans', 'cards', 'credit cards', 'car loan', 'student loans', 'student loan', 'mortgage'], view: 'debt', tab: ['debt', 'setup'] },
   { label: 'the Assistant page', names: ['bank logins', 'automation', 'assistant'], view: 'automation' },
   { label: 'the report builder', names: ['report builder', 'build a report', 'build your own report'], view: 'reports', report: 'builder' },
   { label: 'Reports', names: ['reports', 'report', 'report center', 'monthly report'], view: 'reports' },
   { label: 'the Ledger', names: ['ledger', 'transactions', 'transaction', 'recent transactions', 'all transactions', 'spending'], view: 'ledger' },
-  { label: 'the Budget', names: ['budget', 'my budget'], view: 'budget', tab: ['bud', 'plan'] },
-  { label: 'the Trip Planner', names: ['trip planner', 'trips', 'trip', 'travel'], view: 'trip' },
+  { label: 'the Budget', names: ['budget', 'budgets', 'my budget'], view: 'budget', tab: ['bud', 'plan'] },
+  { label: 'the Trip Planner', names: ['trip planner', 'plan a trip', 'trips', 'trip', 'travel'], view: 'trip' },
   { label: 'Investments', names: ['investments', 'investment', 'portfolio', 'stocks'], view: 'investments' },
   { label: 'Net Worth', names: ['net worth', 'networth', 'net work'], view: 'networth' },   // "net work": as heard (V8)
   { label: 'the Trophy Room', names: ['trophy room', 'trophies', 'achievements'], view: 'trophy' },
@@ -27707,7 +27707,7 @@ function askGo(pl) {
     renderLedger(); updateLedgerStats();
   }
   showToast(`Opened ${pl.label}`, '', 'info');
-  _askSaid(`Sure, opening ${pl.label} for you.`);
+  _askSaid(_askOpenWords(pl.label));
 }
 
 // ── Item 102 (Rob 2026-10-19: "add those four and anything else that you can think of"): what people actually type ──
@@ -27723,7 +27723,7 @@ const _ASK_SHORT = { acct: 'account', accts: 'accounts', acc: 'account', txn: 't
 // Rob 2026-10-31: "let's" leads a command too - "Groundwork, let's build a report", "Groundwork lets view my budget" -
 // and "I want" with or without "to" ("Groundwork I want to see my budget", "I want my budget"). The "to" forms come
 // first, so the longer lead-in is the one taken.
-const _ASK_LEAD = /^(?:please|hey|ok|okay|so|um|uh|can you|could you|would you|will you|i need to|i\x27d like to|i would like to|i want to|i wanna|i want|i\x27d like|i would like|i need|let me|let\x27s|lets|let us|help me|is there a way to|groundwork)[,\s]+/i;
+const _ASK_LEAD = /^(?:please|hey|ok|okay|so|um|uh|alright|all right|yeah|yes|well|maybe|i was wondering if you could|if you could|do you think you could|would you mind|do you mind|mind|can you|could you|would you|will you|i need to|i\x27d like to|i would like to|i want to|i wanna|i want|i\x27d like|i would like|i need|let me|let\x27s|lets|let us|help me|is there a way to|groundwork)[,\s]+/i;
 
 function _askNorm(q) {
   let t = String(q || '').toLowerCase().replace(/[’\x60]/g, "'").replace(/[?!.]+\s*$/, '').trim();
@@ -27731,7 +27731,9 @@ function _askNorm(q) {
   // punctuation after a word and double quotes go; an apostrophe and a figure's point ("24.99") stay
   t = t.replace(/[\x22\u201c\u201d]/g, ' ').replace(/([a-z])[.,;:!?]+(?=\s|$)/g, '$1').replace(/\s+/g, ' ').trim();
   t = t.split(/\s+/).map(w => _ASK_SHORT[w] || w).join(' ');
-  for (let i = 0; i < 4 && _ASK_LEAD.test(t); i++) t = t.replace(_ASK_LEAD, '');
+  for (let i = 0; i < 6 && _ASK_LEAD.test(t); i++) t = t.replace(_ASK_LEAD, '');
+  t = t.replace(/^just\s+(?=(?:open|show|view|see|go|take|bring|pull|get|add|import|back|look|check)\b)/, '');   // "just groceries" stays the Ledger's filter
+  t = t.replace(/^(open|show|pull)ing\b/, '$1').replace(/\s+groundwork$/, '');   // "would you mind opening ...", "thanks groundwork"
   // "Groundwork to open the ledger" (Rob 2026-11-01): a "to" left before the command goes too
   t = t.replace(/^to\s+(?=(?:open|show|view|see|go|take|bring|pull|build|get|add|import|back|look)\b)/, '');
   // Rob 2026-11-01: "Groundwork go get my accounts" ... "go should work for anything like go to Budget" - a "go", "go and"
@@ -27759,9 +27761,9 @@ function _askReveal(id) {
 const ASK_DO = [
   { re: /^(?:import|upload|bring in)(?: a| an| my| the| new)? (?:file|statement|statements|bank file|transactions|csv|qfx|ofx|download|bank statement)s?\b/,
     run: () => { showView('ledger'); setTimeout(showImportModal, 80); }, said: 'Opened Import' },
-  { re: /^(?:add|enter|record|new|log)(?: a| an| new| my)? (?:transaction|expense|purchase|entry|charge|payment)\b/,
+  { re: /^(?:add|enter|record|new|log)(?: a| an| new| my)* (?:transaction|expense|purchase|entry|charge|payment)\b/,
     run: () => { showView('ledger'); setTimeout(openAddModal, 80); }, said: 'Opened Add transaction' },
-  { re: /^(?:back ?up|make a back ?up|backup now|save a backup|create a back ?up|back up my (?:data|records))\b/,
+  { re: /^(?:back ?up|make a back ?up|backup now|save a backup|create a back ?up|back up my (?:data|records)|back (?:everything|it|this|that|all of (?:it|this)) up)\b/,
     run: () => openBackupModal(), said: 'Opened Backup' },
   { re: /^(?:add|enter|bring in|record|new|log)(?: a| an| new| my)? (?:medical |hospital |doctor |doctor's |dental |lab )?(?:bill|eob|explanation of benefits)\b/,
     run: () => { showView('health'); setTimeout(() => { healthShowTab('bills'); const d = [...document.querySelectorAll('#medicalBillsCard details')].find(x => /Bring in a bill/.test(x.textContent)); if (d) d.open = true; g('mbProvider')?.focus(); }, 400); },
@@ -27788,13 +27790,13 @@ const ASK_DO = [
 
 // Questions about the person's own figures: shown where Groundwork works them out - never a figure from the AI.
 const ASK_RECORD = [
-  { re: /\b(?:how much (?:do|does) (?:i|we) owe|what do (?:i|we) owe|total debt|how much debt|my debt total)\b/,
+  { re: /\b(?:how much (?:do|does) (?:i|we)(?: still| currently)? owe|what do (?:i|we) owe|total debt|how much debt|my debt total)\b/,
     say: 'What each debt owes, and the total, are on Debt Payoff.', place: { view: 'debt', tab: ['debt', 'setup'], label: 'Debt Payoff' } },
   { re: /\b(?:debt.?free|pay ?off date|(?:when|what date) (?:will|can|do) (?:i|we) (?:be )?(?:pay|paid|done))\b/,
     say: 'Your debt-free date, and how it is worked out, are on Debt Payoff.', place: { view: 'debt', tab: ['debt', 'setup'], label: 'Debt Payoff' } },
-  { re: /\b(?:what(?:'s| is) my net worth|how much am i worth|what am i worth|my net worth)\b/,
+  { re: /\b(?:what(?:'s| is) my net worth|how much (?:am i|are we) worth|what (?:am i|are we) worth|my net worth)\b/,
     say: 'Your net worth, with what goes into it, is on Net Worth.', place: { view: 'networth', label: 'Net Worth' } },
-  { re: /\b(?:am i|are we) (?:on|over|under|within|ahead|behind)(?: my| our| the)? (?:budget|track)\b|\bhow(?:'s| is) my budget\b|\bhow am i doing\b/,
+  { re: /\b(?:am i|are we) (?:on|over|under|within|ahead|behind)(?: my| our| the)? (?:budget|track)\b|\bhow(?:'s| is) (?:my|our) budget\b|\bhow (?:am i|are we) doing\b/,
     say: "This month's budget against what you have spent is on the Budget page.", place: { view: 'budget', tab: ['bud', 'plan'], label: 'the Budget' } },
   { re: /\b(?:(?:what|which) (?:bills?|payments?) (?:are |is )?(?:due|coming)|what(?:'s| is) (?:due|coming up)|upcoming (?:bills|payments))\b/,
     say: "What's coming, by week, is on the Budget page's Calendar.", place: { view: 'budget', tab: ['bud', 'calendar'], label: 'the Calendar' } },
@@ -27802,14 +27804,14 @@ const ASK_RECORD = [
     say: 'Your HSA, FSA and health reserve are on Health, under Plan and reserve.', place: { view: 'health', tab: ['health', 'plan'], label: 'Plan and reserve' } },
   { re: /\b(?:how much (?:do|did) (?:i|we) (?:make|earn)|what(?:'s| is) my (?:income|pay)|my income)\b/,
     say: 'Your pay, as your record shows it, is on the Budget page.', place: { view: 'budget', tab: ['bud', 'plan'], label: 'the Budget' } },
-  { re: /\b(?:what(?:'s| is) (?:my |the )?(?:balance|checking balance|savings balance)|how much (?:money )?(?:do i have|is in my (?:checking|savings|account)))\b/,
+  { re: /\b(?:what(?:'s| is) (?:my |the )?(?:balance|checking balance|savings balance)|how much (?:money )?(?:do (?:i|we) have|is in (?:my|our) (?:checking|savings|account)))\b/,
     say: 'Each account and its balance are in Settings, Accounts.', place: { view: 'settings', tab: ['settings', 'accounts'], label: 'Accounts' } },
   { re: /\b(?:how much (?:do|did) (?:i|we) owe (?:on|for) (?:medical|hospital|doctor)|medical (?:bills|debt) (?:total|owed))\b/,
     say: 'What you owe on medical bills, with the working, is on Health.', place: { view: 'health', tab: ['health', 'bills'], label: 'Medical bills' } },
 ];
 
 function _askSpend(n) {         // "how much did I spend on groceries (last month)" - the category report, set to it
-  const m = n.match(/\bhow much (?:did|have|do) (?:i|we) (?:spend|spent|pay|paid)(?: on| at| for| in)? (.+?)(?: (?:last|this) (?:month|year|week)| in \w+)?$/);
+  const m = n.match(/\b(?:how much|what) (?:did|have|do) (?:i|we) (?:spend|spent|pay|paid|give|given)(?: on| at| for| in| to)? (.+?)(?: (?:last|this) (?:month|year|week)| in \w+)?$/);
   if (!m) return null;
   const what = m[1].replace(/^(?:the|my|our)\s+/, '').trim();
   if (!what || /^(?:this|last) (?:month|year|week)$/.test(what)) return { kind: 'month' };
@@ -27823,7 +27825,9 @@ function _askSearchTerm(n) {
   let m = n.match(/^(?:find|search(?: for)?|look ?up|lookup)\s+(?:all\s+)?(?:my\s+)?(?:the\s+)?(?:(?:transactions|purchases|charges|payments)\s+(?:at|from|for|to|with)\s+)?(.+)$/)
        || n.match(/^(?:show|view|see)(?: me)? (?:all )?(?:my )?(?:transactions|purchases|charges|payments) (?:at|from|to|for|with) (.+)$/)
        || n.match(/^(?!how|what|why|where|when|which|who)(.+?) (?:transactions|purchases|charges)$/);
-  const term = m ? m[1].replace(/^(?:the|my|all|our)\s+/, '').trim() : '';
+  const term = m ? m[1].replace(/^(?:the|my|all|our)\s+/, '').replace(/\s+(?:transactions|purchases|charges|payments)$/, '').trim() : '';
+  if (/^(?:a|an|out|how|what|ways?|the best|better)\b/.test(term)) return null;   // "find a way to save" is a question
+  if (/^(?:find|search|look ?up)/.test(n) && term && !_askKnownStore(term)) return null;   // "look up interest rates": not in the record, so a question
   return term && !/^(?:my|all|the|recent|new|latest|our|last|every)$/.test(term) ? term : null;   // "my transactions" is the Ledger
 }
 
@@ -27923,11 +27927,16 @@ function _askAddTxn(n) {
 // Rob 2026-10-31: "show me my Kroger transactions" is the Ledger, searched for Kroger - a command, with AI on or off.
 // (\x27 not a bare quote in these patterns: s30 reads a bare one inside a regex as the start of a string.)
 function _askShowTxns(n) {
-  const m = n.match(/^(?:show|view|see|open|pull up|bring up|display|list)(?: me)?(?: all)?(?: of)?(?: my| the| our)? (.+?)(?:\x27s)? (?:transactions?|purchases?|charges?|payments?)(?: in (?:the )?ledger)?$/)
+  // V24: the search says who; when is said back with the figure, and the Ledger shows every month's lines
+  n = n.replace(_ASK_WHEN, '');
+  const m = n.match(/^(?:(?:show|view|see|open|pull up|bring up|display|list|find|any)(?: me)?(?: all)?(?: of)?(?: my| the| our)? |(?:my|our) )?(?!(?:how|what|why|where|when|which|who)\b)(.+?)(?:\x27s)? (?:transactions?|purchases?|charges?|payments?)(?: in (?:the )?ledger)?$/)
        || n.match(/^(?:show|view|see|open|pull up|bring up|display|list)(?: me)?(?: all)?(?: of)?(?: my| the| our)? (?:transactions?|purchases?|charges?|payments?) (?:at|from|to|for|with) (.+?)(?: in (?:the )?ledger)?$/);
   const term = m ? m[1].replace(/^(?:my|the|all|our)\s+/, '').trim() : '';
+  if (/^(?:me|show|view|see|open|pull|bring|display|list|find|any)\b/.test(term)) return null;   // "show me how to split a transaction", "open transactions"
   return term && !/^(?:my|all|the|recent|new|latest|our|last|every|pending|this month|last month|this month\x27s|last month\x27s)$/.test(term) ? term : null;
 }
+
+const _ASK_WHEN = /(?:\s+(?:from|for|during))?\s+(?:(?:in\s+)?(?:(?:this|last|the last|the past|past) (?:month|week|year))|in (?:january|february|march|april|may|june|july|august|september|october|november|december))$/;
 
 // Rob 2026-10-31: with Groundwork's voice, a command said aloud is answered aloud - "Sure, opening the Budget for you",
 // "OK, showing your Kroger transactions in the Ledger". Typed, the toast says it; nothing is read.
@@ -27938,9 +27947,19 @@ function _askSaid(words) {
 }
 function _askSaidFor(done) {          // a command's toast ("Opened Import") as its spoken reply ("Sure, opening Import for you.")
   const m = /^Opened (.+)$/.exec(done || '');
-  return m ? `Sure, opening ${m[1]} for you.` : (done ? done.replace(/[^.!?]$/, c => c + '.') : '');
+  return m ? _askOpenWords(m[1]) : (done ? done.replace(/[^.!?]$/, c => c + '.') : '');
 }
 const _askTitle = s => String(s).replace(/\b[a-z]/g, c => c.toUpperCase());
+
+// Rob 2026-10-31's own words for the first page opened; the next ones in a conversation are shorter, as a person's would be
+let _askOpenedAt = 0, _askOpenedTurn = 0;
+function _askOpenWords(label) {
+  const again = Date.now() - _askOpenedAt < 300000;
+  _askOpenedAt = Date.now();
+  if (!again) return `Sure, opening ${label} for you.`;
+  _askOpenedTurn++;
+  return _askOpenedTurn % 2 ? `OK, here\x27s ${label}.` : `Here\x27s ${label}.`;
+}
 
 // V4 (item 116): what the last command was about, for a follow-up - "what about Walmart?", "and last month?". Held in
 // memory for this window only; nothing is kept.
@@ -27950,6 +27969,19 @@ let _askLast = null;
 // steps the Ledger back a month; "what about my debts" after a page opens that page.
 function _askFollow(n) {
   if (!_askLast) return false;
+  // V24: "next week?" after what's coming; "no, I meant Walmart" and "Walmart instead" put the last ask right
+  if (_askLast.kind === 'coming') {
+    const c = n.match(/^(?:(?:and|what about|how about|and what about)\s+)?(this|next) (week|month)$/);
+    if (c) { askComingUp(c[2] === 'month', c[1] === 'next'); return true; }
+  }
+  const fix = n.match(/^(?:(?:no|nope|sorry)\s+)?(?:i (?:meant|mean|said)|not \S+(?: \S+)?)\s+(.+)$/) || n.match(/^(?:no|nope|sorry)\s+(.+)$/) || n.match(/^(.+?)\s+instead$/) || n.match(/^(?:same for|try)\s+(.+)$/);
+  if (fix) {
+    const want = fix[1].replace(/^(?:my|the|our)\s+/, '').replace(/\s+(?:transactions|purchases|charges)$/, '').trim();
+    const pl = ASK_PLACES.find(x => x.names.includes(want));
+    if (pl) { askGo(pl); return true; }
+    if (_askKnownStore(want)) { askLedgerSearch(want); return true; }
+    return false;
+  }
   const m = n.match(/^(?:and|what about|how about|and what about|now|then)\s+(.+)$/);
   if (!m) return false;
   const rest = m[1].replace(/^(?:my|the|our)\s+/, '').replace(/\s+(?:transactions|purchases|charges)$/, '').trim();
@@ -27967,20 +27999,25 @@ function _askFollow(n) {
 
 // V15 (item 116): "what's coming up this week?" - the Calendar's own dates, from the record, said aloud with how sure
 // each one is. Only when asked; Groundwork never watches for it.
-const ASK_COMING = /^(?:what(?:\x27s| is| are)?|whats) (?:coming up|coming due|due|do|upcoming|coming)(?: soon| next)?(?: for me)?(?: (this|next) (week|month))?$|^(?:what|which) (?:bills|payments) (?:are |do i have )?(?:coming up|due)(?: (this|next) (week|month))?$/;
-async function askComingUp(month) {
+const ASK_COMING = /^(?:what(?:\x27s| is| are)?|whats) (?:coming up|coming due|due|do|upcoming|coming)(?: soon| next)?(?: for me)?(?: (this|next) (week|month))?$|^(?:what|which) (?:bills|payments) (?:are |do (?:i|we) have )?(?:coming up|due)(?: (this|next) (week|month))?$|^what (?:do|have) (?:i|we)(?: have| got)?(?: coming up| coming| due| do)(?: (this|next) (week|month))?$|^what do (?:i|we) owe (this|next) (week|month)$|^what(?:\x27s| is) on (?:the|my) calendar(?: (this|next) (week|month))?$|^(?:is |are |do (?:i|we) have |have (?:i|we) got )?(?:there )?(?:any|anything)(?: bills?| payments?)?(?: coming up| coming| due| do)(?: soon| next)?(?: (this|next) (week|month))?$/;
+async function askComingUp(month, next) {
   const spoken = !!window._gwVoiceAsked;
   window._gwVoiceAsked = false;                 // spent now: the answer comes after the record is read
   _askDone();
+  _askLast = { kind: 'coming' };
   showView('budget');
   setTimeout(() => _budShowTab('calendar'), 60);
   let es = [];
-  try { es = ((await API.get(`/api/calendar?days=${month ? 31 : 7}`)).entries || []).filter(e => e.title); }
+  const reach = month ? 31 : 7;
+  try {
+    es = ((await API.get(`/api/calendar?days=${next ? reach * 2 : reach}`)).entries || []).filter(e => e.title);
+    if (next) { const from = _localISODate(new Date(Date.now() + reach * 864e5)); es = es.filter(e => e.date >= from); }   // the week after this one
+  }
   catch (e) { if (spoken && window.GWVoice) window.GWVoice.say("I couldn't read the calendar just now."); return; }
   const when = d => new Date(d + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   const one = e => `${when(e.date)}, ${e.title}` + (e.amount != null ? `, ${e.certainty === 'confirmed' ? '' : 'about '}${fmt(e.amount)}` : '')
     + (e.certainty === 'possible' ? ', possibly' : '');
-  const span = month ? 'this month' : 'this week';
+  const span = (next ? 'next ' : 'this ') + (month ? 'month' : 'week');
   const words = !es.length ? `Nothing is due ${span}, from what your records show.`
     : `Coming up ${span}: ` + es.slice(0, 6).map(one).join('. ') + (es.length > 6 ? `. And ${es.length - 6} more on the Calendar.` : '.');
   showToast(es.length ? `${es.length} coming up ${span}` : `Nothing due ${span}`, 'On the Calendar, with how sure each one is.', 'info');
@@ -28131,7 +28168,30 @@ function _askNoteFound(terms) {
   }
 }
 
-function askLedgerSearch(term) {
+// V24: "what did I spend at Kroger", "when did I last go to Costco", with AI off - the record's own lines added up here, the
+// same charges the Ledger then shows; never the AI's, and said only because it was asked. `when`: "last month", "this year"
+function _askSpentLine(terms, ask) {
+  const now = new Date(), key = d => d.toISOString ? _localISODate(d) : d;
+  const ym = (y, m) => `${y}-${String(m + 1).padStart(2, '0')}`;
+  let from = '', to = '9999', span = '';
+  const w = String(ask.when || '').trim();
+  if (w === 'this month') { from = ym(now.getFullYear(), now.getMonth()); to = from + '-99'; span = ' this month'; }
+  else if (w === 'last month') { const d = new Date(now.getFullYear(), now.getMonth() - 1, 1); from = ym(d.getFullYear(), d.getMonth()); to = from + '-99'; span = ' last month'; }
+  else if (w === 'this year') { from = `${now.getFullYear()}-01`; to = `${now.getFullYear()}-99`; span = ' this year'; }
+  else if (w === 'last year') { from = `${now.getFullYear() - 1}-01`; to = `${now.getFullYear() - 1}-99`; span = ' last year'; }
+  else if (w) return '';                                   // a span not worked out here: the Ledger shows it, no figure
+  const rows = (S.transactions || []).filter(t => t.type === 'debit' && terms.some(x => _ledgerTermMatch(t, x))
+    && String(t.date) >= from && String(t.date) <= to).sort((x, y) => String(y.date).localeCompare(String(x.date)));
+  const name = terms.map(_askTitle).join(' and ');
+  if (!rows.length) return `I don\x27t see any ${name} purchases${span}.`;
+  if (ask.kind === 'last') {
+    const day = new Date(rows[0].date + 'T12:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    return `Your last ${name} purchase was ${day}, for ${fmt(rows[0].amount)}.`;
+  }
+  const total = rows.reduce((s, t) => s + t.amount, 0);
+  return `You spent ${fmt(total)} at ${name}${span}, across ${rows.length} purchase${rows.length === 1 ? '' : 's'}.`;
+}
+function askLedgerSearch(term, ask) {
   const spokenSearch = !!window._gwVoiceAsked;
   let stores = _askStores(term), heard = '';
   if (!stores && !(S.transactions || []).some(t => _ledgerTermMatch(t, term))) {
@@ -28146,7 +28206,11 @@ function askLedgerSearch(term) {
   // Rob 2026-11-01: asked for Fred Meyer, which he has never shopped at, it said "Sure, showing your Fred Meyer
   // transactions" - "If it query the transaction and get not response the voice assistant should show that."
   const any = !!stores || (S.transactions || []).some(t => _ledgerTermMatch(t, term));
-  if (!any) {
+  const figure = ask && any ? _askSpentLine(stores || [term], ask) : '';
+  if (figure) {
+    _askDone(`${figure}${heard}`);
+    _askSaid(/^I don/.test(figure) ? figure : `${figure} ${ask.kind === 'last' ? 'It\x27s' : 'Here they are'} in the Ledger.`);
+  } else if (!any) {
     _askDone(`No ${named} transactions in the Ledger${heard}`);
     _askSaid(`I didn't find any ${named} transactions in the Ledger.`);
   } else {
@@ -28172,17 +28236,24 @@ function _askBudgetCat(text) {
   return names.find(nm => String(nm).toLowerCase() === t) || null;
 }
 function askIntent(q, p, head, assist = false) {
-  const n = _askNorm(q);
-  if (!n) return false;
-  if (_askFollow(n)) return true;                              // V4: "what about Walmart?", "and last month?"
-  const coming = n.match(ASK_COMING);
-  if (coming) { askComingUp((coming[2] || coming[4]) === 'month'); return true; }   // V15
-  if (/^(?:hi|hello|hey there|hey|good (?:morning|afternoon|evening)|yo)$/.test(n)) {
+  const said = _askNorm(q);
+  if (!said) return false;
+  // V24: first the things people say that are not asks at all
+  if (/^(?:(?:hi|hello|hey|yo)(?: there)?|good (?:morning|afternoon|evening)|there|groundwork|hey groundwork|ok groundwork)(?: groundwork)?$/.test(said)) {
     _askSay(p, head, `Hi! Ask a question, or tell me what to do - "how do I split a transaction?", "view my budget", "explain these numbers", "why is restaurants so high", "get my accounts".`);
     return true;
   }
-  if (/^(?:thanks|thank you|thx|ty|cheers|great|perfect|ok thanks)$/.test(n)) { _askSay(p, head, "You're welcome."); return true; }
-  if (/^(?:help|\?|what can you do|what can i ask|what can i say|commands)$/.test(n)) {
+  if (/^(?:(?:no worries|no|oh|ok|okay)\s+)*(?:never ?mind|forget (?:it|that|about it)|cancel(?: that| it)?|scratch that|ignore that|disregard that)$/.test(said)) {
+    _askDone('OK, never mind');
+    _askSaid('OK, never mind.');
+    return true;
+  }
+  const n = _askCanon(_askRepaired(said));
+  if (_askFollow(n)) return true;                              // V4: "what about Walmart?", "and last month?"
+  const coming = n.match(ASK_COMING);
+  if (coming) { askComingUp(/\bmonth$/.test(n), /\bnext (?:week|month)$/.test(n)); return true; }   // V15
+  if (/^(?:(?:cool|great|awesome|perfect|nice|wonderful|ok|okay|good)\s+)*(?:thanks|thank you|thx|ty|cheers)(?: so much| very much| a lot| a bunch)?$|^(?:great|perfect|awesome)$/.test(n)) { _askSay(p, head, "You're welcome."); return true; }
+  if (/^(?:help|\?|what (?:else )?can you do|what (?:else )?can i (?:ask|say)(?: you| to you)?|what are you able to do|what can you help(?: me)?(?: with)?|what do you do|how does this work|commands)$/.test(n)) {
     _askSaid('You can say: open my budget. Show me my Kroger transactions. What is coming up this week. Build a report. '
       + 'Get my accounts. Read this, or read the page. Or ask a question, like how much do I owe. While I am talking, '
       + 'say stop, next, or repeat.');                            // V7: said short; the panel below has the rest
@@ -28208,6 +28279,7 @@ function askIntent(q, p, head, assist = false) {
   }
   // Item 103: "explain this page", "what am I looking at", "explain my budget" - the page, then what it works out
   // Rob 2026-10-20: "explain these numbers to me" opens Explain too
+  if (/^(?:what\x27s|what is|whats) this(?: page| screen)?$|^explain what i\x27m looking at$/.test(n)) { explainPage(); return true; }
   if (/^(?:explain|describe|break down)(?: this| the| these| my| all)? (?:page|screen|numbers|figures|totals)(?: on (?:this|the) (?:page|screen))?(?: for me| to me)?$|^explain (?:this|it|that|everything)(?: for me| to me)?$|^what (?:does|is) this (?:page|screen)(?: mean| show| for| about)?$|^what am i looking at$|^what (?:do|are) (?:these|the|my|all these|all the) (?:numbers|figures)(?: mean| for)?(?: on (?:this|the) (?:page|screen))?$|^(?:help me )?understand(?: this| the| these| my)?(?: page| screen| numbers| figures)?$|^i (?:don't|do not|dont) understand(?: this| these| the| my)?(?: page| screen| numbers| figures)?$/.test(n)) {
     explainPage(); return true;
   }
@@ -28239,8 +28311,13 @@ function askIntent(q, p, head, assist = false) {
   for (const d of ASK_DO) if (d.re.test(n)) { _askDone(d.said); _askSaid(_askSaidFor(d.said)); d.run(); return true; }
   const shown = _askShowTxns(n);
   if (shown) { askLedgerSearch(shown); return true; }
-  if (!assist) for (const r of ASK_RECORD) if (r.re.test(n)) {
+  if (!assist && !/^why\b/.test(n)) for (const r of ASK_RECORD) if (r.re.test(n)) {
     window._askPlace = r.place;
+    if (window._gwVoiceAsked) {                                // V4: said aloud, the sentence, then the page
+      _askSaid(r.say);
+      const was = window._gwVoiceAsked; askGo(r.place); window._gwVoiceAsked = was;
+      return true;
+    }
     _askSay(p, head, `${esc(r.say)}<div style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="askGo(window._askPlace)">Show me</button></div>
       <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:8px">Groundwork shows your figures where it works them out, never as a guess.</div>`);
     return true;
@@ -28249,12 +28326,15 @@ function askIntent(q, p, head, assist = false) {
   if (spend) {
     if (spend.kind === 'category') {
       _askDone(`Opened ${spend.cat} in the category report`);
+      _askSaid(`Sure, opening ${spend.cat} in the category report.`);
       showView('reports');
       setTimeout(() => { _rcOpenReport('category'); setTimeout(() => { const sel = g('rcCatSelect'); if (sel) { sel.value = spend.cat; _rcUpdateCategoryDeepDive(); } }, 250); }, 80);
-    } else if (spend.kind === 'search') askLedgerSearch(spend.term);
-    else { _askDone("Opened this month's budget"); showView('budget'); setTimeout(() => _budShowTab('plan'), 60); }
+    } else if (spend.kind === 'search') askLedgerSearch(spend.term, { kind: 'total', when: (n.match(_ASK_WHEN) || [''])[0].replace(/^\s*(?:from|for|during|in)\s+/, '').trim() });
+    else { _askDone("Opened this month's budget"); _askSaid("Sure, opening this month's budget."); showView('budget'); setTimeout(() => _budShowTab('plan'), 60); }
     return true;
   }
+  const last = !assist && _askWhenLast(n);
+  if (last) { askLedgerSearch(last.term, { kind: last.kind, when: last.when }); return true; }
   const term = !assist && _askSearchTerm(n);
   if (term) { askLedgerSearch(term); return true; }
   const place = askPlace(n);
@@ -28742,6 +28822,59 @@ function careAsk(q, p, head) {
 // where every part is itself a command Groundwork knows; otherwise the ask stays whole, so "my Kroger and Walmart
 // transactions" is still one search.
 const _ASK_JOIN = /\s*,?\s+(?:and then|and after that|after that|and also|then|and)\s+|\s*,\s+/;
+// V24 (item 116, Rob 2026-11-05: "stronger and feel more natural talking and understanding"; VOICE_ASSISTANT.md 4h): how
+// people say a thing, as the plain form the routes below read - only when what it names really is a page or a store in
+// the record, so "check my math", "give me a tip" and "take me out to dinner" stay questions. Measured on
+// scripts/voice_natural_asks.json (s286).
+function _askKnownStore(s) {
+  const t = String(s || '').trim();
+  if (t.length < 3 || typeof S === 'undefined' || /^(?:a|an|the|how|what|why|where|when|which|who|more|some|something|that|this|it|around|everything|all|money)\b/.test(t)) return false;
+  return (S.transactions || []).some(x => _ledgerTermMatch(x, t)) || !!_askSoundsLike(t);
+}
+function _askPlaceWord(s) {
+  const t = String(s).replace(/\b(?:the|my|our|page|tab|screen|section|please|for me|right now|real quick|again)\b/g, ' ').replace(/\s+/g, ' ').trim();
+  return t && ASK_PLACES.some(pl => pl.names.includes(t)) ? t : '';
+}
+const _ASK_LOOSE_GO = /^(?:open up|pop open|open|take a (?:quick )?look at|have a look at|look at|check(?: on| out)?|give me|get me(?: to)?|head(?: over)? to|hop(?: over)? to|switch(?: over)? to|jump(?: over)? to|go over to|(?:go |take me )?back to|take me(?: back)?(?: to)?|can (?:i|we) (?:see|look at|get)|could (?:i|we) see|bring|pull|where(?:\x27s| is| are)|wheres|where (?:do|can) (?:i|we) (?:find|see|look at|get to)|see|how(?:\x27s| is| are)) (.+?)(?: up)?$/;
+function _askCanon(n) {
+  let m = n.match(_ASK_LOOSE_GO);
+  const word = m && _askPlaceWord(m[1]);
+  if (word) return `open ${word}`;
+  const bare = _askPlaceWord(n);
+  if (bare) return bare;
+  m = n.match(/^(?:i have|i\x27ve got|i got) (?:a|an|some) (.+?) to (add|import|enter)$/);
+  if (m) return `${m[2]} a ${m[1]}`;
+  const plain = n.replace(_ASK_WHEN, '');
+  m = plain.match(/^(?:show(?: me)?|pull up|bring up|find|search(?: for)?|look up|lookup|look for|see)\s+(?:all\s+)?(?:of\s+)?(?:my\s+|our\s+|the\s+)?(?:everything\s+(?:from|at)\s+|all\s+(?:from|at)\s+)?(.+?)(?:\s+stuff)?$/)
+    || plain.match(/^everything\s+(?:from|at)\s+(.+)$/);
+  if (m && !_askShowTxns(n) && !/ (?:transactions?|purchases?|charges?|payments?)$/.test(m[1]) && _askKnownStore(m[1])) return `show me ${m[1]} transactions`;
+  m = plain.match(/^show(?: me)? what (?:i|we) (?:spent|bought|paid) (?:at|from) (.+)$/);
+  if (m && _askKnownStore(m[1])) return `show me ${m[1]} transactions`;
+  return n;
+}
+// "when did I last go to Costco", "what did I buy at Kroger", "did I go to Kroger this month"
+function _askWhenLast(n) {
+  const when = (n.match(_ASK_WHEN) || [''])[0].replace(/^\s*(?:from|for|during|in)\s+/, '').trim();
+  const plain = n.replace(_ASK_WHEN, '');
+  let m = plain.match(/^when(?:\x27s| is| was| did|s)?(?: i| we)?(?: the)? last(?: time)?(?: that)?(?: i| we)? (?:go|went|shop|shopped|been|was|were|buy|bought|pay|paid)(?: to| at| from)? (.+)$/)
+    || plain.match(/^(?:did (?:i|we) (?:go to|shop at|buy (?:anything|something) (?:at|from))|have (?:i|we) been to) (.+)$/);
+  if (m && _askKnownStore(m[1])) return { kind: 'last', term: m[1], when };
+  m = plain.match(/^what (?:did|have) (?:i|we) (?:buy|bought|get|got)(?: at| from)? (.+)$/);
+  if (m && _askKnownStore(m[1])) return { kind: 'total', term: m[1], when };
+  return null;
+}
+// "open the budget, no wait, the ledger", "show me Kroger, I mean Walmart": the person put it right as they spoke, so the
+// last thing said counts. Only when what comes before was a command and what comes after names something real.
+const _ASK_FIX_WORDS = /^(.+)\s+(?:no wait|wait no|wait|no|nope|i mean|i meant|sorry|actually|or rather|rather|make that|scratch that)\s+(.+)$/;
+function _askRepaired(n) {
+  const m = n.match(_ASK_FIX_WORDS);
+  if (!m) return n;
+  const before = _askCanon(m[1]), after = _askCanon(m[2]);
+  if (!_askIsCommand(before)) return n;
+  if (_askIsCommand(after)) return after;
+  const who = m[2].replace(/^(?:my|the|our)\s+/, '').replace(/\s+(?:transactions|purchases|charges)$/, '').trim();
+  return _askShowTxns(before) && _askKnownStore(who) ? `show me ${who} transactions` : n;
+}
 function _askIsCommand(n) {
   return !!n && (ASK_COMING.test(n) || ASK_DO.some(d => d.re.test(n)) || !!_askShowTxns(n) || !!askPlace(n)
     || ASK_PLACES.some(pl => pl.names.includes(n.replace(/^(?:my|the|our|all)\s+/, ''))));
@@ -28749,7 +28882,8 @@ function _askIsCommand(n) {
 function _askParts(q) {
   const pieces = String(q || '').trim().split(_ASK_JOIN).map(s => s.trim()).filter(Boolean);
   if (pieces.length < 2 || pieces.length > 4) return null;
-  return pieces.every(s => _askIsCommand(_askNorm(s))) ? pieces : null;
+  if (_askRepaired(_askNorm(q)) !== _askNorm(q)) return null;   // "open the budget, actually the ledger" is one ask, put right
+  return pieces.every(s => _askIsCommand(_askCanon(_askNorm(s)))) ? pieces : null;
 }
 
 async function askGroundwork(question, shownAs) {
@@ -28809,6 +28943,8 @@ async function _askGroundwork(question, shownAs) {
     const hit = helpMatch(q);
     p.innerHTML = hit && !hit.choices ? _askEntryHTML(hit, head)
       : head + `<div style="font-size:var(--fs-base);color:var(--ink);margin-top:6px">Ask is AI help, and AI is off. The ? button has the whole guide.</div>`;
+    // V24: said aloud, a person's reply - what it can do, not how it is built
+    if (!(hit && !hit.choices)) _askSaid("Sorry, I didn't get that. You could say open my budget, show me my Kroger transactions, or what's coming up.");
     return;
   }
   // A question about your records (why a figure looks off) goes to Groundwork's fixed checks, as before (item 72 C2)
