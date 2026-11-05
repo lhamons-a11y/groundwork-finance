@@ -4,7 +4,7 @@ Rob: "The goal is to make this software as secure as possible." A read-only revi
 folder. No attack was run. Mac and Linux behaviour, the website and the voice features in depth were not reviewed, and
 no dependency scan was run (the last one recorded is 2026-10-31, `MAC_BUILD_CHECK_2026-10-31.md`).
 
-## Fixed (Rob: "Yes let's fix 1 and 3 first"; s286)
+## Fixed (Rob: "Yes let's fix 1 and 3 first"; s287)
 
 ### Gap 1: a saved bank password had no site check
 

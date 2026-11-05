@@ -17,7 +17,7 @@ from datetime import date, timedelta
 
 
 def _Driver(window, *a, **k):
-    """The Driver on the bank's own site: the login guard has its own section (s286)."""
+    """The Driver on the bank's own site: the login guard has its own section (s287)."""
     import bank_agent_window as baw
     window.get_current_url = lambda: 'https://www.superiorcu.com/'
     return baw.Driver(window, *a, home='https://www.superiorcu.com/', **k)
