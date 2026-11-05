@@ -359,9 +359,9 @@ With AI on, everything here that is a command acts the same; spending questions 
 
 | # | Question | As built |
 |---|---|---|
-| N-a | Saying a figure with AI off | yes, only when asked, from the record's lines, by code. The old note read "the assistant never states a figure"; this is not the assistant, and the lines are on screen under it. |
-| N-b | Which store total | a store's charges, all time unless a month or year is said; refunds are not netted. |
-| N-c | The shorter replies | on; one line to turn off. |
+| N-a | Saying a figure with AI off | **RULED 2026-11-05 (Rob: "Yes, keep it").** Yes, only when asked, from the record's lines, by code. The old note read "the assistant never states a figure"; this is not the assistant, and the lines are on screen under it. |
+| N-b | Which store total | **Kept as built 2026-11-05, read from the same answer.** A store's charges, all time unless a month or year is said; refunds are not netted. |
+| N-c | The shorter replies | **Kept as built: V24 ACCEPTED 2026-11-05 (Rob: "accept and push").** On; one line to turn off. |
 
 **Not the exit criterion**: the phrases are one author's idea of how people talk, and the audio check is synthetic voices.
 Real people will say things no list has. s286.
