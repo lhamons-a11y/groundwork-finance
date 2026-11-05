@@ -36,7 +36,7 @@ def run(ctx):
     def rem():
         return (c.get('/api/backup/reminder', headers=H).get_json() or {}).get('data') or {}
 
-    put('backup_last', server._backup_stamp('groundwork_backup_s254.gwbk', time.time() - 8 * 86400))
+    put('backup_last', server._backup_stamp('groundwork_backup_s254.gwbk', time.time() - 8 * 86400 - 60))   # a minute past the mark: the clock's tick can leave it a microsecond short
     r = rem()
     a = (r.get('attention') or [{}])[0]
     check(f"s254 a backup 8 days old with records added since is due, saying when and how many ({a})",
@@ -51,7 +51,7 @@ def run(ctx):
           f"isn't counted as after it, in any time zone (added {now_r.get('added')}, 8 days on {later['added']})",
           now_r.get('added') == {'transactions': 0, 'other': 0} and not later['due'] and later['days_since'] == 8)
 
-    put('backup_last', server._backup_stamp('groundwork_backup_s254.gwbk', time.time() - 8 * 86400))
+    put('backup_last', server._backup_stamp('groundwork_backup_s254.gwbk', time.time() - 8 * 86400 - 60))   # a minute past the mark: the clock's tick can leave it a microsecond short
     e14 = c.post('/api/backup/reminder/every', headers=HJ, data=json.dumps({'days': 14}))
     r14 = rem()
     bad = c.post('/api/backup/reminder/every', headers=HJ, data=json.dumps({'days': 9}))

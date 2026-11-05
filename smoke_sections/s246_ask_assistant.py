@@ -105,7 +105,7 @@ def run(ctx):
           and '${' not in rec and 'fmt(' not in rec and 'money(' not in rec and 'never as a guess' in layer)
     check('s246 A8 "how much did I spend on X": the category report set to X, or the Ledger searched for it; '
           '"find X" and "X transactions" search the Ledger',
-          "sel.value = spend.cat; _rcUpdateCategoryDeepDive();" in layer and 'askLedgerSearch(spend.term)' in layer
+          "sel.value = spend.cat; _rcUpdateCategoryDeepDive();" in layer and 'askLedgerSearch(spend.term, ' in layer
           and 'askLedgerSearch(term)' in layer and "\"my transactions\" is the Ledger" in layer)
     check('s246 A8 a greeting, "help", "what\'s new" and "undo" get their own reply; undo is never done for you',
           "You're welcome." in layer and 'The whole guide' in layer and 'groundworkfinance.app/changelog' in layer
