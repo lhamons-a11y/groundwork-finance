@@ -27734,6 +27734,11 @@ function _askNorm(q) {
   for (let i = 0; i < 4 && _ASK_LEAD.test(t); i++) t = t.replace(_ASK_LEAD, '');
   // "Groundwork to open the ledger" (Rob 2026-11-01): a "to" left before the command goes too
   t = t.replace(/^to\s+(?=(?:open|show|view|see|go|take|bring|pull|build|get|add|import|back|look)\b)/, '');
+  // Rob 2026-11-01: "Groundwork go get my accounts" ... "go should work for anything like go to Budget" - a "go", "go and"
+  // or "go ahead and" in front of anything is a lead-in: "go budget", "go ledger", "go show me my Kroger transactions".
+  // Left as they are: "go to ..." (ASK_GO reads it), and "go back", "go ahead" and "go" alone, which are their own words.
+  t = t.replace(/^go\s+back\s+to\s+/, 'go to ');
+  if (!/^go(?:\s+back|\s+ahead)?$/.test(t) && !/^go\s+to\b/.test(t)) t = t.replace(/^go\s+(?:and\s+|ahead\s+and\s+)?(?:see\s+(?=what))?/, '');
   return t.replace(/\s+please$/, '').trim();
 }
 

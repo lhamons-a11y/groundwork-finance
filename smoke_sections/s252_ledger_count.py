@@ -26,7 +26,7 @@ def run(ctx):
     stats = _fn(app, 'updateLedgerStats')
     check('s252 1 one function picks the Ledger\'s rows: the search, category, type, account and uncleared-only filters',
           all(x in pick for x in ("g('ledgerSearch')", "g('ledgerCatFilter')", "g('ledgerTypeFilter')",
-                                  "g('ledgerAccountFilter')", '_ledgerShowUnclearedOnly', 'normalize(')))
+                                  "g('ledgerAccountFilter')", '_ledgerShowUnclearedOnly', '_ledgerTermMatch(')))
     check('s252 1 the rows and the header both come from it, and neither filters on its own',
           'let txns = _ledgerFilteredTxns();' in render and 'let txns = _ledgerFilteredTxns();' in stats
           and 'normSearch' not in render and 'normSearch' not in stats
@@ -41,6 +41,6 @@ def run(ctx):
               "cleared:true,date:'2026-10-03'},{merchant:'Other',description:'',category:'y',type:'debit',amount:2,account:'B',"
               "cleared:true,date:'2026-10-04'}]};let _ledgerShowUnclearedOnly=false;const v={ledgerSearch:'streambox'};"
               "const g=id=>({value:v[id]||''});const _ledgerHasActiveFilter=()=>true;const _ledgerTxnsForSelectedMonth=()=>[];"
-              "const _catChildren=()=>[];" + pick + "\n}\nconsole.log(_ledgerFilteredTxns().length)")
+              "const _catChildren=()=>[];" + _fn(app, '_ledgerTermMatch') + "\n}\n" + pick + "\n}\nconsole.log(_ledgerFilteredTxns().length)")
         r = subprocess.run(['node', '-e', js], capture_output=True, text=True)
         check(f's252 1 run in Node: a search keeps only its rows ({r.stdout.strip()})', r.stdout.strip() == '1')

@@ -185,6 +185,11 @@ still a question. Up to four parts, done in the order said, each given a moment 
 hears one reply naming them all ("Sure, opening the Ledger for you. Then, OK, showing your Chiefs Supermarket
 transactions in the Ledger."). Typed asks get the same. A leftover "to" ("Groundwork to open ...") is dropped. s283.
 
+**"Go"** (Rob: *"Groundwork go get my accounts ... go should work for anything like go to Budget"*): "go", "go and" or "go
+ahead and" in front of anything is a lead-in - "go budget", "go show me my Kroger transactions", "go build a report".
+"Go to ..." reads as it did, "go back to the budget" goes there, and "go back", "go ahead" and "go" alone stay their own
+words. s283 M10.
+
 **Several stores in one search** (Rob: *"it fails on asking for two stores"*): "my Kroger and Walmart transactions",
 "Kroger, Walmart and Aldi" - each store searched, when each is in the record and the whole phrase is not ("Barnes and
 Noble" stays one name). The Ledger search takes "kroger or walmart", typed too.

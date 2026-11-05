@@ -12,6 +12,7 @@ Supermarket transactions" - "It should be able to understand a multiple ask"). R
     M6  in a list, a name that is no store in the record is named as not found and the rest are shown ("admire and
         walmart", whisper's hearing of "my Meijer and Walmart")
     M7  "when I say admire, I mean Meijer": kept, shown in Settings, removable, applied to spoken words only
+    M10 "go" in front of anything is a lead-in ("go get my accounts", "go budget"); "go back" stays its own words
     M8  learned from the person (Rob 2026-11-01): the third time, within a minute each, that a spoken word found nothing
         and one store was looked for next - counted in memory only, said when learned, with an Undo
 """
@@ -186,3 +187,47 @@ const teach = acc_route_re.exec('Groundwork, when I say admire, I mean Meijer.')
           'if (!any) {' in body and "_askSaid(`I didn't find any ${named} transactions in the Ledger.`);" in body
           and "_askDone(`No ${named} transactions in the Ledger${heard}`);" in body
           and body.index('if (!any) {') < body.index('OK, showing your'))
+
+    # Rob 2026-11-01: "the phrase Go ie: Groundwork go get my accounts. Should trigger get my accounts" ... "go should work
+    # for anything like go to Budget"
+    go_want = {
+        'Groundwork go get my accounts': 'fetch', 'Groundwork, go and get my accounts.': 'fetch',
+        'go ahead and get my accounts': 'fetch', 'Groundwork, get my accounts': 'fetch',
+        'go to Budget': 'place:the Budget', 'Groundwork go to my budget': 'place:the Budget',
+        'go budget': 'place:the Budget', 'go my budget': 'place:the Budget', 'go open the budget': 'place:the Budget',
+        'go ledger': 'place:the Ledger', 'go settings': 'place:Settings', 'go debts': 'place:Debt Payoff',
+        'go back to the budget': 'place:the Budget', 'go show me my Kroger transactions': 'ledger:kroger',
+        'go build a report': 'do:Opened the report builder', 'go back up my data': 'do:Opened Backup',
+        "go see what's coming up this week": 'coming',
+        'go back': None, 'go ahead': None, 'go': None, 'go over my budget': None,
+    }
+    gojs = (app[app.index('const _ASK_SHORT = '):app.index('function _askSay(')]
+            + app[app.index('const ASK_PLACES = ['):app.index('function askGo(')]
+            + app[app.index('const ASK_DO = ['):app.index('// Questions about the person')]
+            + app[app.index('function _askShowTxns(n) {'):app.index('// Rob 2026-10-31: with Groundwork')]
+            + app[app.index('const ASK_COMING = '):app.index('async function askComingUp(')]
+            + r"""
+const what = (q) => {
+  const n = _askNorm(q);
+  if (ASK_FETCH.test(n)) return 'fetch';
+  if (ASK_COMING.test(n)) return 'coming';
+  const d = ASK_DO.find(x => x.re.test(n));
+  if (d) return 'do:' + d.said;
+  const s = _askShowTxns(n);
+  if (s) return 'ledger:' + s;
+  const bare = n.replace(/^(?:my|the|our|all)\s+/, '');
+  const p = askPlace(n) || ASK_PLACES.find(pl => pl.names.includes(bare));
+  return p ? 'place:' + p.label : null;
+};
+""" + 'const L = ' + json.dumps(list(go_want)) + ';\nconsole.log(JSON.stringify(Object.fromEntries(L.map(q => [q, what(q)]))));\n')
+    gf = os.path.join(tempfile.mkdtemp(prefix='s283go_'), 'go.js')
+    open(gf, 'w', encoding='utf-8').write(gojs)
+    gr = subprocess.run([node, gf], capture_output=True, text=True, encoding='utf-8', timeout=60)
+    try:
+        go = json.loads(gr.stdout.strip().splitlines()[-1])
+    except Exception:
+        go = {'error': (gr.stdout + gr.stderr)[-300:]}
+    go_wrong = {q: (go.get(q), w) for q, w in go_want.items() if go.get(q, 'missing') != w}
+    check(f"s283 M10 'go' in front of anything is a lead-in - 'go get my accounts', 'go budget', 'go to Budget', 'go show me "
+          f"my Kroger transactions' - and 'go back', 'go ahead' and 'go' alone stay their own words "
+          f"({len(go_want)} phrases){' - wrong: ' + ascii(go_wrong) if go_wrong else ''}", not go_wrong)

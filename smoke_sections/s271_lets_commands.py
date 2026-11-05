@@ -92,7 +92,7 @@ console.log(JSON.stringify({ shows: shows.map(([q, want]) => [q, _askShowTxns(q)
     ask = app[app.index('async function askGroundwork('):]
     check('s271 L3/L4 the Ledger search says "OK, showing your Kroger transactions in the Ledger"; pages, commands and '
           'Get my accounts answer aloud; the show command runs with AI on too; the spoken flag is spent on a command',
-          "_askSaid(`OK, showing your ${_askTitle(term)} transactions in the Ledger.`)" in ledger
+          "_askSaid(`OK, showing your ${named} transactions in the Ledger.`" in ledger
           and "_askSaid(_askSaidFor(d.said));" in intent and 'const shown = _askShowTxns(n);' in intent
           and '!assist' not in intent[intent.index('const shown = _askShowTxns(n);') - 40:intent.index('const shown = _askShowTxns(n);')]
           and "_askSaid('Sure, getting your accounts now.')" in app
