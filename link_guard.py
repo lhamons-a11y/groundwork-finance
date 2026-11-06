@@ -82,7 +82,7 @@ def stays_home(url, port):
     return parts.hostname in _LOCAL_HOSTS and parts.port == port
 
 
-def mac_window_may_go(url, port, new_window):
-    """WKWebView's question before it sends anything. A new window (target=_blank) is let through because it loads nothing
-    here: WebKit then asks for the window, and pywebview hands that address to webbrowser.open, which is open_external."""
+def window_may_go(url, port, new_window):
+    """WebKit's question, on a Mac and on Linux, before it sends anything. A new window (target=_blank) is let through
+    because it loads nothing here: pywebview hands that address to webbrowser.open, which is open_external."""
     return bool(new_window) or stays_home(url, port)

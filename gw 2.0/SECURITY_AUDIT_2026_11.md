@@ -37,7 +37,7 @@ to do that has been found (2026-10-31 sweep).
 | `open_external` to anything else | waits for the person's Yes, in a window dialog showing the whole address |
 | anything that could be read two ways, or is not a web address | refused |
 | `window.open`, `target=_blank` | the same road: pywebview's `webbrowser.open` now goes through `open_external` |
-| the main window going elsewhere (`location=`, a plain link) | **Windows, Mac:** cancelled before anything is sent. **Linux:** brought back after the page loads, which is after the request has gone |
+| the main window going elsewhere (`location=`, a plain link) | **Windows, Mac, Linux:** cancelled before anything is sent. A Mac and Linux also keep a way home, in case the cancel could not be put in place |
 
 Measured on a real WebView2 window with a throwaway local page: `location=` and a plain link stayed home, `window.open`
 and an unknown address reached the question and did not open, a known address opened, a `file:` address did not, and the
@@ -58,10 +58,27 @@ that reached it.
 On a Mac this also holds frames and downloads, which WebKit asks about through the same question. Not yet run in the
 built app: the next Mac rebuild should confirm the app opens and works as usual.
 
+Linux, 2026-11-06 (Rob: "Yes, build it"; `launch._hold_window_gtk`, s287): measured on a real WebKitGTK 2.52 window in
+WSL Ubuntu, in Groundwork's own page with its own policy, with a listener inside WSL recording every request that
+reached it. The same run with the cancel taken out is the control.
+
+| Step | Without the guard | With it |
+|---|---|---|
+| `location=`, `location.replace`, `location.assign`, plain link, meta refresh, download link | all 6 reached the listener, and its page's script ran | none did, window stayed home |
+| a page that keeps loading | reached it; the window stayed away about 12 s, until the page finished | never reached it |
+| `file:`, `data:`, a frame moved by script | nothing reached it | nothing reached it |
+| `target=_blank` | handed to `open_external`, nothing sent on a no | the same |
+| `window.open`, with or without a name | nothing | nothing |
+| fetch, XHR, image, beacon, WebSocket, iframe, form, stylesheet, prefetch, script, blob worker | stopped by the page's policy | stopped by the page's policy |
+| the window's own page, its own `blob:` page, a reload, the bridge to Python | worked | worked |
+
+The person's Yes was a stand-in and `xdg-open` was recorded, not run. WSLg draws no window on this laptop, so nobody
+saw the window. A frame was stopped by the page's policy before the guard was reached, so the guard's hold on frames
+was not measured on its own. Not yet run in the built app or on a Linux desktop.
+
 ## Open
 
 **From gap 3:**
-- **Linux navigation.** It needs the same cancel as Windows and the Mac, built and tested on a Linux machine.
 - **A bank window as a way out.** Script holding the token can save a bank link and open a bank window at it. The window
   is visible to the person, but the address carries data. Not closed here.
 - **WebRTC.** `connect-src` does not cover it in every browser engine. Not tested.

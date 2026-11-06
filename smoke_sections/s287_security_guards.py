@@ -133,15 +133,130 @@ def _mac_hold(ctx, lg, keep):
           seen and not any('secret' in s or 'evil' in s for s in seen))
 
     # Break the guard: the check must notice
-    real = lg.mac_window_may_go
-    lg.mac_window_may_go = lambda *_a: True
+    real = lg.window_may_go
+    lg.window_may_go = lambda *_a: True
     try:
         check('s287 gap 3 the mutation: a Mac guard that always says yes lets the address through',
               ask(main, action(EVIL)) == ['pywebview answered'])
     finally:
-        lg.mac_window_may_go = real
+        lg.window_may_go = real
     check('s287 gap 3 a Mac: the window keeps the way home as well, and the hold is put in place from _keep_window_home',
           "sys.platform == 'darwin'" in keep and '_hold_window_mac(window, port)' in keep and 'window.load_url(' in keep)
+
+
+def _linux_hold(ctx, lg, keep):
+    """launch._hold_window_gtk, run against stand-ins for PyGObject and pywebview so this holds on every platform. Measured
+    on a real WebKitGTK window on 2026-11-06 (SECURITY_AUDIT_2026_11.md); these keep what was measured from drifting."""
+    import logging
+    import sys
+    import types
+    import launch
+
+    check, HOME, EVIL, PORT = ctx.check, 'http://127.0.0.1:8765/?k=abc', 'https://evil.example/?d=secret', 8765
+    main, other = object(), object()
+
+    class NavigationPolicyDecision:
+        def __init__(self, url, frame=''):
+            self.url, self.frame, self.ignored = url, frame, 0
+
+        def get_navigation_action(self):
+            return types.SimpleNamespace(get_request=lambda: types.SimpleNamespace(get_uri=lambda: self.url),
+                                         get_frame_name=lambda: self.frame)
+
+        def ignore(self):
+            self.ignored += 1
+
+    class CantRead(NavigationPolicyDecision):
+        pass
+
+    class ResponsePolicyDecision:
+        pass
+
+    class BrowserView:
+        def __init__(self, win):
+            self.pywebview_window = win
+
+        def on_navigation(self, _webview, _decision, _kind):
+            return 'pywebview answered'
+
+    webkit = types.SimpleNamespace(NavigationPolicyDecision=NavigationPolicyDecision)
+    gi = types.ModuleType('gi')
+    gi.require_version = lambda *_a: None
+    repository = types.ModuleType('gi.repository')
+    repository.WebKit2 = webkit
+    gtk = types.ModuleType('webview.platforms.gtk')
+    gtk.BrowserView = BrowserView
+    original = BrowserView.on_navigation
+
+    names = ('gi', 'gi.repository', 'webview', 'webview.platforms', 'webview.platforms.gtk')
+    saved = {n: sys.modules.get(n) for n in names}
+    sys.modules.update({'gi': gi, 'gi.repository': repository, 'webview': types.ModuleType('webview'),
+                        'webview.platforms': types.ModuleType('webview.platforms'), 'webview.platforms.gtk': gtk})
+    try:
+        launch._hold_window_gtk(main, PORT)
+    finally:
+        for n, mod in saved.items():
+            if mod is None:
+                sys.modules.pop(n, None)
+            else:
+                sys.modules[n] = mod
+
+    check('s287 gap 3 Linux: the cancel goes on pywebview\'s own answer, on the class, before any window exists',
+          BrowserView.on_navigation is not original)
+    if BrowserView.on_navigation is original:
+        return
+
+    def ask(win, decision):
+        return BrowserView(win).on_navigation(None, decision, 0)
+
+    d = NavigationPolicyDecision(EVIL)
+    check('s287 gap 3 Linux: another address is cancelled, once, and stops there', ask(main, d) is True and d.ignored == 1)
+    d = NavigationPolicyDecision(HOME)
+    check('s287 gap 3 Linux: Groundwork\'s own page goes on to pywebview',
+          ask(main, d) == 'pywebview answered' and d.ignored == 0)
+    d = NavigationPolicyDecision(EVIL, '_blank')
+    check('s287 gap 3 Linux: a target=_blank window goes on, to reach open_external',
+          ask(main, d) == 'pywebview answered' and d.ignored == 0)
+    d = NavigationPolicyDecision(EVIL, 'someName')
+    check('s287 gap 3 Linux: a window or frame with any other name is cancelled', ask(main, d) is True and d.ignored == 1)
+    d = NavigationPolicyDecision(EVIL)
+    check('s287 gap 3 Linux: this holds Groundwork\'s window and no other',
+          ask(other, d) == 'pywebview answered' and d.ignored == 0)
+    check('s287 gap 3 Linux: a reply about a response is pywebview\'s, as it was',
+          ask(main, ResponsePolicyDecision()) == 'pywebview answered')
+
+    seen = []
+
+    class Hear(logging.Handler):
+        def emit(self, record):
+            seen.append(record.getMessage())
+    hear, root = Hear(), logging.getLogger()
+    root.addHandler(hear)
+    try:
+        broken = NavigationPolicyDecision(EVIL)
+
+        def no_address():
+            raise ValueError('no address')
+        broken.get_navigation_action = no_address
+        check('s287 gap 3 Linux: a check that cannot read the address says no',
+              ask(main, broken) is True and broken.ignored == 1)
+        ask(main, NavigationPolicyDecision(EVIL))
+    finally:
+        root.removeHandler(hear)
+    check('s287 gap 3 Linux: a stopped address is never logged: it may be the data',
+          seen and not any('secret' in s or 'evil' in s for s in seen))
+
+    # Break the guard: the check must notice
+    real = lg.window_may_go
+    lg.window_may_go = lambda *_a: True
+    try:
+        check('s287 gap 3 the mutation: a Linux guard that always says yes lets the address through',
+              ask(main, NavigationPolicyDecision(EVIL)) == 'pywebview answered')
+    finally:
+        lg.window_may_go = real
+    check('s287 gap 3 Linux: the window keeps the way home as well, and the hold is put in place from _keep_window_home',
+          "sys.platform.startswith('linux')" in keep and '_hold_window_gtk(window, port)' in keep
+          and 'window.load_url(' in keep)
 
 
 def _carries_password(window):
@@ -302,6 +417,7 @@ def run(ctx):
           and 'NavigationStarting += on_navigating' in keep and keep.count('args.Cancel = True') == 2
           and "args=(url,)" in keep)
     _mac_hold(ctx, lg, keep)
-    srv = (BASE / 'server.py').read_text(encoding='utf-8')
+    _linux_hold(ctx, lg, keep)
+    srv =(BASE / 'server.py').read_text(encoding='utf-8')
     check('s287 gap 3 the policy\'s comment no longer claims script has nowhere to send data',
           'leaves injected script nowhere to send data' not in srv)
