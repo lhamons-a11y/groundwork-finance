@@ -13,11 +13,12 @@ on:
 jobs:
   build:
     runs-on: macos-latest
-    # The oldest macOS the shipped app supports (the website says macOS 12 Monterey or later). Without it, clang stamps
-    # every library it compiles with the runner's own macOS as the minimum (26.0 on macos-latest in 1.1.1), so the
-    # engine would load only on macOS 26+. The last step below fails the build if anything in the .app needs newer.
+    # The oldest macOS the shipped app supports (the website says macOS 14 Sonoma or later). Rob 2026-11-06 raised it
+    # from 12: Kokoro needs onnxruntime 1.20.1 or newer, whose Mac wheels need macOS 13, and 14 from 1.24 on. Without
+    # this, clang stamps every library it compiles with the runner's own macOS as the minimum (26.0 on macos-latest in
+    # 1.1.1), so the engine would load only on macOS 26+. A later step fails the build if anything in the .app needs newer.
     env:
-      MACOSX_DEPLOYMENT_TARGET: '12.0'
+      MACOSX_DEPLOYMENT_TARGET: '14.0'
     steps:
       - uses: actions/checkout@v7
 
@@ -33,7 +34,7 @@ jobs:
       # (1.1.1's comment said "CPU only" and shipped libggml-metal anyway). The step fails if Metal is ever missing.
       - name: Build the pinned engine from source (llama-cpp-python 0.3.35, Metal)
         env:
-          CMAKE_ARGS: -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0
+          CMAKE_ARGS: -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0
         run: |
           python3 -m pip install --upgrade pip
           pip install --no-binary llama-cpp-python --index-url https://pypi.org/simple "llama-cpp-python==0.3.35"
@@ -45,16 +46,6 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
           python3 -c "import llama_cpp, sys; sys.exit(llama_cpp.__version__ != '0.3.35')"
-
-      # The engine imports numpy, and pip picks numpy's macosx_14_0 arm64 wheel (Accelerate) on a runner this new.
-      # numpy also publishes a macosx_11_0 arm64 wheel (OpenBLAS) of the same version; ship that one instead.
-      - name: Use numpy's macOS 11 wheel (the macosx_14_0 one would raise the floor to macOS 14)
-        run: |
-          NUMPY_VERSION="$(python3 -c 'import numpy; print(numpy.__version__)')"
-          pip download --no-deps --only-binary=:all: --platform macosx_11_0_arm64 --python-version 3.12 \
-              --implementation cp --abi cp312 -d numpy-wheel "numpy==$NUMPY_VERSION"
-          pip install --no-deps --force-reinstall numpy-wheel/numpy-*.whl
-          python3 -c "import numpy, llama_cpp; print('numpy', numpy.__version__, 'with engine', llama_cpp.__version__)"
 
       - name: Build .icns from source PNG
         run: |
@@ -68,6 +59,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 fetch_model.py
+      # The voice files are git-ignored, and without them spec_engine only warns: the build would ship with no voice.
+      - name: Fetch and verify the voice models (hearing, speaking, whose voice)
+        run: |
+          python3 scripts/fetch_whisper_model.py
+          python3 scripts/fetch_kokoro_model.py
+          python3 scripts/fetch_voiceprint_model.py
       - name: Build with PyInstaller
         run: pyinstaller groundwork_macos.spec --clean --noconfirm
 
@@ -76,6 +73,16 @@ jobs:
           find dist/Groundwork.app -name 'libllama*' | grep -q .
           find dist/Groundwork.app -name 'libggml-metal*' | grep -q .
           find dist/Groundwork.app -name 'phi3.5-mini-instruct-q4.gguf' | grep -q .
+
+      - name: The voice is inside the app (packaging only - not a microphone)
+        run: |
+          find dist/Groundwork.app -name 'ggml-base.en.bin' | grep -q .
+          find dist/Groundwork.app -name 'kokoro-v1.0.int8.onnx' | grep -q .
+          find dist/Groundwork.app -name 'voices-v1.0.bin' | grep -q .
+          find dist/Groundwork.app -name 'voxceleb_resnet34_LM.onnx' | grep -q .
+          find dist/Groundwork.app -name '_pywhispercpp*' | grep -q .
+          find dist/Groundwork.app -name 'onnxruntime' | grep -q .
+          find dist/Groundwork.app -name 'espeakng_loader' | grep -q .
 
       # Every executable and library in the app must load on the oldest macOS we promise. Reads each Mach-O's minimum
       # (LC_BUILD_VERSION minos, or LC_VERSION_MIN_MACOSX on older binaries) and fails on any above the floor.

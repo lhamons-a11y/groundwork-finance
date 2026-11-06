@@ -281,9 +281,20 @@ def run(ctx):
         check(f'33 Q5 {wf} fetches and verifies the pinned model before packaging (any failure fails the build)',
               'fetch_model.py' in text and text.index('fetch_model.py') < text.index('pyinstaller groundwork_'))
     site = ctx.BASE.joinpath('Website', 'website.py').read_text(encoding='utf-8')
-    check('33 Q7 the website says what is true: Mac local AI is built in on Metal from macOS 12; Linux local AI is coming',
-          "Local AI: built in, on Apple's graphics (Metal)." in site and 'macOS 12 Monterey or later' in site
-          and 'Tahoe' not in site and 'Local AI: coming to Linux.' in site)
+    check('33 Q7 the website says what is true: Mac local AI is built in on Metal from macOS 14; Linux local AI is coming',
+          "Local AI: built in, on Apple's graphics (Metal)." in site and 'macOS 14 Sonoma or later' in site
+          and 'macOS 12' not in site and 'Tahoe' not in site and 'Local AI: coming to Linux.' in site)
+    # Rob 2026-11-06: the floor is 14 (Kokoro's onnxruntime), and the build, the app and the website must all say so.
+    mac_wf = ctx.BASE.joinpath('.github', 'workflows', 'macos-build.yml').read_text(encoding='utf-8')
+    mac_spec = ctx.BASE.joinpath('groundwork_macos.spec').read_text(encoding='utf-8')
+    check('33 Q7 the macOS floor is 14 in the build, the engine compile and the app itself',
+          "MACOSX_DEPLOYMENT_TARGET: '14.0'" in mac_wf and '-DCMAKE_OSX_DEPLOYMENT_TARGET=14.0' in mac_wf
+          and "'LSMinimumSystemVersion': '14.0'" in mac_spec)
+    for wf in ('macos-build.yml', 'linux-build.yml'):
+        text = ctx.BASE.joinpath('.github', 'workflows', wf).read_text(encoding='utf-8')
+        at = text.index('pyinstaller groundwork_')
+        check(f'{wf} fetches every voice model before packaging (a missing one is only a warning to the build)',
+              all(0 <= text.find(f'scripts/fetch_{m}_model.py') < at for m in ('whisper', 'kokoro', 'voiceprint')))
 
     # ── 33 Q6 (ENGINE_OTHER_PLATFORMS.md section 7): SIGTERM closes Groundwork as its close button does ────────────
     # Measured on Linux 2026-11-01: before, SIGTERM ended the process in 0.5 s with the model left to teardown (R-a).

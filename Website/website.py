@@ -1186,7 +1186,7 @@ def download():
     <div class="requirements">
       <strong>Requirements:</strong><br>
       A Mac with Apple Silicon (M1 or later)<br>
-      macOS 12 Monterey or later (a version Apple still updates is suggested)<br>
+      macOS 14 Sonoma or later (a version Apple still updates is suggested)<br>
       ~2.2GB disk space (includes the built-in local AI model)<br>
       4GB RAM (8GB+ for the optional local AI)<br>
       Local AI: built in, on Apple's graphics (Metal). Groundwork runs fully without it.
@@ -1343,9 +1343,9 @@ python3 launch.py</pre>
         <li>Scroll down to <strong>Security</strong>. Next to "Groundwork" was blocked to protect your Mac, click <strong>Open Anyway</strong>.</li>
         <li>Enter your Mac password, then click <strong>Open</strong>.</li>
       </ol>
-      <p>You only need to do this once for each copy you download, so a new version may ask again. On macOS 14 Sonoma or earlier you can instead Control-click Groundwork in Applications, choose <strong>Open</strong>, then click <strong>Open</strong> again.</p>
+      <p>You only need to do this once for each copy you download, so a new version may ask again. On macOS 14 Sonoma you can instead Control-click Groundwork in Applications, choose <strong>Open</strong>, then click <strong>Open</strong> again.</p>
       <div class="kb-tip">💡 No Open Anyway button? Open Groundwork once more so the warning appears again, click Done, then look in Privacy &amp; Security again. macOS shows the button for about an hour after the warning.</div>
-      <div class="kb-tip">💡 Groundwork for Mac needs Apple Silicon (M1 or later) and macOS 12 Monterey or later. Its local AI is built in and runs on the Mac's graphics (Metal).</div>
+      <div class="kb-tip">💡 Groundwork for Mac needs Apple Silicon (M1 or later) and macOS 14 Sonoma or later. Its local AI is built in and runs on the Mac's graphics (Metal).</div>
     </div>
 
     <div class="kb-article" id="budget">

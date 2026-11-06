@@ -248,6 +248,8 @@ app = BUNDLE(
         'CFBundleDisplayName': 'Groundwork',
         'CFBundleShortVersionString': '1.1.1',
         'CFBundleVersion': _build_id,
+        # The floor (macos-build.yml): on an older macOS, the system says so instead of the app failing as it loads.
+        'LSMinimumSystemVersion': '14.0',
         # Issue 1: what macOS shows when it asks about Downloads. The watcher only reads the folder after the window
         # is open, so the question never holds up starting.
         'NSDownloadsFolderUsageDescription': 'Groundwork watches Downloads for bank files you save, and offers to '
