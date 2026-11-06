@@ -37,16 +37,31 @@ to do that has been found (2026-10-31 sweep).
 | `open_external` to anything else | waits for the person's Yes, in a window dialog showing the whole address |
 | anything that could be read two ways, or is not a web address | refused |
 | `window.open`, `target=_blank` | the same road: pywebview's `webbrowser.open` now goes through `open_external` |
-| the main window going elsewhere (`location=`, a plain link) | **Windows:** cancelled before anything is sent. **Mac, Linux:** brought back after the page loads, which is after the request has gone |
+| the main window going elsewhere (`location=`, a plain link) | **Windows, Mac:** cancelled before anything is sent. **Linux:** brought back after the page loads, which is after the request has gone |
 
 Measured on a real WebView2 window with a throwaway local page: `location=` and a plain link stayed home, `window.open`
 and an unknown address reached the question and did not open, a known address opened, a `file:` address did not, and the
 window's own pages still worked.
 
+Mac, 2026-11-06 (Rob: "Yes, build it"; `launch._hold_window_mac`, s287): measured on a real WKWebView window with a
+throwaway page with no policy of its own, so only the guard stood in the way, and a listener recording every request
+that reached it.
+
+| Step | Without the guard | With it |
+|---|---|---|
+| `location=`, plain link, form post, iframe, download link | all 5 reached the listener | none did, window stayed home |
+| `file:`, `data:` | nothing reached it | nothing reached it |
+| `target=_blank` | handed to `open_external` | handed to `open_external`, nothing sent |
+| `window.open` | nothing | nothing |
+| the window's own page, its own `blob:` page | worked | worked |
+
+On a Mac this also holds frames and downloads, which WebKit asks about through the same question. Not yet run in the
+built app: the next Mac rebuild should confirm the app opens and works as usual.
+
 ## Open
 
 **From gap 3:**
-- **Mac and Linux navigation.** They need the same cancel as Windows, built and tested on those machines.
+- **Linux navigation.** It needs the same cancel as Windows and the Mac, built and tested on a Linux machine.
 - **A bank window as a way out.** Script holding the token can save a bank link and open a bank window at it. The window
   is visible to the person, but the address carries data. Not closed here.
 - **WebRTC.** `connect-src` does not cover it in every browser engine. Not tested.
