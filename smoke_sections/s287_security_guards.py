@@ -46,6 +46,104 @@ class _Clock:
         self.t += s
 
 
+def _mac_hold(ctx, lg, keep):
+    """launch._hold_window_mac, run against stand-ins for PyObjC and pywebview so this holds on every platform. Measured
+    on a real WKWebView window on 2026-11-06 (SECURITY_AUDIT_2026_11.md); these keep what was measured from drifting."""
+    import logging
+    import sys
+    import types
+    import launch
+
+    check, HOME, EVIL, PORT, CANCEL = ctx.check, 'http://127.0.0.1:8765/?k=abc', 'https://evil.example/?d=secret', 8765, 0
+    main, other = object(), object()
+
+    class Instance:
+        def __init__(self, win):
+            self.pywebview_window = win
+
+    class BrowserView:
+        get_instance = staticmethod(lambda _attr, webview: Instance(webview))
+
+        class BrowserDelegate:
+            webView_decidePolicyForNavigationAction_decisionHandler_ = types.SimpleNamespace(
+                callable=lambda _self, _webview, _action, handler: handler('pywebview answered'))
+
+    added = []
+    objc = types.ModuleType('objc')
+    objc.registerMetaDataForSelector = lambda *a: None
+    objc.selector = lambda fn, selector, signature: types.SimpleNamespace(fn=fn, selector=selector, signature=signature)
+    objc.classAddMethods = lambda cls, methods: added.extend((cls, m) for m in methods)
+    cocoa = types.ModuleType('webview.platforms.cocoa')
+    cocoa.BrowserView = BrowserView
+
+    def action(url, new_window=False):
+        u = types.SimpleNamespace(absoluteString=lambda: url)
+        return types.SimpleNamespace(request=lambda: types.SimpleNamespace(URL=lambda: u),
+                                     targetFrame=lambda: None if new_window else object())
+
+    def broken():
+        raise ValueError('no address')
+
+    names = ('objc', 'webview', 'webview.platforms', 'webview.platforms.cocoa')
+    saved = {n: sys.modules.get(n) for n in names}
+    sys.modules.update({'objc': objc, 'webview': types.ModuleType('webview'),
+                        'webview.platforms': types.ModuleType('webview.platforms'), 'webview.platforms.cocoa': cocoa})
+    try:
+        launch._hold_window_mac(main, PORT)
+    finally:
+        for n, mod in saved.items():
+            if mod is None:
+                sys.modules.pop(n, None)
+            else:
+                sys.modules[n] = mod
+
+    check('s287 gap 3 a Mac: the cancel goes on pywebview\'s own delegate, at the selector WebKit asks before sending',
+          len(added) == 1 and added[0][0] is BrowserView.BrowserDelegate
+          and added[0][1].selector == b'webView:decidePolicyForNavigationAction:decisionHandler:')
+    if len(added) != 1:
+        return
+    answer = added[0][1].fn
+
+    def ask(webview, act):
+        got = []
+        answer(None, webview, act, got.append)
+        return got
+
+    check('s287 gap 3 a Mac: Groundwork\'s own page goes on to pywebview', ask(main, action(HOME)) == ['pywebview answered'])
+    check('s287 gap 3 a Mac: another address is cancelled, and only once', ask(main, action(EVIL)) == [CANCEL])
+    check('s287 gap 3 a Mac: a new window goes on, to reach open_external',
+          ask(main, action(EVIL, new_window=True)) == ['pywebview answered'])
+    check('s287 gap 3 a Mac: this holds Groundwork\'s window and no other',
+          ask(other, action(EVIL)) == ['pywebview answered'])
+
+    seen = []
+
+    class Hear(logging.Handler):
+        def emit(self, record):
+            seen.append(record.getMessage())
+    hear, root = Hear(), logging.getLogger()
+    root.addHandler(hear)
+    try:
+        cant_read = types.SimpleNamespace(request=broken, targetFrame=lambda: object())
+        check('s287 gap 3 a Mac: a check that cannot read the address says no', ask(main, cant_read) == [CANCEL])
+        ask(main, action(EVIL))
+    finally:
+        root.removeHandler(hear)
+    check('s287 gap 3 a Mac: a stopped address is never logged: it may be the data',
+          seen and not any('secret' in s or 'evil' in s for s in seen))
+
+    # Break the guard: the check must notice
+    real = lg.mac_window_may_go
+    lg.mac_window_may_go = lambda *_a: True
+    try:
+        check('s287 gap 3 the mutation: a Mac guard that always says yes lets the address through',
+              ask(main, action(EVIL)) == ['pywebview answered'])
+    finally:
+        lg.mac_window_may_go = real
+    check('s287 gap 3 a Mac: the window keeps the way home as well, and the hold is put in place from _keep_window_home',
+          "sys.platform == 'darwin'" in keep and '_hold_window_mac(window, port)' in keep and 'window.load_url(' in keep)
+
+
 def _carries_password(window):
     return any(LOGIN[1] in js for js in window.sent)
 
@@ -203,6 +301,7 @@ def run(ctx):
           '_keep_window_home(window, api)' in launch and 'webbrowser.open = outside' in keep
           and 'NavigationStarting += on_navigating' in keep and keep.count('args.Cancel = True') == 2
           and "args=(url,)" in keep)
+    _mac_hold(ctx, lg, keep)
     srv = (BASE / 'server.py').read_text(encoding='utf-8')
     check('s287 gap 3 the policy\'s comment no longer claims script has nowhere to send data',
           'leaves injected script nowhere to send data' not in srv)

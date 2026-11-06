@@ -544,9 +544,10 @@ def _keep_window_home(window, api):
 
     Two ways out. A new window (window.open, target=_blank): pywebview hands it to webbrowser.open, so that is sent to
     open_external, on its own thread because pywebview calls it on the window's thread and a dialog must not block
-    that. The window itself going elsewhere (location=, a plain link): on Windows it is cancelled before anything is
-    sent. On a Mac and Linux, for now, the window is brought back when the page has loaded - after the request has gone,
-    so this is a way home and not the guard Windows has (not tested there; gw 2.0/SECURITY_AUDIT_2026_11.md)."""
+    that. The window itself going elsewhere (location=, a plain link): on Windows and a Mac it is cancelled before
+    anything is sent. On Linux, for now, the window is brought back when the page has loaded - after the request has
+    gone, so this is a way home and not that guard (not tested there; gw 2.0/SECURITY_AUDIT_2026_11.md). A Mac keeps the
+    way home too, in case the cancel could not be put in place."""
     import threading
     import webbrowser
     import link_guard
@@ -556,6 +557,9 @@ def _keep_window_home(window, api):
         threading.Thread(target=api.open_external, args=(url,), daemon=True).start()
         return True
     webbrowser.open = outside
+
+    if sys.platform == 'darwin':
+        _hold_window_mac(window, port)
 
     hooked = []
 
@@ -593,6 +597,38 @@ def _keep_window_home(window, api):
             logging.exception('could not keep the window on its own pages')
 
     window.events.loaded += on_loaded
+
+
+def _hold_window_mac(window, port):
+    """WebKit asks the navigation delegate before it sends a request, for every frame and every redirect. Groundwork
+    answers first, for its own window, and passes what may go on to pywebview's answer. WKNavigationActionPolicyCancel
+    is 0. A check that cannot read the address says no; the address is never logged, because it may be the data."""
+    try:
+        import objc
+        import link_guard
+        from webview.platforms.cocoa import BrowserView
+        sel = b'webView:decidePolicyForNavigationAction:decisionHandler:'
+        delegate = BrowserView.BrowserDelegate
+        pywebview_answer = delegate.webView_decidePolicyForNavigationAction_decisionHandler_.callable
+        objc.registerMetaDataForSelector(b'NSObject', sel, {'arguments': {4: {'callable': {
+            'retval': {'type': b'v'}, 'arguments': {0: {'type': b'^v'}, 1: {'type': b'q'}}}}}})
+
+        def answer(self, webview, action, handler):
+            try:
+                ours = BrowserView.get_instance('webview', webview).pywebview_window is window
+                may_go = not ours or link_guard.mac_window_may_go(
+                    str(action.request().URL().absoluteString()), port, action.targetFrame() is None)
+            except Exception:
+                may_go = False
+                logging.exception('window navigation check')
+            if not may_go:
+                logging.warning('the window was stopped from leaving Groundwork')   # never the address
+                handler(0)
+                return
+            pywebview_answer(self, webview, action, handler)
+        objc.classAddMethods(delegate, [objc.selector(answer, selector=sel, signature=b'v@:@@@?')])
+    except Exception:
+        logging.exception('could not keep the window on its own pages (macOS)')
 
 
 def _keep_microphone_answer(window):
