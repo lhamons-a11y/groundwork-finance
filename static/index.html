@@ -2385,7 +2385,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <div class="grid-2">
             <div>
               <div style="font-weight:600;margin-bottom:12px;font-size:var(--fs-base)">Assets</div>
-              <div class="field mb-4"><label>Checking &amp; savings ($)</label><input type="number" step="0.01" id="nwSavings" placeholder="0" oninput="updateNetWorth()"></div>
+              <div class="field mb-4"><label>Checking &amp; savings ($)</label><input type="number" step="0.01" id="nwSavings" placeholder="0" oninput="_nwSavingsTyped(this); updateNetWorth()"><div id="nwSavingsNote" style="font-size:var(--fs-xs);color:var(--slate);margin-top:4px;line-height:1.5"></div></div>
               <div class="field mb-4"><label>Investment accounts ($) <span style="font-weight:400;font-size:var(--fs-xs);color:var(--slate-2)">brokerage, taxable</span></label><input type="number" step="0.01" id="nwInvestments" placeholder="0" oninput="updateNetWorth(); this.dataset.portfolioSync='';"><div id="nwInvSyncBadge" style="font-size:var(--fs-xs);color:var(--pine-text);margin-top:3px;display:none"></div></div>
               <!-- Retirement accounts — Phase 11 -->
               <div class="field mb-4">

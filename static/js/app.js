@@ -1610,6 +1610,7 @@ function restoreFromBootstrap(data) {
   const nwData = data.netWorth || {};
   S.netWorth = {
     savings:       nwData.savings       || 0,
+    savingsSource: nwData.savingsSource || '',
     investments:   nwData.investments   || 0,
     cash:          nwData.cash          || 0,
     // BUG FIX (July 6): homeValue/mortgage were only ever read from
@@ -18409,12 +18410,14 @@ function _drawAllocDonut(segments, colors) {
 // Item 35 V2: net worth carries the priced value and names what has no price beside it - never the cost of an
 // unpriced holding, and never a silent gap. _nwInvExclusion is what a snapshot's note says the figure leaves out.
 let _nwInvExclusion = '';
-function _nwSnapshotNote(extra) {
+function _nwInvGapNote() {
   const field = g('nwInvestments');
   const synced = field && field.dataset.portfolioSync !== undefined && field.dataset.portfolioSync !== ''
     && parseFloat(field.value) === parseFloat(field.dataset.portfolioSync);
-  return [extra || '', synced && _nwInvExclusion ? `Investments leave out ${_nwInvExclusion}: no price on record.` : '']
-    .filter(Boolean).join(' ');
+  return synced && _nwInvExclusion ? `Investments leave out ${_nwInvExclusion}: no price on record.` : '';
+}
+function _nwSnapshotNote(extra) {
+  return [extra || '', _nwInvGapNote(), _nwSavingsGapNote()].filter(Boolean).join(' ');
 }
 let _nwLastPortfolio = null;
 function _syncPortfolioToNetWorth(summary) {
@@ -18812,11 +18815,14 @@ function renderNetWorth() {
 }
 
 function updateNetWorth() {
-  // Auto-pull checking/savings balances from linked accounts
+  // Checking and savings: what the person typed, or else the bank balances their accounts carry. An activity total is
+  // never taken for a balance, and the page does not keep a filled-in figure as if it had been typed.
+  const savingsSource = _nwSavingsSource();
+  const linked = _nwLinkedCash();
+  const fromAccounts = savingsSource === 'accounts' && S.accountsLoaded;
   const linkedEl = g('nwSavings');
-  if (linkedEl && (!linkedEl.value || linkedEl.value === '0')) {
-    const total = _nwLinkedCashTotal();
-    if (total > 0) linkedEl.value = total.toFixed(2);
+  if (linkedEl && fromAccounts && document.activeElement !== linkedEl) {
+    linkedEl.value = linked.known.length ? linked.total.toFixed(2) : '';
   }
   // BUG FIX (July 6): this function is called from several places outside
   // the Net Worth page itself — debt card add/edit/delete (lines marked
@@ -18844,7 +18850,8 @@ function updateNetWorth() {
   // input isn't mounted, so it round-trips correctly either way.
   const storedRawInvestments = Math.max(0, (nwPrev.investments||0) - (nwPrev.retirement401k||0) - (nwPrev.retirementIRA||0));
 
-  const savings        = savingsEl        ? (parseFloat(savingsEl.value)||0)        : (nwPrev.savings||0);
+  const savings        = fromAccounts ? linked.total
+                       : savingsEl        ? (parseFloat(savingsEl.value)||0)        : (nwPrev.savings||0);
   const investments    = investmentsEl    ? (parseFloat(investmentsEl.value)||0)    : storedRawInvestments;
   const retirement401k = retirement401kEl ? (parseFloat(retirement401kEl.value)||0) : (nwPrev.retirement401k||0);
   const retirementIRA  = retirementIRAEl  ? (parseFloat(retirementIRAEl.value)||0)  : (nwPrev.retirementIRA||0);
@@ -18874,14 +18881,17 @@ function updateNetWorth() {
   const netWorth         = totalAssets - totalLiab;
   _nwMortgageFieldState(_m);
 
-  S.netWorth = { savings, investments: totalInvestments, cash, homeValue, mortgage,
+  S.netWorth = { savings, savingsSource: savingsSource === 'unconfirmed' ? '' : savingsSource,
+                 investments: totalInvestments, cash, homeValue, mortgage,
                  retirement401k, retirementIRA, pensionTotal,
                  _totalAssets: totalAssets, _totalLiab: totalLiab };
+  _nwDrawSavingsNote(savingsSource, linked);
 
   const nwEl = g('nwTotal');
   if (nwEl) { nwEl.textContent = fmt(netWorth); nwEl.className = `nw-value ${netWorth>=0?'positive':'negative'}`; }
   // Item 35 V2: the headline names what its investments figure leaves out - only while that figure is the portfolio's.
-  const nwGap = _nwSnapshotNote();
+  const nwGap = _nwInvGapNote();
+  const nwSavingsGap = _nwSavingsGapNote();
   let nwGapEl = g('nwInvGap');
   if (!nwGapEl && nwEl && nwEl.parentNode) {
     nwGapEl = document.createElement('div');
@@ -18889,7 +18899,10 @@ function updateNetWorth() {
     nwGapEl.style.cssText = 'font-size:var(--fs-xs);color:var(--gold-text);margin-top:4px';
     nwEl.parentNode.insertBefore(nwGapEl, nwEl.nextSibling);
   }
-  if (nwGapEl) { nwGapEl.textContent = nwGap ? nwGap + ' Set a price on the Investments page.' : ''; nwGapEl.style.display = nwGap ? '' : 'none'; }
+  if (nwGapEl) {
+    nwGapEl.textContent = [nwGap ? nwGap + ' Set a price on the Investments page.' : '', nwSavingsGap].filter(Boolean).join(' ');
+    nwGapEl.style.display = nwGap || nwSavingsGap ? '' : 'none';
+  }
   setText('nwTotalAssets',      fmt(totalAssets));
   setText('nwTotalLiabilities', fmt(totalLiab));
   setText('nwDebtFromCards', fmt(debtBals - (_m.fromDebtPage ? _m.amount : 0)));   // V9: the mortgage is listed as the mortgage
@@ -18938,6 +18951,7 @@ function updateNetWorth() {
   updateNetWorth._t = setTimeout(() => {
     API.patch('/api/settings', {
       savings_balance:     String(savings||0),
+      ...(savingsSource === 'unconfirmed' ? {} : { savings_balance_source: savingsSource }),
       investments_balance: String(totalInvestments||0),
       cash_balance:        String(cash||0),
       home_value:          String(homeValue||0),
@@ -18952,7 +18966,7 @@ function updateNetWorth() {
   const hasAssets = (savings + totalInvestments + cash + homeValue) > 0;
   const hasLiab   = (mortgage + debtBals) > 0;
   if (hasAssets && hasLiab) awardAchievement('net_worth_known');
-  if (savings >= 500)        awardAchievement('safety_net');
+  if (savings >= 500 && savingsSource !== 'unconfirmed') awardAchievement('safety_net');
 }
 
 // Auto-post a net worth snapshot once per month — called once at boot.
@@ -18987,25 +19001,83 @@ function _nwMortgageFieldState(m) {
   }
 }
 
-// Checking + savings balances from the user's accounts - what the Net Worth
-// page puts in its Savings & checking field when nothing has been typed there.
-function _nwLinkedCashTotal() {
-  return (S.accounts || [])
-    .filter(a => (a.type === 'checking' || a.type === 'savings') && a.is_active !== false)
-    .reduce((s, a) => s + (parseFloat(a.balance) || 0), 0);
+// A balance the bank reported, or the person stated by reconciling. Credits less debits is not one: it is the balance
+// only if the account's whole history is here, and nothing here can tell. Anything else is unknown, so a basis this
+// does not recognise is not counted.
+function _acctBalanceKnown(a) {
+  return a.balance_basis === 'bank' || a.balance_basis === 'bank_unordered';
+}
+
+function _nwCashAccounts() {
+  return (S.accounts || []).filter(a => (a.type === 'checking' || a.type === 'savings') && a.is_active !== false);
+}
+
+// What the Net Worth page can say from the accounts: the known balances added up, and which accounts it left out.
+function _nwLinkedCash() {
+  const rows = _nwCashAccounts();
+  const known = rows.filter(_acctBalanceKnown);
+  return { known, unknown: rows.filter(a => !_acctBalanceKnown(a)),
+           total: Math.round(known.reduce((s, a) => s + (parseFloat(a.balance) || 0), 0) * 100) / 100 };
+}
+
+// Where the Checking & savings figure comes from: 'typed', 'accounts', or 'unconfirmed' - a figure saved before the
+// source was kept, while accounts existed, which may be an activity total the page filled in and saved as if typed.
+function _nwSavingsSource() {
+  const nw = S.netWorth || {};
+  if (nw.savingsSource) return nw.savingsSource;
+  if (!((parseFloat(nw.savings) || 0) > 0)) return 'accounts';
+  return _nwCashAccounts().length ? 'unconfirmed' : 'typed';
+}
+
+function _nwSavingsTyped(el) {
+  S.netWorth = { ...(S.netWorth || {}), savingsSource: el.value.trim() === '' ? 'accounts' : 'typed' };
+}
+
+function _nwSetSavingsSource(source) {
+  S.netWorth = { ...(S.netWorth || {}), savingsSource: source };
+  updateNetWorth();
+}
+
+// What the savings figure leaves out or has not had confirmed: beside the headline, and in a snapshot's note.
+function _nwSavingsGapNote() {
+  const source = _nwSavingsSource();
+  if (source === 'unconfirmed') return 'Checking & savings is not confirmed: it may be a total of imported activity.';
+  if (source !== 'accounts' || !S.accountsLoaded) return '';
+  const names = _nwLinkedCash().unknown.map(a => a.name);
+  return names.length ? `Checking & savings leaves out ${names.join(', ')}: no bank balance on record.` : '';
+}
+
+function _nwDrawSavingsNote(source, linked) {
+  const el = g('nwSavingsNote');
+  if (!el) return;
+  if (source === 'unconfirmed') {
+    el.innerHTML = `This figure was saved before Groundwork kept where it came from, so it may be a total of imported activity, which can differ from what the bank shows. Is it what your checking and savings hold?
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+        <button class="btn btn-ghost btn-sm" onclick="_nwSetSavingsSource('typed')">Yes, that's right</button>
+        ${linked.known.length
+          ? `<button class="btn btn-ghost btn-sm" onclick="_nwSetSavingsSource('accounts')">Use my accounts' bank balances (${fmt(linked.total)})</button>`
+          : '<span style="align-self:center">If not, type what they hold.</span>'}
+      </div>`;
+    return;
+  }
+  if (source !== 'accounts' || !S.accountsLoaded) { el.innerHTML = ''; return; }
+  const counted = linked.known.map(a => `${esc(a.name)} ${fmt(a.balance)}${a.balance_as_of ? ` as of ${fmtDate(a.balance_as_of)}` : ''}`);
+  el.innerHTML = [
+    counted.length ? `From your accounts: ${counted.join(', ')}.` : '',
+    linked.unknown.length ? `Not counted: ${linked.unknown.map(a => esc(a.name)).join(', ')}, with no bank balance on record. Enter one in Settings, Accounts, or type your total here.` : '',
+  ].filter(Boolean).join(' ');
 }
 
 async function autoSnapshotNetWorthIfDue(extraNote) {
   try {
     const nw              = S.netWorth || {};
-    // The same savings figure the Net Worth page shows: the typed field, or
-    // when it is empty the accounts' balances (updateNetWorth's rule). Reading
-    // only the typed field recorded $0 of assets for a ledger user at boot -
-    // the field is filled only once the Net Worth page has been opened - and
-    // that snapshot then held the month.
-    const typedSavings    = parseFloat(nw.savings)||0;
-    const linkedCash      = _nwLinkedCashTotal();
-    const savings         = typedSavings || (linkedCash > 0 ? linkedCash : 0);
+    // The same savings figure the Net Worth page shows (updateNetWorth's rule):
+    // what was typed, or the accounts' known balances. Reading only the saved
+    // field recorded $0 of assets for a ledger user at boot - it is filled only
+    // once the Net Worth page has been opened - and that snapshot then held the
+    // month. What this leaves out is said in the snapshot's note.
+    const savings         = _nwSavingsSource() === 'accounts' && S.accountsLoaded
+      ? _nwLinkedCash().total : (parseFloat(nw.savings)||0);
     const investments     = parseFloat(nw.investments)||0;  // raw, pre-updateNetWorth()
     const retirement401k  = parseFloat(nw.retirement401k)||0;
     const retirementIRA   = parseFloat(nw.retirementIRA)||0;
@@ -23213,6 +23285,7 @@ async function loadAccounts() {
     const res = await API.get('/api/accounts/with-balances');
     S.accounts    = Array.isArray(res) ? res : (res?.data || []);
     _accountsCache = S.accounts; // alias for back-compat
+    S.accountsLoaded = true;     // an empty list is then a real answer, not a failed read
     if (S.accounts.some(a => a.type === 'hsa' || a.type === 'fsa')) await _loadHsaFsa(); else S.hsaFsa = [];
     return true;
   } catch(e) { return false; }
@@ -23262,26 +23335,47 @@ function _drawAccountManager() {
 function _setAsideLine(a) {
   if (!(a.set_aside > 0)) return '';
   const goals = (a.goals_set_aside || []).map(x => `${esc(x.name)} ${fmt(x.amount)}`).join(', ');
+  if (!_acctBalanceKnown(a)) return `<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">Set aside ${fmt(a.set_aside)} (${goals}) · what is available needs a confirmed balance</div>`;
   const short = a.short > 0 ? `<div style="font-size:var(--fs-xs);color:var(--ember-text);margin-top:2px">You've set aside ${fmt(a.set_aside)} in ${esc(a.name)}, and it holds ${fmt(a.balance)} - ${fmt(a.short)} more than is there.</div>` : '';
   return `<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">Set aside ${fmt(a.set_aside)} (${goals}) · available <span style="font-family:var(--font-mono);color:var(--ink)">${fmt(a.available)}</span></div>${short}`;
 }
 
+// Where an account's balance comes from, said on its row. Activity is shown as activity, never as the balance.
+function _accountBasisLine(a) {
+  const line = html => `<div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${html}</div>`;
+  if (a.error) return line('Groundwork could not read this account just now, so no balance is shown for it.');
+  if (_acctBalanceKnown(a)) {
+    const asOf = a.balance_as_of ? `As of ${fmtDate(a.balance_as_of)}` : '';
+    return asOf ? line(asOf + (a.balance_basis === 'bank_unordered' ? ', the latest of that day\'s rows as best Groundwork can tell' : '')) : '';
+  }
+  if (!a.transaction_count) return '';
+  return line(`Imported activity nets ${fmt(a.activity_net)}. That is the balance only if all of this account's history is here.
+    <a href="#" onclick="_accountEnterBalance(${a.id});return false" style="color:var(--sky)">Enter its balance</a>`);
+}
+
+function _accountEnterBalance(id) {
+  editAccount(id);
+  g('reconBalance')?.focus();
+}
+
 function _accountRowHTML(a) {
   const typeLabel = ACCOUNT_TYPES[a.type] || 'Other';
-  const meta = [typeLabel, a.institution, `${a.transaction_count} txn${a.transaction_count!==1?'s':''}`]
+  const meta = [typeLabel, a.institution, a.transaction_count == null ? '' : `${a.transaction_count} txn${a.transaction_count!==1?'s':''}`]
     .filter(Boolean).join(' · ');
   // Item 86 F1: an HSA's or FSA's balance is the bank's or the typed one, never the sum of imported activity.
   const hf = (S.hsaFsa || []).find(x => x.account_id === a.id);
-  const bal = hf ? hf.balance.amount : a.balance;
+  const bal = hf ? hf.balance.amount : (_acctBalanceKnown(a) ? a.balance : null);
+  const noBalance = !hf && a.error ? 'could not be read' : !hf && a.transaction_count ? 'balance not confirmed' : 'no balance yet';
   return `
     <div class="account-row" data-id="${a.id}" style="display:flex;align-items:center;gap:10px;padding:10px 0;${hf ? '' : 'border-bottom:0.5px solid var(--steel-2)'}">
       <div style="flex:1;min-width:0">
         <div style="font-size:var(--fs-base);font-weight:500;color:var(--ink)">${esc(a.name)}</div>
         <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:2px">${esc(meta)}</div>
+        ${hf ? '' : _accountBasisLine(a)}
         ${_setAsideLine(a)}
       </div>
       <div style="font-family:var(--font-mono);font-size:var(--fs-base);color:${bal == null ? 'var(--slate)' : bal>=0?'var(--pine-text)':'var(--ember-text)'};text-align:right;flex-shrink:0">
-        ${bal == null ? 'no balance yet' : fmt(bal)}
+        ${bal == null ? noBalance : fmt(bal)}
       </div>
       ${a.has_portal ? _portalButtonsHTML('account', a.id) : ''}
       <button class="row-del" onclick="editAccount(${a.id})" title="Edit" style="font-size:var(--fs-base)">✎</button>
@@ -23937,8 +24031,10 @@ async function recalculateAccountBalances(accountId) {
     }
     await _refreshTransactionsFromServer();
     renderLedger();
+    await loadAccounts();         // the balance is now known: the row and Net Worth read it from here
+    _drawAccountManager();
     showToast('Reconciled',
-      `${result.updated} rows updated · current balance ${fmt(result.final_balance)}`,
+      `${result.updated} rows updated · current balance ${fmt(result.current_balance)}`,
       'success');
   } catch(e) {
     showToast('Reconciliation failed', e?.message || '', 'error');

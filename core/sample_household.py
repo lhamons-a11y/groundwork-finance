@@ -206,7 +206,7 @@ def build(c, headers, today=None):
             ('Streaming', 'Streaming Video', 27), ('Gym', 'Gym / Fitness', 45), ('Pet supplies', 'Pet Food / Supplies', 80),
             ('Household', 'Household Supplies', 60), ('Clothing', 'Clothing', 75)]):
         lines[name] = post('/api/budget/items', {'type': 'expense', 'name': name, 'amount': amount, 'category': cat(catname), 'sort_order': k})['id']
-    post('/api/settings', {'monthly_budget': '900', 'debt_method': 'avalanche', 'savings_balance': '6700',
+    post('/api/settings', {'monthly_budget': '900', 'debt_method': 'avalanche', 'savings_balance': '6700', 'savings_balance_source': 'typed',
                            'retirement_401k': '38500', 'retirement_ira': '9200'}, 'patch')
 
     # each debt's monthly balance, as its statements gave it (the Historian's debt_balance_history) - so the balances

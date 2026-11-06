@@ -626,13 +626,17 @@ def lk_budget_headroom(reader, a):
 
 def lk_balances(reader, a):
     """H20 (R11): each account's balance, the goals set aside in it, and what is available."""
-    accts = reader.get('/api/accounts/with-balances') or []
+    accts = reader.get('/api/accounts/with-balances')
+    if accts is not None and not isinstance(accts, list):      # a failed read comes back as its error, not as a list
+        return {'enough': False, 'why': 'the accounts could not be read just now', 'reads_transactions': True}
+    accts = accts or []
     funds = reader.get('/api/sinking-funds') or []
     out = []
     for x in accts:
         if x.get('type') in ('checking', 'savings', 'cash'):
             row = {'account': x['name'], 'balance': money(x['balance']), 'known_from':
-                   {'bank': "the bank's running balance", 'activity': 'credits less debits in the record'}
+                   {'bank': "the bank's running balance", 'bank_unordered': "the bank's running balance; the order of that day's rows is unclear",
+                    'activity': 'credits less debits in the record, not a confirmed balance', 'error': 'this account could not be read'}
                    .get(x.get('balance_basis'), x.get('balance_basis')), 'as_of': x.get('balance_as_of') or x.get('last_date')}
             if x.get('set_aside'):
                 row.update({'set_aside': money(x['set_aside']), 'available': money(x.get('available')),

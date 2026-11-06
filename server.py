@@ -2099,14 +2099,19 @@ def accounts_with_balances():
                         **_available(balance, aside_by.get(a.id, [])),
                     })
                 except Exception as e:
-                    # Surface per-account errors instead of silently dropping
+                    # Surface per-account errors instead of silently dropping. An account that could not be read has
+                    # no balance and no count - never $0 and 0 transactions, which read as a real empty account.
+                    logging.exception('an account could not be read')
                     result.append({
-                        'id': a.id, 'name': a.name, 'error': str(e),
-                        'balance': 0, 'transaction_count': 0,
+                        'id': a.id, 'name': a.name, 'type': a.type, 'is_active': True, 'error': str(e),
+                        'balance': None, 'balance_basis': 'error', 'balance_as_of': None,
+                        'transaction_count': None, **_available(None, []),
                     })
             return ok(result)
     except Exception as e:
-        return ok([], error=str(e), trace=traceback.format_exc()[:500])
+        # A failed read is not an empty list: the page would take "no accounts" as an answer and work out from it.
+        logging.exception('the accounts could not be read')
+        return err(str(e), 500)
 
 
 @accounts_bp.route('/<int:account_id>/recalculate-balances', methods=['POST'])
@@ -2204,6 +2209,8 @@ def recalculate_running_balances(account_id):
             'updated':       len(txns),
             'anchor_txn_id': anchor_txn_id,
             'final_balance': round(final or 0, 2),
+            # final_balance is the far end of the walk: on a backward walk, the OLDEST row. This is the balance now.
+            'current_balance': round(txns[-1].running_balance or 0, 2),
         })
 
 
@@ -12243,6 +12250,9 @@ def bootstrap():
             # updateNetWorth() in app.js already correctly saves to.
             net_worth = {
                 'savings':        float(settings.get('savings_balance',    0) or 0),
+                # 'typed' (the person's figure), 'accounts' (worked out from bank balances), or empty: saved before the
+                # source was kept, so it may be an activity total the page filled in. The page asks.
+                'savingsSource':  settings.get('savings_balance_source') or '',
                 'investments':    float(settings.get('investments_balance',0) or 0),
                 'cash':           float(settings.get('cash_balance',       0) or 0),
                 'homeValue':      float(settings.get('home_value',        0) or 0),
