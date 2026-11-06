@@ -24,6 +24,7 @@ KNOWN_HOSTS = (
     'crisistextline.org',
     '211.org',
     'findahelpline.com',
+    'openstreetmap.org',      # the licence credit the road map carries (ROAD_MAP.md)
 )
 MAX_ADDRESS = 2000
 _PHONE = re.compile(r'(?:tel|sms):\d{3,11}')

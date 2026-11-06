@@ -25,7 +25,7 @@ Rob 2026-11-05, the last item before 2.0 testing: "every page should be printabl
 
 Drawn on this computer from a simplified outline of the lower 48 states and a list of cities. No map service is asked. The two ends come from the geocoder the trip distance already uses (`/api/trip/route-points`): the same two place names, and nothing when they are cached.
 
-It shows the two ends and a straight dashed line, labelled with the same road estimate the trip budget uses (straight line plus 25%). **It is not a road route** and says so. Outside the lower 48 the line and the distance are right, on open background.
+It shows the two ends and a straight dashed line, labelled with the same road estimate the trip budget uses (straight line plus 25%). **It is not a road route** and says so. With the road map installed (ROAD_MAP.md), the map draws the route itself and the distance is that route's. Outside the lower 48 the line and the distance are right, on open background.
 
 ## The possible future budget
 

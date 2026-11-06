@@ -96,6 +96,17 @@ def _haversine_miles(lat1, lon1, lat2, lon2) -> float:
     return 2 * r * math.asin(math.sqrt(a))
 
 
+def _road_route(o, d):
+    """The road map's answer, when there is a map and it can route these two places (gw 2.0/ROAD_MAP.md). Local: nothing
+    about the trip leaves the computer for this."""
+    try:
+        from core import road_map
+        return road_map.route(o, d)
+    except Exception as e:
+        logger.warning('trip_distance: road map unavailable: %s', e)
+        return None
+
+
 def get_route_points(origin: str, destination: str) -> dict:
     """The two ends of the drive, for the printed itinerary's map, with the same one-way estimate the trip budget uses.
     Uses the same cache and the same place names as get_drive_distance, so a trip already priced sends nothing new."""
@@ -103,17 +114,22 @@ def get_route_points(origin: str, destination: str) -> dict:
     d = _geocode(destination)
     if not o or not d:
         return {'found': False, 'miles': None, 'origin': None, 'destination': None}
+    road = _road_route(o, d)
+    if road:
+        return {'found': True, 'miles': round(road['miles']), 'origin': o, 'destination': d, 'method': 'road',
+                'shape': road['shape'], 'data_date': road['data_date']}
     great_circle = _haversine_miles(o['lat'], o['lon'], d['lat'], d['lon'])
     return {'found': True, 'miles': round(great_circle * ROAD_DISTANCE_FACTOR), 'origin': o, 'destination': d,
-            'road_factor': ROAD_DISTANCE_FACTOR}
+            'road_factor': ROAD_DISTANCE_FACTOR, 'method': 'estimate'}
 
 
 def get_drive_distance(origin: str, destination: str) -> dict:
     """
     One-way estimated driving distance in miles. Returns
-    {miles, live, source}:
-      live=True  — both places geocoded successfully; miles is a real
-                   (great-circle x road-factor) estimate
+    {miles, live, source, method}:
+      method='road'     — routed on the road map on this computer
+      method='estimate' — no map, or no route on it: great-circle x road-factor
+      live=True  — both places geocoded successfully; miles is one of those two
       live=False — one or both places couldn't be resolved (empty, typo,
                    Nominatim unreachable); miles is the honest
                    FALLBACK_ONEWAY_MILES placeholder
@@ -121,8 +137,13 @@ def get_drive_distance(origin: str, destination: str) -> dict:
     o = _geocode(origin)
     d = _geocode(destination)
     if not o or not d:
-        return {'miles': FALLBACK_ONEWAY_MILES, 'live': False, 'source': 'estimate'}
+        return {'miles': FALLBACK_ONEWAY_MILES, 'live': False, 'source': 'estimate', 'method': 'placeholder'}
+
+    road = _road_route(o, d)
+    if road:
+        return {'miles': round(road['miles']), 'live': True, 'source': 'OpenStreetMap road map, on this computer',
+                'method': 'road', 'data_date': road['data_date']}
 
     great_circle = _haversine_miles(o['lat'], o['lon'], d['lat'], d['lon'])
     miles = round(great_circle * ROAD_DISTANCE_FACTOR)
-    return {'miles': miles, 'live': True, 'source': 'OpenStreetMap (estimated road distance)'}
+    return {'miles': miles, 'live': True, 'source': 'OpenStreetMap (estimated road distance)', 'method': 'estimate'}

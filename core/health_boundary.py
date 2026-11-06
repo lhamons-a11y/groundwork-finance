@@ -183,6 +183,7 @@ HEALTH_SINKS = {
     ('trip_distance.py', '*', 'log'): LOG, ('core/engine_fit.py', '*', 'log'): LOG,
     ('core/voice.py', '*', 'log'): LOG,     # item 113: a model that would not load - never a clip or its words
     ('core/speak.py', '*', 'log'): LOG,     # Groundwork's voice: a voice that would not load - never the words it said
+    ('core/road_map.py', '*', 'log'): LOG,  # ROAD_MAP.md: a download or route that failed - never a place or a figure
 }
 
 
@@ -195,13 +196,14 @@ for _f, _fn in (('bank_agent_window.py', 'child_main'), ('bank_agent_window.py',
                 ('launch.py', 'main'), ('price_engine.py', '_http_get_json'), ('server.py', '_eia_weekly_gas'),
                 ('server.py', '_eia_weekly_heating'), ('server.py', '_steo'), ('server.py', 'create_app'),
                 ('trip_distance.py', '_geocode'), ('utility_price.py', '_fetch_electricity'),
-                ('utility_price.py', '_fetch_natural_gas'), ('core/egress.py', 'get')):
+                ('utility_price.py', '_fetch_natural_gas'), ('core/egress.py', 'get'), ('core/egress.py', 'open_stream'), ('core/road_map.py', 'fetch_manifest')):
     HEALTH_SINKS[(_f, _fn, 'network')] = _NO_HEALTH_INPUT
 HEALTH_SINKS.update({
     ('core/engine_fit.py', 'write_fit', 'file'): ('item 95: device timings, R8 figure lists from the fixed voice cases '
                                                   'and graphics chip names - no transaction or health record'),
     ('core/speak.py', 'speak', 'file'): ("Groundwork's voice: the sound of one reply, built in memory (io.BytesIO) and "
                                           'handed back to the page - never written to disk, never kept'),
+    ('core/road_map.py', '_install', 'file'): 'the public road map and its version (ROAD_MAP.md), no personal data',
     ('core/airfare.py', '_write', 'file'): 'public fare tables only (DOT), no personal data',
     ('core/airfare.py', 'refresh', 'file'): 'public fare tables only (DOT), no personal data',
     ('core/per_diem.py', 'refresh', 'file'): 'public per-diem tables only (GSA), no personal data',

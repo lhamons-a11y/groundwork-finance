@@ -25,6 +25,7 @@ _engine_binaries, _engine_datas, _engine_imports = spec_engine.engine_parts()
 _model_datas = spec_engine.model_data()
 _voice_binaries, _voice_datas, _voice_imports = spec_engine.voice_parts()     # item 113
 _voice_model = spec_engine.voice_model_data()
+_road_binaries, _road_datas, _road_imports = spec_engine.road_parts()     # the road map (core/road_map.py)
 _speak_binaries, _speak_datas, _speak_imports = spec_engine.speak_parts()     # Groundwork's own voice (core/speak.py)
 _speak_model = spec_engine.speak_model_data()
 _voiceprint_model = spec_engine.voiceprint_model_data()     # item 116 V19
@@ -60,7 +61,7 @@ _build_id = f"{_built}-{_commit}{'+' if _dirty else ''}"
 a = Analysis(
     ['launch.py'],
     pathex=[str(root)],
-    binaries=[*_engine_binaries, *_voice_binaries, *_speak_binaries],
+    binaries=[*_engine_binaries, *_voice_binaries, *_speak_binaries, *_road_binaries],
     datas=[
         *_engine_datas,
         *_voice_datas, *_voice_model,
@@ -79,7 +80,7 @@ a = Analysis(
         # inside core/bank_vault.py's functions, and its backend is chosen at runtime, so both are named here.
         'keyring', 'keyring.backends', 'keyring.backends.macOS',
         'certifi',
-        *_engine_imports, *_voice_imports, 'core.voice', *_speak_imports, 'core.speak',
+        *_engine_imports, *_voice_imports, 'core.voice', *_speak_imports, 'core.speak', *_road_imports, 'core.road_map',
         # waitress — the WSGI server every launch path now uses. Imported
         # inside server.serve() rather than at module scope, which is exactly
         # the import style PyInstaller's static analysis is least likely to

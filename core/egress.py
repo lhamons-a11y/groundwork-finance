@@ -60,5 +60,17 @@ def get(url, headers=None, timeout=10, limit=None):
         return r.read() if limit is None else r.read(limit)
 
 
+def open_stream(url, headers=None, timeout=30):
+    """An open response for a large file, read in pieces by the caller, who closes it. Same door, same checks."""
+    req = urllib.request.Request(check(url), headers=dict(headers or {}))
+    r = urllib.request.urlopen(req, timeout=timeout)
+    try:
+        check(getattr(r, 'geturl', lambda: url)())
+    except Refused:
+        r.close()
+        raise
+    return r
+
+
 def get_json(url, headers=None, timeout=10, limit=None):
     return json.loads(get(url, headers=headers, timeout=timeout, limit=limit).decode('utf-8'))

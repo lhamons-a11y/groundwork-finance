@@ -1594,6 +1594,9 @@ def privacy():
       publishes the prices. Groundwork asks for your state; it never looks up your location.</li>
     <li><strong>Trip distances</strong> send the places you type into the trip planner to OpenStreetMap, to work out
       the driving distance.</li>
+    <li><strong>The road map</strong> is optional. If you choose to download it, Groundwork fetches the same whole map of
+      U.S. roads from this website that everyone gets, and asks at most once a month for a newer one. Nothing about you
+      or your trip is sent, and routing a trip on it happens on your computer.</li>
     <li><strong>Flight and travel-cost tables</strong> are whole public tables, downloaded when you open the trip
       planner: average fares and airports from the U.S. Department of Transportation (at most once a week), and
       travel per-diem rates from the U.S. General Services Administration (at most once a month). Nothing about you

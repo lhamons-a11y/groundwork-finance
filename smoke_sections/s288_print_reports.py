@@ -74,7 +74,9 @@ def run(ctx):
     check(f's288 P3 the route refuses a figure it cannot use ({bad.status_code})', bad.status_code == 400)
     half = c.get('/api/trip/route-points?origin=&destination=Denver', headers=hj)
     check(f's288 P6 the map route needs both ends ({half.status_code})', half.status_code == 400)
-    check('s288 P6 the map asks no map service', not re.search(r'tile\.|openstreetmap\.org|mapbox|maps\.google|https?://', pr))
+    # The licence's printed credit names its address (ROAD_MAP.md); that is words on the paper, not a request.
+    check('s288 P6 the map asks no map service', not re.search(r'tile\.|openstreetmap\.org|mapbox|maps\.google|https?://',
+                                                               pr.replace('openstreetmap.org/copyright.', '')))
 
     # ── P1, P2, P5, P6: on the page's own code ──
     node = shutil.which('node')

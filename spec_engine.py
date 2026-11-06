@@ -156,6 +156,23 @@ def speak_parts():
             + ['espeakng_loader'])
 
 
+def road_parts():
+    """(binaries, datas, hiddenimports) for the road-map router (gw 2.0/ROAD_MAP.md), or empty with a warning: the app then
+    keeps the straight-line estimate and says so. The map-building tools in valhalla/bin are not shipped."""
+    try:
+        import valhalla
+    except Exception as e:
+        print('[spec] WARNING: pyvalhalla is not installed (%s) - this build keeps the straight-line estimate.' % e)
+        return [], [], []
+    from PyInstaller.utils.hooks import collect_dynamic_libs, collect_submodules
+    pkg = Path(valhalla.__file__).resolve().parent
+    binaries = [b for b in collect_dynamic_libs('valhalla') if 'bin' not in Path(b[0]).relative_to(pkg.parent).parts[:2]]
+    libs = pkg.parent / 'pyvalhalla.libs'
+    if libs.is_dir():
+        binaries += [(str(f), 'pyvalhalla.libs') for f in libs.iterdir() if f.is_file()]
+    return binaries, [], [m for m in collect_submodules('valhalla') if '.bin' not in m]
+
+
 # ── Whose voice it is (core/voiceprint.py, item 116 V19) ────────────────────────────────────────────────────────────
 # Runs on the ONNX Runtime the voice already brings; only the model file is added. Optional: without it "Only voices it
 # knows" is not offered. A file that is not the one measured is refused.
