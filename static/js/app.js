@@ -11047,6 +11047,7 @@ function renderTripPlanner() {
   _checkOilChange();
   setTripMode('drive');
   renderTrips();   // item 61
+  API.get('/api/trip/road-map?visit=1').then(r => { _roadMap = r; }).catch(_gwErr('road map status'));   // ROAD_MAP.md
 }
 
 // ── Vehicle profile ───────────────────────────────────────────────────────────
@@ -12290,7 +12291,9 @@ function tripUpdateBudget() {
     const distEst = distOneWay * 2;
     const gallons = distEst / mpg;
     transportCost  = Math.round(gallons * gasRate);
-    transportNote  = `~${distEst} mi ${distLive ? '(estimated route)' : 'est.'} · ${mpg} mpg · $${gasRate.toFixed(2)}/gal ${gasPriceLive ? '(national avg)' : 'est.'}`;
+    const onRoads  = distLive && _tripDistanceData?.method === 'road';
+    transportNote  = `~${distEst} mi ${onRoads ? '(road route)' : distLive ? '(estimated route)' : 'est.'} · ${mpg} mpg · $${gasRate.toFixed(2)}/gal ${gasPriceLive ? '(national avg)' : 'est.'}`;
+    _tripRoadNoteShow(distLive, onRoads);
   } else if (tripBookingCost(_tripBookings)) {
     // Item 50 B7: a booking for this trip is the flight line - the booked amount
     // while waiting, the charged amount once the user matched the real charge.
@@ -12810,6 +12813,90 @@ function _tripLinesHTML(t) {
   return `<div style="margin-top:8px">${t.lines.map(l => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:var(--fs-sm);padding:2px 0">
       <span>${esc(l.label)}${l.source ? ` <span style="font-size:var(--fs-xs);color:var(--slate)">· ${esc(l.source)}</span>` : ''}</span>
       <span style="font-family:var(--font-mono);white-space:nowrap">${fmt(l.amount)}</span></div>`).join('')}</div>`;
+}
+
+// ── ROAD_MAP.md (Rob 2026-11-05): exact road miles from a map on this computer ───────────────────────────────────
+let _roadMap = null, _roadMapTimer = null, _roadMapHad = null;
+const _ROAD_CREDIT = `Map data from <a href="#" onclick="window.pywebview?.api?.open_external('https://www.openstreetmap.org/copyright') || window.open('https://www.openstreetmap.org/copyright','_blank'); return false">OpenStreetMap</a>, under the Open Database License.`;
+
+function _tripRoadNoteShow(live, onRoads) {
+  const el = g('tripRoadNote');
+  if (!el) return;
+  el.style.display = live ? '' : 'none';
+  if (!live) return;
+  el.innerHTML = onRoads
+    ? `These miles are the road route, worked out on this computer. It doesn't take ferries. ${_ROAD_CREDIT}`
+    : `These miles are an estimate: the straight line plus 25%. ${_roadMap?.installed ? "This trip couldn't be routed on your road map." : `<a href="#" onclick="showView('settings'); _settingsShowTab('data'); return false">Get the road map</a> for road miles.`}`;
+}
+
+function _roadMapDate(iso) {
+  return iso ? new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
+}
+
+async function renderRoadMap() {
+  const box = g('roadMapCard');
+  if (!box) return;
+  try { _roadMap = await API.get('/api/trip/road-map'); }
+  catch (e) { _gwErr('renderRoadMap')(e); box.innerHTML = ''; return; }
+  // A map arriving or leaving changes the answer for the trip on the planner, so it is asked again
+  if (_roadMapHad !== null && _roadMapHad !== _roadMap.data_date) _tripDistanceKey = '';
+  _roadMapHad = _roadMap.data_date;
+  const m = _roadMap, j = m.job || {}, running = ['downloading', 'checking', 'unpacking'].includes(j.state);
+  let body;
+  if (!m.engine) {
+    body = `<div style="font-size:var(--fs-base);color:var(--ink);line-height:1.6">Road routing isn't available on this computer. Trip miles use the straight-line estimate.</div>`;
+  } else if (running) {
+    const pct = j.total ? Math.min(100, Math.round(j.done / j.total * 100)) : 0;
+    const said = j.state === 'downloading' ? `Downloading: ${Math.round(j.done / 1048576)} of ${Math.round(j.total / 1048576)} MB (${pct}%).`
+      : j.state === 'unpacking' ? 'Unpacking the map.' : 'Checking the map before using it.';
+    body = `<div style="font-size:var(--fs-base);color:var(--ink);margin-bottom:8px">${said}</div>
+      <button class="btn btn-ghost btn-sm" onclick="roadMapDo('cancel')">Stop</button>`;
+  } else {
+    const failed = j.state === 'error' ? `<div style="font-size:var(--fs-sm);color:var(--ember-text);margin-bottom:8px">That didn't finish: ${esc(j.error || 'the download failed')}. Nothing changed. You can try again.</div>` : '';
+    body = m.installed
+      ? `${failed}<div style="font-size:var(--fs-base);color:var(--ink);line-height:1.6;margin-bottom:8px">Installed: main U.S. roads, map data from ${esc(_roadMapDate(m.data_date) || 'an earlier date')}. Trip miles come from this map when it can route the trip.</div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);margin-bottom:10px;cursor:pointer"><input type="checkbox" style="width:auto;margin:0" ${m.auto ? 'checked' : ''} onchange="roadMapAuto(this.checked)">Keep the map current (asks at most once a month, then downloads a newer map by itself)</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-secondary btn-sm" onclick="roadMapAsk()">Check for a newer map</button>
+          <button class="btn btn-ghost btn-sm" onclick="roadMapRemove()">Remove the map</button></div><div id="roadMapAnswer" style="font-size:var(--fs-sm);margin-top:8px"></div>`
+      : `${failed}<div style="font-size:var(--fs-base);color:var(--ink);line-height:1.6;margin-bottom:8px">Optional. Download a map of the main U.S. roads and trip miles come from the actual road route, not the straight-line estimate. Your trips stay on this computer: the download is the same whole map for everyone.</div>
+        <button class="btn btn-primary btn-sm" onclick="roadMapAsk()">Get the road map</button><div id="roadMapAnswer" style="font-size:var(--fs-sm);margin-top:8px"></div>`;
+  }
+  box.innerHTML = `<div class="card-label">Road map for trips</div>${body}
+    <div style="font-size:var(--fs-xs);color:var(--slate);margin-top:10px">${_ROAD_CREDIT}</div>`;
+  clearTimeout(_roadMapTimer);
+  if (running) _roadMapTimer = setTimeout(renderRoadMap, 1000);
+}
+
+const _ROAD_ROUTES = { download: '/api/trip/road-map/download', cancel: '/api/trip/road-map/cancel', remove: '/api/trip/road-map/remove' };
+async function roadMapDo(what) {
+  try { await API.post(_ROAD_ROUTES[what], { confirm: true }); }
+  catch (e) { _gwErr('roadMapDo')(e); showToast("That didn't work", e?.message || '', 'warning'); }
+  await renderRoadMap();
+}
+
+async function roadMapAsk() {
+  const said = g('roadMapAnswer');
+  if (said) said.textContent = 'Asking groundworkfinance.app…';
+  let r;
+  try { r = await API.post('/api/trip/road-map/manifest', { ask: true }); }
+  catch (e) { _gwErr('roadMapAsk')(e); if (said) said.textContent = "That didn't work just now."; return; }
+  if (!r.found) { if (said) said.textContent = "The road map couldn't be reached just now. Trip miles keep using the estimate."; return; }
+  if (r.status.installed && !r.newer) { if (said) said.textContent = 'You have the newest map.'; return; }
+  const size = Math.round(r.manifest.bytes / 1048576), room = r.manifest.tar_bytes ? Math.round(r.manifest.tar_bytes / 1048576) : 0;
+  confirmAction(r.status.installed ? 'Download the newer map?' : 'Download the road map?',
+    `<div style="font-size:var(--fs-base);color:var(--slate);line-height:1.6">${size} MB to download${room ? `, ${room} MB on disk` : ''}, from groundworkfinance.app. Map data from ${esc(_roadMapDate(r.manifest.data_date))}. It runs in the background while you work. ${_ROAD_CREDIT}</div>`,
+    () => roadMapDo('download'), 'Download', false);
+}
+
+async function roadMapAuto(on) {
+  try { await API.post('/api/trip/road-map/auto', { auto: on }); }
+  catch (e) { _gwErr('roadMapAuto')(e); }
+  await renderRoadMap();
+}
+
+function roadMapRemove() {
+  confirmAction('Remove the road map?', `<div style="font-size:var(--fs-base);color:var(--slate);line-height:1.6">Trip miles go back to the straight-line estimate. You can download it again any time. Saved trips keep their figures.</div>`,
+    () => roadMapDo('remove'), 'Remove', true);
 }
 
 async function renderTrips() {
@@ -13604,6 +13691,7 @@ const HELP_FAQ = [
   {"q": "What are sinking funds (savings goals)?", "a": "Money you set aside for a known future expense - car repairs, a vacation, holiday gifts - inside an account you already have. You give it a target, a monthly plan and the account its money is kept in. Groundwork never adds the plan for you: a goal holds what you started it with and what you add with \"Add to fund\". When the expense arrives, the money is already there.", "keys": ["sinking", "fund", "funds", "goal", "goals", "save", "saving", "set", "aside"], "open": {"view": "budget", "el": "sinkingFundsCard"}},
   {"q": "How does Gift Budget work?", "a": "Gift Budget is the Gifts tab on the Budget page. Add the people you give gifts to with \"+ Person\", then open each one to add their occasions - a birthday, an anniversary, Christmas and others - with a date and a budget for each. \"The year's gifts\" adds up the next 12 months and shows what that takes a month; \"Set aside for gifts\" puts that in your budget as one line. \"Coming up\" lists the next 90 days. The \"$\" on an occasion records what it actually cost, or the receipt button offers the charges filed under Gifts in the weeks before it, for you to pick from. \"+ Shared occasion\" is one total for many people, with fixed amounts for some and the rest split. \"Gift funds\" save toward a date and add their monthly amount themselves; \"Mark spent\" keeps what was spent beside the target.", "keys": ["gift", "gifts", "christmas", "birthday", "present", "pool", "shared"], "open": {"view": "budget", "el": "giftContent"}, "labels": ["+ Person", "+ Fund", "Gift funds", "Coming up", "+ Shared occasion"]},
   {"q": "What is the Sunday check-in?", "a": "Every Sunday a two-sentence summary appears on the dashboard: what happened financially this week, and one thing worth reflecting on. In household mode it's written for two people reading together.", "keys": ["sunday", "check", "weekly", "summary"]},
+  {"q": "How does Groundwork work out driving miles?", "a": "With the road map installed (Settings, Data), from the actual road route, worked out on this computer. Without it, or for a trip it can't route, the straight-line distance plus 25%, and the Trip Planner says which one you are seeing. The place names you type are still looked up with OpenStreetMap. The road map is main U.S. roads only and doesn't take ferries. Map data from OpenStreetMap, under the Open Database License.", "keys": ["miles", "distance", "road", "route", "map", "driving", "gas", "fuel", "openstreetmap", "ferry"], "open": {"view": "settings", "tab": "data", "el": "roadMapCard"}},
   {"q": "How do I come back to a trip I saved?", "a": "Press \"I'm going on this trip\" under the trip budget and it is kept on the Trip Planner's Your trips tab, with its costs. Say \"your trips\" to go there. \"Open in the planner\" brings back what you entered and works it out at today's prices; the saved trip changes only if you press \"Update this trip\". After a trip, \"what did it cost?\" shows planned against spent.", "keys": ["trip", "trips", "saved", "planned", "reopen", "revisit", "come back", "update"], "open": {"view": "trip"}},
   {"q": "What does the Trip Planner calculate?", "a": "Getting there: for a drive, your car's mpg and the national gas price; for a flight, the government's average fare for the route, or the fare you enter or read from Google Flights. Lodging and meals: a quote you enter, your own past trips, or the federal travel rate for the place and month - said as such, never as a quote. Activities: your own figure. \"Look up hotels (Google Hotels)\" opens real prices in Groundwork's window, and a whole itinerary can be pasted, chosen or dropped in. Every line says where its figure came from.", "keys": ["trip", "travel", "vacation", "planner", "flight", "hotel", "cost", "budget"], "open": {"view": "trip"}, "labels": ["Look up hotels (Google Hotels)"]},
   {"h": "Net worth & retirement"},
@@ -25361,7 +25449,7 @@ function _showHeldAfterImport(held) {
 
 function _settingsShowTab(tab) {
   _settingsActiveTab = tab;
-  if (tab === 'data') renderImportCustody();   // item 93 B5/B7
+  if (tab === 'data') { renderImportCustody(); renderRoadMap(); }   // item 93 B5/B7; ROAD_MAP.md
   ['general', 'voice', 'automation', 'categories', 'accounts', 'data'].forEach(t => {
     const btn   = g(`settingsTab-${t}`);
     const panel = g(`settingsPanel-${t}`);

@@ -248,19 +248,23 @@ const PR_US_OUTLINE = [[-124.7,48.4],[-123.0,48.3],[-122.8,49],[-95.15,49],[-95.
 const PR_CITIES = [['Seattle',-122.33,47.61],['Portland',-122.68,45.52],['San Francisco',-122.42,37.77],['Los Angeles',-118.24,34.05],['San Diego',-117.16,32.72],['Las Vegas',-115.14,36.17],['Phoenix',-112.07,33.45],['Salt Lake City',-111.89,40.76],['Boise',-116.2,43.62],['Denver',-104.99,39.74],['Albuquerque',-106.65,35.08],['El Paso',-106.49,31.76],['Billings',-108.5,45.78],['Fargo',-96.79,46.88],['Minneapolis',-93.27,44.98],['Omaha',-95.93,41.26],['Kansas City',-94.58,39.1],['Oklahoma City',-97.52,35.47],['Dallas',-96.8,32.78],['Houston',-95.37,29.76],['San Antonio',-98.49,29.42],['New Orleans',-90.07,29.95],['Memphis',-90.05,35.15],['St. Louis',-90.2,38.63],['Chicago',-87.63,41.88],['Milwaukee',-87.91,43.04],['Detroit',-83.05,42.33],['Indianapolis',-86.16,39.77],['Columbus',-83,39.96],['Louisville',-85.76,38.25],['Nashville',-86.78,36.16],['Atlanta',-84.39,33.75],['Birmingham',-86.8,33.52],['Jacksonville',-81.66,30.33],['Tampa',-82.46,27.95],['Miami',-80.19,25.76],['Charlotte',-80.84,35.23],['Raleigh',-78.64,35.78],['Pittsburgh',-80,40.44],['Washington',-77.04,38.91],['Philadelphia',-75.17,39.95],['New York',-74,40.71],['Boston',-71.06,42.36],['Buffalo',-78.88,42.89],['Portland ME',-70.26,43.66]];
 
 // Width and height are fixed; the view fits the two ends with room around them. Pure, so a test can read it.
-function prMapFrame(a, b, w, h) {
-  const midLat = (a.lat + b.lat) / 2;
+function prMapFrame(a, b, w, h, shape) {
+  // The frame holds the road route when there is one: a drive around a lake goes well outside its two ends.
+  const lats = [a.lat, b.lat, ...(shape || []).map(p => p[0])], lons = [a.lon, b.lon, ...(shape || []).map(p => p[1])];
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats), minLon = Math.min(...lons), maxLon = Math.max(...lons);
+  const midLat = (minLat + maxLat) / 2;
   const kx = Math.cos(midLat * Math.PI / 180);
-  const spanX = Math.max(Math.abs(a.lon - b.lon) * kx, 3.2), spanY = Math.max(Math.abs(a.lat - b.lat), 2.2);
+  const spanX = Math.max((maxLon - minLon) * kx, 3.2), spanY = Math.max(maxLat - minLat, 2.2);
   const scale = Math.min(w / (spanX * 1.5), h / (spanY * 1.6));
-  const cx = (a.lon + b.lon) / 2, cy = midLat;
+  const cx = (minLon + maxLon) / 2, cy = midLat;
   return { scale, project: (lon, lat) => [w / 2 + (lon - cx) * kx * scale, h / 2 - (lat - cy) * scale] };
 }
 
 function prRouteMapSVG(pts, fromName, toName, miles) {
   const W = 680, H = 300;
   const a = pts.origin, b = pts.destination;
-  const f = prMapFrame(a, b, W, H);
+  const road = pts.method === 'road' && (pts.shape || []).length > 1 ? pts.shape : null;
+  const f = prMapFrame(a, b, W, H, road);
   const xy = (lon, lat) => f.project(lon, lat).map(n => Math.round(n * 10) / 10);
   const land = PR_US_OUTLINE.map(([lon, lat]) => xy(lon, lat).join(',')).join(' ');
   const [ax, ay] = xy(a.lon, a.lat), [bx, by] = xy(b.lon, b.lat);
@@ -282,21 +286,29 @@ function prRouteMapSVG(pts, fromName, toName, miles) {
     .filter(([, x, y]) => x > 20 && x < W - 90 && y > 16 && y < H - 12 && !near(x, y, ax, ay, 70) && !near(x, y, bx, by, 70))
     .filter(([, x, y]) => { if (placed.some(([px, py]) => Math.abs(px - x) < 92 && Math.abs(py - y) < 18)) return false; placed.push([x, y]); return true; })
     .map(([n, x, y]) => `<circle cx="${x}" cy="${y}" r="2" fill="#94a3b8"/><text x="${x + 5}" y="${y + 3}" font-size="9" fill="#64748b" font-family="Inter,Arial,sans-serif">${_prEsc(n)}</text>`).join('');
-  const mx = (ax + bx) / 2, my = (ay + by) / 2;
+  const mid = road ? xy(road[Math.floor(road.length / 2)][1], road[Math.floor(road.length / 2)][0]) : [(ax + bx) / 2, (ay + by) / 2];
+  const mx = mid[0], my = mid[1];
+  const line = road
+    ? `<polyline points="${road.map(p => xy(p[1], p[0]).join(',')).join(' ')}" fill="none" stroke="#166534" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`
+    : `<line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="#166534" stroke-width="2.5" stroke-dasharray="7,5" stroke-linecap="round"/>`;
   const tag = `~${Number(miles).toLocaleString('en-US')} mi by road`;
   const tagW = tag.length * 6.6 + 16;
   return `<svg class="it-map" viewBox="0 0 ${W} ${H}" role="img" aria-label="${_prEsc(`Map from ${fromName} to ${toName}, about ${miles} miles by road`)}">
     <rect width="${W}" height="${H}" fill="#e8f1f8"/>
     <polygon points="${land}" fill="#f7f5ef" stroke="#b9c3cf" stroke-width="1.2" stroke-linejoin="round"/>
     ${towns}
-    <line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="#166534" stroke-width="2.5" stroke-dasharray="7,5" stroke-linecap="round"/>
+    ${line}
     <circle cx="${ax}" cy="${ay}" r="6" fill="#fff" stroke="#166534" stroke-width="2.5"/>
     <circle cx="${bx}" cy="${by}" r="6.5" fill="#166534" stroke="#fff" stroke-width="1.5"/>
-    ${label(ax, ay, by, fromName, 'font-size="12" font-weight="600" fill="#0d1117" font-family="Inter,Arial,sans-serif"')}
-    ${label(bx, by, ay, toName, 'font-size="12" font-weight="700" fill="#0d1117" font-family="Inter,Arial,sans-serif"')}
+    ${label(ax, ay, by, fromName, 'font-size="12" font-weight="600" fill="#0d1117" paint-order="stroke" stroke="#fff" stroke-width="3" font-family="Inter,Arial,sans-serif"')}
+    ${label(bx, by, ay, toName, 'font-size="12" font-weight="700" fill="#0d1117" paint-order="stroke" stroke="#fff" stroke-width="3" font-family="Inter,Arial,sans-serif"')}
     <rect x="${mx - tagW / 2}" y="${my - 11}" width="${tagW}" height="22" rx="11" fill="#166534"/>
     <text x="${mx}" y="${my + 4}" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="Inter,Arial,sans-serif">${_prEsc(tag)}</text>
   </svg>`;
+}
+
+function _prMonthYear(iso) {
+  return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }
 
 function _prHours(miles) {
@@ -324,7 +336,10 @@ async function _prDriveSection(d) {
       ${_prStat('Round trip', `~${round.toLocaleString('en-US')} mi`, car || `at ${mpg} mpg`)}
       ${_prStat('Fuel', fmt(d.transport), `${Math.round(gallons)} gal at $${Number(d.gasRate).toFixed(2)}${d.gasPriceLive ? ', U.S. average' : ', estimated'}`)}
     </div>
-    <div class="pr-note">The map shows the two ends, not the roads to take. The road distance is estimated: the straight-line distance plus ${Math.round(((pts.road_factor || 1.25) - 1) * 100)}%. Use your own navigation for directions.</div></div>`;
+    <div class="pr-note">${pts.method === 'road'
+      ? `The road distance is the route on Groundwork's map of main roads${pts.data_date ? `, map data from ${_prEsc(_prMonthYear(pts.data_date))}` : ''}. It doesn't take ferries.`
+      : `The map shows the two ends, not the roads to take. The road distance is estimated: the straight-line distance plus ${Math.round(((pts.road_factor || 1.25) - 1) * 100)}%.`} Use your own navigation for directions.
+      Map data from OpenStreetMap, under the Open Database License: openstreetmap.org/copyright.</div></div>`;
 }
 
 function _prTicket(kind, fromCode, fromCity, toCode, toCity, iso, priceLabel, price, travelers) {
