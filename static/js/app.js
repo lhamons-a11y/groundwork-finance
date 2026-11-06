@@ -12689,7 +12689,20 @@ function _tripBudgetFallbackHTML(d) {
     ${line('🛡 Cushion', d.buffer, "10% of the lines above (Groundwork's rule of thumb)", 'trip.cushion')}
     <div class="trip-budget-row"><span class="trip-budget-cat">Total</span><span class="trip-budget-amt">${gwFig('trip.total', fmt(d.total))}</span></div>
     <div style="margin-top:12px;font-size:var(--fs-sm);color:var(--slate);line-height:1.6">The total counts only lines with a source. Your monthly surplus after debt is ${fmt(d.surplus)}.</div>
-    <div style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="tripImGoing()">I'm going on this trip</button>
+    ${_tripSaveActionHTML(d)}`;
+}
+
+// A trip opened from "Your trips" is updated in place; anything else is saved as a new trip (TRIP_SAVED.md)
+function _tripSaveActionHTML(d) {
+  const open = (_trips || []).find(t => t.id === _tripOpenId);
+  if (open && d.dest === open.label) {
+    const change = Math.round((d.total - open.total) * 100) / 100;
+    return `<div style="margin-top:12px;font-size:var(--fs-sm);color:var(--ink);line-height:1.6">Saved at ${fmt(open.total)}. Worked out today: ${fmt(d.total)}${change ? ` (${fmt(Math.abs(change))} ${change > 0 ? 'more' : 'less'})` : ', the same'}.</div>
+      <div style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="tripUpdateOpen()">Update this trip</button>
+        <button class="btn btn-ghost btn-sm" onclick="tripLeaveOpen()">Leave it as saved</button></div>`;
+  }
+  const other = open ? `<div style="margin-top:12px;font-size:var(--fs-sm);color:var(--ink)">This isn't ${esc(open.label)} any more, so it would be a new trip. ${esc(open.label)} stays as saved.</div>` : '';
+  return `${other}<div style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="tripImGoing()">I'm going on this trip</button>
       <span style="font-size:var(--fs-xs);color:var(--slate);margin-left:6px">Then say where the money comes from and see the way back. Nothing is booked or paid.</span></div>`;
 }
 
@@ -12707,12 +12720,95 @@ function tripImGoing() {
     `<div style="font-size:var(--fs-base);color:var(--slate);line-height:1.6">Groundwork saves this trip, ${fmt(d.total)}, as one you're going on.
       Then you can say where the money comes from and see the way back. Nothing is booked, paid or moved.</div>`,
     async () => {
-      try { await API.post('/api/trips', d); }
+      try { await API.post('/api/trips', { ...d, planner: _tripPlannerInputs() }); }
       catch (e) { _gwErr('tripImGoing')(e); showToast('Not saved', e?.message || '', 'warning'); return; }
-      showToast(`Going to ${d.dest}`, 'Now say where the money comes from, below.', 'success');
+      tripLeaveOpen();
+      showToast(`Going to ${d.dest}`, 'Now say where the money comes from.', 'success');
       await renderTrips();
-      g('tripTripsCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      tripShowTab('trips');
     }, "I'm going", false);
+}
+
+// ── TRIP_SAVED.md (Rob 2026-11-05): come back to a saved trip ─────────────────────────────────────────────────────
+// What was typed in the planner is kept with the trip. Reopening puts it back and works the trip out at today's
+// prices; nothing changes on the saved trip until "Update this trip" is pressed.
+let _tripOpenId = null;
+
+function _tripPlannerInputs() {
+  const v = id => g(id)?.value ?? '';
+  return { dest: v('tripDestination'), origin: v('tripOrigin'), depart: v('tripDepart'), ret: v('tripReturn'),
+    travelers: v('tripTravelers'), mode: _tripMode, vehicle: v('tripVehicle'), vehicleYear: v('tripVehicleYear'), mpg: v('tripMPG'),
+    fromCity: v('tripFromCity'), toCity: v('tripToCity'), airport: v('tripAirport'), destAirport: v('tripDestAirport'),
+    roundTrip: g('tripRoundTrip')?.checked !== false, fare: v('tripFlightFare'), activities: v('tripActivities'),
+    quote: _tripQuoteData || undefined, itinerary: _tripItinerary || undefined, learned: _tripLearnedBasis || undefined };
+}
+
+function tripReopen(id) {
+  const t = (_trips || []).find(x => x.id === id);
+  if (!t) return;
+  const p = t.planner || {};
+  const known = Object.keys(p).length > 0;
+  const fill = (el, value) => { if (g(el)) { g(el).value = value ?? ''; g(el).dataset.auto = ''; } };
+  _tripOpenId = t.status === 'done' ? null : t.id;
+  _tripQuoteData = p.quote || null;
+  _tripItinerary = p.itinerary || null;
+  _tripLearnedBasis = p.learned || null;
+  if (g('tripQuoteResult')) g('tripQuoteResult').innerHTML = '';
+  if (g('tripBudgetOutput')) g('tripBudgetOutput').style.display = 'none';
+  fill('tripDestination', known ? p.dest : t.label);
+  fill('tripOrigin', p.origin);
+  fill('tripDepart', p.depart || t.depart);
+  fill('tripReturn', p.ret || t.ret);
+  fill('tripTravelers', p.travelers || 1);
+  fill('tripActivities', p.activities);
+  fill('tripFlightFare', p.fare);
+  // A car saved with the trip is put back; one saved before this keeps the car already on the form
+  ['tripVehicle', 'tripVehicleYear', 'tripMPG'].forEach((el, i) => {
+    const value = [p.vehicle, p.vehicleYear, p.mpg][i];
+    if (value && g(el)) g(el).value = value;
+  });
+  if (g('tripRoundTrip')) g('tripRoundTrip').checked = p.roundTrip !== false;
+  fill('tripFromCity', p.fromCity);
+  fill('tripToCity', p.toCity);
+  fill('tripAirport', p.airport);
+  fill('tripDestAirport', p.destAirport);
+  const note = g('tripOpenNote');
+  if (note) {
+    const said = t.status === 'done'
+      ? `Starting from ${esc(t.label)}. That trip stays as it was; saving this one makes a new trip.`
+      : `${esc(t.label)} is open, saved at ${fmt(t.total)}. Press "Show my trip budget" to see it at today's prices. Nothing changes until you update it.`;
+    note.innerHTML = `<div style="font-size:var(--fs-sm);color:var(--ink);line-height:1.6;background:var(--mist);border-radius:var(--r-sm);padding:8px 10px;margin-bottom:12px">${said}
+      ${known ? '' : '<div style="color:var(--slate);margin-top:2px">This trip was saved before Groundwork kept the details, so only its name and dates came back. Add the rest here.</div>'}
+      <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs);margin-top:4px" onclick="tripLeaveOpen()">Close</button></div>`;
+  }
+  tripShowTab('plan');
+  setTripMode(p.mode === 'fly' ? 'fly' : 'drive');   // works the trip out, with everything above in place
+  g('tripStep1')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function tripLeaveOpen() {
+  _tripOpenId = null;
+  if (g('tripOpenNote')) g('tripOpenNote').innerHTML = '';
+  const d = _tripBudgetData, content = g('tripBudgetContent');
+  if (d && content && g('tripBudgetOutput')?.style.display !== 'none') _renderTripBudgetFallback(content, g('tripAIBadge'), d);
+}
+
+async function tripUpdateOpen() {
+  const id = _tripOpenId, d = _tripBudgetData;
+  if (!id || !d || !(d.total > 0)) return;
+  try { await API.patch(`/api/trips/${id}`, { replan: { ...d, planner: _tripPlannerInputs() } }); }
+  catch (e) { _gwErr('tripUpdateOpen')(e); showToast('Not saved', e?.message || '', 'warning'); return; }
+  showToast(`${d.dest} updated`, `Now ${fmt(d.total)}.`, 'success');
+  await renderTrips();
+  tripLeaveOpen();
+  tripShowTab('trips');
+}
+
+function _tripLinesHTML(t) {
+  if (!(t.lines || []).length) return '';
+  return `<div style="margin-top:8px">${t.lines.map(l => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:var(--fs-sm);padding:2px 0">
+      <span>${esc(l.label)}${l.source ? ` <span style="font-size:var(--fs-xs);color:var(--slate)">· ${esc(l.source)}</span>` : ''}</span>
+      <span style="font-family:var(--font-mono);white-space:nowrap">${fmt(l.amount)}</span></div>`).join('')}</div>`;
 }
 
 async function renderTrips() {
@@ -12722,8 +12818,25 @@ async function renderTrips() {
     _trips = (await API.get('/api/trips')).trips || [];
     if (!_tripSrcs) _tripSrcs = await API.get('/api/trips/sources-available');
   } catch (e) { _gwErr('renderTrips')(e); box.innerHTML = ''; return; }
-  if (!_trips.length) { box.innerHTML = ''; return; }
-  box.innerHTML = `<div class="card mb-5"><div class="card-label">Your trips</div>${_trips.map(_tripCardHTML).join('')}</div>`;
+  if (g('tripTabCount')) g('tripTabCount').textContent = _trips.length ? `(${_trips.length})` : '';
+  if (!_trips.length) {
+    box.innerHTML = `<div class="card mb-5"><div style="font-size:var(--fs-base);color:var(--ink);line-height:1.6">No trips saved yet. Work one out under Plan a trip, then press "I'm going on this trip" and it is kept here.</div></div>`;
+    return;
+  }
+  box.innerHTML = `<div class="card mb-5">${_trips.map(_tripCardHTML).join('')}</div>`;
+}
+
+function tripShowTab(id) {
+  ['plan', 'trips'].forEach(t => {
+    const on = t === id, b = g('tripTab-' + t), p = g('tripPanel-' + t);
+    if (b) {
+      b.setAttribute('aria-selected', String(on));
+      b.style.color = on ? 'var(--pine-text)' : 'var(--slate)';
+      b.style.borderBottomColor = on ? 'var(--pine)' : 'transparent';
+      b.style.fontWeight = on ? '500' : 'normal';
+    }
+    if (p) p.style.display = on ? '' : 'none';
+  });
 }
 
 function _tripDates(t) {
@@ -12745,11 +12858,12 @@ function _tripCardHTML(t) {
       <div><div style="font-size:var(--fs-md);font-weight:600;color:var(--ink)">${esc(t.label)}</div>
         <div style="font-size:var(--fs-xs);color:var(--slate)">${_tripDates(t)} · ${done ? 'done' : going ? "you're going" : 'planning'}</div></div>
       <div style="font-family:var(--font-mono);font-size:var(--fs-md);color:var(--ink)">${fmt(t.total)}${done && t.actual_spent != null ? ` <span style="font-size:var(--fs-xs);color:var(--slate)">planned · spent ${fmt(t.actual_spent)}</span>` : ''}</div>
-    </div>`;
+    </div>${_tripLinesHTML(t)}`;
+  const reopen = `<button class="btn btn-secondary btn-sm" style="font-size:var(--fs-xs)" onclick="tripReopen(${t.id})">${done ? 'Start a new trip from this one' : 'Open in the planner'}</button>`;
   if (!going) {
     const act = t.status === 'planning'
       ? `<button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="tripSetStatus(${t.id},'going')">I'm going on this trip</button>` : '';
-    return `<div style="border:1px solid var(--steel);border-radius:var(--r-md);padding:12px;margin-bottom:8px">${head}${act ? `<div style="margin-top:8px">${act}</div>` : ''}</div>`;
+    return `<div style="border:1px solid var(--steel);border-radius:var(--r-md);padding:12px;margin-bottom:8px">${head}<div style="margin-top:8px">${reopen} ${act}</div></div>`;
   }
   const p = t.plan || {};
   const srcRows = (t.sources || []).map((s, i) => {
@@ -12768,6 +12882,7 @@ function _tripCardHTML(t) {
         <button class="row-del" onclick="tripRemoveSource(${t.id},${i})" title="Remove">×</button></span></div>`;
   }).join('');
   const leftNote = t.left_to_assign > 0.004 ? `<span style="color:var(--gold-text)">${fmt(t.left_to_assign)} left to assign</span>`
+    : t.left_to_assign < -0.004 ? `<span style="color:var(--gold-text)">${fmt(-t.left_to_assign)} more assigned than the trip now costs</span>`
     : `<span style="color:var(--pine-text)">All ${fmt(t.total)} assigned</span>`;
   const addRow = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px">
       <select id="tripSrcKind-${t.id}" class="field-input" style="width:auto;font-size:var(--fs-sm);padding:4px 8px" onchange="tripSrcKindChange(${t.id})">
@@ -12808,7 +12923,7 @@ function _tripCardHTML(t) {
     <details style="margin-top:8px"><summary style="font-size:var(--fs-xs);color:var(--slate);cursor:pointer">What these figures assume</summary>
       <ul style="font-size:var(--fs-xs);color:var(--ink);margin:6px 0 0 16px;line-height:1.6">${(p.assumptions || []).map(a => `<li>${esc(a)}</li>`).join('')}</ul></details>` : ''}
     ${after}
-    <div style="margin-top:10px"><button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="tripSetStatus(${t.id},'cancelled')">Not going after all</button></div>
+    <div style="margin-top:10px">${reopen} <button class="btn btn-ghost btn-sm" style="font-size:var(--fs-xs)" onclick="tripSetStatus(${t.id},'cancelled')">Not going after all</button></div>
   </div>`;
 }
 
@@ -13488,6 +13603,7 @@ const HELP_FAQ = [
   {"q": "What are sinking funds (savings goals)?", "a": "Money you set aside for a known future expense - car repairs, a vacation, holiday gifts - inside an account you already have. You give it a target, a monthly plan and the account its money is kept in. Groundwork never adds the plan for you: a goal holds what you started it with and what you add with \"Add to fund\". When the expense arrives, the money is already there.", "keys": ["sinking", "fund", "funds", "goal", "goals", "save", "saving", "set", "aside"], "open": {"view": "budget", "el": "sinkingFundsCard"}},
   {"q": "How does Gift Budget work?", "a": "Gift Budget is the Gifts tab on the Budget page. Add the people you give gifts to with \"+ Person\", then open each one to add their occasions - a birthday, an anniversary, Christmas and others - with a date and a budget for each. \"The year's gifts\" adds up the next 12 months and shows what that takes a month; \"Set aside for gifts\" puts that in your budget as one line. \"Coming up\" lists the next 90 days. The \"$\" on an occasion records what it actually cost, or the receipt button offers the charges filed under Gifts in the weeks before it, for you to pick from. \"+ Shared occasion\" is one total for many people, with fixed amounts for some and the rest split. \"Gift funds\" save toward a date and add their monthly amount themselves; \"Mark spent\" keeps what was spent beside the target.", "keys": ["gift", "gifts", "christmas", "birthday", "present", "pool", "shared"], "open": {"view": "budget", "el": "giftContent"}, "labels": ["+ Person", "+ Fund", "Gift funds", "Coming up", "+ Shared occasion"]},
   {"q": "What is the Sunday check-in?", "a": "Every Sunday a two-sentence summary appears on the dashboard: what happened financially this week, and one thing worth reflecting on. In household mode it's written for two people reading together.", "keys": ["sunday", "check", "weekly", "summary"]},
+  {"q": "How do I come back to a trip I saved?", "a": "Press \"I'm going on this trip\" under the trip budget and it is kept on the Trip Planner's Your trips tab, with its costs. Say \"your trips\" to go there. \"Open in the planner\" brings back what you entered and works it out at today's prices; the saved trip changes only if you press \"Update this trip\". After a trip, \"what did it cost?\" shows planned against spent.", "keys": ["trip", "trips", "saved", "planned", "reopen", "revisit", "come back", "update"], "open": {"view": "trip"}},
   {"q": "What does the Trip Planner calculate?", "a": "Getting there: for a drive, your car's mpg and the national gas price; for a flight, the government's average fare for the route, or the fare you enter or read from Google Flights. Lodging and meals: a quote you enter, your own past trips, or the federal travel rate for the place and month - said as such, never as a quote. Activities: your own figure. \"Look up hotels (Google Hotels)\" opens real prices in Groundwork's window, and a whole itinerary can be pasted, chosen or dropped in. Every line says where its figure came from.", "keys": ["trip", "travel", "vacation", "planner", "flight", "hotel", "cost", "budget"], "open": {"view": "trip"}, "labels": ["Look up hotels (Google Hotels)"]},
   {"h": "Net worth & retirement"},
   {"q": "What is DTI and why does it matter?", "a": "Debt-to-Income ratio — total monthly debt payments divided by gross income. Below 36% qualifies you for most mortgages. Below 43% is the maximum most lenders accept. One of the first numbers a bank looks at.", "keys": ["dti", "debt", "income", "ratio"]},
@@ -27651,7 +27767,8 @@ const ASK_PLACES = [
   { label: 'Reports', names: ['reports', 'report', 'report center', 'monthly report'], view: 'reports' },
   { label: 'the Ledger', names: ['ledger', 'transactions', 'transaction', 'recent transactions', 'all transactions', 'spending'], view: 'ledger' },
   { label: 'the Budget', names: ['budget', 'budgets', 'my budget'], view: 'budget', tab: ['bud', 'plan'] },
-  { label: 'the Trip Planner', names: ['trip planner', 'plan a trip', 'trips', 'trip', 'travel'], view: 'trip' },
+  { label: 'Your trips', names: ['your trips', 'saved trips', 'planned trips', 'trips i planned', 'trips i have planned', 'trips we planned', 'trips we have planned'], view: 'trip', tab: ['trip', 'trips'] },
+  { label: 'the Trip Planner', names: ['trip planner', 'plan a trip', 'trips', 'trip', 'travel'], view: 'trip', tab: ['trip', 'plan'] },
   { label: 'Investments', names: ['investments', 'investment', 'portfolio', 'stocks'], view: 'investments' },
   { label: 'Net Worth', names: ['net worth', 'networth', 'net work'], view: 'networth' },   // "net work": as heard (V8)
   { label: 'the Trophy Room', names: ['trophy room', 'trophies', 'achievements'], view: 'trophy' },
@@ -27701,7 +27818,7 @@ function askGo(pl) {
   const box = g('gwAskBox');
   if (box) box.value = '';
   showView(pl.view);
-  const tabs = { bud: _budShowTab, health: healthShowTab, byb: bybShowTab, debt: _debtShowTab, settings: _settingsShowTab };
+  const tabs = { bud: _budShowTab, health: healthShowTab, byb: bybShowTab, debt: _debtShowTab, settings: _settingsShowTab, trip: tripShowTab };
   if (pl.tab && tabs[pl.tab[0]]) setTimeout(() => tabs[pl.tab[0]](pl.tab[1]), 80);
   if (pl.report) setTimeout(() => _rcOpenReport(pl.report), 80);
   if (pl.view === 'ledger' && g('ledgerSearch')?.value) {     // "the Ledger" is all of it, not the last search
@@ -28238,6 +28355,38 @@ function _askBudgetCat(text) {
   const names = [...(S.expenses || []).flatMap(e => [e.name, e.cat]), ...(_categoriesCache || []).map(c => c && (c.name || c))].filter(Boolean);
   return names.find(nm => String(nm).toLowerCase() === t) || null;
 }
+// TRIP_SAVED.md: saying it offers the button and saves nothing. Only the person's tap makes a trip one they are going on
+// (TRIP_FUNDING_COACH.md T1, TM5).
+const ASK_TRIP_COMMIT = /^(?:i'm|im|i am|we're|were|we are) (?:(?:creating|starting|setting up|making|opening|building) (?:a |an |some |up )*(?:savings?|money|fund)(?: fund| goal| account)? for|saving(?: up| money)?(?: up)? for|(?:setting|putting) (?:some )?(?:money|cash|savings)(?: aside| away)? for|using (?:my |our |some |this |the )?(?:money|cash|savings) for|going on|taking|planning) (?:this|a|the|our|my) (?:trip|vacation|getaway)(?: to .+)?$/;
+function _askTrip(p, head, said) {
+  const toTrips = `closeAsk(); _tripsShow()`;
+  const d = _tripBudgetData;
+  const trips = `<button class="btn btn-secondary btn-sm" onclick="${toTrips}">See your trips</button>`;
+  // A place they named has to be the trip on the planner, or the trip on the planner is not the one they mean
+  const named = (String(said || '').match(/ to (.+)$/) || [])[1] || '';
+  const worked = d && d.total > 0 && (!named || String(d.dest || '').toLowerCase().includes(named));
+  const saved = worked && (_trips || []).find(t => t.label === d.dest);
+  if (saved) {
+    _askSaid(`${d.dest} is already saved under Your trips.`);
+    _askSay(p, head, `${esc(d.dest)} is already saved under Your trips, at ${fmt(saved.total)}.<div style="margin-top:8px">${trips}</div>`);
+    return;
+  }
+  if (worked) {
+    _askSaid(`Save ${d.dest} as a trip you're going on? Press the button and Groundwork keeps it.`);
+    _askSay(p, head, `Save ${esc(d.dest)}, ${fmt(d.total)}, as a trip you're going on? You can come back to it and say where the money comes from. Nothing is saved until you press this.
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" onclick="closeAsk(); tripImGoing()">I'm going on this trip</button>${trips}</div>`);
+    return;
+  }
+  _askSaid('Work the trip out in the Trip Planner, then press I am going on this trip. Groundwork keeps it there.');
+  _askSay(p, head, `Work the trip out in the Trip Planner, then press "I'm going on this trip". Groundwork keeps it on the Your trips tab, where you can come back to it and say where the money comes from.
+    <div style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="closeAsk(); showView('trip'); tripShowTab('plan')">Open the Trip Planner</button></div>`);
+}
+// The Trip Planner, open on Your trips
+function _tripsShow() {
+  showView('trip');
+  tripShowTab('trips');
+}
+
 function askIntent(q, p, head, assist = false) {
   const said = _askNorm(q);
   if (!said) return false;
@@ -28253,6 +28402,7 @@ function askIntent(q, p, head, assist = false) {
   }
   const n = _askCanon(_askRepaired(said));
   if (typeof gwPrintIntent === 'function' && gwPrintIntent(said, n)) return true;   // "print this page" (js/print.js)
+  if (ASK_TRIP_COMMIT.test(said)) { _askTrip(p, head, said); return true; }
   if (_askFollow(n)) return true;                              // V4: "what about Walmart?", "and last month?"
   const coming = n.match(ASK_COMING);
   if (coming) { askComingUp(/\bmonth$/.test(n), /\bnext (?:week|month)$/.test(n)); return true; }   // V15
@@ -28841,6 +28991,8 @@ function _askPlaceWord(s) {
 }
 const _ASK_LOOSE_GO = /^(?:open up|pop open|open|take a (?:quick )?look at|have a look at|look at|check(?: on| out)?|give me|get me(?: to)?|head(?: over)? to|hop(?: over)? to|switch(?: over)? to|jump(?: over)? to|go over to|(?:go |take me )?back to|take me(?: back)?(?: to)?|can (?:i|we) (?:see|look at|get)|could (?:i|we) see|bring|pull|where(?:\x27s| is| are)|wheres|where (?:do|can) (?:i|we) (?:find|see|look at|get to)|see|how(?:\x27s| is| are)) (.+?)(?: up)?$/;
 function _askCanon(n) {
+  // Rob 2026-11-05: "trips" is Plan a trip, but "my trips" is the ones you have: your saved trips. A question stays a question.
+  if (!/^(?:what|how|when|why|did|do|does|can|should|is|are)\b/.test(n)) n = n.replace(/\b(?:my|our) trips$/, 'your trips');
   let m = n.match(_ASK_LOOSE_GO);
   const word = m && _askPlaceWord(m[1]);
   if (word) return `open ${word}`;

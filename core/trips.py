@@ -73,6 +73,45 @@ def lines_from_budget(b):
     return out
 
 
+PLANNER_TEXT = ('dest', 'origin', 'depart', 'ret', 'travelers', 'vehicle', 'vehicleYear', 'mpg', 'fromCity', 'toCity',
+                'airport', 'destAirport', 'fare', 'activities')
+PLANNER_MAX = 20000   # the saved form with a quote and an itinerary is far smaller; anything larger is not what it says
+
+
+def _no_confirmation(x):
+    """A booking's confirmation number stays out of a saved trip, at any depth (TRIP_BOOKED.md B1)."""
+    if isinstance(x, dict):
+        return {k: _no_confirmation(v) for k, v in x.items() if 'confirmation' not in str(k).lower()}
+    if isinstance(x, list):
+        return [_no_confirmation(v) for v in x]
+    return x
+
+
+def planner_inputs(raw):
+    """What the person entered in the planner, cleaned for keeping. It reopens the trip; it is never a figure itself."""
+    if not isinstance(raw, dict):
+        return {}
+    out = {k: str(raw.get(k) or '').strip()[:160] for k in PLANNER_TEXT if str(raw.get(k) or '').strip()}
+    if raw.get('mode') in ('drive', 'fly'):
+        out['mode'] = raw['mode']
+    if isinstance(raw.get('roundTrip'), bool):
+        out['roundTrip'] = raw['roundTrip']
+    for key in ('quote', 'itinerary', 'learned'):
+        if isinstance(raw.get(key), dict):
+            kept = _no_confirmation(raw[key])
+            if len(json.dumps(kept)) <= PLANNER_MAX:
+                out[key] = kept
+    return out
+
+
+def planner(trip):
+    try:
+        out = json.loads(trip.planner_json or '{}')
+    except (TypeError, ValueError):
+        return {}
+    return out if isinstance(out, dict) else {}
+
+
 def carry_setting(session):
     """T1: the old single saved trip (the trip_budget setting) becomes the first trip, once, as 'planning'. The
     setting stays as it was."""

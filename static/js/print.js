@@ -398,6 +398,8 @@ async function _prTrip() {
   if (typeof tripUpdateBudget === 'function') tripUpdateBudget();
   const d = (g('tripDestination')?.value?.trim() || g('tripToCity')?.value?.trim()) ? _tripBudgetData : null;
   const saved = _prSavedTrips();
+  // Each tab prints what it shows: Your trips the saved trips, Plan a trip the trip being planned
+  if (_prActiveTabName(g('view-trip')).startsWith('Your trips')) return saved ? _prSheet('Your Trips', '', saved) : null;
   if (!d || !d.dest) {
     if (!saved) return null;
     return _prSheet('Your Trips', '', saved);
@@ -406,7 +408,7 @@ async function _prTrip() {
   const hero = `<div class="it-hero"><div class="it-where">${_prEsc(d.dest)}</div>
     <div class="it-when">${_prEsc(_prLong(d.depart))} to ${_prEsc(_prLong(d.ret))}</div>
     <div class="pr-sub">${d.nights} night${d.nights === 1 ? '' : 's'} · ${d.travelers} traveler${d.travelers === 1 ? '' : 's'} · estimated ${fmt(d.total)}</div></div>`;
-  return _prSheet('Trip Itinerary', '', hero + _prDays(d) + travel + _prCostTable(d) + saved);
+  return _prSheet('Trip Itinerary', '', hero + _prDays(d) + travel + _prCostTable(d));
 }
 
 // ── Before You Buy: the purchase, and a possible future budget ─────────────────────────────────────────────────────

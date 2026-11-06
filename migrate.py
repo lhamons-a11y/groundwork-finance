@@ -12,7 +12,8 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20261030-goal-accounts'   # item 114 H19: sinking_funds.account_id - the account a goal's money is kept in
+SCHEMA_VERSION = '20261105-trip-planner'   # trips.planner_json - what was typed in the planner, so a saved trip can be reopened (TRIP_SAVED.md)
+# Before it, '20261030-goal-accounts'   # item 114 H19: sinking_funds.account_id - the account a goal's money is kept in
 # Before it, '20261030-companion-account-types'   # a loan/mortgage/lease debt's companion Account typed 'loan', not 'credit' (_companion_account_types_v1; data only, models unchanged)
 # Before it, '20261022-local-clock'   # item 109 (LOCAL_CLOCK.md T3): stored UTC moments converted once to local time
 # Before it, '20261019-collections'   # item 101 (COLLECTIONS.md): medical_collections (create_all)
@@ -50,12 +51,12 @@ SCHEMA_VERSION = '20261030-goal-accounts'   # item 114 H19: sinking_funds.accoun
 # the fingerprint s51 prints. A change without a bump is skipped on every existing database.
 # (Re-pinned 2026-10-24 without a bump: the migration did not change, the fingerprint's method did - panel I-08, so
 # the same file reads the same on Python 3.12, 3.13 and 3.15.)
-SCHEMA_SPEC_SHA256 = '966abaafcbe8cc3e8c815df9699b82ec4eacfde55aa130f9f9da2935602b6e14'
+SCHEMA_SPEC_SHA256 = '6fe08099e3036fe11e465d2d45f43dafbc2be3a0eb6e45ab7f50140ed1fdd9f6'
 # The models' fingerprint (item 24, SCHEMA_PIN_MODELS.md P1): every table and column in core/database.py. A model
 # change - a new table, a new column - moves it, and s51 fails until SCHEMA_VERSION is bumped, any new column on an
 # existing table is listed in its _NEW_*_COLUMNS list, this pin is updated, and `python schema_fixture.py` has saved
 # the new version's schema (s67 upgrades every saved schema).
-SCHEMA_MODELS_SHA256 = '8c0d24048aecaab20d75f4dfbf8220b4a39f799f996cf9417aba6986d7252904'
+SCHEMA_MODELS_SHA256 = '6fb05ccf5cc2eecf9d13e8c1141a27d85c943ac75b95b13ec1661abf379a7dd8'
 
 
 def _stored_schema_version():
@@ -227,6 +228,11 @@ _NEW_PLAN_READING_COLUMNS = [
 
 _NEW_PLAN_TERM_COLUMNS = [
     ('tier', "VARCHAR(8) DEFAULT ''"),
+]
+
+_NEW_TRIP_COLUMNS = [
+    # TRIP_SAVED.md: trips saved before this have none, and reopen with their name and dates only.
+    ('planner_json', "TEXT DEFAULT ''"),
 ]
 
 _NEW_SINKING_FUND_COLUMNS = [
@@ -732,6 +738,7 @@ def run_migration_if_needed():
         conn.commit()
     # After the raw CREATE above, so a database that only just got sinking_funds gets the column too.
     _add_missing_columns('sinking_funds',        _NEW_SINKING_FUND_COLUMNS)
+    _add_missing_columns('trips',                _NEW_TRIP_COLUMNS)
 
     from core.database import db_session as _sess
     _seed_ok = False

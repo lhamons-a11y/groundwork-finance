@@ -623,6 +623,7 @@ class Trip(Base):
     ret            = Column(String(10), nullable=True)
     total          = Column(Float, default=0.0)
     lines_json     = Column(Text, default='[]')             # [{label, amount, source}] - the planner's own lines
+    planner_json   = Column(Text, default='')               # what was typed in the planner, so the trip can be reopened
     status         = Column(String(12), default='planning') # planning | going | done | cancelled
     sources_json   = Column(Text, default='[]')             # T3: [{kind, ref_id, amount}]
     rebuild_months = Column(Integer, default=6)             # T4: 3 | 6 | 12

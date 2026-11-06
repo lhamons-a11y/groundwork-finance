@@ -168,7 +168,7 @@ def run(ctx):
     # T1/TM5: "going" only from the tap; the page never sets it on its own; no AI on the way
     trip_js = app.split('function tripImGoing() {')[1].split('// T2: on the Budget page')[0]
     check("s207 T1/T9 \"I'm going\" is a confirmed tap, nothing else commits a trip, and no model is called",
-          'confirmAction(' in trip_js and "API.post('/api/trips', d)" in trip_js and 'callAI' not in trip_js
+          'confirmAction(' in trip_js and "API.post('/api/trips', { ...d, planner: _tripPlannerInputs() })" in trip_js and 'callAI' not in trip_js
           and app.count("API.post('/api/trips',") == 1 and "status === 'planning'" in trip_js)
     check('s207 TM1: nothing in the trip code moves or pays money - no payment or transfer route is called',
           not any(w in trip_js for w in ('/pay', 'transfer', '/deposit')))

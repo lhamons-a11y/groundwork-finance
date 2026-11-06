@@ -3206,7 +3206,8 @@ def _trip_json(session, t, plan=False):
     from core import trips as tr
     tot, left = tr.assigned(t)
     d = {'id': t.id, 'label': t.label, 'depart': t.depart, 'ret': t.ret, 'total': round(float(t.total or 0), 2),
-         'lines': tr.lines(t), 'status': t.status, 'sources': tr.sources(t), 'assigned': tot, 'left_to_assign': left,
+         'lines': tr.lines(t), 'planner': tr.planner(t), 'status': t.status, 'sources': tr.sources(t), 'assigned': tot,
+         'left_to_assign': left,
          'rebuild_months': t.rebuild_months or 6, 'pay_order': t.pay_order or '', 'split_pct': t.split_pct,
          'fund_id': t.fund_id, 'actual_spent': t.actual_spent}
     if plan and t.status == 'going':
@@ -3329,7 +3330,8 @@ def trips_commit():
     with db_session() as session:
         tr.carry_setting(session)
         t = Trip(label=label, depart=(b.get('depart') or '')[:10] or None, ret=(b.get('ret') or '')[:10] or None,
-                 total=total, lines_json=json.dumps(tr.lines_from_budget(b)), status='going', going_at=datetime.now())
+                 total=total, lines_json=json.dumps(tr.lines_from_budget(b)),
+                 planner_json=json.dumps(tr.planner_inputs(b.get('planner'))), status='going', going_at=datetime.now())
         session.add(t)
         session.commit()
         return ok(_trip_json(session, t, plan=True))
@@ -3352,6 +3354,26 @@ def trips_edit(tid):
             t.status = b['status']
             if b['status'] == 'going' and not t.going_at:
                 t.going_at = datetime.now()
+        if 'replan' in b:
+            # The person reopened the trip, worked it out again and pressed Update. The name stays: bookings find their
+            # trip by it. A finished trip keeps what it cost; it is only ever a starting point for a new one.
+            r = b.get('replan') if isinstance(b.get('replan'), dict) else {}
+            if t.status not in ('going', 'planning'):
+                return err('A finished trip stays as it was. Start a new one from it instead.')
+            try:
+                new_total = round(float(r.get('total')), 2)
+            except (TypeError, ValueError):
+                return err('The trip needs its total.')
+            if new_total <= 0:
+                return err('The trip needs its total.')
+            t.total = new_total
+            t.depart = (r.get('depart') or '')[:10] or None
+            t.ret = (r.get('ret') or '')[:10] or None
+            t.lines_json = json.dumps(tr.lines_from_budget(r))
+            t.planner_json = json.dumps(tr.planner_inputs(r.get('planner')))
+            fund = session.get(SinkingFund, t.fund_id) if t.fund_id else None
+            if fund is not None:
+                fund.deadline = t.depart
         if 'sources' in b:
             clean = []
             for s in b.get('sources') or []:

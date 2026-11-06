@@ -16,7 +16,7 @@ Rob 2026-11-05, the last item before 2.0 testing: "every page should be printabl
 |---|---|
 | Any page | The page redrawn on its own sheet (`static/js/print.js`). What you press is left out, what you typed is shown as text, an unfilled form is left out, and the working behind a figure stays open. |
 | Ledger | Asks first: **detail** (every line showing) or **overview** (totals by category and biggest places). "Print the ledger overview" skips the question. Totals follow the Ledger's own rule for In and Out. |
-| Trip Planner | An itinerary. Driving: a map and the distance each way and round trip. Flying: a ticket for each flight with its date and price. Both carry the start-to-finish list and the costs with their sources. Saved trips follow. |
+| Trip Planner | An itinerary. Driving: a map and the distance each way and round trip. Flying: a ticket for each flight with its date and price. Both carry the start-to-finish list and the costs with their sources. The Your trips tab prints the saved trips. |
 | Before You Buy | The cost of the item and a possible future budget (below). On the After you buy tab, or with nothing entered, the page itself. |
 | Net Worth | The Report Center's Net Worth Timeline, the same code (`_rcNetWorthTimelineHTML`). With no saved months, the page itself. |
 | A report in the Report Center | That report on the same sheet. Its Print buttons used to print blank, because the app-wide print rule hid the shell around them. |

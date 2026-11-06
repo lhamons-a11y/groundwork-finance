@@ -2696,9 +2696,17 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <div class="section-sub">Plan a trip that fits your finances — without touching your debt payoff.</div>
         </div>
 
+        <div role="tablist" aria-label="Trip Planner" style="display:flex;border-bottom:1px solid var(--steel);margin:4px 0 16px">
+          <button id="tripTab-plan" role="tab" aria-selected="true" aria-controls="tripPanel-plan" onclick="tripShowTab('plan')"
+            style="font-size:var(--fs-base);padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid var(--pine);color:var(--pine-text);font-weight:500">Plan a trip</button>
+          <button id="tripTab-trips" role="tab" aria-selected="false" aria-controls="tripPanel-trips" onclick="tripShowTab('trips')"
+            style="font-size:var(--fs-base);padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid transparent;color:var(--slate)">Your trips <span id="tripTabCount"></span></button>
+        </div>
+        <div id="tripPanel-plan" role="tabpanel" aria-labelledby="tripTab-plan">
         <!-- Step 1: Where & when -->
         <div id="tripStep1" class="card mb-5">
           <div class="card-label">Where are you going?</div>
+          <div id="tripOpenNote"></div>
           <div class="field-row-3" style="margin-bottom:16px">
             <div class="field" id="tripDestField">
               <label>Destination</label>
@@ -2935,9 +2943,12 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <!-- Trip advisor — AI analysis entry point reading real trip
              history (trip_history), mirroring invAdvisorCard/debtPanel-
              advisor. Hidden until there's real trip history to analyze. -->
-        <!-- Item 61: the trips you're going on - where the money comes from, and the way back -->
-        <div id="tripTripsCard"></div>
         <div id="tripAdvisorCard" class="card mb-5" style="display:none"></div>
+        </div>
+        <!-- Item 61: the trips you're going on - where the money comes from, and the way back (its own tab, TRIP_SAVED.md) -->
+        <div id="tripPanel-trips" role="tabpanel" aria-labelledby="tripTab-trips" style="display:none">
+          <div id="tripTripsCard"></div>
+        </div>
 
       </div>
 

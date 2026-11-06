@@ -34,7 +34,7 @@ var document = { querySelector: s => null, querySelectorAll: () => [], addEventL
 var showView = v => log.push(['view', v]);
 var showToast = (t) => log.push(['toast', String(t)]);
 var closeAsk = () => {}, renderLedger = () => {}, updateLedgerStats = () => {}, _ledgerMonthKey = null;
-var _budShowTab = () => {}, healthShowTab = () => {}, bybShowTab = () => {}, _debtShowTab = () => {}, _settingsShowTab = () => {};
+var _budShowTab = () => {}, healthShowTab = () => {}, bybShowTab = () => {}, _debtShowTab = () => {}, _settingsShowTab = () => {}, tripShowTab = () => {};
 var _rcOpenReport = () => {}, _rcUpdateCategoryDeepDive = () => {}, showImportModal = () => {}, openAddModal = () => {};
 var openBackupModal = () => {}, addCard = () => {}, openFeedbackModal = () => {}, showHelpOverlay = () => {}, openWhy = () => {};
 var explainPage = () => log.push(['explain']);
