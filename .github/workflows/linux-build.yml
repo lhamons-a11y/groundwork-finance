@@ -32,12 +32,27 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python fetch_model.py
+      # The voice files are git-ignored, and without them spec_engine only warns: the build would ship with no voice.
+      - name: Fetch and verify the voice models (hearing, speaking, whose voice)
+        run: |
+          python scripts/fetch_whisper_model.py
+          python scripts/fetch_kokoro_model.py
+          python scripts/fetch_voiceprint_model.py
       - name: Build with PyInstaller
         run: pyinstaller groundwork_linux.spec --clean --noconfirm
       - name: The engine imports and the model is where it looks (packaging only - not inference)
         run: |
           test -f dist/Groundwork/_internal/models/phi3.5-mini-instruct-q4.gguf
           ls dist/Groundwork/_internal/llama_cpp/lib/ | grep -q libllama
+      - name: The voice is in the package (packaging only - not a microphone)
+        run: |
+          test -f dist/Groundwork/_internal/models/ggml-base.en.bin
+          test -f dist/Groundwork/_internal/models/kokoro-v1.0.int8.onnx
+          test -f dist/Groundwork/_internal/models/voices-v1.0.bin
+          test -f dist/Groundwork/_internal/models/voxceleb_resnet34_LM.onnx
+          ls dist/Groundwork/_internal | grep -q _pywhispercpp
+          test -d dist/Groundwork/_internal/onnxruntime
+          test -d dist/Groundwork/_internal/espeakng_loader
       - name: Archive
         run: tar -czf Groundwork-linux-x86_64.tar.gz -C dist Groundwork
       - uses: actions/upload-artifact@v7
