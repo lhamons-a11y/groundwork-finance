@@ -14426,6 +14426,76 @@ def trip_distance_estimate():
     return ok(trip_distance.get_drive_distance(origin, destination))
 
 
+@trip_bp.route('/road-map', methods=['GET'])
+def road_map_status():
+    """What is installed and what is happening (gw 2.0/ROAD_MAP.md). Asks the internet nothing, unless the planner says it
+    was opened: then, with a map installed and "Keep the map current" on, it may ask for a newer one, at most monthly."""
+    from core import road_map
+    if request.args.get('visit') == '1':
+        road_map.update_in_background()
+    return ok(road_map.status())
+
+
+@trip_bp.route('/road-map/manifest', methods=['POST'])
+@require_json
+def road_map_manifest():
+    """Only on a press: what can be downloaded, and how large it is."""
+    from core import road_map
+    if (request.json or {}).get('ask') is not True:
+        return err('Nothing was asked.')
+    m = road_map.fetch_manifest()
+    return ok({'found': bool(m), 'manifest': m, 'newer': road_map.is_newer(m, road_map.installed()), 'status': road_map.status()})
+
+
+@trip_bp.route('/road-map/download', methods=['POST'])
+@require_json
+def road_map_download():
+    """Only on a press, with the person having seen the size. The server takes the address from the manifest, never the page."""
+    from core import road_map
+    if (request.json or {}).get('confirm') is not True:
+        return err('The download needs a yes.')
+    if not road_map.engine_available():
+        return err('Road routing is not available on this computer.')
+    m = road_map.fetch_manifest()
+    if not m:
+        return err('The road map could not be reached just now.')
+    if not road_map.enough_room(m):
+        return err('There is not enough free disk space for the road map.')
+    road_map.start(m)
+    return ok(road_map.status())
+
+
+@trip_bp.route('/road-map/cancel', methods=['POST'])
+@require_json
+def road_map_cancel():
+    from core import road_map
+    if (request.json or {}).get('confirm') is not True:
+        return err('The cancel needs a yes.')
+    road_map.cancel()
+    return ok(road_map.status())
+
+
+@trip_bp.route('/road-map/remove', methods=['POST'])
+@require_json
+def road_map_remove():
+    from core import road_map
+    if (request.json or {}).get('confirm') is not True:
+        return err('Removing the map needs a yes.')
+    road_map.remove()
+    return ok(road_map.status())
+
+
+@trip_bp.route('/road-map/auto', methods=['POST'])
+@require_json
+def road_map_auto():
+    from core import road_map
+    on = (request.json or {}).get('auto')
+    if not isinstance(on, bool):
+        return err('Say on or off.')
+    road_map.set_auto(on)
+    return ok(road_map.status())
+
+
 @trip_bp.route('/route-points', methods=['GET'])
 def trip_route_points():
     """The printed itinerary's map: where the drive starts and ends. Only the two place names go to the geocoder, the

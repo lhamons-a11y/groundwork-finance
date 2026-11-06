@@ -2770,6 +2770,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
                   oninput="tripSaveVehicle(); tripUpdateBudget()">
               </div>
             </div>
+            <div id="tripRoadNote" style="display:none;margin-top:10px;font-size:var(--fs-sm);color:var(--slate);line-height:1.6"></div>
             <div id="tripOilChangeAlert" style="display:none;margin-top:10px;padding:8px 12px;background:var(--gold-bg);border:0.5px solid var(--gold-border);border-radius:var(--r-md);font-size:var(--fs-sm);color:var(--ink)"></div>
           </div>
 
@@ -3239,6 +3240,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 
         <!-- ── DATA & BACKUP TAB ───────────────────────────────────────── -->
         <div id="settingsPanel-data" style="display:none">
+          <div id="roadMapCard" class="card mb-5"></div>
         <div id="importCustodyCard"></div>
         <div class="grid-2">
           <div class="card">

@@ -68,6 +68,7 @@ _engine_imports = collect_submodules('llama_cpp')
 import spec_engine
 _voice_binaries, _voice_datas, _voice_imports = spec_engine.voice_parts()
 # Groundwork's own voice (core/speak.py) - optional; the installer places models/kokoro-v1.0.int8.onnx and voices-v1.0.bin
+_road_binaries, _road_datas, _road_imports = spec_engine.road_parts()     # the road map (core/road_map.py)
 _speak_binaries, _speak_datas, _speak_imports = spec_engine.speak_parts()
 
 try:
@@ -79,7 +80,7 @@ except ImportError:
 a = Analysis(
     ['launch.py'],
     pathex=['C:\\Groundwork'],
-    binaries=[*_engine_binaries, *_voice_binaries, *_speak_binaries],
+    binaries=[*_engine_binaries, *_voice_binaries, *_speak_binaries, *_road_binaries],
     datas=[
         *_engine_datas, *_voice_datas, *_speak_datas,
         ('static', 'static'),
@@ -93,7 +94,7 @@ a = Analysis(
         # keyring - item 57 (BANK_AGENT.md A4): bank logins live in the operating system's vault. Imported
         # inside core/bank_vault.py's functions, and its backend is chosen at runtime, so both are named here.
         'keyring', 'keyring.backends', 'keyring.backends.Windows',
-        *_engine_imports, *_voice_imports, 'core.voice', *_speak_imports, 'core.speak',
+        *_engine_imports, *_voice_imports, 'core.voice', *_speak_imports, 'core.speak', *_road_imports, 'core.road_map',
         # Item 95 (GPU_ENGINE.md G3/G4'): the fitting test runs in a child process started as this executable with
         # --engine-probe, imported inside launch.main(); its R8 check reads the voice cases from voice_discipline_test.
         'core.engine_fit', 'voice_discipline_test',

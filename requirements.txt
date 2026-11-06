@@ -84,3 +84,6 @@ keyring>=25.6.0,<26
 # Item 81 (PERFECT_BACKUP.md): backups sealed with AES-256-GCM, keys stretched with scrypt. Already installed alongside
 # the PDF reader; named here because the backups now depend on it directly.
 cryptography>=42
+
+# The road map (gw 2.0/ROAD_MAP.md): routes on a local map. No tested engine exists for an Intel Mac; the app runs without it.
+pyvalhalla==3.9.1; sys_platform != "darwin" or platform_machine == "arm64"

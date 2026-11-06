@@ -40,6 +40,7 @@ Read aloud is said on this computer (core/speak.py); nothing it reads is sent an
 | waitress | ZPL 2.1 | https://github.com/Pylons/waitress |
 | SQLAlchemy | MIT | https://www.sqlalchemy.org |
 | pywebview (and proxy_tools, bottle) | BSD-3-Clause (MIT) | https://pywebview.flowrl.com |
+| Valhalla, through pyvalhalla (and the libraries its package bundles in pyvalhalla.libs, each under its own licence) | MIT | https://github.com/valhalla/valhalla |
 | requests, urllib3, idna, charset-normalizer | Apache-2.0, MIT, BSD-3-Clause, MIT | https://requests.readthedocs.io |
 | certifi | MPL-2.0 | https://github.com/certifi/python-certifi |
 | pdfplumber, pdfminer.six | MIT | https://github.com/jsvine/pdfplumber |
@@ -70,3 +71,7 @@ Read aloud is said on this computer (core/speak.py); nothing it reads is sent an
 The app bundles Inter, DM Mono and Playfair Display (Latin and Latin Extended) in `static/fonts/`, each under the
 SIL Open Font License 1.1, with its license text beside it (`OFL-inter.txt`, `OFL-dmmono.txt`,
 `OFL-playfairdisplay.txt`). The website (not the app) loads Inter, DM Mono and Fraunces from Google Fonts.
+
+## Map data
+
+Place lookups and the optional road map use data from **OpenStreetMap**, made available under the Open Database License (ODbL): https://www.openstreetmap.org/copyright. The road map is a database derived from it and is shared under the same licence, with the method that made it, at https://groundworkfinance.app/static/download/road-map/README.txt.
