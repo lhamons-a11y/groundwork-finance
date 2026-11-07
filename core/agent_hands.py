@@ -624,20 +624,23 @@ def lk_budget_headroom(reader, a):
     return out
 
 
+KNOWN_FROM = {'bank': "the bank's running balance", 'bank_unordered': "the bank's running balance; the order of that day's rows is unclear",
+              'activity': 'credits less debits in the record, not a confirmed balance', 'error': 'this account could not be read'}
+
+
 def lk_balances(reader, a):
     """H20 (R11): each account's balance, the goals set aside in it, and what is available."""
     accts = reader.get('/api/accounts/with-balances')
     if accts is not None and not isinstance(accts, list):      # a failed read comes back as its error, not as a list
         return {'enough': False, 'why': 'the accounts could not be read just now', 'reads_transactions': True}
     accts = accts or []
-    funds = reader.get('/api/sinking-funds') or []
+    funds = reader.get('/api/sinking-funds')
+    funds = funds if isinstance(funds, list) else []           # only names goals with no account; balances stand without it
     out = []
     for x in accts:
         if x.get('type') in ('checking', 'savings', 'cash'):
             row = {'account': x['name'], 'balance': money(x['balance']), 'known_from':
-                   {'bank': "the bank's running balance", 'bank_unordered': "the bank's running balance; the order of that day's rows is unclear",
-                    'activity': 'credits less debits in the record, not a confirmed balance', 'error': 'this account could not be read'}
-                   .get(x.get('balance_basis'), x.get('balance_basis')), 'as_of': x.get('balance_as_of') or x.get('last_date')}
+                   KNOWN_FROM.get(x.get('balance_basis'), x.get('balance_basis')), 'as_of': x.get('balance_as_of') or x.get('last_date')}
             if x.get('set_aside'):
                 row.update({'set_aside': money(x['set_aside']), 'available': money(x.get('available')),
                             'goals_in_it': [{'name': fence(gl['name']) or '(text held back)', 'amount': money(gl['amount'])}
@@ -652,10 +655,18 @@ def lk_balances(reader, a):
 
 
 def lk_net_worth(reader, a):
-    snaps = reader.get('/api/net-worth/snapshots') or []
-    return {'enough': True, 'months': [{'month': s['month_label'], 'net_worth': money(s['net_worth']),
-                                        'assets': money(s['total_assets']), 'debts': money(s['total_liabilities'])}
-                                       for s in snaps[-6:]]}
+    snaps = reader.get('/api/net-worth/snapshots')
+    if snaps is not None and not isinstance(snaps, list):      # a failed read comes back as its error, not as a list
+        return {'enough': False, 'why': 'the net worth history could not be read just now'}
+    snaps = snaps or []
+    real = [s for s in snaps if not s.get('without_figures')]  # a month recorded without figures is not a net worth of $0
+    res = {'enough': True, 'months': [{'month': s['month_label'], 'net_worth': money(s['net_worth']),
+                                       'assets': money(s['total_assets']), 'debts': money(s['total_liabilities'])}
+                                      for s in real[-6:]]}
+    blank = [s['month_label'] for s in snaps if s.get('without_figures')]
+    if blank:
+        res['recorded_without_figures'] = blank
+    return res
 
 
 def lk_recurring(reader, a):

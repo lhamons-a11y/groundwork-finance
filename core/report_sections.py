@@ -378,6 +378,9 @@ def _flow_body(reader, sid, shape, subj, settings, rows, notes):
     if months is None:
         return _not_enough(sid, settings, said, 'words like "June to September", "last month" or "this year"')
     if not months:
+        if rows:
+            return _not_enough(sid, settings, f"the record has nothing in {said}; it starts in "
+                                              f"{ah.month_label(ah._span(rows)[0][:7])}", 'choosing a period from then on')
         return _not_enough(sid, settings, 'the record has no transactions yet', 'importing a statement')
     said = _label(months) if said not in ('this month',) else said
     p, pred_all = _read(reader, settings.get('period')), pred
@@ -392,6 +395,8 @@ def _flow_body(reader, sid, shape, subj, settings, rows, notes):
         notes.append(p['note'])
     if p and p['months'][0] < months[0]:
         notes.append(f"The record starts in {ah.month_label(months[0])}.")
+    if shape == 4 and settings.get('period') and (len(months) > 1 or (p and p.get('window'))):
+        notes.append(f"A snapshot covers one whole calendar month, so this is {ah.month_label(months[-1])}, not all of {said}.")
     if shape in (1, 2):
         series = _monthly_series(src, months, pred, val)
         o = _out(sid, settings, sentences=[_series_sentence(what, series, said)],
@@ -578,39 +583,79 @@ def _debt(reader, sid, shape, settings):
     return _out(sid, settings, sentences=sents, chart={'kind': 'tile', 'unit': 'months', 'points': pts})
 
 
-def _net_worth(reader, sid, shape, settings, rows):
+def _balances(reader, sid, shape, settings):
+    """Accounts and what they hold. An unreadable account is left out of the total and named, never added in as $0; a
+    figure the bank has not confirmed is named as such."""
+    b = ah.lk_balances(reader, {})
+    if not b.get('enough'):
+        return _not_enough(sid, settings, b.get('why'), b.get('would_know'))
+    accounts = b['accounts']
+    if not accounts:
+        return _not_enough(sid, settings, 'no checking, savings or cash account is in the record', 'adding one')
+    known = [x for x in accounts if x['balance'] is not None]
+    unread = [x['account'] for x in accounts if x['balance'] is None]
+    if not known:
+        return _not_enough(sid, settings, 'none of the accounts could be read just now')
+    unconfirmed = [x['account'] for x in known if x.get('known_from') == ah.KNOWN_FROM['activity']]
+    total = round(sum(_f(x['balance']) for x in known), 2)
+    aside = round(sum(_f(x.get('set_aside')) for x in known), 2)
+    caveats = []
+    if unread:
+        caveats.append(f"Not counted: {', '.join(unread)}, which could not be read.")
+    if unconfirmed:
+        caveats.append(f"Not confirmed by a bank: {', '.join(unconfirmed)} - credits less debits in the record.")
+    table = {'columns': ['Account', 'Balance', 'Set aside', 'Available', 'Known from'],
+             'rows': [[x['account'], x['balance'] or 'Could not be read', x.get('set_aside') or '',
+                       x.get('available') or x['balance'] or '', x.get('known_from') or ''] for x in accounts]}
+    held = f'{len(known)} of {len(accounts)} accounts read' if unread else \
+        f"{len(known)} account{'s' if len(known) != 1 else ''}"
+    if shape == 3:
+        return _out(sid, settings, sentences=[f'{held}, {_m(total)} in all.', *caveats], table=table)
+    return _out(sid, settings, sentences=[f'{_m(total)} in the accounts; {_m(aside)} set aside in goals; '
+                                          f'{_m(round(total - aside, 2))} available.', *caveats],
+                chart={'kind': 'tile', 'points': [{'label': 'Balance', 'value': total}, {'label': 'Available',
+                                                                                         'value': round(total - aside, 2)}]},
+                table=table)
+
+
+def _net_worth(reader, sid, shape, settings):
     if shape in (3, 4):
-        b = ah.lk_balances(reader, {})
-        if not b['accounts']:
-            return _not_enough(sid, settings, 'no checking, savings or cash account is in the record', 'adding one')
-        total = round(sum(_f(x['balance']) for x in b['accounts']), 2)
-        aside = round(sum(_f(x.get('set_aside')) for x in b['accounts']), 2)
-        table = {'columns': ['Account', 'Balance', 'Set aside', 'Available'],
-                 'rows': [[x['account'], x['balance'], x.get('set_aside') or '', x.get('available') or x['balance']]
-                          for x in b['accounts']]}
-        if shape == 3:
-            return _out(sid, settings, sentences=[f"{len(b['accounts'])} accounts, {_m(total)} in all."], table=table)
-        return _out(sid, settings, sentences=[f'{_m(total)} in the accounts; {_m(aside)} set aside in goals; '
-                                              f'{_m(round(total - aside, 2))} available.'],
-                    chart={'kind': 'tile', 'points': [{'label': 'Balance', 'value': total}, {'label': 'Available',
-                                                                                             'value': round(total - aside, 2)}]},
-                    table=table)
-    snaps = reader.get('/api/net-worth/snapshots') or []
-    if not snaps:
+        return _balances(reader, sid, shape, settings)
+    period = settings.get('period')
+    # The route keeps 24 months unless asked: a period can name an older one.
+    snaps = reader.get('/api/net-worth/snapshots?months=1200' if period else '/api/net-worth/snapshots')
+    if snaps is not None and not isinstance(snaps, list):      # a failed read comes back as its error, not as a list
+        return _not_enough(sid, settings, 'the net worth history could not be read just now')
+    # A month recorded without figures is not a net worth of $0 (item 38 P4).
+    pts = [{'label': s['month_label'], 'key': (s.get('date') or '')[:7], 'value': round(float(s['net_worth']), 2)}
+           for s in snaps or [] if not s.get('without_figures')]
+    if not pts:
         return _not_enough(sid, settings, 'there are no net worth snapshots yet', 'visiting Net Worth once a month')
-    pts = [{'label': s['month_label'], 'key': (s.get('date') or '')[:7], 'value': round(float(s['net_worth']), 2)} for s in snaps]
-    if settings.get('period'):
-        months, _ = _months(reader, rows, settings['period'])
-        if months:
-            pts = [p for p in pts if p['key'] in months] or pts
+    notes = []
+    if period:
+        # Not clipped to the first transaction (no rows passed): snapshots can be older than the ledger.
+        months, said = _months(reader, [], period)
+        if months is None:
+            return _not_enough(sid, settings, said, 'words like "June to September", "last month" or "this year"')
+        pts = [p for p in pts if p['key'] in months]
+        if not pts:
+            return _not_enough(sid, settings, f'no net worth snapshot with figures falls in {said}',
+                               'choosing a period with a snapshot, or visiting Net Worth once a month')
+        p = _read(reader, period)
+        if p and p.get('window'):
+            notes.append('Net worth is recorded by the month, so this shows the months that period touches.')
     if shape == 5:
+        if len(pts) < 2:
+            return _not_enough(sid, settings, f"a comparison needs two months with figures, and only {pts[0]['label']} has them",
+                               'choosing a longer period')
         a, b = pts[0], pts[-1]
         return _out(sid, settings, sentences=[f"Net worth: {_m(a['value'])} in {a['label']}; {_m(b['value'])} in "
-                                              f"{b['label']}."],
+                                              f"{b['label']}.", *notes],
                     chart={'kind': 'paired', 'labels': [a['label'], b['label']],
                            'points': [{'label': 'Net worth', 'value': a['value'], 'value_b': b['value']}]})
-    return _out(sid, settings, sentences=[f"Net worth: {_m(pts[0]['value'])} in {pts[0]['label']}; "
-                                          f"{_m(pts[-1]['value'])} in {pts[-1]['label']}."],
+    span = f"Net worth: {_m(pts[0]['value'])} in {pts[0]['label']}" + \
+        (f"; {_m(pts[-1]['value'])} in {pts[-1]['label']}." if len(pts) > 1 else '.')
+    return _out(sid, settings, sentences=[span, *notes],
                 chart={'kind': 'bars' if shape == 1 else 'line', 'points': pts},
                 table={'columns': ['Month', 'Net worth'], 'rows': [[p['label'], _m(p['value'])] for p in pts]})
 
@@ -686,7 +731,7 @@ def run(reader, section_id, settings=None):
     elif subj == 6:
         o = _debt(reader, section_id, shape, settings)
     elif subj == 7:
-        o = _net_worth(reader, section_id, shape, settings, rows)
+        o = _net_worth(reader, section_id, shape, settings)
     elif subj == 8:
         o = _recurring(reader, section_id, shape, settings)
     elif subj == 9:
