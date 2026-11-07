@@ -14,7 +14,7 @@ The A/B on the built engine (U6) is in RUNAWAY_ANSWERS.md; U7 (master only) is t
 import ast
 
 
-SKIP_DIRS = {'tests', 'smoke_sections', 'build', 'dist', 'node_modules', 'vendor', '.claude', 'engine_wheel'}
+SKIP_DIRS = {'tests', 'smoke_sections', 'build', 'dist', 'installer_output', 'node_modules', 'vendor', '.claude', 'engine_wheel'}
 EXEMPT = {'llm_runtime_spike.py': 'the historical record of how the runtime was chosen (item 31) - not what ships'}
 
 
