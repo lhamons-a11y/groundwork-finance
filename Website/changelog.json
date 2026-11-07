@@ -1,5 +1,34 @@
 [
   {
+    "label": "2.0",
+    "headline": "Groundwork 2.0: an assistant that answers from your records, a Health page, reports you ask for in your own words, and more privacy",
+    "added": [
+      "An assistant in the Ask box. Ask about your money in plain words, typed or spoken, and Groundwork answers from your own records. Every figure is written by Groundwork; the AI only chooses which sentences to show, so it can't make a number up. When your records hold too little, it says so",
+      "\"Did you mean...?\" When a name doesn't match, the assistant asks about the closest match instead of guessing, and keeps your answer. Settings lists every name it keeps, and you can remove any of them",
+      "Changes only on your Yes: ask the assistant to file transactions, make an import rule, add a budget line or mark a bill as recurring. It shows exactly what would change, and Undo puts it back. It can never move money, pay a bill, delete anything or change a setting",
+      "Ask why: when a number looks wrong, Groundwork checks your records, says what it found, and shows any fix before it happens. Explain this page says what each page works out, in plain words",
+      "Voice: tap the microphone and talk with Groundwork. It is recognised on your computer and never sent or kept, answers aloud in Groundwork's own voice, follows loose phrasing and corrections, and can be set to answer only the voices it knows. Read aloud reads any part of a page",
+      "A Health page: medical bills as the provider sent them, owed only when you say so; payments, insurance changes and payment arrangements kept with each bill; collections kept apart from Debt Payoff; your plan year and deductible as your insurer reports them; a health reserve aimed at your out-of-pocket maximum; HSA and FSA balances; health spending by month and by person; a visit report and a year in review for tax time",
+      "Build a report: stack sections (monthly totals, a trend, a list, a snapshot, a comparison or a what-if) for any period in your own words, in one of six styles. Ask for one in plain words, with the AI on or off. Save it and it's ready next month",
+      "Savings goals live inside the accounts you already have: each account shows its balance, what's set aside and what's available",
+      "Protected backups: a password and a 24-word recovery key. A protected backup can't be opened by anyone who finds the file",
+      "Your statements with one press, and bills read from the biller's own site, only when you ask; your passwords stay in your computer's own vault. Groundwork never presses a Pay button",
+      "Possible futures, your pay employer by employer, a monthly review and a Sunday check-in, gifts as a yearly cost, and trip prices from real fares"
+    ],
+    "improved": [
+      "Every request the app makes goes through one place in its code, which refuses any other address, and Groundwork's own tests fail if a request is made anywhere else",
+      "The AI log keeps every request to the AI, as sent and as it came back, on your computer. Health records are kept out of it, and out of exports unless you tick the box",
+      "Every report shows its full summary, charts and figures with the AI off; with it on, an explanation is added",
+      "Every page prints as a report. One type scale and a Text size setting make every page easier to read",
+      "Groundwork never suggests spending less on care, and never measures necessary care in months of your debt-free date"
+    ],
+    "fixed": [
+      "A report that can't be answered from your records says so, instead of showing a figure it can't stand behind",
+      "A month with no debt statement is left out of a debt trend and named, instead of being counted as nothing owed",
+      "Net worth and debt comparisons use the periods you asked for"
+    ]
+  },
+  {
     "version": "20261008-d25",
     "date": "2026-10-08",
     "headline": "Groundwork 1.1.1: local AI built in, and corrected debt, net worth and investment figures",

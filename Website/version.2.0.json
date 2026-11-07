@@ -1,0 +1,6 @@
+{
+  "_release_day": "Fill in latest with the 2.0 build's GW_VERSION (date form, e.g. 20261120-2.0; s149), give the changelog's 2.0 entry the same version and a date, then copy this file over version.json. An empty latest offers the update to nobody.",
+  "latest": "",
+  "url": "https://groundworkfinance.app/static/download/Groundwork_Setup.exe",
+  "notes": "Groundwork 2.0 is here, free: an assistant that answers from your own records, a Health page for medical bills and your plan year, reports you can ask for in your own words, and protected backups. It updates this install in place and keeps a dated copy of your data first. See what's new at groundworkfinance.app/whats-new."
+}

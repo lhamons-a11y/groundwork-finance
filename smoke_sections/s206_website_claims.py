@@ -3,8 +3,9 @@
     W5/W7  the sentences found untrue on 2026-10-04 never come back
     W6     the advertised version is the changelog's newest release; every outside service the app's code contacts is
            named on the Privacy page; the site's AI wording agrees with the app and EULA (no cloud option)
-    W3     2.0 is described only on its labelled page and the home page's labelled section, and the one designed-only
-           part says it is in design
+    W3     (2026-11-07, Rob: "show that we are releasing 2.0") the site reads as released: nothing says "coming soon",
+           /coming lands on /whats-new, the 1.1 line is on the download page, and the update notice is on every page
+    V      every walkthrough video exists with its poster and captions, and says its figures are made up
     W1/W4  the debt-first framing is gone from every page's title and description
 """
 import json
@@ -62,28 +63,61 @@ def run(ctx):
           'There is no cloud AI option.' in privacy and 'No cloud AI' in src
           and not re.search(r'cloud AI (mode|option is)|optional cloud', src, re.I))
 
-    coming = src.split("@app.route('/coming')", 1)[1].split('@app.route', 1)[0]
     home = src.split('HOME_CONTENT = _icons(', 1)[1].split('""") + SIGNUP_BAND', 1)[0]
     pages = {k: src.split(f"@app.route('{k}')", 1)[1].split('@app.route', 1)[0]
              for k in ('/features', '/about', '/download', '/knowledge-base', '/privacy', '/terms')}
-    # W3, superseded 2026-10-31 (Rob: "remake the website to show this ... highlight all these features ... make that
-    # the central focus"): 2.0 may be shown on every page - but never as available before it is the download. Every
-    # page is rendered both ways; until SITE_VERSION is 2.x each says "coming soon" / names it as 2.0's.
     import importlib, os as _os, sys as _sys, tempfile as _tf
     _os.environ.setdefault('GW_SITE_DATA', _tf.mkdtemp(prefix='gw_site_'))
     _sys.path.insert(0, str(BASE / 'Website'))
     site = importlib.import_module('website')
     sc = site.app.test_client()
-    pre = {k: sc.get(k).get_data(as_text=True) for k in ('/', '/coming', '/privacy', '/download', '/llms.txt')}
-    check('s206 W3 (2026-10-31) before 2.0 is the download, everything new says so: "coming soon", the 2.0 page "isn\'t in '
-          'the download yet", the Privacy page names its 2.0 parts, and llms.txt says 2.0 is being built',
-          not site.RELEASED_20 and pre['/'].count('New in 2.0 · coming soon') >= 2 and 'Coming in Groundwork 2.0' in pre['/']
-          and "isn't in the download yet" in pre['/coming'] and 'The assistant (Groundwork 2.0)' in pre['/privacy']
-          and 'The microphone (Groundwork 2.0)' in pre['/privacy'] and 'being built and tested now' in pre['/llms.txt']
-          and 'Groundwork 1.1 gets no more updates' not in pre['/download'])
-    check('s206 W3/W8 the Health page is described as built (no longer "in design"), and the health promise stays',
-          'In design' not in coming and 'not built yet' not in coming and 'A Health page' in coming
-          and 'nothing about your health leaves' in ' '.join(coming.split()))
+    paths = ('/', '/whats-new', '/health', '/features', '/privacy', '/download', '/knowledge-base', '/llms.txt')
+    pre = {k: sc.get(k).get_data(as_text=True) for k in paths}
+    coming = pre['/whats-new']
+    # W3, superseded 2026-10-31 (Rob: "remake the website ... make that the central focus") and again 2026-11-07 (Rob:
+    # "update it to show that we are releasing 2.0"): SITE_VERSION is 2.0, so every page reads as released. The site is
+    # published only once the 2.0 installers are what /dl/ serves - that step is Rob's.
+    still = sorted(k for k in paths if re.search(r'coming soon|isn\'t in the download yet|being built and tested now|'
+                                                 r'Coming in Groundwork 2\.0|\(Groundwork 2\.0\)</h2>', pre[k]))
+    check(f's206 W3 (2026-11-07) the site reads as released: nothing says "coming soon" or "being built" ({still}), the '
+          f'Privacy page\'s 2.0 parts are plain sections, llms.txt offers 2.0, and the download page says what happens to 1.1',
+          site.RELEASED_20 and site.SITE_VERSION.startswith('2.') and not still
+          and pre['/'].count('New in 2.0') >= 2 and 'The assistant</h2>' in pre['/privacy']
+          and 'Groundwork 2.0 is the version offered for download' in pre['/llms.txt']
+          and 'Groundwork 1.1 gets no more updates' in pre['/download'])
+    old = sc.get('/coming')
+    check('s206 W3 the 2.0 page\'s first address, /coming, lands on /whats-new for old links',
+          old.status_code == 301 and old.headers.get('Location', '').endswith('/whats-new'))
+    flat_new = ' '.join(re.sub(r'<[^>]+>', ' ', coming).split())
+    check('s206 W3/W8 the 2.0 page shows the Health page as built, and keeps the health promise',
+          'In design' not in coming and 'not built yet' not in coming
+          and 'Health care costs, recorded, never judged.' in coming
+          and 'Nothing about your health leaves your computer.' in flat_new
+          and 'never suggests spending less on care' in ' '.join(pre['/health'].split()))
+    # The update notice (Rob 2026-11-07: "add the update notice for users to know it's updated"): on every page's
+    # banner, and on the 2.0 page with how each platform updates. The release-day manifest offers nothing until its
+    # latest is filled in with a date-form version (s149's rule).
+    manifest = json.loads((BASE / 'Website' / 'version.2.0.json').read_text(encoding='utf-8'))
+    check('s206 the update notice: every page\'s banner says updating keeps your records; the 2.0 page says how each '
+          'platform updates; the release-day manifest names 2.0 and offers it to nobody until its version is filled in',
+          all('Updating keeps your records' in pre[k] for k in paths if k != '/llms.txt')
+          and 'id="update"' in coming and 'choose <strong>Replace</strong>' in coming
+          and 'removes the earlier version for you' in coming and 'install script replaces the earlier version' in coming
+          and 'Groundwork 2.0' in manifest['notes']
+          and (manifest['latest'] == '' or re.fullmatch(r'\d{8}-[0-9A-Za-z.]+', manifest['latest'])))
+    # V: the walkthrough videos. Each is real, with a poster and captions, and says it is a made-up household.
+    vids = [(k, m) for k in ('/', '/whats-new', '/health') for m in re.findall(r'<video\b.*?</video>', pre[k], re.S)]
+    vdir = BASE / 'Website' / 'static'
+    bad_v = []
+    for k, m in vids:
+        files = re.findall(r'(?:poster|src)="/static/([^"]+)"', m)
+        if not ({f.rsplit('.', 1)[1] for f in files} >= {'jpg', 'mp4', 'vtt'}
+                and all((vdir / f).exists() for f in files) and 'made-up figures' in m
+                and (vdir / [f for f in files if f.endswith('.vtt')][0]).read_text(encoding='utf-8').startswith('WEBVTT')):
+            bad_v.append(k)
+    check(f's206 V the walkthrough videos exist, each with a poster, captions and words saying its figures are made up '
+          f'({len(vids)} on the home, 2.0 and Health pages; wrong on {sorted(set(bad_v))})',
+          len(vids) >= 6 and not bad_v and all(f'/static/video/{n}.mp4' in pre['/'] for n in site.VIDEOS))
     # The site is truthful whenever it is published: no invented proof, no pressure (TM6), no checksum made up
     bad = [w for w in ('trusted by', 'join thousands', 'join millions', 'limited time', 'only today', 'act now', '5 stars',
                        'rated #1', '#1 app', 'testimonial', 'award-winning') if w in flat.lower()]
@@ -127,5 +161,6 @@ def run(ctx):
             if not src[max(0, m.start() - 40):m.start()].rstrip().endswith(('class="fi">', 'class="nobr">'))]
     check(f's206 "Financial independence, for everyone" never breaks across lines: every occurrence is held together ({len(bare)} loose)',
           not bare and '.fi { white-space: nowrap; }' in src and '.statement-line .nobr { white-space: nowrap; }' in src)
-    check('s206 the 2.0 page is in both sitemaps', "('/coming'," in src
-          and '/coming</loc>' in (BASE / 'Website' / 'sitemap.xml').read_text(encoding='utf-8'))
+    check('s206 the 2.0 page is in both sitemaps', "('/whats-new'," in src
+          and '/whats-new</loc>' in (BASE / 'Website' / 'sitemap.xml').read_text(encoding='utf-8')
+          and '/coming</loc>' not in (BASE / 'Website' / 'sitemap.xml').read_text(encoding='utf-8'))

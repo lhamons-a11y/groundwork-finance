@@ -1,0 +1,29 @@
+{
+  "poster": 2,
+  "scenes": [
+    {"card": {"kicker": "New in Groundwork 2.0", "head": "Reports, built the way you ask for them.", "sub": "A tour of the report builder, on a made-up sample household."},
+     "say": "In Groundwork 2.0, you can build your own reports. Everything here belongs to a made-up sample household."},
+    {"view": "reports", "focus": "__both('Build a report', 'Start from one of the reports below')", "maxZoom": 1.5,
+     "say": "It starts at the top of Reports, with Build a report."},
+    {"do": "_rcOpenReport('builder'); await new Promise(r => setTimeout(r, 1800)); await _rbAskSend('monthly totals of debt payments from June to September');",
+     "wait": 2600, "focus": "document.querySelector('input[aria-label=\"Ask for a report\"]').closest('.card')", "block": "start",
+     "say": "Say what you want to see, in your own words. Groundwork puts the sections together, even with the AI turned off."},
+    {"focus": "document.getElementById('rbList')", "maxZoom": 1.4,
+     "say": "Each section is monthly totals, a trend, a list, a snapshot, a comparison or a what-if, over any period you name."},
+    {"focus": "document.querySelector('#rbOut').firstElementChild", "maxZoom": 1.35,
+     "say": "Every figure is worked out by Groundwork, from your own records. The AI never does the math."},
+    {"do": "const s = document.getElementById('rbStyle'); s.value = [...s.options].find(o => /grid/i.test(o.text)).value; s.dispatchEvent(new Event('change'));",
+     "wait": 2200, "focus": "document.querySelector('#rbOut').firstElementChild", "maxZoom": 1.35,
+     "say": "Pick one of six styles: text and grid, text and charts, charts first, text only, compact, or print-ready."},
+    {"do": "await _rbAskSend('spending by category in October compared with September');",
+     "wait": 2800, "focus": "document.querySelector('#rbOut').firstElementChild", "maxZoom": 1.3,
+     "say": "A comparison lines up the two periods you name, line by line, with the change for each."},
+    {"do": "await _rbAskSend('net worth trend for 2019');",
+     "wait": 2600, "focus": "document.querySelector('#rbOut').firstElementChild", "maxZoom": 1.5,
+     "say": "And when your records can't answer, the section says so plainly, instead of showing a number it can't stand behind."},
+    {"focus": "__both('+ Add a section', 'Print')", "maxZoom": 1.6, "block": "center",
+     "say": "Save a report, and next month it's ready again. Print it, or save it as a PDF."},
+    {"card": {"kicker": "Groundwork 2.0", "head": "Every figure from your own records.", "sub": "With the AI on or off · free for Windows, macOS and Linux"},
+     "say": "Every figure, from your own records. With the AI on or off. Groundwork 2.0 is free."}
+  ]
+}

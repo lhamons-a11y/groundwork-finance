@@ -1,0 +1,30 @@
+{
+  "poster": 1,
+  "scenes": [
+    {"card": {"kicker": "New in Groundwork 2.0", "head": "Health care costs, recorded, never judged.", "sub": "A tour of the Health page, on a made-up sample household."},
+     "say": "Groundwork 2.0 adds a Health page. Everything you'll see here belongs to a made-up sample household."},
+    {"view": "health", "do": "__tab('Bills')", "focus": "__both('OWED ON BILLS', 'HSA AND FSA')", "maxZoom": 1.2,
+     "say": "Medical bills, your plan year, a health reserve and your HSA now sit together, on one page."},
+    {"focus": "__span('Northside Urgent Care', 'Amount owed now')",
+     "say": "A bill is kept exactly as the provider sent it. It becomes something you owe only when you say it's yours."},
+    {"focus": "__find('may be this bill')",
+     "say": "When a card charge might be the same bill, Groundwork counts both until you say so. It never guesses."},
+    {"focus": "__span('Your leanest month', 'months: your record sustains this.')",
+     "say": "It shows which monthly amounts your own record can sustain. It never tells you what to offer, and it never contacts anyone."},
+    {"do": "const s = [...document.querySelectorAll('summary')].find(e => e.textContent.includes('went to collections')); if (s) s.click();",
+     "focus": "__find('This bill went to collections').closest('details') || __find('This bill went to collections')",
+     "say": "If a bill goes to collections, it stays here with its own running balance, never in your debt plan, and nothing is added that the collector didn't send."},
+    {"do": "__tab('Plan and reserve')", "focus": "__span('HEALTH PLAN', 'Groundwork doesn')",
+     "say": "Your deductible and out-of-pocket maximum are shown as your insurer reports them. Groundwork never works them out from your spending."},
+    {"focus": "__span('HEALTH RESERVE', 'to go.')",
+     "say": "A health reserve is money set aside in an account you already have, aimed at the most a covered year can cost."},
+    {"do": "__tab('Spending')", "focus": "__span('HEALTH SPENDING, AS RECORDED', 'this month so far')", "maxZoom": 1.15,
+     "say": "Health spending is a record, not a budget. There's no limit to beat, and Groundwork never suggests spending less on care."},
+    {"focus": "__span('WHOM IT WAS FOR', 'Year in review')",
+     "say": "Say whom care was for, payment by payment. The visit report and the year in review are ready to print when you need them."},
+    {"do": "__tab('People')", "focus": "__span('PEOPLE', 'Add person')",
+     "say": "Names are labels, not locks, and the page says so plainly. You can hide Health from the sidebar at any time."},
+    {"card": {"kicker": "Groundwork 2.0", "head": "Nothing about your health leaves your computer.", "sub": "Free for Windows, macOS and Linux · groundworkfinance.app"},
+     "say": "And nothing about your health ever leaves your computer. Groundwork 2.0 is free."}
+  ]
+}

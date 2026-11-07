@@ -191,6 +191,56 @@ SITE_CSS = """
 .faq details { background: #fff; border: 1px solid var(--steel, #e3e1d8); border-radius: 12px; padding: 16px 20px; margin-bottom: 10px; }
 .faq summary { cursor: pointer; font-weight: 600; font-size: 16px; }
 .faq details p { color: #4a5568; margin-top: 10px; font-size: 15.5px; }
+/* 2.0: walkthrough videos, the launch page, the update notice */
+.vid video { display: block; width: 100%; height: auto; background: #0f1b2d; aspect-ratio: 16 / 10; }
+.shot-bar .vid-len { margin-left: auto; font-family: 'DM Mono', monospace; font-size: 11.5px; color: #6b7280; line-height: 10px; }
+.vid-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px; margin-top: 44px; }
+.vid-grid h3 { font-family: 'Inter', sans-serif; font-size: 17px; letter-spacing: -.01em; margin: 14px 2px 4px; }
+.vid-grid p { font-size: 14.5px; color: var(--slate, #4a5568); margin: 0 2px; }
+.band-ink .vid-grid p { color: rgba(255,255,255,.7); }
+.jump { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 30px; }
+.jump a { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 999px; font-size: 14px;
+          font-weight: 600; color: #fff; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.2); }
+.jump a:hover { background: rgba(255,255,255,.16); text-decoration: none; }
+.jump a svg { width: 16px; height: 16px; }
+.update-note { display: flex; gap: 16px; align-items: flex-start; background: #fff; border: 1px solid var(--steel, #e3e1d8);
+               border-left: 4px solid var(--mint, #3ddc97); border-radius: 14px; padding: 18px 22px; box-shadow: var(--shadow); }
+.update-note .chip { flex: none; }
+.update-note h3 { font-family: 'Inter', sans-serif; font-size: 16.5px; letter-spacing: -.01em; margin-bottom: 4px; }
+.update-note p { font-size: 15px; color: var(--slate, #4a5568); }
+.launch { display: grid; grid-template-columns: 1fr 1.2fr; gap: 52px; align-items: center; }
+.launch.flip { grid-template-columns: 1.2fr 1fr; }
+.launch.flip > .launch-text { order: 2; }
+.launch h2 { font-size: clamp(28px, 3.6vw, 42px); line-height: 1.1; margin: 10px 0 14px; font-weight: 600; }
+.launch p { color: var(--slate, #4a5568); font-size: 17px; margin-bottom: 12px; }
+.launch .say { font-family: 'Fraunces', Georgia, serif; font-style: italic; font-size: 19px; color: var(--ink, #0f1b2d);
+               border-left: 3px solid var(--mint, #3ddc97); padding: 4px 0 4px 14px; margin: 14px 0 16px; }
+.band-ink .launch p { color: rgba(255,255,255,.78); }
+.feat-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 18px; margin-top: 44px; }
+.feat-group { background: #fff; border: 1px solid var(--steel, #e3e1d8); border-radius: 16px; padding: 22px 24px; }
+.feat-group h3 { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+                 color: var(--pine, #1f7a5c); margin-bottom: 12px; }
+.feat-group ul { list-style: none; display: grid; gap: 11px; }
+.feat-group li { position: relative; padding-left: 26px; font-size: 15px; color: var(--slate, #4a5568); line-height: 1.55; }
+.feat-group li b { color: var(--ink, #0f1b2d); font-weight: 600; }
+.feat-group li::before { content: ''; position: absolute; left: 0; top: 4px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--pine, #1f7a5c) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5L20 7'/%3E%3C/svg%3E") center/10px no-repeat; }
+.band-ink .feat-group { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.12); }
+.band-ink .feat-group h3 { color: var(--mint, #3ddc97); }
+.band-ink .feat-group li { color: rgba(255,255,255,.76); }
+.band-ink .feat-group li b { color: #fff; }
+.band-ink .vid figcaption, .band-ink .shot figcaption { color: #6b7280; }
+.stat-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 40px; }
+.stat-box { border-radius: 14px; padding: 18px 18px 16px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); }
+.stat-box b { display: block; font-family: 'Fraunces', Georgia, serif; font-size: 30px; font-weight: 600; color: #fff; line-height: 1.1; }
+.stat-box span { font-size: 13.5px; color: rgba(255,255,255,.7); }
+@media (max-width: 860px) {
+  .vid-grid { grid-template-columns: 1fr; }
+  .launch, .launch.flip { grid-template-columns: 1fr; gap: 26px; }
+  .launch.flip > .launch-text { order: 0; }
+  .stat-row { grid-template-columns: 1fr 1fr; }
+  .update-note { flex-direction: column; }
+}
 @media (max-width: 860px) {
   .story, .story.flip { grid-template-columns: 1fr; gap: 26px; padding: 40px 0; }
   .story.flip .story-text { order: 0; }
@@ -545,17 +595,66 @@ def _icons(html):
     return html
 
 
-SITE_VERSION = '1.1.1'   # the version offered for download; s205 holds it to the changelog's newest entry
+SITE_VERSION = '2.0'     # the version offered for download; s206 holds it to the changelog's newest entry
+# Rob 2026-11-07: "update it to show that we are releasing 2.0" - the site now reads as released. Publish it only once
+# the 2.0 installers are the files /dl/ serves.
 # Rob 2026-10-31: "remake the website to show this ... highlight all these features ... make that the central focus".
 # Until 2.0 is the version offered for download, everything new in it says so ("New in 2.0 · coming soon"); on the
 # day SITE_VERSION becomes 2.x the same pages describe it as here, with no other edit. A page is never ahead of the
 # download.
 RELEASED_20 = int(SITE_VERSION.split('.')[0]) >= 2
+SITE_UPDATED = '2026-11-07'   # the last time the site's pages changed (each sitemap entry's lastmod, the videos' date)
 NEW20 = 'New in 2.0' if RELEASED_20 else 'New in 2.0 · coming soon'
 # Item 82 R7: the last 1.1 stays downloadable under its own name, with its SHA-256. Shown only once the real file's
 # hash is filled in here (release day) - a checksum is never invented.
 V11_FILE = 'Groundwork_Setup_1.1.1.exe'
 V11_SHA256 = ''
+
+# ── Walkthrough videos (Rob 2026-11-07: "add videos so a user can look at this software and say I need to download
+# this software"). Each is the real app on its made-up sample household, narrated in Groundwork's own voice, with
+# captions; scripts/site_video makes all but the first again from the app. MP4 (H.264/AAC) plays in every current
+# browser; a WebM is offered too where one exists.
+VIDEOS = {
+    'ask':     {'title': 'Ask Groundwork about your money', 'secs': 59,
+                'desc': 'The assistant answering "Would $200 more on my Visa make a difference?" from the record, asking '
+                        '"Did you mean...?" instead of guessing, and saying when it doesn\'t know.'},
+    'health':  {'title': 'The Health page', 'secs': 92,
+                'desc': 'Medical bills as the provider sent them, the plan year as the insurer reports it, a health '
+                        'reserve, health spending and the people care was for.'},
+    'reports': {'title': 'Build your own report', 'secs': 69,
+                'desc': 'Asking for a report in plain words, stacking sections, six styles, comparisons, and a section '
+                        'that says when the record can\'t answer.'},
+    'privacy': {'title': 'Private by design', 'secs': 61,
+                'desc': 'The AI on your own computer, the AI log, protected backups, voice recognised on your computer, '
+                        'and health left out of exports unless you tick it.'},
+}
+_VIDEO_DIR = Path(__file__).resolve().parent / 'static' / 'video'
+
+
+def _video(name, caption=None, eager=False):
+    """A walkthrough video, framed like the screenshots: poster first, nothing loaded until it is played."""
+    v = VIDEOS[name]
+    webm = (f'<source src="/static/video/{name}.webm" type="video/webm">'
+            if (_VIDEO_DIR / f'{name}.webm').exists() else '')
+    mins, secs = divmod(v['secs'], 60)
+    return (f'<figure class="shot vid"><div class="shot-bar"><i style="background:#e4572e"></i>'
+            f'<i style="background:#f2c14e"></i><i style="background:#3ddc97"></i>'
+            f'<span class="vid-len">{mins}:{secs:02d}</span></div>'
+            f'<video controls playsinline preload="{"metadata" if eager else "none"}" poster="/static/video/{name}.jpg" '
+            f'width="1600" height="1000" aria-label="{h(v["title"])}: {h(v["desc"])} Sample household, made-up figures.">'
+            f'<source src="/static/video/{name}.mp4" type="video/mp4">{webm}'
+            f'<track kind="captions" src="/static/video/{name}.vtt" srclang="en" label="English"></video>'
+            f'<figcaption>{caption or h(v["title"])} · sample household, made-up figures</figcaption></figure>')
+
+
+def _video_ld(names):
+    """The videos, described for search engines (schema.org VideoObject)."""
+    return ''.join('<script type="application/ld+json">' + json.dumps({
+        '@context': 'https://schema.org', '@type': 'VideoObject', 'name': 'Groundwork 2.0: ' + VIDEOS[n]['title'],
+        'description': VIDEOS[n]['desc'] + ' Shown on a made-up sample household.',
+        'thumbnailUrl': f'{SITE_URL}/static/video/{n}.jpg', 'contentUrl': f'{SITE_URL}/static/video/{n}.mp4',
+        'uploadDate': SITE_UPDATED, 'duration': f'PT{VIDEOS[n]["secs"] // 60}M{VIDEOS[n]["secs"] % 60}S',
+        'inLanguage': 'en'}) + '</script>' for n in names)
 
 BASE_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
@@ -588,7 +687,8 @@ BASE_TEMPLATE = """<!DOCTYPE html>
 
 <div class="beta-bar">
   <strong>Groundwork """ + SITE_VERSION + """ is here</strong>: free for Windows, macOS and Linux.
-  &nbsp;·&nbsp; <a href="/coming">""" + ('See what\'s new in 2.0 →' if RELEASED_20 else 'Meet the assistant coming in 2.0 →') + """</a>
+  &nbsp;·&nbsp; <a href="/whats-new">""" + ('See what\'s new in 2.0 →' if RELEASED_20 else 'Meet the assistant coming in 2.0 →') + """</a>
+  """ + ('&nbsp;·&nbsp; Already using Groundwork? <a href="/whats-new#update">Updating keeps your records →</a>' if RELEASED_20 else '') + """
 </div>
 
 <nav class="site-nav">
@@ -596,7 +696,7 @@ BASE_TEMPLATE = """<!DOCTYPE html>
     <a href="/" class="nav-logo"><span class="nav-mark"><i style="height:7px"></i><i style="height:12px"></i><i style="height:17px"></i></span><span class="nav-word">Ground<em>work</em></span></a>
     <div class="nav-links">
       <a href="/features">Features</a>
-      <a href="/coming" class="nav-new">""" + ('What\'s new in 2.0' if RELEASED_20 else 'Coming in 2.0') + """</a>
+      <a href="/whats-new" class="nav-new">""" + ('What\'s new in 2.0' if RELEASED_20 else 'Coming in 2.0') + """</a>
       <a href="/health">Health</a>
       <a href="/knowledge-base">Help</a>
       <a href="/about">About</a>
@@ -618,7 +718,7 @@ BASE_TEMPLATE = """<!DOCTYPE html>
       <h4>Product</h4>
       <ul>
         <li><a href="/features">Features</a></li>
-        <li><a href="/coming">Coming in 2.0</a></li>
+        <li><a href="/whats-new">""" + ('What\'s new in 2.0' if RELEASED_20 else 'Coming in 2.0') + """</a></li>
         <li><a href="/health">Health</a></li>
         <li><a href="/download">Download</a></li>
         <li><a href="/changelog">Changelog</a></li>
@@ -750,7 +850,7 @@ def home():
                    'and has nothing to sell you. Ask it about your money and it answers from your own records, on your '
                    'own computer. No account, no subscription, no ads.',
        canonical=SITE_URL + '/',
-       structured_data=_HOME_STRUCTURED_DATA)
+       structured_data=_HOME_STRUCTURED_DATA + _video_ld(VIDEOS))
 
 SIGNUP_SCRIPT = """
 <script>
@@ -782,7 +882,7 @@ async function submitSignup() {
 SIGNUP_BAND = """
 <section class="signup-section">
   <div class="container">
-    <h2>Be first to hear about 2.0</h2>
+    <h2>""" + ('Hear when Groundwork updates' if RELEASED_20 else 'Be first to hear about 2.0') + """</h2>
     <p>One email when something worth knowing ships. No spam, and every email has a one-click unsubscribe.</p>
     <div class="signup-form">
       <input type="text" id="signup-name" placeholder="Your name" style="max-width:170px" aria-label="Your name">
@@ -808,7 +908,7 @@ HOME_CONTENT = _icons("""
         <a href="/download" class="btn btn-primary" style="font-size:16px;padding:15px 30px">
           Download free for <span class="os-download-label">Windows</span>
         </a>
-        <a href="#ask" class="btn btn-ghost-light">See the assistant →</a>
+        <a href="#tours" class="btn btn-ghost-light">Watch the tours →</a>
       </div>
       <div class="hero-note">No account. No subscription. No ads. Your data never leaves your computer.</div>
     </div>
@@ -821,6 +921,25 @@ HOME_CONTENT = _icons("""
       </figure>
     </div>
   </div>
+</section>
+
+<section class="band band-mist" id="tours">
+  <div class="container center reveal">
+    <span class="new-tag">""" + NEW20 + """</span>
+    <h2 class="section-title" style="margin-top:12px">See Groundwork 2.0 in four short tours</h2>
+    <p class="section-sub">The real app, on a made-up sample household, narrated and captioned. Press play on any of them.</p>
+  </div>
+  <div class="container vid-grid reveal">
+    <div>""" + _video('ask', 'The assistant') + """<h3>Ask. Groundwork does the math.</h3>
+      <p>Questions in plain words, answered from your own records. Every figure comes from Groundwork, never the AI.</p></div>
+    <div>""" + _video('health', 'The Health page') + """<h3>Health care costs, recorded, never judged.</h3>
+      <p>Bills, your plan year, a health reserve and what care has cost, on one page.</p></div>
+    <div>""" + _video('reports', 'Build your own report') + """<h3>Reports you ask for in your own words.</h3>
+      <p>Stack sections, name the period, pick a style. It works with the AI turned off.</p></div>
+    <div>""" + _video('privacy', 'Private by design') + """<h3>Your money stays on your computer.</h3>
+      <p>The AI, your voice and your backups, all kept on your machine, and the tests that hold it to that.</p></div>
+  </div>
+  <div class="container center" style="margin-top:40px"><a href="/whats-new" class="btn btn-primary">Everything new in 2.0 →</a></div>
 </section>
 
 <section class="band" id="ask">
@@ -1064,7 +1183,7 @@ HOME_CONTENT = _icons("""
       <div class="feature-card"><span class="chip chip-pine">[[pulse]]</span><h3>A Health page</h3><p>Medical bills, your plan, your deductible and a health reserve in one place. Nothing about your health leaves your computer. <a href="/health">How it works →</a></p></div>
       <div class="feature-card"><span class="chip chip-gold">[[cal]]</span><h3>A Sunday check-in</h3><p>A short look at the week behind you and the week ahead: a paycheck due, a bill coming up.</p></div>
     </div>
-    <div style="text-align:center;margin-top:44px"><a href="/coming" class="btn btn-primary">""" + ("See everything new in 2.0 →" if RELEASED_20 else "See everything coming in 2.0 →") + """</a></div>
+    <div style="text-align:center;margin-top:44px"><a href="/whats-new" class="btn btn-primary">""" + ("See everything new in 2.0 →" if RELEASED_20 else "See everything coming in 2.0 →") + """</a></div>
   </div>
 </section>
 
@@ -1132,7 +1251,7 @@ def _v11_note():
         return ''
     kept = (f'The last 1.1 stays downloadable as <a href="/static/download/{V11_FILE}">{V11_FILE}</a> '
             f'(SHA-256 <code>{V11_SHA256}</code>), with no further fixes.') if V11_SHA256 else ''
-    return ('<div class="container" style="padding-top:40px"><div class="callout" style="max-width:860px;margin:0 auto">'
+    return ('<div class="container" id="update" style="padding-top:40px"><div class="callout" style="max-width:860px;margin:0 auto">'
             '<strong>Groundwork 1.1 gets no more updates.</strong> 2.0 upgrades a 1.1 install in place and keeps a dated '
             'copy of your data first. On Windows the installer removes the earlier version for you, then installs 2.0; '
             'on macOS, drag Groundwork into Applications and choose <strong>Replace</strong>; on Linux, the install '
@@ -1146,7 +1265,7 @@ def download():
 <section class="page-head">
   <div class="beta-badge"><b></b> Version """ + SITE_VERSION + """ · Now available</div>
   <h1>Download Groundwork</h1>
-  <p>Free. No account. No subscription. Your data stays on your computer.</p>
+  <p>Free. No account. No subscription. Your data stays on your computer.""" + (' <a href="/whats-new" style="color:var(--mint)">What\'s new in 2.0 →</a>' if RELEASED_20 else '') + """</p>
 </section>
 
 """ + _v11_note() + """
@@ -1268,7 +1387,7 @@ def knowledge_base():
 
   <div class="kb-content">
     <h1>Help & Documentation</h1>
-    <p class="kb-sub">This guide describes Groundwork """ + SITE_VERSION + """, the version offered for download. For what's on the way, see <a href="/coming">Coming in 2.0</a>.</p>
+    <p class="kb-sub">This guide describes Groundwork """ + SITE_VERSION + """, the version offered for download. """ + ('For a tour of everything new, see <a href="/whats-new">What\'s new in 2.0</a>.' if RELEASED_20 else 'For what\'s on the way, see <a href="/whats-new">Coming in 2.0</a>.') + """</p>
 
     <div class="kb-article" id="install">
       <h2>Installing Groundwork on Windows</h2>
@@ -1819,6 +1938,18 @@ def features():
 <div class="band" style="padding-top:56px">
   <div class="container">
     <div class="features-grid" style="margin-top:0">
+      <div class="feature-card"><span class="chip chip-gold">[[ask]]</span><h3>An assistant <span class="tag">2.0</span></h3>
+        <p>Ask about your money in plain words, typed or spoken. It answers from your own records, and every figure is Groundwork's, not the AI's. <a href="/whats-new#assistant">Watch it →</a></p></div>
+      <div class="feature-card"><span class="chip chip-ember">[[pulse]]</span><h3>A Health page <span class="tag">2.0</span></h3>
+        <p>Medical bills, your plan year, a health reserve, HSA and FSA, and what care has cost. Recorded, never judged. <a href="/health">How it works →</a></p></div>
+      <div class="feature-card"><span class="chip chip-pine">[[chart]]</span><h3>Build your own report <span class="tag">2.0</span></h3>
+        <p>Say what you want to see, or stack sections yourself, for any period, in one of six styles. Save it for next month. <a href="/whats-new#reports">Watch it →</a></p></div>
+      <div class="feature-card"><span class="chip chip-ink">[[lock]]</span><h3>Protected backups <span class="tag">2.0</span></h3>
+        <p>A password and a 24-word recovery key. A protected backup can't be opened by anyone who finds the file. <a href="/whats-new#privacy">More on privacy →</a></p></div>
+      <div class="feature-card"><span class="chip chip-gold">[[wallet]]</span><h3>Set aside, and available <span class="tag">2.0</span></h3>
+        <p>Savings goals live inside the accounts you already have: each shows its balance, what's set aside and what's available.</p></div>
+      <div class="feature-card"><span class="chip chip-pine">[[eye]]</span><h3>Ask why <span class="tag">2.0</span></h3>
+        <p>A number looks wrong? Groundwork checks your records, says what it found, and shows any fix before it happens.</p></div>
       <div class="feature-card"><span class="chip chip-pine">[[wallet]]</span><h3>Budget</h3>
         <p>Monthly income and expense lines, each shown against what you've actually spent this month from your imported transactions.</p></div>
       <div class="feature-card"><span class="chip chip-pine">[[list]]</span><h3>Ledger</h3>
@@ -1848,7 +1979,7 @@ def features():
     </div>
     <div class="center" style="margin-top:56px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap">
       <a href="/download" class="btn btn-primary">Download free for <span class="os-download-label">Windows</span> →</a>
-      <a href="/coming" class="btn btn-ghost">See what's coming in 2.0 →</a>
+      <a href="/whats-new" class="btn btn-ghost">""" + ("See what's new in 2.0 →" if RELEASED_20 else "See what's coming in 2.0 →") + """</a>
     </div>
   </div>
 </div>
@@ -1861,42 +1992,154 @@ def features():
     )
 
 
-# ── Coming in 2.0 (WEBSITE_MESSAGE.md W3, §6.1) ────────────────────────────────
-# Every card describes something built and accepted in 2.0 (W5); the one thing only designed says so.
-@app.route('/coming')
-def coming():
-    content = _icons("""
-<section class="hero next-hero">
-  <div class="hero-center">
-    <div class="beta-badge"><b></b> """ + ('Available now' if RELEASED_20 else 'Being built and tested now') + """</div>
-    <h1>""" + ('What\'s new in' if RELEASED_20 else 'Coming in') + """ <em>Groundwork 2.0</em></h1>
-    <p class="lead">The biggest update we've ever built. Groundwork 2.0 does more of the work for you, explains more of
-      what it finds, and still keeps every number on your own computer, all toward one horizon: <span class="fi">financial independence, for everyone</span>. Here's what's on the way.</p>
-    <div class="hero-btns"><a href="#signup" class="btn btn-gold">Tell me when it ships</a>
-      <a href="/download" class="btn btn-ghost-light">Get """ + SITE_VERSION + """ today</a></div>
-  </div>
-</section>
+# ── What's new in 2.0 (Rob 2026-11-07: "show all of the features that we added to healthcare ... the report section
+# also focusing on what's new ... the new AI tools and the privacy push ... add videos ... add the update notice").
+# Every line traces to a built and accepted item (BUILD_QUEUE.md) or to the app's own words on its screens; s206 holds
+# the page to being true. The lists are shared: the Health list is also the Health page's.
+AI_TOOLS = [
+    ('Ask', [
+        '<b>Ask in plain words, typed or spoken.</b> "Are we on budget this month?" "Would $200 more on my Visa make a '
+        'difference?" Groundwork answers from your own records.',
+        '<b>Every figure is Groundwork\'s.</b> The AI only chooses which of Groundwork\'s sentences to show. It never does '
+        'the arithmetic, so it can\'t make a number up.',
+        '<b>"Did you mean the Cashback Visa?"</b> It asks about the closest match instead of guessing, and keeps your answer. '
+        'You can see and remove every name it keeps.',
+        '<b>It says when it doesn\'t know.</b> When your records hold too little to answer, it says so, and what would let '
+        'it know.',
+    ]),
+    ('Do', [
+        '<b>Changes only on your Yes.</b> File transactions, make an import rule, add a budget line or mark a bill as '
+        'recurring. It shows exactly what would change, and Undo puts it back.',
+        '<b>Ask why.</b> A number looks wrong? Groundwork checks your records, says what it found, and shows any fix before '
+        'it happens.',
+        '<b>Explain this page.</b> What each page works out, and what its numbers mean, in plain words.',
+        '<b>Ask for a report.</b> "Monthly totals of debt payments, June to September", and the report is built. This works '
+        'with the AI turned off.',
+    ]),
+    ('Talk', [
+        '<b>Talk with Groundwork.</b> Tap the microphone and talk. It stays on until you\'re done, and answers aloud in '
+        'Groundwork\'s own voice.',
+        '<b>It follows how people talk.</b> Loose phrasing, a correction halfway through, a pause to think, and figures '
+        'said back to you.',
+        '<b>Only voices it knows.</b> Teach it your voice in five sentences, and it answers only the voices it has learned, '
+        'not the television. A voiceprint is 256 numbers, not a recording.',
+        '<b>Read aloud.</b> Point at any part of a page and hear it in Groundwork\'s own words, made on your computer.',
+    ]),
+    ('Look after you', [
+        '<b>A monthly review and a Sunday check-in.</b> When a month is complete, what came in and went out. Every Sunday, '
+        'the week behind you and the week ahead.',
+        '<b>When money feels like too much.</b> Words of stress or despair about money bring calm, fixed words and where to '
+        'find help, never AI-written advice.',
+        '<b>It can\'t be talked into anything.</b> "Ignore your rules" is refused before the AI sees it: typed, spoken, or '
+        'hidden in a bank memo.',
+        '<b>Everything works with the AI off.</b> Every page and every report keeps its figures. The AI only adds the '
+        'explanation.',
+    ]),
+]
 
-<section class="band" style="padding-top:64px">
-  <div class="container">
-    <div class="next-grid" style="margin-top:0">
-      <div class="next-card reveal"><span class="chip chip-gold">[[ask]]</span><h3>An assistant that answers from your records</h3>
-        <p>Ask about your money in plain words - "are we on budget this month?", "would $200 more on my Visa make a
-        difference?" - and Groundwork answers from your own records, with every figure written by Groundwork, not the AI.
-        When your records hold too little, it says it doesn't know yet, and what would let it know.</p></div>
-      <div class="next-card reveal"><span class="chip chip-ember">[[shield]]</span><h3>Nothing changes without your Yes</h3>
-        <p>Ask it to file transactions, make an import rule, add a budget line or mark a bill as recurring. It shows exactly
-        what would change; nothing happens until you press Yes, and Undo puts it back. It can never move money.</p></div>
-      <div class="next-card reveal"><span class="chip chip-pine">[[pulse]]</span><h3>Talk with Groundwork</h3>
-        <p>Tap the microphone in the Ask box and talk. It stays on until you're done, answers out loud in Groundwork's own
-        words, and recognises your voice on your computer - nothing is sent or kept.</p></div>
-      <div class="next-card reveal"><span class="chip chip-gold">[[wallet]]</span><h3>Set aside, and available</h3>
-        <p>Savings goals live inside the accounts you already have. Every account shows its balance, what's set aside and
-        what's available, and a purchase can be paid from the goal you saved for it.</p></div>
-      <div class="next-card reveal"><span class="chip chip-pine">[[chart]]</span><h3>Build your own report</h3>
-        <p>Stack sections - monthly totals, a trend, a list, a snapshot, a comparison or a what-if - for any period in
-        your own words, in one of six styles from text and grid to print / PDF. Save it and it's ready next month.
-        <a href="/#reports">See it</a></p></div>
+HEALTH_FEATURES = [
+    ('Medical bills', [
+        '<b>Kept as the provider sent them:</b> the amount, the dates and the account number.',
+        '<b>Yours only when you say so.</b> A bill becomes something you owe when you press <em>This bill is mine to pay</em>.',
+        '<b>"Amount owed now" shows its working:</b> the payments you link, what insurance changed, and any payment '
+        'arrangement the provider agreed.',
+        '<b>Asks instead of guessing.</b> When a card charge may be the same bill, Groundwork counts both until you say.',
+        '<b>What your record can sustain:</b> monthly amounts your own record supports. It never says what to offer, and '
+        'never contacts anyone.',
+        '<b>Collections kept apart.</b> On the Health page, never in Debt Payoff, with the collector\'s running balance, no '
+        'interest or fees made up, and a note on getting legal advice.',
+    ]),
+    ('Plan and reserve', [
+        '<b>Your plan year:</b> the deductible and out-of-pocket maximum, met so far, as your insurer reports them, with '
+        'dates. Never worked out from your spending.',
+        '<b>An old reading says it\'s old.</b> When bills were paid after your last reading, Groundwork says so instead of '
+        'guessing.',
+        '<b>Changes and corrections kept.</b> A new plan or a corrected figure never rewrites the months before it.',
+        '<b>A health reserve</b> in an account you already have, aimed at your out-of-pocket maximum: the most a covered '
+        'year can cost.',
+        '<b>Your choice of timing:</b> build it before, alongside or after your last debt, each shown with its debt-free '
+        'date. None is labelled best, and your payoff plan follows the one you choose.',
+        '<b>HSA and FSA:</b> balances, the yearly IRS limits, and an FSA\'s deadline.',
+    ]),
+    ('Spending, people and records', [
+        '<b>What care has cost,</b> month by month and for the year so far. A record, not a budget: no limit to beat and no '
+        '"over".',
+        '<b>Whom it was for,</b> payment by payment, as you said it, never guessed. Names are labels, not locks, and the '
+        'page says so.',
+        '<b>A visit report</b> for each provider, ready to print.',
+        '<b>The year in review for tax time:</b> medical costs laid out for Schedule A, with HSA detail for Form 8889, and '
+        'what Groundwork can\'t see said plainly. Never tax advice.',
+    ]),
+    ('Care is never a lever', [
+        '<b>Never a cut.</b> Groundwork never suggests spending less on care: not on the Budget page, the dashboard, the '
+        'debt plan or in the assistant.',
+        '<b>Never priced in months.</b> Necessary care is never measured against your debt-free date.',
+        '<b>Care is recognised:</b> Medicine, Rx, Insulin, Urgent Care, Glasses, Hearing Aids, Orthodontist and more.',
+        '<b>Private:</b> health records are kept out of the AI log, and out of exports unless you tick the box. You can '
+        'hide Health from the sidebar; your records stay.',
+    ]),
+]
+
+REPORTS_NEW = [
+    ('Build it', [
+        '<b>Build a report</b> from sections: monthly totals, a trend, a list, a snapshot, a comparison or a what-if.',
+        '<b>About what you choose:</b> spending, one category, payees, income, debt payments, debt balances, net worth, '
+        'recurring charges, bills due or room in your budget.',
+        '<b>Start from one of Groundwork\'s reports,</b> or from nothing, and save it. Next month it\'s ready again.',
+    ]),
+    ('Ask for it', [
+        '<b>In your own words:</b> "monthly totals of debt payments from June to September". If Groundwork isn\'t sure what '
+        'you meant, it asks one question, with buttons.',
+        '<b>Periods the way you say them:</b> "last month", "this year", "June to September".',
+        '<b>With the AI on or off.</b> Groundwork reads the request itself first; no figure ever comes from the AI.',
+    ]),
+    ('See it your way', [
+        '<b>Six styles:</b> text and grid, text and charts, charts first, text only, print / PDF, or compact. One section '
+        'can differ from the rest.',
+        '<b>Comparisons</b> line up the two periods you name, with the change for each line.',
+        '<b>What-ifs:</b> what "$200 more a month" on a debt would change.',
+        '<b>Every page prints</b> as a report, and every report prints or saves as a PDF.',
+    ]),
+    ('Straight with you', [
+        '<b>Says when it can\'t answer.</b> When your records can\'t answer yet, the section says so, and what would let it.',
+        '<b>Never a gap counted as $0.</b> A month with no statement is left out and named, not counted as nothing owed.',
+        '<b>Every summary without AI:</b> each report shows its full summary, charts and figures. With AI on, an explanation '
+        'is added; it never restates the figures.',
+        '<b>Health and tax time:</b> the visit report, the year in review, and a year-end packet for you or your tax '
+        'preparer.',
+    ]),
+]
+
+PRIVACY_NEW = [
+    ('Nothing leaves on its own', [
+        '<b>One door out.</b> Every request the app makes goes through one place in its code, which refuses any other '
+        'address. Groundwork\'s own tests fail if a request is made anywhere else.',
+        '<b>No cloud AI, ever.</b> The AI ships inside Groundwork and runs on your computer, or not at all.',
+        '<b>No account, no telemetry, no ads.</b> We never see your data. This website counts pages, not people.',
+    ]),
+    ('The AI is on a short leash', [
+        '<b>It has no hands.</b> It can\'t move money, pay a bill, delete anything or change a setting.',
+        '<b>Outside text is data.</b> A bank memo or a web page can\'t give the assistant orders.',
+        '<b>The AI log</b> keeps every request to the AI, as sent and as it came back, on your computer. Your questions to '
+        'the assistant are answered and forgotten.',
+    ]),
+    ('Locked on your machine', [
+        '<b>Protected backups.</b> A password and a 24-word recovery key. A protected backup can\'t be opened by anyone who '
+        'finds the file.',
+        '<b>Passwords in your computer\'s own vault,</b> not in Groundwork: bank and bill sign-ins stay in Windows Credential '
+        'Manager or the macOS Keychain.',
+        '<b>Your bank, only when you ask.</b> Groundwork opens your bank\'s site when you press the button, never on a '
+        'schedule, and never presses a payment button.',
+    ]),
+    ('Your voice and your health', [
+        '<b>Voice stays here.</b> What you say is recognised on your computer, never sent anywhere or kept. The browser\'s '
+        'own speech recognition is switched off.',
+        '<b>Health stays out:</b> kept out of the AI log, and out of exports unless you tick the box.',
+        '<b>Nothing about your health leaves your computer.</b>',
+    ]),
+]
+
+MORE_20 = """
       <div class="next-card reveal"><span class="chip chip-pine">[[bank]]</span><h3>Your statements, with one press</h3>
         <p>No more logging in to download files. Tell Groundwork which bank you use, and when you ask, it opens your bank's
         website in a window inside Groundwork and brings your statements back for you to review. It only goes when you ask,
@@ -1905,10 +2148,9 @@ def coming():
         <p>Groundwork can read what a bill says on the company's own website, like the amount and the due date, and put it
         right next to that line in your budget. You confirm it before it's used. And Groundwork never presses a Pay button:
         paying is always yours.</p></div>
-      <div class="next-card reveal"><span class="chip chip-gold">[[ask]]</span><h3>Ask why</h3>
-        <p>A number looks wrong? Ask. Groundwork checks your own records and tells you what it found: a payment filed in the
-        wrong place, a deposit that isn't counted as income, a month with nothing imported. If there's a fix, you see exactly
-        what would change before anything does, and every fix can be undone.</p></div>
+      <div class="next-card reveal"><span class="chip chip-gold">[[wallet]]</span><h3>Set aside, and available</h3>
+        <p>Savings goals live inside the accounts you already have. Every account shows its balance, what's set aside and
+        what's available, and a purchase can be paid from the goal you saved for it.</p></div>
       <div class="next-card reveal"><span class="chip chip-pine">[[pay]]</span><h3>Your pay, employer by employer</h3>
         <p>Groundwork reads each paycheck on its own. If one stops showing up or drops, it tells you plainly and shows a few
         ways the month could go from there. If your pay changes with overtime or holiday pay, it asks once, so a slow week is
@@ -1917,10 +2159,6 @@ def coming():
         <p>See your next twelve months side by side: as things are, and what happens if your most expensive months come back,
         a month goes by without income, or you pay only the minimums. Every future says what it assumes. If one doesn't fit
         your life, tell it what's missing and they all recalculate.</p></div>
-      <div class="next-card reveal"><span class="chip chip-gold">[[cal]]</span><h3>A monthly review and a Sunday check-in</h3>
-        <p>When a month's records are complete, Groundwork writes up what happened: what came in, what went out, and how it
-        compares. Every Sunday, a short check-in looks back at your week and ahead to the next one: a paycheck due, a bill
-        coming up.</p></div>
       <div class="next-card reveal"><span class="chip chip-ink">[[cart]]</span><h3>Before You Buy, with the whole cost</h3>
         <p>Thinking about a big purchase? See what it really costs each month, interest included, and whether financing it
         costs more than paying down what you already owe. We're not here to talk you out of anything. We show you the
@@ -1937,32 +2175,168 @@ def coming():
       <div class="next-card reveal"><span class="chip chip-pine">[[micro]]</span><h3>Research, shown honestly</h3>
         <p>Where a well-known study backs up an idea, like saving automatically, Groundwork shows you what the study found
         and what it doesn't show.</p></div>
-      <div class="next-card reveal"><span class="chip chip-ink">[[cpu]]</span><h3>AI that lives on your computer</h3>
-        <p>The AI ships inside Groundwork and runs on your own machine. Nothing you ask it is sent anywhere. Every page still
-        works with the AI turned off, and a log shows you what was read - never your questions.</p></div>
       <div class="next-card reveal"><span class="chip chip-gold">[[math]]</span><h3>Every number shows its working</h3>
         <p>Groundwork shows where its figures come from: the inputs, the math, and any assumption behind them. If it can't
         show how it got a number, it doesn't show you the number.</p></div>
       <div class="next-card reveal"><span class="chip chip-pine">[[eye]]</span><h3>Easier on the eyes</h3>
-        <p>We checked every piece of text against every background, so nothing in Groundwork is too faint to read.</p></div>
-      <div class="next-card reveal"><span class="chip chip-ember">[[pulse]]</span><h3>A Health page</h3>
-        <p>Medical bills as the provider sent them, your plan and deductible through the year, people you care for, and a
-        health reserve - in one place. Health care is a cost, never a lever to cut, and nothing about your health leaves
-        your computer. <a href="/health">How it works →</a></p></div>
+        <p>One type scale, a Text size setting, and every piece of text checked against every background, so nothing in
+        Groundwork is too faint to read.</p></div>
+"""
+
+
+def _feat_groups(groups):
+    return ('<div class="feat-groups">' + ''.join(
+        f'<div class="feat-group reveal"><h3>{title}</h3><ul>' + ''.join(f'<li>{item}</li>' for item in items) + '</ul></div>'
+        for title, items in groups) + '</div>')
+
+
+def _whats_new_content():
+    os_btn = '<a href="/download" class="btn btn-primary" style="font-size:16px;padding:15px 30px">Download free for <span class="os-download-label">Windows</span></a>'
+    return _icons("""
+<section class="hero next-hero">
+  <div class="hero-center">
+    <div class="beta-badge"><b></b> """ + ('Available now · Free for Windows, macOS and Linux' if RELEASED_20 else 'Being built and tested now') + """</div>
+    <h1>""" + ('Groundwork 2.0 is <em>here.</em>' if RELEASED_20 else 'Coming in <em>Groundwork 2.0</em>') + """</h1>
+    <p class="lead">The biggest update we've ever built: an assistant that answers from your own records, a Health page,
+      reports you can ask for in your own words, and privacy its own tests hold it to. All of it on your own computer, toward
+      one horizon: <span class="fi">financial independence, for everyone</span>.</p>
+    <div class="hero-btns">""" + (os_btn if RELEASED_20 else '<a href="#signup" class="btn btn-gold">Tell me when it ships</a>') + """
+      <a href="#assistant" class="btn btn-ghost-light">Watch the tours ↓</a></div>
+    <div class="jump">
+      <a href="#assistant">[[ask]] The new AI tools</a><a href="#health">[[pulse]] Health</a>
+      <a href="#reports">[[chart]] Reports</a><a href="#privacy">[[lock]] Privacy</a><a href="#update">[[import]] Updating</a>
     </div>
-    <p class="center" style="margin-top:52px;font-family:'Fraunces',Georgia,serif;font-style:italic;font-size:clamp(16px,4.8vw,30px);color:var(--ink)"><span class="fi">Financial independence for everyone,</span> <span class="fi">one understood decision at a time.</span></p>
-    """ + ('' if RELEASED_20 else '<p class="center" style="margin-top:14px;color:var(--slate)"><em>Groundwork 2.0 isn\'t in the download yet. When it is, you\'ll see it here first.</em></p>') + """
+  </div>
+</section>
+
+<section class="band" style="padding:36px 24px 0">
+  <div class="container" style="max-width:900px">
+    <div class="update-note" id="update-note"><span class="chip chip-pine">[[import]]</span><div>
+      <h3>""" + ('Already using Groundwork? 2.0 is a free update.' if RELEASED_20 else 'Already using Groundwork? 2.0 will be a free update.') + """</h3>
+      <p>Groundwork tells you itself: an update notice appears inside the app. 2.0 updates a 1.1 install in place, and keeps
+        a dated copy of your data first. Your records come with you. <a href="#update">How updating works →</a></p></div></div>
+  </div>
+</section>
+
+<section class="band" id="assistant">
+  <div class="container launch reveal">
+    <div class="launch-text">
+      <span class="new-tag">""" + NEW20 + """ · The new AI tools</span>
+      <h2>Ask. Groundwork does the math.</h2>
+      <p>An assistant that knows your budget, your debts and your spending, because it reads your own records, on your own
+        computer. It doesn't guess, it doesn't sell, and it can't make a number up.</p>
+      <p class="say">Every figure in an answer is written by Groundwork from your records. The AI only chooses what to show.</p>
+    </div>
+    """ + _video('ask', 'The assistant answering', eager=True) + """
+  </div>
+  <div class="container">""" + _feat_groups(AI_TOOLS) + """</div>
+</section>
+
+<section class="band band-mist" id="health">
+  <div class="container launch flip reveal">
+    <div class="launch-text">
+      <span class="new-tag">""" + NEW20 + """ · Health</span>
+      <h2>Health care costs, recorded, never judged.</h2>
+      <p>A whole page for what care costs: medical bills as the provider sent them, your plan year as your insurer reports
+        it, a reserve for a bad year, and who care was for. Health care is a cost, never a lever to cut.</p>
+      <p><a href="/health">How the Health page works →</a></p>
+    </div>
+    """ + _video('health', 'The Health page') + """
+  </div>
+  <div class="container">""" + _feat_groups(HEALTH_FEATURES) + """</div>
+</section>
+
+<section class="band" id="reports">
+  <div class="container launch reveal">
+    <div class="launch-text">
+      <span class="new-tag">""" + NEW20 + """ · Reports</span>
+      <h2>Reports, built the way you ask for them.</h2>
+      <p>Say what you want to see, or stack the sections yourself, for any period in your own words. Pick how it looks, save
+        it, and it's ready again next month.</p>
+      <p class="say">Every figure is worked out by Groundwork from your own records, with the AI on or off.</p>
+    </div>
+    """ + _video('reports', 'Build your own report') + """
+  </div>
+  <div class="container">""" + _feat_groups(REPORTS_NEW) + """</div>
+</section>
+
+<section class="band band-ink" id="privacy">
+  <div class="container launch flip reveal">
+    <div class="launch-text">
+      <div class="section-label">The privacy push</div>
+      <h2 style="color:#fff">Your money stays on your computer. Here's how we hold to that.</h2>
+      <p>Groundwork 2.0 does more for you, so it guards more for you: the AI, your voice, your passwords, your backups and
+        your health records all stay on your machine, and the app's own tests fail if anything tries another way out.</p>
+      <p><a href="/privacy" style="color:var(--mint)">Exactly what leaves your computer, and why →</a></p>
+    </div>
+    """ + _video('privacy', 'Private by design') + """
+  </div>
+  <div class="container">
+    <div class="stat-row reveal">
+      <div class="stat-box"><b>$0</b><span>always: no subscription, no upgrade</span></div>
+      <div class="stat-box"><b>None</b><span>accounts to make, or logins</span></div>
+      <div class="stat-box"><b>None</b><span>cloud AI options</span></div>
+      <div class="stat-box"><b>None</b><span>telemetry, ads or partner offers</span></div>
+    </div>
+    """ + _feat_groups(PRIVACY_NEW) + """
+  </div>
+</section>
+
+<section class="band" style="padding-top:80px">
+  <div class="container center reveal">
+    <div class="section-label">And there's more</div>
+    <h2 class="section-title">Everything else new in 2.0</h2>
+    <p class="section-sub">Groundwork 2.0 does more of the work for you, explains more of what it finds, and still keeps
+      every number on your own computer.</p>
+  </div>
+  <div class="container"><div class="next-grid">""" + MORE_20 + """</div></div>
+</section>
+
+<section class="band band-mist" id="update">
+  <div class="narrow prose reveal" style="padding:0 24px">
+    <div class="section-label">Updating</div>
+    <h2>Updating from Groundwork 1.1</h2>
+    <p>Groundwork tells you itself: when 2.0 is ready for you, an update notice appears inside the app, with a link to the
+      download. 2.0 upgrades a 1.1 install in place and keeps a dated copy of your data first.</p>
+    <ul>
+      <li><strong>Windows:</strong> run the 2.0 installer. It removes the earlier version for you, then installs 2.0.</li>
+      <li><strong>macOS:</strong> drag Groundwork into Applications and choose <strong>Replace</strong>.</li>
+      <li><strong>Linux:</strong> the install script replaces the earlier version.</li>
+    </ul>
+    <p>Your records are never touched. The update goes one way: 1.1 isn't made to use 2.0's records, and 1.1 gets no more
+      updates. <a href="/changelog">Read the full changelog →</a></p>
+    <p style="margin-top:20px">""" + os_btn + """</p>
+  </div>
+</section>
+
+<section class="statement">
+  <div class="container center reveal">
+    <p class="statement-line"><span class="nobr">Financial independence for everyone,</span><br> <span class="nobr">one understood decision at a time.</span></p>
+    <p class="statement-sub">That's why Groundwork explains every number it shows you, and has nothing to sell you.</p>
+    <a href="/download" class="btn btn-gold" style="margin-top:26px">Get Groundwork 2.0, free</a>
   </div>
 </section>
 <div id="signup"></div>
 """) + SIGNUP_BAND
+
+
+@app.route('/coming')
+def coming():
+    """The 2.0 page's first address, kept so old links and search results still land on it."""
+    return redirect('/whats-new', code=301)
+
+
+@app.route('/whats-new')
+def whats_new():
     return render_template_string(
-        BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
+        BASE_TEMPLATE.replace('{% block content %}{% endblock %}', _whats_new_content()),
         title=('What\'s new in Groundwork 2.0' if RELEASED_20 else 'Coming in Groundwork 2.0'),
-        description='Groundwork 2.0: an AI assistant that answers from your own records on your own computer, changes only on '
-                    'your Yes, voice conversation, savings set aside inside your accounts, statements with one press, a Health page and more.',
-        canonical=SITE_URL + '/coming'
-    )
+        description='Groundwork 2.0: an AI assistant that answers from your own records on your own computer, a Health page '
+                    'for medical bills and your plan year, reports you ask for in your own words, and privacy its own tests '
+                    'hold it to. Free for Windows, macOS and Linux.',
+        canonical=SITE_URL + '/whats-new',
+        structured_data=_video_ld(VIDEOS))
+
 
 # ── Health page (Rob 2026-10-31: "We also need to have that as it own page to show how that works. Its a major feature.")
 @app.route('/health')
@@ -1974,12 +2348,25 @@ def health():
     <h1>Health care costs, <em>recorded, never judged.</em></h1>
     <p class="lead">Medical bills, your health plan, a reserve for a bad year and what care has cost - on one page in
       Groundwork, worked out from your own records, on your own computer. Health care is a cost, never a lever to cut.</p>
-    <div class="hero-btns"><a href="#how" class="btn btn-gold">See how it works</a>
+    <div class="hero-btns"><a href="#tour" class="btn btn-gold">Watch the tour</a>
       <a href="/download" class="btn btn-ghost-light">Download free</a></div>
   </div>
 </section>
 
-<section class="band" id="how" style="padding-top:64px">
+<section class="band" id="tour" style="padding-top:64px;padding-bottom:24px">
+  <div class="container launch reveal">
+    <div class="launch-text">
+      <div class="section-label">A tour of the Health page</div>
+      <h2>A minute and a half, on a made-up household</h2>
+      <p>Bills as the provider sent them, the plan year as the insurer reports it, a reserve for a bad year, what care has
+        cost and who it was for, narrated and captioned.</p>
+      <p><a href="#everything">Every Health feature, listed →</a></p>
+    </div>
+    """ + _video('health', 'The Health page', eager=True) + """
+  </div>
+</section>
+
+<section class="band" id="how" style="padding-top:24px">
   <div class="container">
     <div class="story reveal">
       <div class="story-text">
@@ -2027,7 +2414,16 @@ def health():
   </div>
 </section>
 
-<section class="band" style="padding-top:24px">
+<section class="band band-mist" id="everything">
+  <div class="container center reveal">
+    <div class="section-label">Everything on the Health page</div>
+    <h2 class="section-title">Every Health feature in Groundwork 2.0</h2>
+    <p class="section-sub">Each works with the AI turned off, from your own records, on your own computer.</p>
+  </div>
+  <div class="container">""" + _feat_groups(HEALTH_FEATURES) + """</div>
+</section>
+
+<section class="band" style="padding-top:64px">
   <div class="narrow prose reveal">
     <h2>Private by design</h2>
     <p>Nothing about your health leaves your computer. Health records never reach the AI log, and an export includes
@@ -2044,7 +2440,8 @@ def health():
         title='Health care costs, recorded, never judged',
         description='Groundwork 2.0\'s Health page: medical bills as the provider sent them, your deductible as your insurer '
                     'shows it, a health reserve, HSA and FSA balances and what care has cost - private, on your own computer.',
-        canonical=SITE_URL + '/health'
+        canonical=SITE_URL + '/health',
+        structured_data=_video_ld(['health'])
     )
 
 
@@ -2121,7 +2518,7 @@ def changelog():
         cards = ''
         for e in entries:
             date_str  = fmt_date(e.get('date',''))
-            version   = h(e.get('version',''))
+            version   = h(e.get('label') or e.get('version',''))   # a release's name; its build id is given on release day
             headline  = h(e.get('headline',''))
             fixed     = e.get('fixed',    []) or []
             added     = e.get('added',    []) or []
@@ -2171,7 +2568,6 @@ def changelog():
 # the repo is kept in sync as a fallback in case Nginx is ever set to serve
 # statics first. Add new public pages HERE — the sitemap generates from this
 # list, so it can never silently go stale the way the old 3-entry file did.
-SITE_UPDATED = '2026-10-31'   # the last time the site's pages changed (each sitemap entry's lastmod)
 
 _SITEMAP_PAGES = [
     # (path, changefreq, priority)
@@ -2179,7 +2575,7 @@ _SITEMAP_PAGES = [
     ('/download',       'weekly',  '0.9'),
     ('/signup',         'monthly', '0.9'),
     ('/features',       'monthly', '0.8'),
-    ('/coming',         'weekly',  '0.8'),
+    ('/whats-new',      'weekly',  '0.9'),
     ('/health',         'monthly', '0.8'),
     ('/knowledge-base', 'weekly',  '0.7'),
     ('/about',          'monthly', '0.6'),
@@ -2233,7 +2629,7 @@ LLMS_TXT = ('# Groundwork\n\n'
     '## Pages\n'
     f'- [Home]({SITE_URL}/): what Groundwork is\n'
     f'- [Features]({SITE_URL}/features): every feature\n'
-    f'- [Groundwork 2.0]({SITE_URL}/coming): the assistant and what else is new\n'
+    f'- [What\'s new in Groundwork 2.0]({SITE_URL}/whats-new): the assistant, Health, reports and privacy, with video tours\n'
     f'- [Health]({SITE_URL}/health): how the Health page works\n'
     f'- [Privacy]({SITE_URL}/privacy): exactly what leaves the computer, and why\n'
     f'- [Download]({SITE_URL}/download): Windows, macOS, Linux; free\n'

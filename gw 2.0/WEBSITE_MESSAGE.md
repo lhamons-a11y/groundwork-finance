@@ -520,3 +520,27 @@ Groundwork."*
 - **Item 82 R7/R8:** the download page says what happens to 1.1 once 2.0 is the download; the last 1.1 is offered by
   name only when its real SHA-256 is filled in (`V11_SHA256`, release day).
 
+## The 2.0 release site (Rob, 2026-11-07)
+
+Rob: *"update it to show that we are releasing 2.0 with all of the features marking the major feature updates like
+healthcare ... the report section also focusing on what's new ... the new AI tools and the privacy push ... add videos
+so a user can look at this software and say I need to download this software. Also add the update notice."* Ruled the
+same day: the site says 2.0 is out (published only once the 2.0 installers are what `/dl/` serves); the update notice's
+version id waits for release day.
+
+- **Released:** `SITE_VERSION = '2.0'`, so every page reads as current. s206 W3 now holds the released wording: nothing
+  says "coming soon", the 1.1 line shows on the download page, `/coming` lands on `/whats-new` (301).
+- **`/whats-new`**, the launch page: the new AI tools, Health (every feature, the same list as the Health page), Reports
+  (what's new), the privacy push, everything else new, and how updating from 1.1 works. Every line traces to an accepted
+  item or the app's own words on its screens.
+- **Videos:** four tours on the home page, one per section of `/whats-new`, the Health tour on `/health`; each with a
+  poster, captions and "made-up figures", and described to search engines (VideoObject). `ask` is the 2026-11-01 tour;
+  `health`, `reports` and `privacy` are recorded from the real app on its sample household by `scripts/site_video`
+  (headless Chrome, narrated by Groundwork's own Kokoro voice; no downloads). MP4 only for those three: Chrome's WebM
+  recording carries no duration, so it can't be seeked.
+- **The update notice:** every page's banner ("Already using Groundwork? Updating keeps your records"), the note at the
+  top of `/whats-new`, its *Updating from Groundwork 1.1* section, and the changelog's 2.0 entry (no build id yet).
+  `Website/version.2.0.json` is the in-app notice for release day: its `latest` is empty, so it offers nothing until the
+  2.0 build's `GW_VERSION` is filled in, the changelog entry gets the same id and a date, and it is copied over
+  `version.json`.
+

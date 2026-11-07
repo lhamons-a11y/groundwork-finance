@@ -1,0 +1,21 @@
+{
+  "poster": 1,
+  "scenes": [
+    {"card": {"kicker": "Groundwork 2.0", "head": "Your money stays on your computer.", "sub": "What Groundwork keeps private, and how - on a made-up sample household."},
+     "say": "Groundwork 2.0 keeps your money on your computer. Here's how, on a made-up sample household."},
+    {"view": "settings", "do": "__tab('General')", "focus": "__span('AI FEATURES', 'nothing is loaded.')", "maxZoom": 1.3,
+     "say": "The AI runs inside Groundwork, on your own computer. There's no cloud option, and every page still works with the AI turned off."},
+    {"focus": "__span('AI log', 'Nothing yet.')", "maxZoom": 1.6,
+     "say": "The AI log shows every request made to the AI, exactly as it was sent and as it came back. All of it ran on this computer."},
+    {"do": "__tab('Data & Backup'); openBackupModal();", "wait": 2200,
+     "focus": "__both('Protect your backups', 'recovery') || __find('Protect your backups')", "maxZoom": 1.4,
+     "say": "Backups can be protected with a password and a twenty-four word recovery key. A protected backup can't be opened by anyone who finds the file."},
+    {"do": "document.getElementById('backupModal')?.classList.add('hidden'); __tab('Reading & Voice');", "wait": 1600,
+     "focus": "__span('VOICE COMMANDS', 'never sent anywhere or kept.')", "maxZoom": 1.3,
+     "say": "Voice is off until you turn it on. What you say is recognised on this computer, and never sent anywhere or kept."},
+    {"do": "__tab('Data & Backup');", "wait": 1600, "focus": "__both('Export your data', 'Include the AI log')", "maxZoom": 1.5,
+     "say": "Your data is yours to export at any time, and health spending is left out unless you tick the box."},
+    {"card": {"kicker": "No account · No cloud AI · No telemetry", "head": "One door out, and it's watched.", "sub": "Every request the app makes goes through one place in its code, and Groundwork's own tests fail if anything tries another."},
+     "say": "No account. No cloud AI. No telemetry. Every request the app makes goes through one door, and Groundwork's own tests fail if anything tries another."}
+  ]
+}

@@ -1,0 +1,199 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>compose</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,600&family=Inter:wght@400;600;700&display=block" rel="stylesheet">
+<style>html,body{margin:0;background:#0f1b2d}canvas{display:block}</style></head>
+<body><canvas id="c"></canvas>
+<script>
+// Plays a walkthrough's scenes (real screenshots of the sample household, or a title card) on a canvas, with the
+// narration, and records it with Chrome's own MediaRecorder: MP4 (H.264/AAC) and WebM (VP9/Opus), plus a poster.
+// make.mjs serves this page, scenes.json, the screenshots and the narration, and keeps what is POSTed to /save/.
+const INK = '#0f1b2d', MINT = '#3ddc97', GOLD = '#f2c14e';
+const SERIF = "600 italic {s}px 'Fraunces', Georgia, serif", SANS = "{w} {s}px 'Inter', 'Segoe UI', system-ui, sans-serif";
+const font = (f, s, w = 400) => f.replace('{s}', s).replace('{w}', w);
+const ease = (t) => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
+const lerp = (a, b, t) => a + (b - a) * t;
+
+let W, H, cv, cx, plan;
+
+function wrap(text, maxW, f) {
+  cx.font = f;
+  const words = text.split(/\s+/), lines = [];
+  let line = '';
+  for (const w of words) {
+    const t = line ? line + ' ' + w : w;
+    if (cx.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function rr(x, y, w, h, r) { cx.beginPath(); cx.roundRect(x, y, w, h, r); }
+
+function camera(sc, t) {
+  // From the whole screen toward a framing of the part being talked about, then a slow drift.
+  const full = { x: 0, y: 0, z: 1 };
+  if (!sc.focus) return { x: 0, y: 0, z: 1 + 0.02 * t };
+  const f = sc.focus, pad = 90;
+  let w = f.w + pad * 2, h = f.h + pad * 2;
+  if (w / h > W / H) h = w * H / W; else w = h * W / H;
+  let z = Math.min(Math.max(W / w, 1), sc.maxZoom || 1.6);
+  const vw = W / z, vh = H / z;
+  let x = f.x + f.w / 2 - vw / 2, y = f.y + f.h / 2 - vh / 2;
+  x = Math.min(Math.max(x, 0), W - vw); y = Math.min(Math.max(y, 0), H - vh);
+  const k = ease(t / 1.3);
+  return { x: lerp(full.x, x, k), y: lerp(full.y, y, k), z: lerp(full.z, z, k) * (1 + 0.012 * Math.max(0, t - 1.3)) };
+}
+
+function drawShot(sc, t, alpha) {
+  const img = sc._img, cam = camera(sc, t);
+  cx.save();
+  cx.globalAlpha = alpha;
+  cx.setTransform(cam.z, 0, 0, cam.z, -cam.x * cam.z, -cam.y * cam.z);
+  cx.drawImage(img, 0, 0, W, H);
+  if (sc.focus) {
+    const f = sc.focus, k = ease((t - 1.0) / 0.5), pad = 10;
+    if (k > 0) {
+      cx.fillStyle = `rgba(15,27,45,${0.22 * k})`;          // the rest of the screen steps back
+      cx.beginPath(); cx.rect(-W, -H, W * 3, H * 3);
+      cx.roundRect(f.x - pad, f.y - pad, f.w + pad * 2, f.h + pad * 2, 14);
+      cx.fill('evenodd');
+      cx.lineWidth = 4 / cam.z; cx.strokeStyle = `rgba(61,220,151,${k})`;
+      cx.shadowColor = 'rgba(61,220,151,.55)'; cx.shadowBlur = 18;
+      rr(f.x - pad, f.y - pad, f.w + pad * 2, f.h + pad * 2, 14); cx.stroke();
+    }
+  }
+  cx.restore();
+}
+
+function drawCard(sc, t, alpha) {
+  const c = sc.card;
+  cx.save(); cx.globalAlpha = alpha;
+  const g = cx.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, '#0f1b2d'); g.addColorStop(.55, '#12324a'); g.addColorStop(1, '#134b44');
+  cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+  const rg = cx.createRadialGradient(W * .85, -H * .1, 10, W * .85, -H * .1, W * .7);
+  rg.addColorStop(0, 'rgba(61,220,151,.22)'); rg.addColorStop(1, 'rgba(61,220,151,0)');
+  cx.fillStyle = rg; cx.fillRect(0, 0, W, H);
+  const rise = (1 - ease(t / 0.9)) * 24;
+  // the mark: three rising bars
+  const mx = W / 2 - 34, my = H * 0.25 + rise;
+  rr(mx, my, 68, 68, 16); cx.fillStyle = '#0b1424'; cx.fill();
+  [[14, 18], [30, 30], [46, 42]].forEach(([x, h]) => { rr(mx + x, my + 56 - h, 9, h, 4); cx.fillStyle = MINT; cx.fill(); });
+  cx.textAlign = 'center';
+  cx.fillStyle = MINT; cx.font = font(SANS, 24, 700);
+  cx.letterSpacing = '4px';
+  cx.fillText((c.kicker || '').toUpperCase(), W / 2, H * 0.25 + 130 + rise);
+  cx.letterSpacing = '0px';
+  cx.fillStyle = '#fff';
+  const lines = wrap(c.head, W * 0.78, font(SERIF, 76));
+  lines.forEach((l, i) => cx.fillText(l, W / 2, H * 0.25 + 230 + i * 92 + rise));
+  if (c.sub) {
+    cx.fillStyle = 'rgba(255,255,255,.78)';
+    wrap(c.sub, W * 0.7, font(SANS, 30)).forEach((l, i) => cx.fillText(l, W / 2, H * 0.25 + 250 + lines.length * 92 + i * 42 + rise));
+  }
+  cx.restore();
+}
+
+function focusOnScreen(sc, t) {
+  if (!sc.focus) return null;
+  const c = camera(sc, t), f = sc.focus;
+  return { top: (f.y - c.y) * c.z, bottom: (f.y + f.h - c.y) * c.z };
+}
+
+function drawCaption(text, alpha, sc, t) {
+  if (!text || alpha <= 0) return;
+  const f = font(SANS, 29, 600), lines = wrap(text, W * 0.72, f), lh = 41;
+  cx.font = f;
+  const w = Math.max(...lines.map((l) => cx.measureText(l).width)) + 56, h = lines.length * lh + 30;
+  // Below the part being talked about, unless that part is low on the screen: then above it, at the top.
+  const fo = focusOnScreen(sc, Math.max(t, 1.3));
+  const low = fo && fo.bottom > H - h - 90;
+  const x = (W - w) / 2, y = low ? 78 : H - h - 54;
+  cx.save(); cx.globalAlpha = alpha;
+  rr(x, y, w, h, 18); cx.fillStyle = 'rgba(11,20,36,.86)'; cx.fill();
+  cx.fillStyle = '#fff'; cx.textAlign = 'center'; cx.textBaseline = 'top';
+  lines.forEach((l, i) => cx.fillText(l, W / 2, y + 15 + i * lh));
+  cx.restore();
+}
+
+function drawBadge() {
+  cx.save();
+  const t = 'Sample household · made-up figures';
+  cx.font = font(SANS, 20, 600);
+  const w = cx.measureText(t).width + 32;
+  rr(W - w - 24, 22, w, 38, 19); cx.fillStyle = 'rgba(11,20,36,.78)'; cx.fill();
+  cx.fillStyle = GOLD; cx.textBaseline = 'middle'; cx.fillText(t, W - w - 8, 41);
+  cx.restore();
+}
+
+function frame(now) {
+  // now: seconds into the video
+  cx.setTransform(1, 0, 0, 1, 0, 0);
+  cx.fillStyle = INK; cx.fillRect(0, 0, W, H);
+  const X = 0.45;                                            // crossfade
+  let i = plan.scenes.findIndex((s) => now < s.start + s.dur);
+  if (i < 0) i = plan.scenes.length - 1;
+  const draw = (sc, alpha) => { const t = now - sc.start; sc.card ? drawCard(sc, t, alpha) : drawShot(sc, t, alpha); };
+  const sc = plan.scenes[i], prev = plan.scenes[i - 1];
+  if (prev && now - sc.start < X) { draw(prev, 1); draw(sc, ease((now - sc.start) / X)); } else draw(sc, 1);
+  if (!sc.card) drawBadge();
+  const ct = now - sc.start;
+  const capA = Math.min(ease((ct - 0.25) / 0.3), ease((sc.dur - ct) / 0.3));
+  if (!sc.card) drawCaption(sc.say, capA, sc, ct);
+}
+
+async function post(name, blob) {
+  await fetch('/save/' + name, { method: 'POST', body: blob });
+}
+
+async function run() {
+  plan = await (await fetch('scenes.json')).json();
+  W = plan.width; H = plan.height;
+  cv = document.getElementById('c'); cv.width = W; cv.height = H;
+  cx = cv.getContext('2d');
+  await document.fonts.ready;
+  for (const sc of plan.scenes) {
+    if (sc.img) { sc._img = new Image(); sc._img.src = sc.img; await sc._img.decode(); }
+  }
+  const ac = new AudioContext({ sampleRate: 48000 });
+  await ac.resume();
+  const dest = ac.createMediaStreamDestination();
+  for (const sc of plan.scenes) {
+    if (sc.audio) sc._buf = await ac.decodeAudioData(await (await fetch(sc.audio)).arrayBuffer());
+  }
+  // poster
+  frame(plan.poster);
+  await post(plan.name + '.jpg', await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.88)));
+
+  const stream = new MediaStream([...cv.captureStream(30).getVideoTracks(), ...dest.stream.getAudioTracks()]);
+  // MP4 only: Chrome's WebM recording carries no duration, so a browser can't seek in it. H.264/AAC plays everywhere.
+  const recs = [['mp4', 'video/mp4;codecs=avc1.640028,mp4a.40.2', 1.1e6]]
+    .filter(([, m]) => MediaRecorder.isTypeSupported(m))
+    .map(([ext, mimeType, bps]) => {
+      const r = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: bps, audioBitsPerSecond: 128000 });
+      r.chunks = []; r.ext = ext;
+      r.ondataavailable = (e) => e.data.size && r.chunks.push(e.data);
+      return r;
+    });
+  frame(0);
+  recs.forEach((r) => r.start(1000));
+  const a0 = ac.currentTime + 0.05, t0 = performance.now() + 50;
+  for (const sc of plan.scenes) {
+    if (!sc._buf) continue;
+    const s = ac.createBufferSource(); s.buffer = sc._buf; s.connect(dest); s.start(a0 + sc.start + sc.audioAt);
+  }
+  await new Promise((done) => {
+    const tick = () => {
+      const now = (performance.now() - t0) / 1000;
+      frame(Math.max(0, now));
+      if (now < plan.total) requestAnimationFrame(tick); else done();
+    };
+    requestAnimationFrame(tick);
+  });
+  await Promise.all(recs.map((r) => new Promise((ok) => { r.onstop = ok; r.stop(); })));
+  for (const r of recs) await post(plan.name + '.' + r.ext, new Blob(r.chunks, { type: r.mimeType }));
+  await fetch('/done', { method: 'POST' });
+}
+run().catch((e) => fetch('/done', { method: 'POST', body: 'ERROR ' + (e && e.stack || e) }));
+</script></body></html>
