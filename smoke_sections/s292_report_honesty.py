@@ -9,6 +9,9 @@
     F1  a failed read is said, not a crash
     W1  a snapshot covers one calendar month, and says so when asked for more; a date-to-date total keeps to its days
     R1  a period before the record starts is not "no transactions yet"
+    C1  a comparison reads the periods asked for, each answering for itself, and says when one has no figure
+    D1  a month with no statement for a debt is not $0: it gets no household total, and the gap is named
+    D2  a debt is $0 before it began and once paid off; a removed debt is left out and counted, never shown as an id
 """
 from datetime import date
 
@@ -32,13 +35,14 @@ def run(ctx):
     from core import agent_hands as ah, report_sections as rs
 
     def reader(**routes):
-        paths = {'snapshots': '/api/net-worth/snapshots', 'accounts': '/api/accounts/with-balances'}
+        paths = {'snapshots': '/api/net-worth/snapshots', 'accounts': '/api/accounts/with-balances',
+                 'history': '/api/debt/history/all', 'debts': '/api/debt'}
         seen = []
 
         def get(path):
             seen.append(path)
             for k, v in routes.items():
-                if paths[k] in path:
+                if path.split('?')[0] == paths[k]:
                     return v
             return []
         r = ah.Reader(get, None, today=date(2026, 11, 6))
@@ -110,5 +114,70 @@ def run(ctx):
         o = rs.run(reader(), '1.1', {'period': 'January 2025'})
         check(f"s292 R1 a period before the record is not 'no transactions' ({o['sentences']})",
               not o['enough'] and 'no transactions yet' not in o['sentences'][0] and 'June 2026' in o['sentences'][0])
+
+        # C1: comparisons read the periods asked for
+        long_nw = reader(snapshots=[_snap('2025-01', 100.0), _snap('2025-06', 200.0), _snap('2025-09', 300.0), _snap('2026-01', 400.0)])
+        o = rs.run(long_nw, '5.7', {'period': 'June 2025', 'period_b': 'September 2025'})
+        check(f"s292 C1 net worth compares the two periods asked for ({o['sentences']})",
+              o['enough'] and o['chart']['points'][0]['value'] == 200.0 and o['chart']['points'][0]['value_b'] == 300.0)
+        o = rs.run(long_nw, '5.7', {'period': 'June 2025', 'period_b': 'March 2025'})
+        check(f"s292 C1 a second period with no snapshot is said, not swapped ({o['sentences']})",
+              not o['enough'] and 'March 2025' in o['sentences'][0])
+        o = rs.run(long_nw, '5.7', {'period': 'June 2025', 'period_b': 'June 2025'})
+        check(f"s292 C1 a period is not compared with itself ({o['sentences']})", not o['enough'])
+        o = rs.run(long_nw, '5.7', {})
+        check(f"s292 C1 with no period, then and now stays first and last ({o['sentences']})",
+              o['chart']['points'][0]['value'] == 100.0 and o['chart']['points'][0]['value_b'] == 400.0)
+
+        def debt(i, name, start=None, paid=None):
+            return {'id': i, 'name': name, 'start_date': start, 'paid_off_at': paid, 'current_balance': 1, 'is_active': True}
+
+        def stmts(*pairs):
+            return [{'month': m, 'balance': b} for m, b in pairs]
+
+        whole = reader(debts=[debt(1, 'Visa'), debt(2, 'Car')],
+                       history={'1': stmts(('2026-01', 500.0), ('2026-05', 400.0), ('2026-09', 300.0)),
+                                '2': stmts(('2026-01', 900.0), ('2026-05', 800.0), ('2026-09', 700.0))})
+        o = rs.run(whole, '5.6', {'period': 'May 2026', 'period_b': 'September 2026'})
+        check(f"s292 C1 debt compares the two periods asked for, not oldest and newest ({o['sentences']})",
+              o['enough'] and o['sentences'][0] == 'Owed: $1,200.00 in May 2026; $1,000.00 in September 2026.')
+        o = rs.run(whole, '5.6', {'period': 'May 2026', 'period_b': 'March 2026'})
+        check(f"s292 C1 a debt period with no statement is said ({o['sentences']})", not o['enough'] and 'March 2026' in o['sentences'][0])
+        o = rs.run(whole, '5.6', {})
+        check(f"s292 C1 debt with no period stays then and now ({o['sentences']})", '$1,400.00 in January 2026; $1,000.00 in September 2026' in o['sentences'][0])
+        o = rs.run(whole, '2.6', {'period': 'May to September 2026'})
+        check(f"s292 C1 the debt trend keeps to a period ({o['sentences']})",
+              [p['key'] for p in o['chart']['points']] == ['2026-05', '2026-09'])
+
+        # D1: a missing statement is not $0
+        gap = reader(debts=[debt(1, 'Visa'), debt(2, 'Car')],
+                     history={'1': stmts(('2026-01', 500.0), ('2026-05', 400.0), ('2026-09', 300.0)),
+                              '2': stmts(('2026-05', 800.0), ('2026-09', 700.0))})
+        o = rs.run(gap, '2.6', {})
+        check(f"s292 D1 a month a debt has no statement for gets no total, and the gap is named ({o['sentences']})",
+              [p['key'] for p in o['chart']['points']] == ['2026-05', '2026-09']
+              and any('Car' in s and 'January 2026' in s for s in o['sentences']))
+        o = rs.run(gap, '5.6', {'period': 'January 2026', 'period_b': 'September 2026'})
+        check(f"s292 D1 a comparison will not read a missing statement as $0 ({o['sentences']})",
+              not o['enough'] and 'January 2026' in o['sentences'][0])
+        o = rs.run(reader(debts=[debt(1, 'Visa'), debt(2, 'Car')], history={'1': stmts(('2026-01', 500.0), ('2026-05', 400.0))}), '2.6', {})
+        check(f"s292 D1 a debt with no statements stops the total rather than shrinking it ({o['sentences']})", not o['enough'])
+
+        # D2: what is known to be $0, and removed debts
+        known = reader(debts=[debt(1, 'Visa'), debt(2, 'New', start='2026-05-10'), debt(3, 'Old', paid='2026-05-02')],
+                       history={'1': stmts(('2026-01', 500.0), ('2026-05', 400.0), ('2026-09', 300.0)),
+                                '2': stmts(('2026-05', 800.0), ('2026-09', 700.0)),
+                                '3': stmts(('2026-01', 50.0)),
+                                '9': stmts(('2026-01', 9999.0))})
+        o = rs.run(known, '5.6', {})
+        check(f"s292 D2 before its start and after paid off are $0; a removed debt is counted, not added ({o['sentences']})",
+              o['enough'] and o['sentences'][0] == 'Owed: $550.00 in January 2026; $1,000.00 in September 2026.'
+              and any('1 removed debt' in s for s in o['sentences'])
+              and {r[0] for r in o['table']['rows']} == {'Visa', 'New', 'Old'})
+
+        o = rs.run(reader(debts=[debt(1, 'Visa')], history={'ok': False, 'error': 'x'}), '2.6', {})
+        check(f"s292 F1 a failed debt history read is said ({o['sentences']})", not o['enough'] and 'could not be read' in o['sentences'][0])
+        o = rs.run(reader(debts={'ok': False, 'error': 'x'}, history={}), '5.6', {})
+        check(f"s292 F1 a failed debts read is said ({o['sentences']})", not o['enough'] and 'could not be read' in o['sentences'][0])
     finally:
         ah._rows = real_rows

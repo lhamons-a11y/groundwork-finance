@@ -512,40 +512,128 @@ def _flow_body(reader, sid, shape, subj, settings, rows, notes):
     return _not_enough(sid, settings, 'this pairing is not a section')
 
 
-def _history(reader):
-    """Debt balances by month from the record's debt history (statements), summed across debts."""
-    h = reader.get('/api/debt/history/all') or {}
-    names = {str(d.get('id')): d.get('name') for d in (reader.get('/api/debt') or []) if isinstance(d, dict)}
-    by, per = {}, {}
-    for did, rs in h.items():
-        for r in rs or []:
-            if r.get('balance') is None:
-                continue
-            by[r['month']] = round(by.get(r['month'], 0.0) + float(r['balance']), 2)
-            per.setdefault(names.get(did, did), {})[r['month']] = float(r['balance'])
-    return by, per
+def _then_and_now(reader, settings, keys, none_in, would_know):
+    """The two months a point-in-time comparison reads, from months that have a figure ('YYYY-MM', oldest first):
+    (a, b, None), or (None, None, (why, would_know)). A balance is read at the end of a period: its last month with a
+    figure. With a second period each period answers for itself, and the first defaults to the latest figure. With
+    none, it is the first and last figure in the period, or in the record - "then and now"."""
+    pa, pb = settings.get('period'), settings.get('period_b')
+
+    def within(setting):
+        months, said = _months(reader, [], setting)             # no rows: figures can be older than the ledger
+        if months is None:
+            return None, (said, 'words like "June to September", "last month" or "this year"')
+        hits = [k for k in keys if k in months]
+        return hits, None if hits else (none_in(said), would_know)
+
+    if not pb:
+        hits, bad = within(pa) if pa else (keys, None)
+        if bad:
+            return None, None, bad
+        if len(hits) < 2:
+            only = f'only {ah.month_label(hits[0])} has one' if hits else 'none has one'
+            return None, None, (f'a comparison needs two months with a figure, and {only}', would_know or 'choosing a longer period')
+        return hits[0], hits[-1], None
+    hits_b, bad = within(pb)
+    if bad:
+        return None, None, bad
+    hits_a, bad = within(pa) if pa else (keys, None)
+    if bad:
+        return None, None, bad
+    a, b = hits_a[-1], hits_b[-1]
+    if a == b:
+        return None, None, (f'both periods come to the same month, {ah.month_label(a)}', 'choosing two different periods')
+    return a, b, None
+
+
+def _debt_history(reader):
+    """The active debts with what the record knows of each, or None when it could not be read. Also how many debts with
+    statements have been removed: they have no name to show and no date they ended, so they are left out and counted."""
+    h, active = reader.get('/api/debt/history/all'), reader.get('/api/debt')
+    if not isinstance(active, (list, type(None))) or not isinstance(h, (dict, type(None))) or (h or {}).get('ok') is False:
+        return None, 0
+    h, debts = h or {}, []
+    for d in active or []:
+        months = {r['month']: float(r['balance']) for r in h.get(str(d.get('id'))) or [] if r.get('balance') is not None}
+        debts.append({'name': d.get('name'), 'months': months, 'from': (d.get('start_date') or '')[:7],
+                      'until': (d.get('paid_off_at') or '')[:7]})
+    ids = {str(d.get('id')) for d in active or []}
+    return debts, sum(1 for k, rs in h.items() if k not in ids and rs)
+
+
+def _owed(debt, month):
+    """What one debt came to in a month: its statement, $0 before it began or once paid off, else None. A month with no
+    statement is not a balance of $0."""
+    if month in debt['months']:
+        return debt['months'][month]
+    if (debt['from'] and month < debt['from']) or (debt['until'] and month >= debt['until']):
+        return 0.0
+    return None
+
+
+def _debt_totals(debts, within=None):
+    """(total by month, for months every debt can speak to; {month left out: the debts with nothing for it})."""
+    totals, gaps = {}, {}
+    for m in sorted({m for d in debts for m in d['months']}):
+        if within is not None and m not in within:
+            continue
+        missing = [d['name'] for d in debts if _owed(d, m) is None]
+        if missing:
+            gaps[m] = missing
+        else:
+            totals[m] = round(sum(_owed(d, m) for d in debts), 2)
+    return totals, gaps
+
+
+def _debt_notes(gaps, removed):
+    notes = []
+    if gaps:
+        names = sorted({n for ns in gaps.values() for n in ns})
+        notes.append(f"Left out {len(gaps)} month{'s' if len(gaps) != 1 else ''} with no statement for "
+                     f"{', '.join(names)}: {', '.join(ah.month_label(m) for m in sorted(gaps))}.")
+    if removed:
+        notes.append(f"Not included: {removed} removed debt{'s' if removed != 1 else ''}.")
+    return notes
+
+
+def _debt_balances(reader, sid, shape, settings):
+    debts, removed = _debt_history(reader)
+    if debts is None:
+        return _not_enough(sid, settings, 'the debt history could not be read just now')
+    link = 'linking each debt to its statements'
+    if shape == 2:
+        within, said = None, None
+        if settings.get('period'):
+            within, said = _months(reader, [], settings['period'])
+            if within is None:
+                return _not_enough(sid, settings, said, 'words like "June to September", "last month" or "this year"')
+        totals, gaps = _debt_totals(debts, within)
+        if said and not totals:
+            return _not_enough(sid, settings, f'no month in {said} has a balance for every debt', link)
+        if not said and len(totals) < 2:
+            return _not_enough(sid, settings, f"the record holds {len(totals)} month{'s' if len(totals) != 1 else ''} with a "
+                                              'balance for every debt, and a trend needs two', link)
+        pts = [{'label': ah.month_label(m), 'key': m, 'value': totals[m]} for m in sorted(totals)]
+        span = f"Owed across the debts: {_m(pts[0]['value'])} in {pts[0]['label']}" + \
+            (f"; {_m(pts[-1]['value'])} in {pts[-1]['label']}." if len(pts) > 1 else '.')
+        return _out(sid, settings, sentences=[span, *_debt_notes(gaps, removed)],
+                    chart={'kind': 'line', 'points': pts},
+                    table={'columns': ['Month', 'Owed'], 'rows': [[p['label'], _m(p['value'])] for p in pts]})
+    totals, gaps = _debt_totals(debts)
+    a, b, bad = _then_and_now(reader, settings, sorted(totals), lambda said: f'no month in {said} has a balance for every debt', link)
+    if bad:
+        return _not_enough(sid, settings, *bad)
+    la, lb = ah.month_label(a), ah.month_label(b)
+    return _out(sid, settings, sentences=[f'Owed: {_m(totals[a])} in {la}; {_m(totals[b])} in {lb}.',
+                                          *_debt_notes({m: n for m, n in gaps.items() if min(a, b) <= m <= max(a, b)}, removed)],
+                chart={'kind': 'paired', 'labels': [la, lb],
+                       'points': [{'label': d['name'], 'value': _owed(d, a), 'value_b': _owed(d, b)} for d in debts]},
+                table={'columns': ['Debt', la, lb], 'rows': [[d['name'], _m(_owed(d, a)), _m(_owed(d, b))] for d in debts]})
 
 
 def _debt(reader, sid, shape, settings):
     if shape in (2, 5):
-        by, per = _history(reader)
-        if len(by) < 2:
-            return _not_enough(sid, settings, 'the record holds fewer than two months of debt balances',
-                               'linking each debt to its statements')
-        ms = sorted(by)
-        if shape == 2:
-            pts = [{'label': ah.month_label(m), 'key': m, 'value': by[m]} for m in ms]
-            return _out(sid, settings, sentences=[f"Owed across the debts: {_m(pts[0]['value'])} in {pts[0]['label']}; "
-                                                  f"{_m(pts[-1]['value'])} in {pts[-1]['label']}."],
-                        chart={'kind': 'line', 'points': pts},
-                        table={'columns': ['Month', 'Owed'], 'rows': [[p['label'], _m(p['value'])] for p in pts]})
-        a, b = ms[0], ms[-1]
-        return _out(sid, settings, sentences=[f'Owed: {_m(by[a])} in {ah.month_label(a)}; {_m(by[b])} in '
-                                              f'{ah.month_label(b)}.'],
-                    chart={'kind': 'paired', 'labels': [ah.month_label(a), ah.month_label(b)],
-                           'points': [{'label': n, 'value': v.get(a, 0.0), 'value_b': v.get(b, 0.0)} for n, v in per.items()]},
-                    table={'columns': ['Debt', ah.month_label(a), ah.month_label(b)],
-                           'rows': [[n, _m(v.get(a, 0.0)), _m(v.get(b, 0.0))] for n, v in per.items()]})
+        return _debt_balances(reader, sid, shape, settings)
     d = ah.lk_debts(reader, {})
     if not d['debts']:
         return _not_enough(sid, settings, 'no debt is in the record', 'adding a debt')
@@ -623,7 +711,7 @@ def _net_worth(reader, sid, shape, settings):
         return _balances(reader, sid, shape, settings)
     period = settings.get('period')
     # The route keeps 24 months unless asked: a period can name an older one.
-    snaps = reader.get('/api/net-worth/snapshots?months=1200' if period else '/api/net-worth/snapshots')
+    snaps = reader.get('/api/net-worth/snapshots?months=1200' if period or settings.get('period_b') else '/api/net-worth/snapshots')
     if snaps is not None and not isinstance(snaps, list):      # a failed read comes back as its error, not as a list
         return _not_enough(sid, settings, 'the net worth history could not be read just now')
     # A month recorded without figures is not a net worth of $0 (item 38 P4).
@@ -631,6 +719,17 @@ def _net_worth(reader, sid, shape, settings):
            for s in snaps or [] if not s.get('without_figures')]
     if not pts:
         return _not_enough(sid, settings, 'there are no net worth snapshots yet', 'visiting Net Worth once a month')
+    if shape == 5:
+        by = {p['key']: p for p in pts}
+        ka, kb, bad = _then_and_now(reader, settings, sorted(by), lambda said: f'no net worth snapshot with figures falls in {said}',
+                                    'choosing a period with a snapshot, or visiting Net Worth once a month')
+        if bad:
+            return _not_enough(sid, settings, *bad)
+        a, b = by[ka], by[kb]
+        return _out(sid, settings, sentences=[f"Net worth: {_m(a['value'])} in {a['label']}; {_m(b['value'])} in "
+                                              f"{b['label']}."],
+                    chart={'kind': 'paired', 'labels': [a['label'], b['label']],
+                           'points': [{'label': 'Net worth', 'value': a['value'], 'value_b': b['value']}]})
     notes = []
     if period:
         # Not clipped to the first transaction (no rows passed): snapshots can be older than the ledger.
@@ -644,16 +743,7 @@ def _net_worth(reader, sid, shape, settings):
         p = _read(reader, period)
         if p and p.get('window'):
             notes.append('Net worth is recorded by the month, so this shows the months that period touches.')
-    if shape == 5:
-        if len(pts) < 2:
-            return _not_enough(sid, settings, f"a comparison needs two months with figures, and only {pts[0]['label']} has them",
-                               'choosing a longer period')
-        a, b = pts[0], pts[-1]
-        return _out(sid, settings, sentences=[f"Net worth: {_m(a['value'])} in {a['label']}; {_m(b['value'])} in "
-                                              f"{b['label']}.", *notes],
-                    chart={'kind': 'paired', 'labels': [a['label'], b['label']],
-                           'points': [{'label': 'Net worth', 'value': a['value'], 'value_b': b['value']}]})
-    span = f"Net worth: {_m(pts[0]['value'])} in {pts[0]['label']}" + \
+    span =f"Net worth: {_m(pts[0]['value'])} in {pts[0]['label']}" + \
         (f"; {_m(pts[-1]['value'])} in {pts[-1]['label']}." if len(pts) > 1 else '.')
     return _out(sid, settings, sentences=[span, *notes],
                 chart={'kind': 'bars' if shape == 1 else 'line', 'points': pts},
