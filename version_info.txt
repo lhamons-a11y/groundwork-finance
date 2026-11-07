@@ -6,8 +6,8 @@
 
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 0, 0, 0),
-    prodvers=(1, 0, 0, 0),
+    filevers=(2, 0, 0, 0),
+    prodvers=(2, 0, 0, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -22,12 +22,12 @@ VSVersionInfo(
         [
           StringStruct(u'CompanyName',      u'Groundwork'),
           StringStruct(u'FileDescription',  u'Groundwork — Personal Finance'),
-          StringStruct(u'FileVersion',      u'1.0.0.0'),
+          StringStruct(u'FileVersion',      u'2.0.0.0'),
           StringStruct(u'InternalName',     u'Groundwork'),
           StringStruct(u'LegalCopyright',   u'Free and open source software'),
           StringStruct(u'OriginalFilename', u'Groundwork.exe'),
           StringStruct(u'ProductName',      u'Groundwork'),
-          StringStruct(u'ProductVersion',   u'1.0.0.0'),
+          StringStruct(u'ProductVersion',   u'2.0.0.0'),
         ]
       )
     ]),

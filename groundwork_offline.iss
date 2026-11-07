@@ -6,7 +6,7 @@
 ; Tested with Inno Setup 6.x
 
 #define AppName "Groundwork"
-#define AppVersion "1.1.1"
+#define AppVersion "2.0.0"
 #define AppPublisher "Groundwork"
 #define AppURL "https://groundworkfinance.app"
 #define AppExeName "Groundwork.exe"

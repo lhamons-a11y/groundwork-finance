@@ -246,7 +246,7 @@ app = BUNDLE(
     info_plist={
         'CFBundleName': 'Groundwork',
         'CFBundleDisplayName': 'Groundwork',
-        'CFBundleShortVersionString': '1.1.1',
+        'CFBundleShortVersionString': '2.0.0',
         'CFBundleVersion': _build_id,
         # The floor (macos-build.yml): on an older macOS, the system says so instead of the app failing as it loads.
         'LSMinimumSystemVersion': '14.0',

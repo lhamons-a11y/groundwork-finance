@@ -128,7 +128,7 @@ def main():
 
     v_server = (re.search(r"GW_VERSION\s*=\s*'([^']+)'", server_src) or [None, ''])[1]
     v_app    = (re.search(r"const GW_VERSION = '([^']+)'", app_src) or [None, ''])[1]
-    v_cache  = (re.search(r"app\.js\?v=([\w-]+)", html_src) or [None, ''])[1]
+    v_cache  = (re.search(r"app\.js\?v=([\w.-]+)", html_src) or [None, ''])[1]   # 2.0's id has a dot: 20261107-2.0
 
     print(f'  versions: server={v_server}  app.js={v_app}  cache-buster={v_cache}')
     check('version strings match (server == app.js == cache-buster)',

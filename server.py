@@ -23,7 +23,7 @@ from flask import copy_current_request_context, current_app, Flask, jsonify, req
 
 # Session ID — changes on every server start so client can detect restarts
 _GW_SESSION_ID = str(_uuid.uuid4())[:8]
-GW_VERSION     = '20261008-d25'  # must match app.js GW_VERSION constant
+GW_VERSION     = '20261107-2.0'  # must match app.js GW_VERSION constant
 
 
 def _build_id():
@@ -313,7 +313,7 @@ def create_app(static_folder: str = None) -> Flask:
         try:
             from version import VERSION
         except ImportError:
-            VERSION = '1.0.0.0'
+            VERSION = '2.0.0.0'
         return jsonify({'status': 'ok', 'version': VERSION,
                         'timestamp': datetime.now().isoformat()})
 

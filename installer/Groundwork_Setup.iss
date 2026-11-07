@@ -1,11 +1,11 @@
 ; ============================================================
-;  Groundwork v1.0.0.0 - Inno Setup Installer Script
+;  Groundwork v2.0.0.0 - Inno Setup Installer Script
 ;  Download Inno Setup 6 free from: https://jrsoftware.org
 ;  Build: ISCC.exe installer\groundwork_setup.iss
 ; ============================================================
 
 #define AppName      "Groundwork"
-#define AppVersion   "1.0.0.0"
+#define AppVersion   "2.0.0.0"
 #define AppPublisher "Groundwork"
 #define AppURL       "https://github.com/your-github-username/groundwork"
 #define AppExeName   "Groundwork.exe"

@@ -1,5 +1,5 @@
 {
-  "latest": "20261008-d25",
+  "latest": "20261107-2.0",
   "url": "https://groundworkfinance.app/static/download/Groundwork_Setup.exe",
-  "notes": "Local AI now runs inside Groundwork, with no separate program to install. Fixes debt payoff, net worth and investment figures, adds a Mortgage debt type and flight prices in the trip planner, and removes cloud AI. See the changelog for the full list."
+  "notes": "Groundwork 2.0 is here, free: an assistant that answers from your own records, a Health page for medical bills and your plan year, reports you can ask for in your own words, and protected backups. It updates this install in place and keeps a dated copy of your data first. See what's new at groundworkfinance.app/whats-new."
 }

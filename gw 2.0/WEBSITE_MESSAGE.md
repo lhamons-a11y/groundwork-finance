@@ -539,8 +539,10 @@ version id waits for release day.
   (headless Chrome, narrated by Groundwork's own Kokoro voice; no downloads). MP4 only for those three: Chrome's WebM
   recording carries no duration, so it can't be seeked.
 - **The update notice:** every page's banner ("Already using Groundwork? Updating keeps your records"), the note at the
-  top of `/whats-new`, its *Updating from Groundwork 1.1* section, and the changelog's 2.0 entry (no build id yet).
-  `Website/version.2.0.json` is the in-app notice for release day: its `latest` is empty, so it offers nothing until the
-  2.0 build's `GW_VERSION` is filled in, the changelog entry gets the same id and a date, and it is copied over
-  `version.json`.
+  top of `/whats-new`, its *Updating from Groundwork 1.1* section, and the changelog's 2.0 entry.
+  `Website/version.json` is the in-app notice ("Groundwork 2.0 is here..."); it reaches installed copies when it is
+  published with the site, after the 2.0 installers are uploaded.
+- **The numbers (Rob 2026-11-07, building the installers: "Set 2.0.0 / 20261107-2.0"):** release 2.0.0 in `version.py`,
+  the three `.iss` files and the Mac spec; `GW_VERSION` 20261107-2.0 in `server.py`, `app.js` and the cache-buster; the
+  changelog's 2.0 entry and `version.json` carry the same id (the suite's own check: the feed advertises the build).
 

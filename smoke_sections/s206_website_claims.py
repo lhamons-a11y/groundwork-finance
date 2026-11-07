@@ -95,16 +95,17 @@ def run(ctx):
           and 'Nothing about your health leaves your computer.' in flat_new
           and 'never suggests spending less on care' in ' '.join(pre['/health'].split()))
     # The update notice (Rob 2026-11-07: "add the update notice for users to know it's updated"): on every page's
-    # banner, and on the 2.0 page with how each platform updates. The release-day manifest offers nothing until its
-    # latest is filled in with a date-form version (s149's rule).
-    manifest = json.loads((BASE / 'Website' / 'version.2.0.json').read_text(encoding='utf-8'))
+    # banner, and on the 2.0 page with how each platform updates; and the in-app notice (version.json, published with
+    # the site) names 2.0 and offers the build being shipped.
+    manifest = json.loads((BASE / 'Website' / 'version.json').read_text(encoding='utf-8'))
     check('s206 the update notice: every page\'s banner says updating keeps your records; the 2.0 page says how each '
-          'platform updates; the release-day manifest names 2.0 and offers it to nobody until its version is filled in',
+          'platform updates; the in-app notice names 2.0 and offers the build being shipped',
           all('Updating keeps your records' in pre[k] for k in paths if k != '/llms.txt')
           and 'id="update"' in coming and 'choose <strong>Replace</strong>' in coming
           and 'removes the earlier version for you' in coming and 'install script replaces the earlier version' in coming
           and 'Groundwork 2.0' in manifest['notes']
-          and (manifest['latest'] == '' or re.fullmatch(r'\d{8}-[0-9A-Za-z.]+', manifest['latest'])))
+          and re.search(r"GW_VERSION\s*=\s*'([^']+)'", (BASE / 'server.py').read_text(encoding='utf-8')).group(1)
+          == manifest['latest'])
     # V: the walkthrough videos. Each is real, with a poster and captions, and says it is a made-up household.
     vids = [(k, m) for k in ('/', '/whats-new', '/health') for m in re.findall(r'<video\b.*?</video>', pre[k], re.S)]
     vdir = BASE / 'Website' / 'static'
