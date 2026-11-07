@@ -129,6 +129,17 @@ def run(ctx):
         ('DELETE', '/api/transactions'),          # empties the table
     }
 
+    # A copy without the voice recognition file answers these two with a 503 and
+    # the reason - a deliberate "not installed", not a crash. It is excused only
+    # for these routes, only as a 503, and only while the file really is missing,
+    # as it is on CI, which does not fetch the models.
+    NEEDS_VOICEPRINT = {
+        ('POST', '/api/voice/voices'),
+        ('POST', '/api/voice/voices/check'),
+    }
+    from core import voiceprint as _voiceprint
+    _voiceprint_missing = not _voiceprint.status()['available']
+
     refused, crashed = [], []
     for rule in sorted(app.url_map.iter_rules(), key=lambda r: str(r.rule)):
         raw = str(rule.rule)
@@ -142,7 +153,9 @@ def run(ctx):
             try:
                 resp = c.open(url, method=verb, headers=ctx.HJ, json={})
                 refused.append((verb, url))
-                if resp.status_code >= 500:
+                not_installed = (_voiceprint_missing and resp.status_code == 503
+                                 and (verb, raw) in NEEDS_VOICEPRINT)
+                if resp.status_code >= 500 and not not_installed:
                     crashed.append((verb, url, str(resp.status_code)))
             except Exception as exc:                  # noqa: BLE001
                 crashed.append((verb, url, repr(exc)[:100]))
