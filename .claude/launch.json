@@ -46,6 +46,35 @@
       "port": 8767
     },
     {
+      "name": "lts-worktree",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "C:\\rw-lts\\dev_server.py"
+      ],
+      "port": 8766,
+      "autoPort": false
+    },
+    {
+      "name": "voice-worktree",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "set GW_DEV_PORT=8767&& python C:\\rw-voice\\dev_server.py"
+      ],
+      "port": 8767,
+      "autoPort": false
+    },
+    {
+      "name": "known-voices",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "set GW_DEV_PORT=8769&& python dev_server.py"
+      ],
+      "port": 8769,
+      "autoPort": false
+    },
+    {
       "name": "website-preview",
       "runtimeExecutable": "/usr/bin/env",
       "runtimeArgs": [
