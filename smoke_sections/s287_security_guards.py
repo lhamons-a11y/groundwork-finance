@@ -7,6 +7,7 @@
 
 Each guard is broken here on purpose and the break must be caught (the method of s125).
 """
+import json
 import re
 
 BANK = 'https://www.superiorcu.com/'
@@ -259,6 +260,102 @@ def _linux_hold(ctx, lg, keep):
           and 'window.load_url(' in keep)
 
 
+def _bank_link_yes(ctx, lg, launch_src):
+    """A bank link opens only on the person's Yes to that exact address, and WebRTC is off (2026-11-06). The dialog is a
+    stand-in here; the real one is the dialog open_external already uses."""
+    import hashlib
+    import bank_window
+    import server
+
+    check, c, H, BASE = ctx.check, ctx.c, ctx.HJ, ctx.BASE
+    aid = c.post('/api/accounts', headers=H, json={'name': 's287 bank link'}).get_json()['data']['id']
+    good, other = 'https://www.s287-bank.example/', 'https://s287-secret-data.example/'
+
+    def set_link(url):
+        c.put(f'/api/accounts/{aid}/portal', headers=H, json={'url': url})
+
+    def press():
+        return c.post(f'/api/accounts/{aid}/portal/open', headers=H, json={}).status_code
+
+    opened, asked, answer = [], [], [False]
+
+    def ask(url):
+        asked.append(url)
+        return answer[0]
+
+    real_open, real_ask = bank_window.open_bank_window, bank_window.ASK_PERSON
+    bank_window.open_bank_window = lambda key, url, *a, **k: opened.append(url) or 'opened'
+    try:
+        set_link(good)
+        press()
+        check('s287 gap 3 a bank link with no window to ask in opens, as in dev_server and the gate', opened == [good])
+
+        opened.clear()
+        bank_window.ASK_PERSON = ask
+        code = press()
+        check('s287 gap 3 a bank link: a no leaves the window closed, and nothing is remembered',
+              code == 400 and not opened and asked == [good])
+
+        asked.clear()
+        answer[0] = 'yes'
+        press()
+        check('s287 gap 3 a bank link: only a real Yes counts', not opened and asked == [good])
+
+        asked.clear()
+        answer[0] = True
+        press()
+        check('s287 gap 3 a bank link: the Yes opens it', opened == [good] and asked == [good])
+
+        asked.clear()
+        opened.clear()
+        press()
+        check('s287 gap 3 a bank link: it is asked once', opened == [good] and not asked)
+
+        asked.clear()
+        opened.clear()
+        answer[0] = False
+        set_link(other)
+        press()
+        check('s287 gap 3 a bank link: another address is asked about, the Yes was for that one only',
+              not opened and asked == [other])
+
+        asked.clear()
+        forged = hashlib.sha256(other.encode()).hexdigest()
+        c.patch('/api/settings', headers=H, json={server.BANK_LINKS_SETTING: json.dumps([forged])})
+        press()
+        check('s287 gap 3 a bank link: script cannot write the Yes itself', not opened and asked == [other])
+
+        # Break the guard: the check must notice
+        real = server._bank_link_approved
+        server._bank_link_approved = lambda _u: True
+        try:
+            press()
+            check('s287 gap 3 the mutation: without the question the address goes out', opened == [other])
+        finally:
+            server._bank_link_approved = real
+    finally:
+        bank_window.open_bank_window, bank_window.ASK_PERSON = real_open, real_ask
+
+    srv = (BASE / 'server.py').read_text(encoding='utf-8')
+    check('s287 gap 3 every way the page opens a bank window at a stored link asks first: the window, recording, a fetch, bill pay',
+          srv.count('not _bank_link_approved(url)') == 4)
+    check('s287 gap 3 a batch run says why it stopped',
+          "'not_approved' if problem == LINK_NOT_APPROVED" in srv
+          and "'not_approved': " in (BASE / 'bank_agent_window.py').read_text(encoding='utf-8'))
+    word_title, word_text = lg.bank_ask_words(other)
+    check('s287 gap 3 a bank link: the question shows the whole address', other in word_text and word_title)
+    keep = launch_src.split('def _keep_window_home')[1].split('\ndef ')[0]
+    check('s287 gap 3 the program with a window is the one that asks',
+          'bank_window.ASK_PERSON = lambda url: _person_says_yes(url, link_guard.bank_ask_words)' in keep)
+
+    off = launch_src.split('def _no_webrtc_mac')[1].split('\ndef ')[0]
+    check('s287 gap 3 WebRTC: a Mac turns it off in the engine, before the window shows, and logs if it could not',
+          '_no_webrtc_mac(window)' in keep and "'PeerConnectionEnabled'" in off and 'before_show += off' in off
+          and 'logging.warning(' in off)
+    r = c.get('/api/health')
+    check("s287 gap 3 WebRTC: the page's policy refuses it too", "webrtc 'block'" in r.headers.get('Content-Security-Policy', ''))
+
+
 def _carries_password(window):
     return any(LOGIN[1] in js for js in window.sent)
 
@@ -418,6 +515,7 @@ def run(ctx):
           and "args=(url,)" in keep)
     _mac_hold(ctx, lg, keep)
     _linux_hold(ctx, lg, keep)
+    _bank_link_yes(ctx, lg, launch)
     srv =(BASE / 'server.py').read_text(encoding='utf-8')
     check('s287 gap 3 the policy\'s comment no longer claims script has nowhere to send data',
           'leaves injected script nowhere to send data' not in srv)

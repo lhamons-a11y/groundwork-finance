@@ -73,7 +73,8 @@ _SECURITY_HEADERS = {
     'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
                                "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; "
                                "media-src 'self' data: blob:; worker-src 'self' blob:; connect-src 'self'; "
-                               "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+                               "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; "
+                               "webrtc 'block'",        # WebKit ignores this: a Mac turns it off in launch.py
     'X-Frame-Options':        'DENY',
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy':        'no-referrer',
@@ -1879,12 +1880,41 @@ def _portal_body_url(body):
     return bank_window.normalise_portal_url(raw), None
 
 
+# Security audit 2026-11-05, gap 3: script holding the token could save a link with data in it and open a bank window at
+# it. So a link opens in one only once the person has said Yes to that exact address, in a dialog the page cannot press.
+# Kept as hashes, written only here (PATCH /settings drops the key). Addresses Groundwork builds itself (flights, hotels)
+# do not come here: the page cannot choose their site.
+BANK_LINKS_SETTING = 'bank_links_approved'
+LINK_NOT_APPROVED = 'You said no to opening this address, so it stayed closed.'
+
+
+def _bank_link_approved(url):
+    import bank_window
+    import hashlib
+    ask = bank_window.ASK_PERSON
+    if ask is None:                                 # no window to ask in: dev_server, the gate
+        return True
+    mark = hashlib.sha256(url.encode('utf-8')).hexdigest()
+    with db_session() as session:
+        if mark in (_setting_json(session, BANK_LINKS_SETTING, []) or []):
+            return True
+    if ask(url) is not True:                        # no database session is held while the person reads the dialog
+        return False
+    with db_session() as session:
+        known = _setting_json(session, BANK_LINKS_SETTING, []) or []
+        _set_setting(session, BANK_LINKS_SETTING, json.dumps([*known, mark]))
+        session.commit()
+    return True
+
+
 def _portal_open(key, url, mode):
     import bank_window
     if not url:
         return err('No bank website is set for this account.', 404)
     if mode == 'browser':
         result = bank_window.open_in_browser(url)
+    elif not _bank_link_approved(url):
+        return err(LINK_NOT_APPROVED, 400)
     else:
         result = bank_window.open_bank_window(key, url)
     if result == 'refused_url':
@@ -11217,6 +11247,7 @@ def update_settings():
     body.pop('two_accounts_said_json', None)
     body.pop(money_kind.SETTING, None)        # item 111 X3: the same - a move's answer has its own route
     body.pop(VOICEPRINTS_SETTING, None)       # item 116 V19: a voiceprint is made only by enrolling, here
+    body.pop(BANK_LINKS_SETTING, None)        # gap 3: only the person's Yes in the dialog approves a bank link
     if VOICE_GATE_SETTING in body:            # and "only voices it knows" turns on only with a voice to know
         with db_session() as session:
             if str(body[VOICE_GATE_SETTING]).lower() == 'on' and not _voiceprint_rows(session):
@@ -11466,6 +11497,8 @@ def bank_agent_record():
         device_on = (_get_setting(session, f'bank_device:{dkey}') or AppSetting(value='')).value == 'yes'
     if not url:
         return err('That account has no bank link.', 400)
+    if not _bank_link_approved(url):
+        return err(LINK_NOT_APPROVED, 400)
     key_for_device = dkey
     # A7: with "Remember this computer" ticked, the recording window keeps the bank's cookies in the same folder the
     # fetch uses, so trusting this device while recording carries into the fetch
@@ -11576,6 +11609,8 @@ def _start_bank_fetch(key, batch=None, on_end=None):
     steps_ = (recipe or {}).get('steps') or []
     if not steps_:
         return None, 'Show Groundwork the steps once first.'
+    if not _bank_link_approved(url):
+        return None, LINK_NOT_APPROVED
     device = str(_bank_device_dir(key, create=True)) if device_on else ''
     started = datetime.now().isoformat(timespec='seconds')
     words = [bank_agent_window.step_words(s) for s in steps_]
@@ -11703,7 +11738,8 @@ def bank_agent_fetch_all():
     def _launch(key, batch_id, on_end):
         result, problem = _start_bank_fetch(key, batch=batch_id, on_end=on_end)
         if problem:
-            return 'no_login' if 'login' in problem else 'no_steps' if 'steps' in problem else 'refused_url'
+            return ('no_login' if 'login' in problem else 'no_steps' if 'steps' in problem
+                    else 'not_approved' if problem == LINK_NOT_APPROVED else 'refused_url')
         return result
     return ok({'result': bank_agent_window.start_batch(items, _launch)})
 
@@ -12130,6 +12166,8 @@ def bank_agent_pay_open():
                 session.commit()
         except Exception:
             logging.getLogger('groundwork').warning('bill_pay_opened could not be recorded')
+    if not _bank_link_approved(url):
+        return err(LINK_NOT_APPROVED, 400)
     result = bank_agent_window.start_fetch(key, url, steps_, device, on_finish=_finished,
                                            extra={'login_key': login_key, 'hold': hold})
     return ok({'id': bid, 'result': result})

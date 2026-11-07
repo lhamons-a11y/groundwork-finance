@@ -34,6 +34,10 @@ from pathlib import Path
 _REFUSED_HOST_SUFFIXES = ('.localhost', '.local', '.internal', '.lan', '.home.arpa')
 
 
+# launch.py sets this in the program that has a window: url -> the person's Yes. None: no window to ask in.
+ASK_PERSON = None
+
+
 def portal_url_problem(url):
     """Why this link may not be stored or opened, or None if it may.
 

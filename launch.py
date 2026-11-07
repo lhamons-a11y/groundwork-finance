@@ -169,13 +169,13 @@ def _flash_taskbar(w):
         logging.info('flash_taskbar: %s', e)
 
 
-def _person_says_yes(url):
+def _person_says_yes(url, words=None):
     """The person's Yes to an address, in the window's own dialog. No window or no answer is a no."""
     try:
         import link_guard
         import webview
         windows = getattr(webview, 'windows', None) or []
-        return bool(windows) and windows[0].create_confirmation_dialog(*link_guard.ask_words(url)) is True
+        return bool(windows) and windows[0].create_confirmation_dialog(*(words or link_guard.ask_words)(url)) is True
     except Exception:
         logging.exception('could not ask about an address')
         return False
@@ -557,8 +557,14 @@ def _keep_window_home(window, api):
         return True
     webbrowser.open = outside
 
+    # A bank window can carry an address out too: a link it has not opened before waits for the person's Yes (server's
+    # _bank_link_approved). Set here, in the program that has a window to ask in; without one nothing is asked.
+    import bank_window
+    bank_window.ASK_PERSON = lambda url: _person_says_yes(url, link_guard.bank_ask_words)
+
     if sys.platform == 'darwin':
         _hold_window_mac(window, port)
+        _no_webrtc_mac(window)
     elif sys.platform.startswith('linux'):
         _hold_window_gtk(window, port)
 
@@ -598,6 +604,26 @@ def _keep_window_home(window, api):
             logging.exception('could not keep the window on its own pages')
 
     window.events.loaded += on_loaded
+
+
+def _no_webrtc_mac(window):
+    """WebRTC reaches any address over UDP and the page's policy does not stop it; Groundwork does not use it. Measured
+    2026-11-06 on a real WKWebView: with the page's policy, and with webrtc 'block' added, packets reached an outside
+    listener; with this switch RTCPeerConnection does not exist, in a fresh frame either, and none did. The switch is a
+    private WebKit setting, so a macOS that drops it is logged and not fatal; s287 can hold only the wiring."""
+    def off(*_):
+        try:
+            import WebKit
+            from webview.platforms.cocoa import BrowserView
+            prefs = BrowserView.instances[window.uid].webview.configuration().preferences()
+            found = [f for f in WebKit.WKPreferences._features() if f.key() == 'PeerConnectionEnabled']
+            for f in found:
+                prefs._setEnabled_forFeature_(False, f)
+            if not found:
+                logging.warning('WebRTC could not be turned off: this macOS does not name the setting')
+        except Exception:
+            logging.exception('could not turn WebRTC off (macOS)')
+    window.events.before_show += off
 
 
 def _hold_window_mac(window, port):

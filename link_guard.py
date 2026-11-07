@@ -70,6 +70,13 @@ def ask_words(url):
             '\n\nOpen it only if you just asked for this and you recognise the address.')
 
 
+def bank_ask_words(url):
+    """(title, message) for the Yes before a bank link opens for the first time. Asked once for each exact address."""
+    return ('Open this bank link?',
+            'Groundwork was asked to open this address in a bank window, for the first time:\n\n' + url +
+            '\n\nOpen it only if this is the link you entered for your bank and you recognise the address.')
+
+
 def stays_home(url, port):
     """True when the main window may go to this address: Groundwork's own server on its own port, or a blank page."""
     if url == 'about:blank':

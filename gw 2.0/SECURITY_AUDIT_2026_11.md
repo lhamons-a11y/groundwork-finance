@@ -76,12 +76,40 @@ The person's Yes was a stand-in and `xdg-open` was recorded, not run. WSLg draws
 saw the window. A frame was stopped by the page's policy before the guard was reached, so the guard's hold on frames
 was not measured on its own. Not yet run in the built app or on a Linux desktop.
 
+### A bank window as a way out (Rob 2026-11-06: "lets address the bank window and WebRTC"; s287)
+
+Script holding the token could save a link with data in it and open a bank window at it. Now a stored link opens only
+after the person's Yes to that exact address, in a dialog the page cannot press: from the window, recording, a fetch and
+bill pay. The Yes is remembered as a hash, once per address; PATCH `/api/settings` cannot write it. Flights and hotels do
+not ask, because Groundwork builds their addresses itself.
+
+**What changes for a person:** each bank link already saved asks once, the first time it is opened after this build, and
+a "get all my accounts" run can ask once per account the first time. The dialog itself is a stand-in in the gate and has
+not been seen on any machine yet. A restored backup carries the Yes with it, so a hostile backup file could carry one;
+restoring needs the token and replaces the whole record in any case.
+
+### WebRTC (same ruling; `launch._no_webrtc_mac`, s287)
+
+Measured 2026-11-06 on a real WKWebView, with Groundwork's own policy and a UDP listener standing in for an outside
+server. Groundwork does not use WebRTC.
+
+| Setting | `RTCPeerConnection` | Packets that reached the listener |
+|---|---|---|
+| the policy as it was | there | 5, and 6 more from a fresh frame |
+| the policy with `webrtc 'block'` | there | 5, and 6 more from a fresh frame |
+| WebKit's `PeerConnectionEnabled` off | gone, in a fresh frame too | 0 |
+
+So on a Mac it is off in the engine. That setting is a private WebKit one, so a macOS that drops it logs a warning and
+WebRTC stays on. `webrtc 'block'` is in the policy for the engines that honour it.
+
 ## Open
 
 **From gap 3:**
-- **A bank window as a way out.** Script holding the token can save a bank link and open a bank window at it. The window
-  is visible to the person, but the address carries data. Not closed here.
-- **WebRTC.** `connect-src` does not cover it in every browser engine. Not tested.
+- **WebRTC on Windows and Linux.** Not measured. Windows has only the policy line, which may or may not hold in WebView2,
+  so it needs the same listener test on a Windows machine. WebKitGTK's `enable-webrtc` setting is documented as off by
+  default; not measured either.
+- **The microphone on a Mac with WebRTC off.** They are separate features, but voice was not run on this build: in the
+  test window `navigator.mediaDevices` was absent with and without the switch.
 - **1.x.** `open_external` on `lts/1.x` is unguarded. Item 32 L1 admits security fixes to 1.x, built there first; this was
   built on master first. Rob to rule on the port.
 

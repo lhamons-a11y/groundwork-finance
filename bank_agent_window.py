@@ -1383,6 +1383,7 @@ def batch_words(it, live=None):
             'would_pay': 'Stopped: the next step looked like making a payment - Groundwork never pays',
             'other_site': "Stopped: the login page wasn't on the bank's own site, so nothing was filled in",
             'refused_url': "Stopped: the bank link isn't an https address",
+            'not_approved': "Stopped: you said no to opening this bank link",
             'engine_unavailable': "Stopped: the window couldn't open",
             'cancelled': 'Stopped'}.get(why, 'Stopped')
 
