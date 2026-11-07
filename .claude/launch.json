@@ -55,16 +55,6 @@
       "autoPort": false
     },
     {
-      "name": "voice-worktree",
-      "runtimeExecutable": "cmd",
-      "runtimeArgs": [
-        "/c",
-        "set GW_DEV_PORT=8767&& python C:\\rw-voice\\dev_server.py"
-      ],
-      "port": 8767,
-      "autoPort": false
-    },
-    {
       "name": "known-voices",
       "runtimeExecutable": "cmd",
       "runtimeArgs": [
