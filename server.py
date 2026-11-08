@@ -11243,6 +11243,7 @@ def update_settings():
     body = request.json
     # Item 105: only the sample household's own load marks the records as the sample (which lets them be cleared)
     body.pop('sample_household', None)
+    body.pop('sample_vault_keys', None)       # item 117 D8: which vault logins "Start with my own" forgets - its own route only
     # Item 107 D8: what the person said about a pair of accounts is appended by its own route, never written over
     body.pop('two_accounts_said_json', None)
     body.pop(money_kind.SETTING, None)        # item 111 X3: the same - a move's answer has its own route
@@ -11412,7 +11413,25 @@ def bank_login_save():
     if not bank_vault.available():
         return err('This computer has no password vault Groundwork can use, so it cannot keep a bank login.', 400)
     bank_vault.save_login(key, body['username'], body['password'])
+    _note_sample_login(key)
     return ok({'key': key, 'has_login': True})
+
+
+SAMPLE_LOGINS = 'sample_vault_keys'     # item 117 D8: logins saved while the sample household is here
+
+
+def _note_sample_login(key):
+    """Item 117 D8: a login saved while the sample household is loaded is the sample's (the demo bank's), so "Start
+    with my own" forgets it. Only these are ever forgotten there - never an entry this record didn't save."""
+    from core import sample_household as sh
+    with db_session() as session:
+        flag = _get_setting(session, sh.SAMPLE_FLAG)
+        if not (flag and flag.value == 'true'):
+            return
+        known = _setting_json(session, SAMPLE_LOGINS, []) or []
+        if key not in known:
+            _set_setting(session, SAMPLE_LOGINS, json.dumps([*known, key]))
+            session.commit()
 
 
 @settings_bp.route('/bank-logins/forget', methods=['POST'])
@@ -15957,6 +15976,22 @@ def sample_clear():
         if not (flag and flag.value == 'true'):
             return err('Only the sample household can be cleared this way. Your own records are never cleared here.', 403)
         kept = {r.key: r.value for r in session.query(AppSetting).all() if r.key.startswith(sh.KEEP_PREFIXES)}
+        # Item 117 D8: the sample is linked to the demo bank and biller, so a login saved while trying them lives in
+        # the computer's vault, and a remembered device in bank_devices - outside the database this clear removes. Both
+        # go with the sample, or a household's own account made later under the same id would show a saved login. Only
+        # the logins saved while the sample was here (_note_sample_login) are forgotten: never anything else in the vault.
+        sample_logins = [k for k in (_setting_json(session, SAMPLE_LOGINS, []) or []) if isinstance(k, str)]
+        device_keys = [f'account:{a.id}' for a in session.query(Account).all()]
+        device_keys += [f'card:{d.id}' for d in session.query(DebtAccount).all()]
+    from core import bank_vault
+    for k in sample_logins:
+        try:
+            bank_vault.forget(k)
+        except Exception:
+            pass
+    import shutil
+    for k in device_keys:
+        shutil.rmtree(_bank_device_dir(k), ignore_errors=True)
     try:
         db_session.remove()
         engine.dispose()

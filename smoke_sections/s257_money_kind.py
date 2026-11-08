@@ -320,6 +320,7 @@ def run(ctx):
         c.patch('/api/settings', headers=HJ, data=json.dumps({}))
 
     # ── X9: the Morgans, filed like an import ─────────────────────────────────────────────────────────────────────
-    sh = (root / 'core' / 'sample_household.py').read_text(encoding='utf-8')
+    # item 117 D5: the Morgans' lines live in core/sample_lines.py now, shared with the website's demo bank
+    sh = (root / 'core' / 'sample_lines.py').read_text(encoding='utf-8')
     check('s257 X9 the Morgans file card and loan payments under Debt, with the card\'s payment thank you and one refund',
-          "debt_pay = cat('Debt'" in sh and "'PAYMENT THANK YOU'" in sh and "'PARCELMART REFUND'" in sh)
+          "DEBT_PAY = ('Debt'" in sh and sh.count('DEBT_PAY') >= 4 and "'PAYMENT THANK YOU'" in sh and "'PARCELMART REFUND'" in sh)

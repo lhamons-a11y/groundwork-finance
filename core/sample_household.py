@@ -10,18 +10,22 @@ Groundwork's own routes so every record is shaped exactly as the app shapes it, 
 "Start with my own" can clear it - which nothing else can ever do to a household's real records.
 """
 import json
-import random
 from datetime import date, datetime, time, timedelta
 
 SAMPLE_FLAG = 'sample_household'
 # Kept when the sample is cleared: the terms the person accepted, their AI choice, where backups go
 KEEP_PREFIXES = ('terms_', 'ai_', 'backup_')
 
-# October this year: Restaurants comes to exactly $500.00 over five visits (Rob's example - "someone see Restaurants
-# $500.00 they don't think that is right")
-RESTAURANT_MONTH_NOW = [(2, 'BAYSIDE GRILL #12', 'Bayside Grill', 112.40), (6, 'LUNA TAQUERIA', 'Luna Taqueria', 86.25),
-                        (11, 'PINE STREET PIZZA', 'Pine Street Pizza', 131.80), (15, 'GOLDEN WOK', 'Golden Wok', 74.55),
-                        (18, 'BAYSIDE GRILL #12', 'Bayside Grill', 95.00)]
+# Item 117 D2/D8: the sample's bank and electric bill are the website's demo sites - made up, labelled as made up, and
+# offered so anyone can try "Get my accounts" and a bill read from its biller without a real bank. Only the sample gets
+# them; nothing ever puts these addresses on a household's own accounts. No steps are recorded for them: "Show me once"
+# is the part to learn.
+DEMO_INSTITUTION = 'Demo Credit Union'
+DEMO_BANK_URL = 'https://groundworkfinance.app/demo-bank/'
+DEMO_BILL_URL = 'https://groundworkfinance.app/demo-bill/'
+
+# The everyday lines, this month's $500.00 of Restaurants among them, are core/sample_lines.py's (item 117 D5)
+from core.sample_lines import RESTAURANT_MONTH_NOW, day as _day, everyday, months as _months  # noqa: F401
 
 
 def empty_reason(session):
@@ -46,25 +50,9 @@ def empty_reason(session):
     return None
 
 
-def _months(today, n=6):
-    out, y, m = [], today.year, today.month
-    for _ in range(n):
-        out.append((y, m))
-        m -= 1
-        if m == 0:
-            y, m = y - 1, 12
-    return list(reversed(out))
-
-
-def _day(y, m, d):
-    import calendar
-    return date(y, m, min(d, calendar.monthrange(y, m)[1]))
-
-
 def build(c, headers, today=None):
     """Fill an empty Groundwork with the Morgans through the app's own routes (c: a test client of the app)."""
     today = today or date.today()
-    rnd = random.Random(20261020)
     H = {**headers, 'Content-Type': 'application/json'}
 
     def post(path, body, method='post'):
@@ -85,8 +73,8 @@ def build(c, headers, today=None):
     def cat(*names):
         return next((n for n in names if n in cats), names[-1])
 
-    checking = post('/api/accounts', {'name': 'Everyday Checking', 'type': 'checking', 'institution': 'Lakeside Credit Union'})['id']
-    savings = post('/api/accounts', {'name': 'High-Yield Savings', 'type': 'savings', 'institution': 'Lakeside Credit Union'})['id']
+    checking = post('/api/accounts', {'name': 'Everyday Checking', 'type': 'checking', 'institution': DEMO_INSTITUTION})['id']
+    savings = post('/api/accounts', {'name': 'High-Yield Savings', 'type': 'savings', 'institution': DEMO_INSTITUTION})['id']
     brokerage = post('/api/accounts', {'name': 'Brokerage', 'type': 'investment', 'institution': 'Harbor Invest'})['id']
 
     debts = [
@@ -101,74 +89,20 @@ def build(c, headers, today=None):
         d['_dbId'] = post('/api/debt', d)['id']
     accounts = {a['name']: a['id'] for a in (c.get('/api/accounts', headers=H).get_json()['data'])}
     visa = accounts.get('Cashback Visa', checking)
+    for acct in (checking, visa):                   # item 117 D8: the checking account and the card, at the demo bank
+        post(f'/api/accounts/{acct}/portal', {'url': DEMO_BANK_URL}, 'put')
 
-    txns = []
-
-    def tx(acct, d, desc, merchant, amount, category, kind='debit'):
-        if d <= today:
-            txns.append({'account_id': acct, 'date': d.isoformat(), 'posted_date': (min(d + timedelta(days=1), today)).isoformat(),
-                         'description': desc, 'merchant': merchant, 'amount': round(amount, 2), 'type': kind,
-                         'category': category, 'source': 'csv', 'cleared': True})
-
+    # the everyday lines come from core/sample_lines.py - the same lines the website's demo bank offers for download
+    # (item 117 D5)
     months = _months(today)
-    start = _day(*months[0], 1)
-    # two paychecks, every other Friday, a week apart
-    first_friday = start + timedelta(days=(4 - start.weekday()) % 7)
-    d = first_friday
-    while d <= today:
-        tx(checking, d, 'NORTHWIND LOGISTICS PAYROLL', 'Northwind Logistics', 2150.00, cat('Paycheck / Salary'), 'credit')
-        tx(checking, d + timedelta(days=7), 'RIVERSIDE SCHOOLS PAYROLL', 'Riverside Schools', 1780.00, cat('Paycheck / Salary'), 'credit')
-        d += timedelta(days=14)
-
-    # item 111 X9: filed as a real import files them - card and loan payments under Debt (the importer's own word),
-    # the card's payment thank you on the card, and one refund - so the sample shows the kinds working
-    debt_pay = cat('Debt', 'Loan Payment', 'Credit Card Payment', 'Debt Payment')
-    for i, (y, m) in enumerate(months):
-        now = (y, m) == (today.year, today.month)
-        tx(checking, _day(y, m, 1), 'LAKESIDE PROPERTY MGMT', 'Lakeside Property Management', 1650.00, cat('Rent / Mortgage'))
-        tx(checking, _day(y, m, 2), 'TRANSFER TO SAVINGS', 'Transfer to savings', 300.00, cat('Transfer'))
-        tx(savings, _day(y, m, 2), 'TRANSFER FROM CHECKING', 'Transfer from checking', 300.00, cat('Transfer'), 'credit')
-        tx(checking, _day(y, m, 3), 'RIVERSIDE AUTO FINANCE', 'Riverside Auto Finance', 389.00, debt_pay)
-        tx(checking, _day(y, m, 5), 'CLEARWAVE INTERNET', 'ClearWave Internet', 69.99, cat('Internet'))
-        tx(checking, _day(y, m, 8), 'BRIGHTCELL WIRELESS', 'BrightCell Wireless', 94.00, cat('Phone / Cell'))
-        tx(checking, _day(y, m, 12), 'METRO POWER & LIGHT', 'Metro Power & Light', rnd.uniform(86, 142), cat('Electric'))
-        tx(checking, _day(y, m, 15), 'SAFEHARBOR AUTO INS', 'SafeHarbor Auto Insurance', 138.50, cat('Auto Insurance'))
-        tx(checking, _day(y, m, 20), 'STUDENTAID SERVICER', 'StudentAid Servicer', 210.00, debt_pay)
-        tx(checking, _day(y, m, 22), 'CASHBACK VISA PAYMENT', 'Cashback Visa payment', 600.00, debt_pay)
-        tx(visa, _day(y, m, 23), 'PAYMENT THANK YOU', 'Payment - thank you', 600.00, debt_pay, 'credit')
-        tx(visa, _day(y, m, 4), 'IRONWORKS GYM', 'Ironworks Gym', 45.00, cat('Gym / Fitness'))
-        tx(visa, _day(y, m, 9), 'STREAMBOX', 'StreamBox', 15.49, cat('Streaming Video'))
-        if i >= len(months) - 3:                     # item 107 D11: StreamBox from checking too, so the review sees one
-            tx(checking, _day(y, m, 3), 'STREAMBOX.COM', 'StreamBox', 15.49, cat('Streaming Video'))
-        tx(visa, _day(y, m, 14), 'TUNEFLOW', 'TuneFlow', 10.99, cat('Streaming Music', 'Streaming Video'))
-        for _ in range(rnd.randint(6, 8)):
-            store = rnd.choice([('FRESH FARM MARKET', 'Fresh Farm Market'), ('VALLEY FOODS #31', 'Valley Foods'), ('CORNER MARKET', 'Corner Market')])
-            tx(visa, _day(y, m, rnd.randint(1, 28)), store[0], store[1], rnd.uniform(38, 165), cat('Groceries'))
-        if now:
-            for dd, desc, merch, amt in RESTAURANT_MONTH_NOW:
-                tx(visa, _day(y, m, dd), desc, merch, amt, cat('Restaurants'))
-        else:
-            for _ in range(rnd.randint(3, 5)):
-                place = rnd.choice([('BAYSIDE GRILL #12', 'Bayside Grill'), ('LUNA TAQUERIA', 'Luna Taqueria'),
-                                    ('PINE STREET PIZZA', 'Pine Street Pizza'), ('GOLDEN WOK', 'Golden Wok')])
-                tx(visa, _day(y, m, rnd.randint(1, 28)), place[0], place[1], rnd.uniform(24, 96), cat('Restaurants'))
-        # Coffee: about $50 a month until they cut its line from $60 to $40 in the second month, and under $40 since
-        for _ in range(rnd.randint(7, 9) if i <= 1 else rnd.randint(4, 5)):
-            tx(visa, _day(y, m, rnd.randint(1, 28)), 'LANTERN CAFE', 'Lantern Cafe', rnd.uniform(4.75, 7.9 if i <= 1 else 7.5), cat('Coffee Shops'))
-        for _ in range(rnd.randint(3, 4)):
-            tx(visa, _day(y, m, rnd.randint(1, 28)), 'QUICKFUEL #214', 'QuickFuel', rnd.uniform(38, 62), cat('Gasoline / Diesel'))
-        for _ in range(rnd.randint(1, 2)):
-            tx(visa, _day(y, m, rnd.randint(1, 28)), 'HAPPY PAWS PET SUPPLY', 'Happy Paws Pet Supply', rnd.uniform(32, 68), cat('Pet Food / Supplies'))
-        tx(visa, _day(y, m, rnd.randint(1, 28)), 'PARCELMART ORDER', 'ParcelMart', rnd.uniform(22, 74), cat('Household Supplies'))
-        if i % 2 == 0:
-            tx(visa, _day(y, m, rnd.randint(1, 28)), 'THREADLINE', 'Threadline', rnd.uniform(35, 120), cat('Clothing'))
-        if i == 2:
-            tx(visa, _day(y, m, 17), 'NORTHSIDE URGENT CARE', 'Northside Urgent Care', 40.00, cat('Doctor / Co-pays'))
-        if i == 3:
-            tx(visa, _day(y, m, 6), 'GIFTNOOK', 'GiftNook', 64.30, cat('Gifts'))
-            tx(visa, _day(y, m, 11), 'PARCELMART REFUND', 'ParcelMart', 42.18, cat('Household Supplies'), 'credit')
-    for t in sorted(txns, key=lambda x: x['date']):
-        post('/api/transactions', t)
+    _, lines = everyday(today)
+    acct_ids = {'checking': checking, 'savings': savings, 'visa': visa}
+    for ln in lines:
+        d = ln['date']
+        post('/api/transactions', {'account_id': acct_ids[ln['acct']], 'date': d.isoformat(),
+                                   'posted_date': min(d + timedelta(days=1), today).isoformat(),
+                                   'description': ln['description'], 'merchant': ln['merchant'], 'amount': ln['amount'],
+                                   'type': ln['kind'], 'category': cat(*ln['cats']), 'source': 'csv', 'cleared': True})
 
     # investments: three funds, priced by hand (no lookup leaves the computer)
     for ticker, shares, paid, price, ago in (('VTI', 42, 210.15, 268.40, 300), ('VXUS', 60, 58.20, 64.10, 240), ('BND', 25, 72.05, 73.30, 180)):
@@ -206,6 +140,7 @@ def build(c, headers, today=None):
             ('Streaming', 'Streaming Video', 27), ('Gym', 'Gym / Fitness', 45), ('Pet supplies', 'Pet Food / Supplies', 80),
             ('Household', 'Household Supplies', 60), ('Clothing', 'Clothing', 75)]):
         lines[name] = post('/api/budget/items', {'type': 'expense', 'name': name, 'amount': amount, 'category': cat(catname), 'sort_order': k})['id']
+    post('/api/settings/bank-agent/bill-site', {'id': lines['Electric'], 'url': DEMO_BILL_URL})   # item 117 D8: the demo biller
     post('/api/settings', {'monthly_budget': '900', 'debt_method': 'avalanche', 'savings_balance': '6700', 'savings_balance_source': 'typed',
                            'retirement_401k': '38500', 'retirement_ira': '9200'}, 'patch')
 
@@ -267,4 +202,4 @@ def build(c, headers, today=None):
     with db_session() as session:
         session.add(AppSetting(key=SAMPLE_FLAG, value='true'))
         session.commit()
-    return {'transactions': len(txns), 'accounts': len(accounts), 'debts': len(debts)}
+    return {'transactions': len(lines), 'accounts': len(accounts), 'debts': len(debts)}

@@ -1767,6 +1767,11 @@ def privacy():
   <ul>
     <li><strong>Counters, not tracking.</strong> The site keeps one count per page per day, and one count per
       download platform per day. It stores no IP address, no cookie and no browser details.</li>
+    <li><strong>The demo bank and the demo biller.</strong> Demo Credit Union and Demo Power &amp; Light are made-up
+      sites here, so you can try fetching your statements with Groundwork's sample household. Any username, password
+      and code work, and nothing you type there is kept. They set at most two cookies in your browser or in Groundwork's
+      bank window, each holding nothing but "1": one while you're signed in to the demo, and one only if you tick
+      "Remember this computer".</li>
     <li><strong>Email updates.</strong> If you sign up, we store your name and email address to send you product
       updates, delivered through SendGrid. We never sell or share your email address.</li>
     <li><strong>Unsubscribing.</strong> Every update email carries a one-click unsubscribe link. You can also email
@@ -2651,7 +2656,7 @@ def robots_txt():
     # them has to guess (Rob 2026-10-31: Google and other AI agents should find Groundwork).
     agents = ('*', 'Googlebot', 'Bingbot', 'GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'ClaudeBot', 'Claude-User',
               'Claude-SearchBot', 'PerplexityBot', 'Google-Extended', 'Applebot', 'Applebot-Extended', 'DuckDuckBot')
-    rules = 'Disallow: /admin\nDisallow: /confirm/\nDisallow: /unsubscribe/\nAllow: /\n'
+    rules = 'Disallow: /admin\nDisallow: /confirm/\nDisallow: /unsubscribe/\nDisallow: /demo-bank/\nDisallow: /demo-bill/\nAllow: /\n'
     body = ''.join(f'User-agent: {a}\n{rules}\n' for a in agents) + f'Sitemap: {SITE_URL}/sitemap.xml\n'
     resp = app.response_class(body, mimetype='text/plain')
     resp.headers['Cache-Control'] = 'public, max-age=3600'
@@ -2986,6 +2991,346 @@ def admin_send():
         db.commit()
 
     return jsonify({'message': f'✓ Sent to {sent} subscribers.'})
+
+# ── Item 117: the demo bank and the demo biller ───────────────────────────────
+# A made-up credit union and a made-up power company, so anyone with Groundwork can try "Get my accounts" and a bill
+# read from its biller without a real bank (gw 2.0/DEMO_BANK.md, D1-D10, ruled 2026-11-07). The sample household
+# arrives linked to them. Rules held here, and checked by s293:
+#   - every page says it isn't a real bank or a real company, and borrows nothing from any real one (D2);
+#   - any username and password work, and nothing typed is kept: no route writes to the database or a file (D3);
+#   - the code page shows its own code, the way a text message would bring it (D4);
+#   - downloads are the Morgans' own lines from sample_lines.py, made on request, dated from today (D5);
+#   - one page carries a robot check the agent recognises, so a run can be seen stopping (D6);
+#   - the biller's Pay now pays nothing (D7).
+# Cookies, set only on these paths: one that says you're signed in to the demo (gone when the window closes), and one
+# only if "Remember this computer" is ticked. Neither holds anything but "1".
+from datetime import date as _date
+from sample_lines import everyday as _everyday
+
+DEMO_BANK = 'Demo Credit Union'
+DEMO_BILLER = 'Demo Power & Light'
+_DEMO_ACCOUNTS = {          # key -> (name, the last digits shown, kind, today's balance)
+    'checking': ('Everyday Checking', '4821', 'bank', 2146.80),
+    'savings':  ('High-Yield Savings', '7306', 'bank', 6700.00),
+    'visa':     ('Cashback Visa', '5512', 'card', 3840.00),
+}
+_DEMO_RANGES = (('30', 'Last 30 days'), ('90', 'Last 90 days'), ('all', 'Everything available (6 months)'))
+_DEMO_FORMATS = (('csv', 'Spreadsheet (CSV)'), ('ofx', 'Money (OFX)'), ('qfx', 'Quicken (QFX)'))
+_BANK_IN, _BANK_DEVICE, _BILL_IN = 'democu_in', 'democu_device', 'demopl_in'
+
+_DEMO_CSS = """
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 -apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1d2433;background:#eef1f6}
+a{color:#1f4fa8}.notice{background:#fff4d6;color:#5a4300;border-bottom:1px solid #e9d38f;padding:10px 16px;text-align:center;font-size:14px}
+.notice a{color:#5a4300;font-weight:600}header{background:#183a6b;color:#fff}header .in{max-width:880px;margin:0 auto;padding:14px 16px;display:flex;
+align-items:center;gap:12px;flex-wrap:wrap}.mark{width:30px;height:30px;border-radius:8px;background:#5fb0e6;display:inline-flex;align-items:center;
+justify-content:center;font-weight:700;color:#183a6b}.name{font-weight:700;font-size:18px}nav{margin-left:auto;display:flex;gap:16px}
+nav a{color:#dce8fb;text-decoration:none}nav a:hover{text-decoration:underline}main{max-width:880px;margin:0 auto;padding:24px 16px 48px}
+.card{background:#fff;border:1px solid #d8dfea;border-radius:12px;padding:22px;margin-bottom:18px}.narrow{max-width:420px;margin:0 auto}
+h1{font-size:22px;margin:0 0 6px}h2{font-size:17px;margin:0 0 12px}p{margin:0 0 12px}.muted{color:#5a6478;font-size:14px}
+label{display:block;font-weight:600;margin:12px 0 4px}input[type=text],input[type=password],select{width:100%;padding:10px 12px;border:1px solid #b9c3d3;
+border-radius:8px;font:inherit;background:#fff}.check{display:flex;gap:8px;align-items:center;font-weight:400;margin:14px 0}
+button,.btn{display:inline-block;background:#1f4fa8;color:#fff;border:0;border-radius:8px;padding:10px 18px;font:inherit;font-weight:600;
+cursor:pointer;text-decoration:none;margin-top:16px}.btn.light{background:#e4ebf7;color:#183a6b}.err{color:#a3261b;font-weight:600}
+.code{font:700 26px/1.2 ui-monospace,Menlo,Consolas,monospace;letter-spacing:4px;background:#eef1f6;border-radius:8px;padding:10px 14px;display:inline-block}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px 6px;border-bottom:1px solid #e6ebf2}td.amt,th.amt{text-align:right;
+white-space:nowrap}.row{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #e6ebf2}.row:last-child{border:0}
+.big{font-size:20px;font-weight:700}.robot{border:2px solid #b9c3d3;border-radius:8px;padding:16px;display:flex;gap:12px;align-items:center;max-width:320px}
+footer{text-align:center;color:#5a6478;font-size:13px;padding:0 16px 32px}
+@media (max-width:560px){nav{margin-left:0;width:100%}.row{flex-direction:column;gap:2px}}
+"""
+
+
+def _demo_page(site, title, body, signed_in=False, status=200):
+    """One demo page: the not-real notice first, then the page. Never indexed."""
+    if site == 'bank':
+        brand, mark, home, what = DEMO_BANK, 'D', '/demo-bank/', 'a real bank'
+        nav = ('<nav><a href="/demo-bank/accounts">Accounts</a><a href="/demo-bank/sign-out">Sign out</a></nav>' if signed_in else '')
+        try_it = 'try <strong>Get my accounts</strong>'
+    else:
+        brand, mark, home, what = DEMO_BILLER, '⚡', '/demo-bill/', 'a real power company'
+        nav = ('<nav><a href="/demo-bill/account">My bill</a><a href="/demo-bill/sign-out">Sign out</a></nav>' if signed_in else '')
+        try_it = 'try a bill read from its biller'
+    html = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>{h(title)} - {h(brand)} (demo)</title><style>{_DEMO_CSS}</style></head><body>
+<div class="notice" role="note"><strong>Not {what}.</strong> Made by Groundwork so you can {try_it} with its sample household.
+Nothing you type here is kept. <a href="{SITE_URL}/">About Groundwork</a></div>
+<header><div class="in"><span class="mark" aria-hidden="true">{mark}</span><span class="name">{h(brand)}</span>{nav}</div></header>
+<main>{body}</main><footer>{h(brand)} is made up. Any name, number or amount here is part of Groundwork's made-up sample household.</footer>
+</body></html>"""
+    resp = app.response_class(html, status=status, mimetype='text/html')
+    resp.headers['X-Robots-Tag'] = 'noindex, nofollow'
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
+
+def _demo_cookie(resp, name, path, max_age=None):
+    resp.set_cookie(name, '1', max_age=max_age, path=path, httponly=True, samesite='Lax', secure=request.is_secure)
+    return resp
+
+
+def _demo_code(day=None):
+    """D4: today's code, the same for everyone (nothing is stored to compare against)."""
+    n = int(hashlib.sha256(('democu-' + (day or _date.today()).isoformat()).encode()).hexdigest(), 16)
+    return f'{100000 + n % 900000}'
+
+
+def _money(x):
+    return f'${x:,.2f}'
+
+
+def _demo_lines(acct, since=None):
+    _, lines = _everyday(_date.today())
+    return [ln for ln in lines if ln['acct'] == acct and (since is None or ln['date'] >= since)]
+
+
+def _signed_amount(ln, kind):
+    """As the account's own statement shows it: money out of a bank account, or a charge on the card, is negative."""
+    return ln['amount'] if ln['kind'] == 'credit' else -ln['amount']
+
+
+def _signin_form(action, err=''):
+    return f"""<div class="card narrow"><h1>Sign in</h1>
+<p class="muted">Any username and any password work here. Try <strong>morgan</strong> and <strong>demo</strong>.</p>
+{'<p class="err" role="alert">' + h(err) + '</p>' if err else ''}
+<form method="post" action="{action}">
+<label for="username">Username</label><input type="text" id="username" name="username" autocomplete="username" autocapitalize="off" spellcheck="false">
+<label for="password">Password</label><input type="password" id="password" name="password" autocomplete="current-password">
+<button type="submit">Sign in</button></form></div>"""
+
+
+@app.route('/demo-bank/')
+@app.route('/demo-bank')
+def demo_bank_home():
+    if request.cookies.get(_BANK_IN):
+        return redirect('/demo-bank/accounts')
+    return _demo_page('bank', 'Sign in', _signin_form('/demo-bank/sign-in'))
+
+
+@app.route('/demo-bank/sign-in', methods=['POST'])
+def demo_bank_sign_in():
+    # D3: any username and password; neither is read beyond "was something typed", and nothing is written anywhere
+    if not (request.form.get('username', '').strip() and request.form.get('password', '')):
+        return _demo_page('bank', 'Sign in', _signin_form('/demo-bank/sign-in', 'Type a username and a password - any will do.'), status=400)
+    if request.cookies.get(_BANK_DEVICE):            # D4: a remembered computer skips the code, as a real bank's does
+        return _demo_cookie(redirect('/demo-bank/accounts'), _BANK_IN, '/demo-bank')
+    return redirect('/demo-bank/verify')
+
+
+def _verify_page(err=''):
+    code = _demo_code()
+    body = f"""<div class="card narrow"><h1>Check it's you</h1>
+<p>We sent a 6-digit code to the phone ending in 12.</p>
+<p class="muted">A real bank would text this code to you. This one shows it here:</p>
+<p><span class="code" aria-label="The code is {' '.join(code)}">{code[:3]} {code[3:]}</span></p>
+<p class="muted">Groundwork never reads or types a code: when your bank asks for one, its window comes to the front and you type it.</p>
+{'<p class="err" role="alert">' + h(err) + '</p>' if err else ''}
+<form method="post" action="/demo-bank/verify">
+<label for="code">Code</label><input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" required>
+<label class="check" for="remember"><input type="checkbox" id="remember" name="remember" value="1"> Remember this computer</label>
+<button type="submit">Verify</button></form></div>"""
+    return _demo_page('bank', 'Check it’s you', body, status=400 if err else 200)
+
+
+@app.route('/demo-bank/verify', methods=['GET', 'POST'])
+def demo_bank_verify():
+    if request.method == 'GET':
+        return _verify_page()
+    typed = ''.join(c for c in request.form.get('code', '') if c.isdigit())
+    if typed != _demo_code():
+        return _verify_page("That code doesn't match. Type the code shown above.")
+    resp = _demo_cookie(redirect('/demo-bank/accounts'), _BANK_IN, '/demo-bank')
+    if request.form.get('remember'):
+        _demo_cookie(resp, _BANK_DEVICE, '/demo-bank', max_age=90 * 24 * 3600)
+    return resp
+
+
+@app.route('/demo-bank/sign-out')
+def demo_bank_sign_out():
+    resp = redirect('/demo-bank/')
+    resp.delete_cookie(_BANK_IN, path='/demo-bank')
+    return resp
+
+
+def _bank_signed_in():
+    return bool(request.cookies.get(_BANK_IN))
+
+
+@app.route('/demo-bank/accounts')
+def demo_bank_accounts():
+    if not _bank_signed_in():
+        return redirect('/demo-bank/')
+    rows = ''.join(
+        f'<div class="row"><div><a href="/demo-bank/accounts/{k}">{h(name)}</a><div class="muted">Ending in {last}</div></div>'
+        f'<div class="big">{_money(bal)}{"<span class=muted> owed</span>" if kind == "card" else ""}</div></div>'
+        for k, (name, last, kind, bal) in _DEMO_ACCOUNTS.items())
+    body = f"""<h1>Good to see you, Morgan</h1><p class="muted">Your accounts at {DEMO_BANK}.</p>
+<div class="card">{rows}</div>
+<div class="card"><h2>What a bank's robot check looks like</h2>
+<p class="muted">Banks sometimes stop a visit that looks automated. Groundwork stops the moment it sees one, and never tries to get past it.
+Record a click on the link below while you show Groundwork your download, and a later run will stop there.</p>
+<a href="/demo-bank/security-check">Open a bank security check</a></div>"""
+    return _demo_page('bank', 'Accounts', body, signed_in=True)
+
+
+@app.route('/demo-bank/accounts/<acct>')
+def demo_bank_account(acct):
+    if acct not in _DEMO_ACCOUNTS:
+        abort(404)
+    if not _bank_signed_in():
+        return redirect('/demo-bank/')
+    name, last, kind, bal = _DEMO_ACCOUNTS[acct]
+    recent = list(reversed(_demo_lines(acct, _date.today() - timedelta(days=30))))
+    rows = ''.join(f'<tr><td>{ln["date"].strftime("%b %d")}</td><td>{h(ln["description"])}</td>'
+                   f'<td class="amt">{"-" if _signed_amount(ln, kind) < 0 else ""}{_money(abs(ln["amount"]))}</td></tr>' for ln in recent)
+    body = f"""<p><a href="/demo-bank/accounts">← All accounts</a></p>
+<div class="card"><h1>{h(name)}</h1><p class="muted">Ending in {last} · {"Balance owed" if kind == "card" else "Available balance"} {_money(bal)}</p>
+<a class="btn" href="/demo-bank/accounts/{acct}/download">Download activity</a></div>
+<div class="card"><h2>Last 30 days</h2><table><thead><tr><th>Date</th><th>Description</th><th class="amt">Amount</th></tr></thead>
+<tbody>{rows or '<tr><td colspan="3" class="muted">Nothing in the last 30 days.</td></tr>'}</tbody></table></div>"""
+    return _demo_page('bank', name, body, signed_in=True)
+
+
+@app.route('/demo-bank/accounts/<acct>/download')
+def demo_bank_download_page(acct):
+    if acct not in _DEMO_ACCOUNTS:
+        abort(404)
+    if not _bank_signed_in():
+        return redirect('/demo-bank/')
+    name = _DEMO_ACCOUNTS[acct][0]
+    ranges = ''.join(f'<option value="{v}"{" selected" if v == "90" else ""}>{t}</option>' for v, t in _DEMO_RANGES)
+    formats = ''.join(f'<option value="{v}">{t}</option>' for v, t in _DEMO_FORMATS)
+    body = f"""<p><a href="/demo-bank/accounts/{acct}">← {h(name)}</a></p>
+<div class="card narrow"><h1>Download activity</h1><p class="muted">{h(name)}</p>
+<form method="get" action="/demo-bank/file"><input type="hidden" name="account" value="{acct}">
+<label for="range">Date range</label><select id="range" name="range">{ranges}</select>
+<label for="format">Format</label><select id="format" name="format">{formats}</select>
+<button type="submit">Download file</button></form></div>"""
+    return _demo_page('bank', 'Download activity', body, signed_in=True)
+
+
+def _demo_csv(acct, lines):
+    kind = _DEMO_ACCOUNTS[acct][2]
+    out = ['Date,Description,Amount']
+    for ln in lines:
+        desc = ln['description'].replace('"', "'")
+        out.append(f'{ln["date"].strftime("%m/%d/%Y")},"{desc}",{_signed_amount(ln, kind):.2f}')
+    return '\r\n'.join(out) + '\r\n'
+
+
+def _ofx_text(s):
+    """A description as many banks' OFX 1.02 carries it: '&' as it is (Groundwork's reader keeps '&amp;' literally),
+    and only the two characters that would end a field changed."""
+    return s.replace('<', '(').replace('>', ')')
+
+
+def _demo_ofx(acct, lines, quicken=False):
+    """OFX 1.02 (SGML), the shape most banks still send; QFX is the same with Intuit's two lines added."""
+    name, last, kind, bal = _DEMO_ACCOUNTS[acct]
+    now = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+    start = (lines[0]['date'] if lines else _date.today()).strftime('%Y%m%d')
+    trns = []
+    for i, ln in enumerate(lines):
+        amt = _signed_amount(ln, kind)
+        fitid = hashlib.sha256(f'{acct}|{ln["date"]}|{ln["description"]}|{ln["amount"]}|{i}'.encode()).hexdigest()[:20].upper()
+        trns.append(f'<STMTTRN><TRNTYPE>{"CREDIT" if amt >= 0 else "DEBIT"}<DTPOSTED>{ln["date"].strftime("%Y%m%d")}120000'
+                    f'<TRNAMT>{amt:.2f}<FITID>{fitid}<NAME>{_ofx_text(ln["description"][:32])}<MEMO>{_ofx_text(ln["description"])}</STMTTRN>')
+    trns = '\n'.join(trns)
+    led = -bal if kind == 'card' else bal
+    intu = '<INTU.BID>00000\n<INTU.USERID>demo\n' if quicken else ''
+    if kind == 'card':
+        msgs = (f'<CREDITCARDMSGSRSV1><CCSTMTTRNRS><TRNUID>1<STATUS><CODE>0<SEVERITY>INFO</STATUS><CCSTMTRS><CURDEF>USD'
+                f'<CCACCTFROM><ACCTID>XXXXXXXXXXXX{last}</CCACCTFROM><BANKTRANLIST><DTSTART>{start}<DTEND>{now[:8]}\n{trns}\n'
+                f'</BANKTRANLIST><LEDGERBAL><BALAMT>{led:.2f}<DTASOF>{now}</LEDGERBAL></CCSTMTRS></CCSTMTTRNRS></CREDITCARDMSGSRSV1>')
+    else:
+        acctype = 'SAVINGS' if acct == 'savings' else 'CHECKING'
+        msgs = (f'<BANKMSGSRSV1><STMTTRNRS><TRNUID>1<STATUS><CODE>0<SEVERITY>INFO</STATUS><STMTRS><CURDEF>USD'
+                f'<BANKACCTFROM><BANKID>000000000<ACCTID>XXXXXX{last}<ACCTTYPE>{acctype}</BANKACCTFROM><BANKTRANLIST>'
+                f'<DTSTART>{start}<DTEND>{now[:8]}\n{trns}\n</BANKTRANLIST><LEDGERBAL><BALAMT>{led:.2f}<DTASOF>{now}</LEDGERBAL>'
+                f'</STMTRS></STMTTRNRS></BANKMSGSRSV1>')
+    return ('OFXHEADER:100\r\nDATA:OFXSGML\r\nVERSION:102\r\nSECURITY:NONE\r\nENCODING:USASCII\r\nCHARSET:1252\r\n'
+            'COMPRESSION:NONE\r\nOLDFILEUID:NONE\r\nNEWFILEUID:NONE\r\n\r\n'
+            f'<OFX><SIGNONMSGSRSV1><SONRS><STATUS><CODE>0<SEVERITY>INFO</STATUS><DTSERVER>{now}<LANGUAGE>ENG'
+            f'<FI><ORG>{DEMO_BANK}<FID>00000</FI>{intu}</SONRS></SIGNONMSGSRSV1>\n{msgs}\n</OFX>\r\n')
+
+
+@app.route('/demo-bank/file')
+def demo_bank_file():
+    """D5: the account's lines for the range, in the format asked, built on request and never kept."""
+    acct, rng, fmt = request.args.get('account', ''), request.args.get('range', '90'), request.args.get('format', 'csv')
+    if acct not in _DEMO_ACCOUNTS or rng not in dict(_DEMO_RANGES) or fmt not in dict(_DEMO_FORMATS):
+        abort(400)
+    if not _bank_signed_in():
+        return redirect('/demo-bank/')
+    since = None if rng == 'all' else _date.today() - timedelta(days=int(rng))
+    lines = _demo_lines(acct, since)
+    if fmt == 'csv':
+        body, mime = _demo_csv(acct, lines), 'text/csv'
+    else:
+        body, mime = _demo_ofx(acct, lines, quicken=fmt == 'qfx'), ('application/vnd.intu.qfx' if fmt == 'qfx' else 'application/x-ofx')
+    fname = f'DemoCU_{_DEMO_ACCOUNTS[acct][0].replace(" ", "")}_{_date.today().strftime("%Y%m%d")}.{fmt}'
+    resp = app.response_class(body, mimetype=mime)
+    resp.headers['Content-Disposition'] = f'attachment; filename="{fname}"'
+    resp.headers['Cache-Control'] = 'no-store'
+    resp.headers['X-Robots-Tag'] = 'noindex, nofollow'
+    return resp
+
+
+@app.route('/demo-bank/security-check')
+def demo_bank_security_check():
+    """D6: the kind of check a bank shows when a visit looks automated. The agent recognises it and stops the run."""
+    body = """<div class="card narrow"><h1>Are you a robot?</h1>
+<p>Banks show a check like this when a visit looks automated.</p>
+<div class="robot" id="demo-captcha"><input type="checkbox" id="human" aria-label="I'm not a robot (demo)"><label for="human" style="margin:0">I'm not a robot</label></div>
+<p class="muted" style="margin-top:14px">This one is only a picture of a check. When Groundwork meets a real one it stops the whole run straight away and
+says why. It never tries to answer it, and it doesn't carry on with your other accounts, because carrying on is what banks flag.</p>
+<a class="btn light" href="/demo-bank/accounts">Back to accounts</a></div>"""
+    return _demo_page('bank', 'Security check', body, signed_in=_bank_signed_in())
+
+
+# The demo biller (D7)
+def _demo_bill():
+    """This month's bill: an amount that changes month to month, due on the 21st."""
+    t = _date.today()
+    n = int(hashlib.sha256(f'demopl-{t.year}-{t.month}'.encode()).hexdigest(), 16)
+    due = _date(t.year, t.month, 21) if t.day <= 21 else _date(t.year + (t.month == 12), t.month % 12 + 1, 21)
+    return 86 + (n % 5600) / 100, due
+
+
+@app.route('/demo-bill/')
+@app.route('/demo-bill')
+def demo_bill_home():
+    if request.cookies.get(_BILL_IN):
+        return redirect('/demo-bill/account')
+    return _demo_page('bill', 'Sign in', _signin_form('/demo-bill/sign-in'))
+
+
+@app.route('/demo-bill/sign-in', methods=['POST'])
+def demo_bill_sign_in():
+    if not (request.form.get('username', '').strip() and request.form.get('password', '')):
+        return _demo_page('bill', 'Sign in', _signin_form('/demo-bill/sign-in', 'Type a username and a password - any will do.'), status=400)
+    return _demo_cookie(redirect('/demo-bill/account'), _BILL_IN, '/demo-bill')
+
+
+@app.route('/demo-bill/sign-out')
+def demo_bill_sign_out():
+    resp = redirect('/demo-bill/')
+    resp.delete_cookie(_BILL_IN, path='/demo-bill')
+    return resp
+
+
+@app.route('/demo-bill/account')
+def demo_bill_account():
+    if not request.cookies.get(_BILL_IN):
+        return redirect('/demo-bill/')
+    amount, due = _demo_bill()
+    body = f"""<h1>Your electric bill</h1><p class="muted">Service at the Morgans' home · account ending in 3390</p>
+<div class="card"><div class="row"><span>Amount due</span><strong class="big">{_money(amount)}</strong></div>
+<div class="row"><span>Due date</span><strong>{due.strftime('%b')} {due.day}, {due.year}</strong></div>
+<div class="row"><span>Last payment</span><span>Received with thanks</span></div>
+<button type="button" id="pay" onclick="document.getElementById('paid').hidden=false">Pay now</button>
+<p id="paid" class="muted" role="status" hidden style="margin-top:12px">This is a demo: nothing was paid. Groundwork never presses a button like this one; paying is always yours.</p></div>"""
+    return _demo_page('bill', 'My bill', body, signed_in=True)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
