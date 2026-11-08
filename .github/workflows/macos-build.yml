@@ -13,6 +13,8 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+    permissions:
+      contents: write      # the draft release the zip goes up to (last step)
     # The oldest macOS the shipped app supports (the website says macOS 14 Sonoma or later). Rob 2026-11-06 raised it
     # from 12: Kokoro needs onnxruntime 1.20.1 or newer, whose Mac wheels need macOS 13, and 14 from 1.24 on. Without
     # this, clang stamps every library it compiles with the runner's own macOS as the minimum (26.0 on macos-latest in
@@ -108,8 +110,19 @@ jobs:
           cd dist
           ditto -c -k --sequesterRsrc --keepParent Groundwork.app ../Groundwork-macos.zip
 
-      - uses: actions/upload-artifact@v7
-        with:
-          name: Groundwork-macos
-          path: Groundwork-macos.zip
-          retention-days: 30
+      # Rob 2026-11-08: a draft release, not an Actions artifact. The artifact store's quota stayed "hit" for 9+ hours
+      # after every old artifact was deleted (three 2.0 builds failed only at upload), and release files don't count
+      # against it. The zip is over GitHub's 2 GiB limit for one release file, so it goes up in parts, as the model
+      # does (fetch_model.py); join them in order with: cat Groundwork-macos.zip.part* > Groundwork-macos.zip
+      - name: Upload the zip to a draft release, in parts under 2 GiB
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shasum -a 256 Groundwork-macos.zip | tee Groundwork-macos.zip.sha256
+          split -b 1900m -a 1 Groundwork-macos.zip Groundwork-macos.zip.part
+          ls -l Groundwork-macos.zip.part*
+          TAG="macos-build-${GITHUB_SHA::7}"
+          gh release delete "$TAG" --yes 2>/dev/null || true
+          gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "macOS build ${GITHUB_SHA::7}" \
+            --notes "Groundwork for macOS, built by run $GITHUB_RUN_ID. Join: cat Groundwork-macos.zip.part* > Groundwork-macos.zip, then check it against the .sha256 file." \
+            Groundwork-macos.zip.part* Groundwork-macos.zip.sha256
