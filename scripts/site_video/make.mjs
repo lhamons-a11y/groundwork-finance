@@ -21,7 +21,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { launch, newPage, sleep } from './cdp.mjs';
-import { openSample, view, clickText } from './app.mjs';
+import { openSample, openFresh, view, clickText } from './app.mjs';
 import { seedHealth } from './seed.mjs';
 import { bankWindow, bankClosed, bankStep, pngSize } from './bank.mjs';
 
@@ -60,6 +60,11 @@ window.__both = (a, b) => {           // the smallest element holding both texts
   while (e && !(e.innerText || '').includes(b)) e = e.parentElement;
   return e;
 };
+window.__next = () => { const ov = document.getElementById('onboardingOverlay');        // the setup screen's main button
+  const b = [...(ov || document).querySelectorAll('button.btn-primary')].filter(x => x.offsetParent !== null && !x.disabled);
+  if (b.length) b[b.length - 1].click(); return b.length > 0; };
+window.__set = (id, v) => { const e = document.getElementById(id); if (!e) return false; e.value = v;
+  e.dispatchEvent(new Event('input', {bubbles: true})); e.dispatchEvent(new Event('change', {bubbles: true})); return true; };
 window.__tab = (label) => { const b = [...document.querySelectorAll('button, .tab, [role=tab]')].find(e => __vis(e) && e.textContent.trim() === label); if (b) b.click(); return !!b; };
 `;
 
@@ -97,9 +102,10 @@ async function capture() {
     return bank;
   };
   try {
-    const page = await openSample(chrome);
-    if (script.seed !== false) await seedHealth(page);
-    await page.goto(page.url || (await page.eval('location.href')), 2500);
+    // "fresh": a brand-new install met at its welcome (start.json); otherwise the sample household
+    const page = script.fresh ? await openFresh(chrome) : await openSample(chrome);
+    if (!script.fresh && script.seed !== false) await seedHealth(page);
+    if (!script.fresh) await page.goto(page.url || (await page.eval('location.href')), 2500);
     await page.eval(`document.head.insertAdjacentHTML('beforeend', '<style>.toast, .toast-container, #toastContainer, [class*=achievement-toast], [id*=toast] {display:none !important} *{caret-color:transparent !important; scroll-behavior:auto !important}</style>')`);
     const until = process.env.GW_VIDEO_UNTIL ? Number(process.env.GW_VIDEO_UNTIL) : Infinity;   // with --shots: stop early
     for (const [i, sc] of script.scenes.entries()) {
@@ -176,7 +182,7 @@ async function compose(shots, lengths) {
     return s;
   });
   const posterScene = scenes[script.poster ?? 1];
-  const plan = { name, width: W, height: H, scenes, total: t + 0.4, poster: posterScene.start + Math.min(2.6, posterScene.dur - 0.3) };
+  const plan = { name, width: W, height: H, scenes, total: t + 0.4, badge: script.badge || 'Sample household · made-up figures', poster: posterScene.start + Math.min(2.6, posterScene.dur - 0.3) };
   writeFileSync(join(WORK, 'scenes.json'), JSON.stringify(plan, null, 1));
   const cues = scenes.filter((s) => s.len).map((s, i) =>
     `${i + 1}\n${vttTime(s.start + s.audioAt)} --> ${vttTime(s.start + s.audioAt + s.len)}\n${s.say}\n`);

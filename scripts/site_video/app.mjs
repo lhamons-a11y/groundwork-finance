@@ -29,6 +29,32 @@ export async function openSample(chrome) {
   return page;
 }
 
+// A brand-new Groundwork on an empty throwaway database: the terms accepted, and the welcome left where a person
+// first meets it (the AI check). A notice about an Ollama install on THIS computer is closed: it shows this computer's
+// own folders and is not part of Groundwork as anyone else meets it.
+export async function openFresh(chrome) {
+  const page = await newPage(chrome, APP + '/');
+  await sleep(1500);
+  if (await page.eval(`!!document.querySelector('input[type=checkbox]') && document.body.innerText.includes('Before you begin')`)) {
+    await page.eval(`(() => { const c = [...document.querySelectorAll('input[type=checkbox]')].find(e => e.offsetParent); c.click(); })()`);
+    await sleep(300);
+    await clickText(page, 'button', 'Agree');
+    await sleep(2500);
+  }
+  await page.waitFor(`!!document.getElementById('obStepAICapability') && document.getElementById('obStepAICapability').offsetParent !== null`, 20000);
+  await sleep(2500);
+  // (offsetParent is null for a fixed-position window, so it is found by its size on screen)
+  for (let i = 0; i < 3; i++) {
+    const closed = await page.eval(`(() => { const shown = (m) => { const r = m.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+      const d = [...document.querySelectorAll('.modal-overlay, #confirmDialog, [role=dialog]')].find(m => shown(m) && !m.classList.contains('hidden') && /Ollama/.test(m.innerText));
+      if (!d) return false; const b = [...d.querySelectorAll('button')].find(b => /^(cancel|close|×)$/i.test(b.textContent.trim()));
+      if (b) b.click(); else d.classList.add('hidden'); return true; })()`);
+    if (!closed) break;
+    await sleep(800);
+  }
+  return page;
+}
+
 export async function view(page, name, settle = 1800) {
   await page.eval(`showView(${JSON.stringify(name)})`);
   await sleep(settle);

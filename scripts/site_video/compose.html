@@ -138,7 +138,7 @@ function drawCaption(text, alpha, sc, t) {
 
 function drawBadge() {
   cx.save();
-  const t = 'Sample household · made-up figures';
+  const t = plan.badge || 'Sample household · made-up figures';
   cx.font = font(SANS, 20, 600);
   const w = cx.measureText(t).width + 32;
   rr(W - w - 24, 22, w, 38, 19); cx.fillStyle = 'rgba(11,20,36,.78)'; cx.fill();

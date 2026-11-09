@@ -13,7 +13,7 @@ From `Website/` in the repo (a ready copy is built at `installer_output/site_dep
 | `sample_lines.py` | **new** - the demo bank's downloads are built from it; the site fails to start without it |
 | `changelog.json` | the 2.0 entry |
 | `version.json` | the in-app update notice |
-| `static/` (all of it) | the videos (`static/video/`, now with `debt.*`), the screenshots, the icon |
+| `static/` (all of it) | the videos (`static/video/`, now with `start.*` and `debt.*`), the screenshots, the icon |
 
 **Do not upload `subscribers.db`** - the server's copy is the live mailing list. Leave `sitemap.xml` as it is: the
 site serves its own sitemap from `website.py`.
@@ -29,7 +29,7 @@ Then restart the site's Python service so it loads the new `website.py`.
 
 ## Check after publishing
 
-- `/` - Version 2.0; the tours: Start here (Debt Payoff), Go deeper (Ask, Health, Reports, Privacy).
+- `/` - Version 2.0; the tours: Start here (Getting started, Debt Payoff), Go deeper (Ask, Health, Reports, Privacy).
 - `/whats-new`, `/health`, `/download`.
 - `/knowledge-base#get-accounts`, `#bills-biller`, `#voice`, `#first-run`, `#backup`.
 - `/demo-bank/` - sign in with any name and password, the code page, accounts, a download.

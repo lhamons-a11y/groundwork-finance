@@ -627,6 +627,9 @@ VIDEOS = {
     'privacy': {'title': 'Private by design', 'secs': 61,
                 'desc': 'The AI on your own computer, the AI log, protected backups, voice recognised on your computer, '
                         'and health left out of exports unless you tick it.'},
+    'start':   {'title': 'Getting started', 'secs': 81, 'note': 'a new install, made-up figures',
+                'desc': 'A brand-new install set up by hand: the AI check, the four ways to begin, income, home, bills, '
+                        'cards and loans, what spare money should do, and where you stand.'},
     'debt':    {'title': 'Debt Payoff', 'secs': 72,
                 'desc': 'The month you will owe nothing, what a little extra each month changes, avalanche or snowball, '
                         'a balance checked against your imports, the month tracker and what moves the date most.'},
@@ -644,17 +647,18 @@ def _video(name, caption=None, eager=False):
             f'<i style="background:#f2c14e"></i><i style="background:#3ddc97"></i>'
             f'<span class="vid-len">{mins}:{secs:02d}</span></div>'
             f'<video controls playsinline preload="{"metadata" if eager else "none"}" poster="/static/video/{name}.jpg" '
-            f'width="1600" height="1000" aria-label="{h(v["title"])}: {h(v["desc"])} Sample household, made-up figures.">'
+            f'width="1600" height="1000" aria-label="{h(v["title"])}: {h(v["desc"])} {h(v.get("note", "sample household, made-up figures")).capitalize()}.">'
             f'<source src="/static/video/{name}.mp4" type="video/mp4">{webm}'
             f'<track kind="captions" src="/static/video/{name}.vtt" srclang="en" label="English"></video>'
-            f'<figcaption>{caption or h(v["title"])} · sample household, made-up figures</figcaption></figure>')
+            f'<figcaption>{caption or h(v["title"])} · {h(v.get("note", "sample household, made-up figures"))}</figcaption></figure>')
 
 
 def _video_ld(names):
     """The videos, described for search engines (schema.org VideoObject)."""
     return ''.join('<script type="application/ld+json">' + json.dumps({
         '@context': 'https://schema.org', '@type': 'VideoObject', 'name': 'Groundwork 2.0: ' + VIDEOS[n]['title'],
-        'description': VIDEOS[n]['desc'] + ' Shown on a made-up sample household.',
+        'description': VIDEOS[n]['desc'] + (' Shown on a new install, with made-up figures.' if n == 'start'
+                                            else ' Shown on a made-up sample household.'),
         'thumbnailUrl': f'{SITE_URL}/static/video/{n}.jpg', 'contentUrl': f'{SITE_URL}/static/video/{n}.mp4',
         'uploadDate': SITE_UPDATED, 'duration': f'PT{VIDEOS[n]["secs"] // 60}M{VIDEOS[n]["secs"] % 60}S',
         'inLanguage': 'en'}) + '</script>' for n in names)
@@ -934,6 +938,8 @@ HOME_CONTENT = _icons("""
   </div>
   <div class="container reveal"><div class="section-label" style="margin:0 0 14px">Start here</div></div>
   <div class="container vid-grid reveal">
+    <div>""" + _video('start', 'Getting started') + """<h3>From a new install to your first plan.</h3>
+      <p>Set up by hand in a few minutes: every question can be skipped, and nothing is assumed in its place.</p></div>
     <div>""" + _video('debt', 'Debt Payoff') + """<h3>Your path to zero.</h3>
       <p>The month you'll owe nothing, what a little extra changes, and what moves the date most. Nothing to sell you.</p></div>
   </div>

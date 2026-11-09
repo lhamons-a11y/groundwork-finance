@@ -1,0 +1,58 @@
+{
+  "fresh": true,
+  "seed": false,
+  "poster": 2,
+  "badge": "A new install · made-up figures",
+  "about": "Getting started, by hand, from a brand-new install (Rob 2026-11-08: \"Film the by-hand setup\"). Needs a dev server on an EMPTY database: delete its temp folder before starting it.",
+  "scenes": [
+    {"card": {"kicker": "Groundwork 2.0", "head": "From a new install to your first plan.", "sub": "Getting started by hand. Every figure in this tour is made up."},
+     "say": "Here's how Groundwork starts, from a brand-new install. Every figure in this tour is made up."},
+
+    {"focus": "document.getElementById('obStepAICapability')", "maxZoom": 1.5,
+     "after": "[...document.querySelectorAll('#obStepAICapability button')].find(b => /AI off/.test(b.textContent)).click(); await new Promise(r => setTimeout(r, 800));",
+     "say": "First it checks what your computer can run. The AI works only on your computer, and every page works with it off."},
+
+    {"focus": "document.getElementById('obStep0')", "maxZoom": 1.4,
+     "after": "obChooseFresh(); await new Promise(r => setTimeout(r, 800));",
+     "say": "Then choose how to begin: look around a sample household, bring in your bank's history, set things up by hand, or restore a backup."},
+
+    {"do": "__set('obIncome', '4200'); __set('obPayFrequency', 'biweekly'); obUpdateStep1();", "wait": 900,
+     "focus": "document.getElementById('obStep1')", "maxZoom": 1.4,
+     "after": "__next(); await new Promise(r => setTimeout(r, 900));",
+     "say": "Start with what comes in: your take-home pay, and how often you're paid."},
+
+    {"do": "const s = document.getElementById('obHomeState'); const o = [...s.options].find(o => o.text === 'Ohio'); s.value = o.value; s.dispatchEvent(new Event('change', {bubbles: true}));", "wait": 1200,
+     "focus": "document.getElementById('obStepHome')", "maxZoom": 1.4,
+     "after": "__next(); await new Promise(r => setTimeout(r, 900));",
+     "say": "A few questions about your home. Each one can be skipped, and nothing is assumed in its place."},
+
+    {"do": "[['obExpHousing', '1200'], ['obExpElectric', '110'], ['obExpInternet', '65'], ['obExpPhone', '80'], ['obExpGroceries', '520'], ['obExpDining', '160'], ['obExpFuel', '140']].forEach(([i, v]) => __set(i, v));",
+     "wait": 900, "focus": "document.getElementById('obStep2')", "block": "start", "maxZoom": 1.2,
+     "after": "__next(); await new Promise(r => setTimeout(r, 900));",
+     "say": "Then your regular bills. Ballpark figures are fine, and you can fine-tune them later on the Budget page."},
+
+    {"do": "const fill = (vals) => { const ins = [...document.querySelectorAll('#obDebtList input')].filter(e => e.offsetParent); const row = ins.slice(-4); row.forEach((e, k) => { e.value = vals[k]; e.dispatchEvent(new Event('input', {bubbles: true})); e.dispatchEvent(new Event('change', {bubbles: true})); }); }; if (![...document.querySelectorAll('#obDebtList input')].some(e => e.offsetParent)) obAddDebtRow(); fill(['Visa card', '3200', '22.9', '95']); obAddDebtRow(); await new Promise(r => setTimeout(r, 300)); fill(['Car loan', '11400', '6.9', '310']);",
+     "wait": 1500, "focus": "document.getElementById('obStep3')", "block": "start", "maxZoom": 1.25,
+     "after": "__next(); await new Promise(r => setTimeout(r, 900));",
+     "say": "Every card and loan, once: its balance, rate and minimum. It also shows what paying only the minimums would cost."},
+
+    {"do": "obSetSurplusGoal('debt', [...document.querySelectorAll('#obGoalOptions .ob-start-option')].find(b => /Reduce debt/.test(b.textContent)));", "wait": 900,
+     "focus": "document.getElementById('obStep4')", "maxZoom": 1.35,
+     "after": "__next(); await new Promise(r => setTimeout(r, 900));",
+     "say": "What would you like spare money to do? There's no wrong answer, and nothing here is locked in."},
+
+    {"focus": "document.getElementById('obStep5')", "maxZoom": 1.4,
+     "after": "__next(); await new Promise(r => setTimeout(r, 1800));",
+     "say": "A net worth target is optional. It gives the plan a destination, if you'd like one."},
+
+    {"wait": 1600, "focus": "document.getElementById('obStep6')", "block": "start", "maxZoom": 1.2,
+     "after": "__next(); await new Promise(r => setTimeout(r, 2500));",
+     "say": "And here's where you stand: the room in your month, your debts, and anything you skipped, so you know what's still unanswered."},
+
+    {"wait": 2500, "focus": "__card('WEEK 1') || __find('WEEK 1')", "block": "center", "maxZoom": 1.15,
+     "say": "From there, it's your Groundwork. Bring in a statement, or let Get my accounts fetch one, and every page fills in."},
+
+    {"card": {"kicker": "Free · No account · No subscription", "head": "Start in a few minutes.", "sub": "Free for Windows, macOS and Linux · groundworkfinance.app"},
+     "say": "No account, no subscription, and nothing to sell you. Groundwork 2.0 is free."}
+  ]
+}
