@@ -603,7 +603,7 @@ SITE_VERSION = '2.0'     # the version offered for download; s206 holds it to th
 # day SITE_VERSION becomes 2.x the same pages describe it as here, with no other edit. A page is never ahead of the
 # download.
 RELEASED_20 = int(SITE_VERSION.split('.')[0]) >= 2
-SITE_UPDATED = '2026-11-07'   # the last time the site's pages changed (each sitemap entry's lastmod, the videos' date)
+SITE_UPDATED = '2026-11-08'   # the last time the site's pages changed (each sitemap entry's lastmod, the videos' date)
 NEW20 = 'New in 2.0' if RELEASED_20 else 'New in 2.0 · coming soon'
 # Item 82 R7: the last 1.1 stays downloadable under its own name, with its SHA-256. Shown only once the real file's
 # hash is filled in here (release day) - a checksum is never invented.
@@ -627,6 +627,9 @@ VIDEOS = {
     'privacy': {'title': 'Private by design', 'secs': 61,
                 'desc': 'The AI on your own computer, the AI log, protected backups, voice recognised on your computer, '
                         'and health left out of exports unless you tick it.'},
+    'debt':    {'title': 'Debt Payoff', 'secs': 72,
+                'desc': 'The month you will owe nothing, what a little extra each month changes, avalanche or snowball, '
+                        'a balance checked against your imports, the month tracker and what moves the date most.'},
 }
 _VIDEO_DIR = Path(__file__).resolve().parent / 'static' / 'video'
 
@@ -926,9 +929,15 @@ HOME_CONTENT = _icons("""
 <section class="band band-mist" id="tours">
   <div class="container center reveal">
     <span class="new-tag">""" + NEW20 + """</span>
-    <h2 class="section-title" style="margin-top:12px">See Groundwork 2.0 in four short tours</h2>
+    <h2 class="section-title" style="margin-top:12px">See Groundwork 2.0 in short tours</h2>
     <p class="section-sub">The real app, on a made-up sample household, narrated and captioned. Press play on any of them.</p>
   </div>
+  <div class="container reveal"><div class="section-label" style="margin:0 0 14px">Start here</div></div>
+  <div class="container vid-grid reveal">
+    <div>""" + _video('debt', 'Debt Payoff') + """<h3>Your path to zero.</h3>
+      <p>The month you'll owe nothing, what a little extra changes, and what moves the date most. Nothing to sell you.</p></div>
+  </div>
+  <div class="container reveal"><div class="section-label" style="margin:36px 0 14px">Go deeper</div></div>
   <div class="container vid-grid reveal">
     <div>""" + _video('ask', 'The assistant') + """<h3>Ask. Groundwork does the math.</h3>
       <p>Questions in plain words, answered from your own records. Every figure comes from Groundwork, never the AI.</p></div>
@@ -1365,6 +1374,8 @@ def knowledge_base():
     <a href="#install">Installation</a>
     <a href="#first-run">First run & onboarding</a>
     <a href="#import">Importing transactions</a>
+    <a href="#get-accounts">Get my accounts</a>
+    <a href="#bills-biller">Bills read from the biller</a>
     <a href="#macos">macOS install</a>
     <a href="#linux">Linux install</a>
     <h3 style="margin-top:20px">Features</h3>
@@ -1381,6 +1392,7 @@ def knowledge_base():
     <h3 style="margin-top:20px">Help</h3>
     <a href="#backup">Backups</a>
     <a href="#ai">AI features</a>
+    <a href="#voice">Voice and read-aloud</a>
     <a href="#privacy">Privacy & data</a>
     <a href="#report-bug">Report a bug</a>
   </nav>
@@ -1400,16 +1412,26 @@ def knowledge_base():
 
     <div class="kb-article" id="first-run">
       <h2>First run & onboarding</h2>
-      <p>When you open Groundwork for the first time, it walks you through a 6-step setup:</p>
+      <p>The first time Groundwork opens, it shows its terms, then checks what your computer can run and asks whether to
+        turn on the local AI. Either answer is fine: every page works with the AI off, and you can change it in
+        Settings.</p>
+      <h3>Four ways to begin</h3>
       <ul>
-        <li><strong>Step 1 — Income:</strong> Enter your take-home pay (after taxes). Monthly amount.</li>
-        <li><strong>Step 2 — Expenses:</strong> Your regular monthly bills — rent, utilities, subscriptions.</li>
-        <li><strong>Step 3 — Debt:</strong> Add your credit cards, loans, and leases with their balances and rates.</li>
-        <li><strong>Step 4 — Strategy:</strong> Pick snowball (smallest balance first) or avalanche (highest rate first).</li>
-        <li><strong>Step 5 — Net worth goal:</strong> Optional — set a target net worth to work toward.</li>
-        <li><strong>Step 6 — Your plan:</strong> Groundwork shows your debt-free date and monthly plan.</li>
+        <li><strong>Look around with a sample household first.</strong> The Morgans are made up for exploring: six months
+          of spending, a card, a car loan, a student loan, savings and investments. Nothing of yours. The bar at the
+          bottom of the screen says it's the sample, and <strong>Start with my own</strong> clears it whenever you're ready.</li>
+        <li><strong>Bring in my spending history.</strong> Import a file from your bank (see <a href="#import">Importing</a>).
+          If you have no accounts yet, name the account the file is from right there. Groundwork then shows a snapshot
+          of what it found and what it can't tell yet, and starts the rest of setup from it: your income starts from
+          the deposits it found, and your bills from what you've been spending.</li>
+        <li><strong>Set things up by hand.</strong> Your take-home pay and how often you're paid, your home (each question
+          can be skipped), your regular bills, your cards and loans, what you'd like spare money to do, and an optional
+          net worth target.</li>
+        <li><strong>Restore from a backup.</strong> Bring your records over from another computer (see <a href="#backup">Backups</a>).</li>
       </ul>
-      <div class="kb-tip">💡 You can change everything after setup. Nothing is locked in.</div>
+      <p>Setup ends with <strong>Here's where you stand</strong>: the room in your month, your debts if you entered any,
+        and anything you skipped, so you know what's still unanswered.</p>
+      <div class="kb-tip">💡 You can change everything after setup. Nothing is locked in, and nothing you skipped is assumed.</div>
     </div>
 
     <div class="kb-article" id="import">
@@ -1420,13 +1442,58 @@ def knowledge_base():
         <li><strong>CSV</strong> — comma-separated values, exported by almost every bank</li>
         <li><strong>OFX / QFX</strong> — Open Financial Exchange format, used by Quicken exports</li>
         <li><strong>QIF</strong> — Quicken Interchange Format (older format, still supported)</li>
+        <li><strong>PDF</strong> — a credit card statement (reading a PDF needs the local AI turned on)</li>
       </ul>
       <h3>How to import</h3>
       <p>1. Log into your bank's website and find the transaction export/download option (usually under Account Activity or Statements).</p>
       <p>2. In Groundwork, click the <strong>Import</strong> button in the Ledger or top toolbar.</p>
-      <p>3. Select your account, choose the file, and click Import.</p>
-      <p>4. Groundwork automatically categorizes transactions and removes duplicates.</p>
+      <p>3. Select your account, choose the file, and review what Groundwork found before you press Import. Your first
+        account can be named right in this window; more accounts are added in Settings → Accounts.</p>
+      <p>4. Groundwork categorizes what it recognizes and holds back lines that look like ones you already have, so a
+        second import of the same dates doesn't double anything. Held-back lines are shown, never silently dropped.</p>
       <div class="kb-tip">💡 Groundwork remembers the categories you choose and applies them to similar transactions in later imports.</div>
+      <div class="kb-tip">💡 Save a statement to your Downloads folder and Groundwork notices it and offers to import it. Or let
+        Groundwork fetch it for you: see <a href="#get-accounts">Get my accounts</a>.</div>
+    </div>
+
+    <div class="kb-article" id="get-accounts">
+      <h2>Get my accounts: your statements with one press</h2>
+      <p>Groundwork can visit your bank's website for you and bring your latest statement back, in a window inside
+        Groundwork, only when you ask. It never goes on its own or on a schedule, and nothing passes through anyone else:
+        it's your bank, your computer, and nothing in between.</p>
+      <h3>Setting it up, once per account</h3>
+      <p>1. Open <strong>Assistant</strong> (under Coach) and choose the account. Add its bank's website.</p>
+      <p>2. <strong>Save login.</strong> Your username and password go into your computer's own password vault (Windows
+        Credential Manager or the macOS Keychain), not into Groundwork's files.</p>
+      <p>3. <strong>Show me once.</strong> Groundwork opens your bank in its own window. Sign in and do your usual download.
+        Groundwork notes each button you press, by its name, never what you type, and never a balance or an account
+        number. Press <strong>Done</strong>, check the steps it lists, and save them.</p>
+      <h3>Every time after</h3>
+      <p>Press <strong>⟳ Get my accounts</strong> at the top of any page. Groundwork visits each bank you showed it, one window
+        at a time, signs in from your vault and follows your steps. Each statement lands in your Downloads folder and
+        waits for you in the import review, with its account already chosen. Nothing reaches your records until you've
+        looked.</p>
+      <h3>When your bank asks for a code</h3>
+      <p>That bank's window comes to the front and Groundwork waits for you to type the code into the bank's own page.
+        Groundwork never reads a code and never asks you for one. <strong>Remember this computer</strong> lets your bank ask
+        less often.</p>
+      <h3>What stops a run</h3>
+      <p>If a bank shows a check for automated access ("Are you a robot?"), Groundwork stops at once and doesn't carry
+        on with your other accounts. If your bank's site has changed, it says which step it couldn't find and lets you
+        show it again from there. It never presses anything that pays.</p>
+      <div class="kb-tip">💡 Try it first on Demo Credit Union, a made-up bank on this website: load the sample household, open
+        Assistant, and Everyday Checking is already linked to it. Any username and password work there.</div>
+    </div>
+
+    <div class="kb-article" id="bills-biller">
+      <h2>Bills read from the biller</h2>
+      <p>For a bill you see on a company's website, Groundwork can read the amount due and the due date and put them
+        next to that line on the Budget page. You confirm them before they're used.</p>
+      <p>On <strong>Assistant → Bills</strong>, add the bill's website and save its login, then <strong>Show me once</strong>: sign in,
+        go to your bill, press <strong>This is the amount due</strong> and click the amount, then <strong>This is the due date</strong>
+        and click the date. After that, <strong>Read my bill</strong> does it for you.</p>
+      <div class="kb-tip">💡 Groundwork never presses Pay. Paying is always yours. Demo Power &amp; Light, on this website, lets you try
+        it with the sample household's electric bill.</div>
     </div>
 
     <div class="kb-article" id="linux">
@@ -1476,6 +1543,13 @@ python3 launch.py</pre>
       <p>Sinking funds are savings goals you contribute to monthly — like a car repair fund or vacation savings. Add one from the Budget page and Groundwork tracks your progress automatically.</p>
       <h3>The Budget tabs</h3>
       <p>The Budget page has five tabs: <strong>Your budget</strong>, <strong>Possible futures</strong>, <strong>Bills and charges</strong>, <strong>Calendar</strong> (what's coming from your own record — due days, recurring bills, gift occasions, trips) and <strong>Gifts</strong> (the Gift budget).</p>
+      <p>The <strong>Out</strong> and <strong>Left</strong> at the top are this month <em>projected at the pace so far</em>; further down,
+        <strong>What's left</strong> shows both what your plan leaves and that projection. Debt payments count as going out: your
+        payoff plan if you saved one on Debt Payoff, your minimum payments if you didn't.</p>
+      <h3>Possible futures</h3>
+      <p>Your next twelve months side by side: as things are, and what happens if your most expensive months come back, a
+        month goes by without income, or you pay only the minimums. Every future says what it assumes. If one doesn't
+        fit your life, tell it what's missing and they all recalculate.</p>
     </div>
 
     <div class="kb-article" id="debt">
@@ -1550,7 +1624,15 @@ python3 launch.py</pre>
 
     <div class="kb-article" id="reports">
       <h2>Reports</h2>
-      <p>The Report Center has built-in reports, several of which can include an AI-written narrative.</p>
+      <h3>Build your own report</h3>
+      <p>At the top of Reports, <strong>Build a report</strong> lets you say what you want in your own words ("monthly totals
+        of debt payments from June to September") or stack sections yourself: monthly totals, a trend, a list, a
+        snapshot, a comparison or a what-if, about spending, a category, payees, income, debt payments or balances, net
+        worth, recurring charges, bills due or room in your budget, over any period you name. Pick one of six styles,
+        save it, and it's ready again next month. It works with the AI off, and when your records can't answer a
+        section, the section says so.</p>
+      <h3>Built-in reports</h3>
+      <p>The Report Center also has built-in reports, several of which can include an AI-written narrative.</p>
       <ul>
         <li><strong>Distance Traveled</strong> — the ground you've covered: principal paid down, debts retired, cash flow freed, and how much closer your debt-free date has moved</li>
         <li><strong>Monthly Spending Summary</strong> — income, expenses, budget vs. actual, and how the month stacks up</li>
@@ -1589,8 +1671,18 @@ python3 launch.py</pre>
         <li><strong>Mac:</strong> ~/Library/Application Support/Groundwork/groundwork.db</li>
         <li><strong>Linux:</strong> ~/.local/share/Groundwork/groundwork.db</li>
       </ul>
-      <p>To back up manually, go to <strong>Settings → Data & Backup → Back up now</strong>. This creates a timestamped copy you can save anywhere.</p>
-      <div class="kb-tip">💡 Copy your .db file to a USB drive or cloud folder (Dropbox, Google Drive) regularly. It's just one file.</div>
+      <h3>Protected backups</h3>
+      <p>Every Groundwork backup is protected, so the first time, Groundwork asks you to set it up: a backup password (at
+        least 10 characters) and a 24-word recovery key to write down and keep somewhere safe. A protected backup can't
+        be opened by anyone who finds the file. On this computer, Groundwork keeps the key for you; on another computer,
+        the password or the recovery words open it.</p>
+      <p>Then <strong>Settings → Data &amp; Backup → Create backup now</strong> makes a dated copy, and Groundwork reminds you when one
+        is due. Before any update changes how your records are stored, Groundwork also saves a copy of them as they were.</p>
+      <h3>Moving to a new computer</h3>
+      <p>Install Groundwork, choose <strong>Restore from a backup</strong> on the first screen (or Settings → Data &amp; Backup →
+        Restore from a file), pick the backup, and enter its password or recovery words.</p>
+      <div class="kb-tip">💡 Keep a copy of your backups off this computer too: a USB drive or a cloud folder. A protected backup is
+        safe to store there.</div>
     </div>
 
     <div class="kb-article" id="ai">
@@ -1602,6 +1694,19 @@ python3 launch.py</pre>
       <p>With AI on, the <strong>Ask or tell Groundwork…</strong> box at the top does more than answer questions. Ask how to do something and it answers in plain words, written only from Groundwork's own guide, and shows which guide answer it used. Tell it where to go (<em>view my budget</em>, <em>see collections</em>) and it opens the page; tell it what to do (<em>get my accounts</em>, <em>import a statement</em>) and it opens exactly what that button opens. <em>Explain these numbers</em> says what the figures on the page mean, and <em>why is restaurants so high</em> lists the transactions behind that figure. With AI off the box goes away; the <strong>?</strong> button's guide has the same answers either way.</p>
       <h3>No cloud AI</h3>
       <p>Groundwork has no cloud AI option. <strong>Nothing is sent to an AI service, ever.</strong> If a computer can't comfortably run a local model, AI features simply stay off; budgets, debt payoff and reports all work the same. Reading PDF statements needs the local model too; without it, import your bank's CSV or QFX download instead.</p>
+    </div>
+
+    <div class="kb-article" id="voice">
+      <h2>Voice and read-aloud</h2>
+      <p>Voice is off until you turn it on in <strong>Settings → Reading &amp; Voice</strong>. Then a microphone sits in the Ask
+        box: tap it once and talk, and it stays on until you tap it again, say "stop", or step away. Answers are read
+        back to you in Groundwork's own words.</p>
+      <p>It follows how people talk: loose phrasing, a correction halfway through, a pause to think. Teach it your voice
+        in five sentences and it answers only the voices it has learned, not the television. A voiceprint is 256
+        numbers, not a recording.</p>
+      <p><strong>Read aloud</strong> lets you point at any part of a page and hear it. Read-aloud and voice commands work even with
+        the AI turned off.</p>
+      <div class="kb-tip">💡 What you say is recognised on your computer, and never sent anywhere or kept.</div>
     </div>
 
     <div class="kb-article" id="privacy">
