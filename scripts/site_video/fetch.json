@@ -1,0 +1,73 @@
+{
+  "poster": 8,
+  "seed": false,
+  "about": "Get my accounts, on the demo bank (gw 2.0/DEMO_BANK.md D9). Needs the published demo bank and a dev server started with WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9340; see the top of make.mjs.",
+  "scenes": [
+    {"card": {"kicker": "New in Groundwork 2.0", "head": "Get my accounts. One press.", "sub": "Groundwork visits your bank for you, on your computer, with no middleman holding your login. Shown on a made-up bank."},
+     "say": "Groundwork 2.0 can fetch your bank statements for you, with one press. Here it is, on a made-up bank and a made-up household."},
+
+    {"view": "automation",
+     "do": "const d = await API.get('/api/settings/bank-logins?all=1'); const a = d.accounts.find(x => x.name === 'Everyday Checking'); window.__key = a.key; openAutomationRow(a.key); await new Promise(r => setTimeout(r, 1500)); toggleAutoRow(a.key); await new Promise(r => setTimeout(r, 300)); if (!document.querySelector('[data-auto-key=\"' + a.key + '\"].open')) toggleAutoRow(a.key);",
+     "wait": 1800,
+     "focus": "document.querySelector('[data-auto-key=\"' + __key + '\"]')", "maxZoom": 1.3,
+     "say": "On the Assistant page, each account has its bank's website. This one is Demo Credit Union, a pretend bank on Groundwork's own site."},
+
+    {"do": "openBankLoginForm(__key); document.getElementById('bankLoginUser').value = 'morgan'; document.getElementById('bankLoginPass').value = 'demo'; document.getElementById('bankLoginAck').checked = true;",
+     "focus": "document.getElementById('bankLoginForm-' + __key.replace(':', '-'))", "maxZoom": 1.5,
+     "after": "await saveBankLogin(__key); await new Promise(r => setTimeout(r, 1200));",
+     "say": "Save the login once. It goes into your computer's own password vault. Groundwork's makers never see it, and no other company holds it."},
+
+    {"do": "await startBankRecording(__key);",
+     "in": "bank", "winTitle": "Demo Credit Union - showing Groundwork how", "bankWait": "document.querySelector('#username')",
+     "focus": "document.querySelector('main .card')", "maxZoom": 1.25,
+     "bankAfter": [{"type": ["#username", "morgan"]}, {"type": ["#password", "demo"]}, {"click": ["button", "Sign in"], "after": 1500}],
+     "say": "Then show Groundwork once. It opens your bank in a window of its own, and you sign in and do your usual download."},
+
+    {"in": "bank", "winTitle": "Demo Credit Union - showing Groundwork how", "bankWait": "document.querySelector('.code')",
+     "focus": "document.querySelector('main .card')", "maxZoom": 1.25,
+     "bankAfter": [{"code": true}, {"click": ["button", "Verify"], "after": 1500}],
+     "say": "If your bank texts you a code, you type it, as you always would. Groundwork never reads a code, and never asks you for one."},
+
+    {"bank": [{"wait": "location.pathname.endsWith('/accounts')"}, {"click": ["a", "Everyday Checking"], "after": 1200},
+              {"wait": "!!document.querySelector('a.btn')"}, {"click": ["a.btn", "Download activity"], "after": 1200},
+              {"wait": "!!document.querySelector('#format')"}],
+     "in": "bank", "winTitle": "Demo Credit Union - showing Groundwork how",
+     "focus": "document.querySelector('main .card')", "maxZoom": 1.3,
+     "bankAfter": [{"click": ["button", "Download file"], "after": 2500}],
+     "say": "Pick the account, the dates and the file type, the same way you do today."},
+
+    {"then": "document.getElementById('autoImportPrompt')?.remove(); await finishBankRecording(__key); document.getElementById('autoImportPrompt')?.remove();",
+     "focus": "document.getElementById('bankLoginForm-' + __key.replace(':', '-'))", "maxZoom": 1.5,
+     "after": "await saveBankRecipe(__key); await new Promise(r => setTimeout(r, 1200)); document.getElementById('autoImportPrompt')?.remove();",
+     "untilClosed": true,
+     "say": "Groundwork noted each button you pressed, by its name. Never what you typed, and never a balance or an account number."},
+
+    {"view": "dashboard",
+     "focus": "[...document.querySelectorAll('header button, .topbar button, button')].find(b => __vis(b) && b.textContent.includes('Get my accounts'))", "maxZoom": 1.6,
+     "after": "document.getElementById('autoImportPrompt')?.remove(); await startFetchAll();",
+     "say": "From now on it's one press. Get my accounts sits at the top of every page."},
+
+    {"in": "bank", "winTitle": "Demo Credit Union - Groundwork is fetching your download",
+     "bankWait": "!!document.querySelector('.code') && !!document.getElementById('__gwBarHost')", "bankWaitMs": 90000,
+     "focus": "document.querySelector('main .card')", "maxZoom": 1.2,
+     "bankAfter": [{"code": true}, {"click": ["button", "Verify"], "after": 1500}],
+     "say": "Groundwork signs in from your vault and follows your steps. When the bank asks for a code, its window comes to the front, and Groundwork waits for you to type it."},
+
+    {"thenWait": "(document.getElementById('gwFetchAllPanel')?.innerText || '').includes('Downloaded')", "thenWaitMs": 120000,
+     "focus": "document.getElementById('gwFetchAllPanel')", "maxZoom": 1.5,
+     "say": "The statement comes straight from your bank to your computer. Nothing passes through anyone else."},
+
+    {"thenWait": "!!document.getElementById('autoImportPrompt')", "thenWaitMs": 60000,
+     "focus": "document.getElementById('autoImportPrompt')", "maxZoom": 1.5,
+     "after": "await _acceptAutoImport();",
+     "untilClosed": true,
+     "say": "Then Groundwork offers you the file, already matched to the account it came from."},
+
+    {"thenWait": "!document.getElementById('importModal')?.classList.contains('hidden')", "wait": 2500,
+     "focus": "document.querySelector('#importModal .modal, #importModal [class*=modal-]') || document.getElementById('importModal')", "maxZoom": 1.2,
+     "say": "Nothing reaches your records until you've looked. Lines you already have are held back, so only what's new goes in."},
+
+    {"card": {"kicker": "No middleman · No stored codes · Never pays", "head": "Your bank, your computer, nothing in between.", "sub": "Free for Windows, macOS and Linux · groundworkfinance.app"},
+     "say": "Your login stays in your own vault, every code is typed by you, and Groundwork never presses Pay. Groundwork 2.0 is free."}
+  ]
+}

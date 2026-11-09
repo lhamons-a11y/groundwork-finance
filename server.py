@@ -7877,7 +7877,8 @@ def _consequence_inputs(session):
                      only a genuinely absent value falls back to begin_balance
                      (_cardBal, app.js)
       * strategy   — the user's own debt_method, not a hardcoded avalanche
-      * budget     — the persisted monthly_budget, same 1500 default as boot
+      * budget     — the persisted monthly_budget; with no saved plan, the minimums
+                     (panel I-01, as _debt_month_plan and _getMonthlyBudget, app.js)
       * PSLF       — flagged loans take minimums only, and are dated by their
                      remaining qualifying payments
     """
@@ -7916,7 +7917,16 @@ def _consequence_inputs(session):
             forgive_after_months=forgive_after,
         ))
 
-    budget = float(setting('monthly_budget', 1500) or 1500)
+    # Panel I-01: no saved plan means the minimums, here as on the Debt page (_getMonthlyBudget). This was a 1500
+    # default while the page used the minimums (2026-11-08), so a household that never saved a plan was dated at its
+    # minimums there and priced against $1,500 in Before You Buy, trips and the assistant.
+    try:
+        saved = setting('monthly_budget')
+        budget = float(saved) if saved not in (None, '') else None
+    except (TypeError, ValueError):
+        budget = None
+    if budget is None:
+        budget = _debt_month_plan(session)['minimums']
     # V3: the payoff budget includes each mortgage's whole payment, but its
     # escrow share goes to taxes and insurance, not to debt - left in, the
     # engine would hand it to other debts as "extra".
@@ -7934,6 +7944,14 @@ def _payoff_undatable(cards, budget):
         return {'reason': 'below_minimums', 'budget': round(budget, 2), 'minimums': minimums,
                 'gap': round(minimums - budget, 2)}
     return {'reason': 'never_clears', 'budget': round(budget, 2), 'minimums': minimums}
+
+
+def _float_or(value, default):
+    """A stored setting as a number, or the default when it is missing, blank or not a number. 0 stays 0."""
+    try:
+        return float(value) if value not in (None, '') else default
+    except (TypeError, ValueError):
+        return default
 
 
 def _debt_month_plan(session):
@@ -12320,9 +12338,11 @@ def bootstrap():
 
             # ── App preferences (previously in snapshot) ───────────────────────
             prefs = {
-                'monthlyBudget':  float(settings.get('monthly_budget',  1500) or 1500),
+                # The saved plan as it was saved ($0 included); 0 when none was saved, which the page shows as an empty
+                # field and dates at the minimums (panel I-01). Never the old 1500 default (2026-11-08).
+                'monthlyBudget':  _float_or(settings.get('monthly_budget'), 0.0),
                 # panel I-01: whether a payoff plan was ever saved - with none, a month's debt payments are the
-                # minimums, never the 1500 the payoff engine starts from
+                # minimums, and so is the payoff engine's budget (_consequence_inputs)
                 'monthlyBudgetSaved': settings.get('monthly_budget') not in (None, ''),
                 'savingsPct':     float(settings.get('savings_pct',      10)  or 10),
                 'debtMethod':     settings.get('debt_method',     'avalanche'),
@@ -16124,6 +16144,11 @@ def _backup_before_migration():
     try:
         with db_session() as session:
             _set_setting(session, 'pre_upgrade_backup', json.dumps(rec))
+            if stored and stored[:8] < '20261018':
+                # Records from 1.x (Rob 2026-11-08): 1.x's Net Worth page added the 401(k) and IRA into the brokerage
+                # figure again on every visit and saved it. 2.0 stops that but can't know the true figure, so the Net
+                # Worth page asks once to check it (_nwCheckNote, app.js) until the person says they have.
+                _set_setting(session, 'nw_check_note', json.dumps({'from': stored, 'at': rec['at'], 'checked': False}))
             session.commit()
     except Exception:                                     # noqa: BLE001
         logging.getLogger('groundwork').warning('pre-upgrade backup: the note of it could not be saved')

@@ -1018,7 +1018,9 @@ class Driver:
         return 'no_download'
 
 
-VAULT_SERVICE = 'Groundwork'      # the same naming as core/bank_vault.py - s174 checks they agree
+import os as _os
+# The same naming as core/bank_vault.py, the dev server's own name included (it starts this process) - s174 checks they agree
+VAULT_SERVICE = _os.environ.get('GROUNDWORK_VAULT_SERVICE') or 'Groundwork'
 
 
 def _read_login(key):

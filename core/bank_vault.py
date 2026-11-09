@@ -11,8 +11,13 @@ Only the fetch (the bank process, a later stage) reads a password, through read_
 password to a route, and s172 fails if a route does.
 """
 import json
+import os
 
-SERVICE = 'Groundwork'
+# The vault is the computer's, shared by every Groundwork on it. dev_server.py (and so the bank window it starts, and
+# the video maker) sets GROUNDWORK_VAULT_SERVICE, so a throwaway database's 'account:1' can never overwrite or read the
+# installed app's 'account:1' - found 2026-11-08, when a dev run was one click from replacing a real saved login.
+# Installed, it is unset: 'Groundwork', as always. bank_agent_window.VAULT_SERVICE reads the same (s174).
+SERVICE = os.environ.get('GROUNDWORK_VAULT_SERVICE') or 'Groundwork'
 
 
 def _keyring():

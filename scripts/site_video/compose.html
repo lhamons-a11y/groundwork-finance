@@ -51,6 +51,7 @@ function drawShot(sc, t, alpha) {
   cx.globalAlpha = alpha;
   cx.setTransform(cam.z, 0, 0, cam.z, -cam.x * cam.z, -cam.y * cam.z);
   cx.drawImage(img, 0, 0, W, H);
+  if (sc.win) drawWindow(sc.win);
   if (sc.focus) {
     const f = sc.focus, k = ease((t - 1.0) / 0.5), pad = 10;
     if (k > 0) {
@@ -63,6 +64,24 @@ function drawShot(sc, t, alpha) {
       rr(f.x - pad, f.y - pad, f.w + pad * 2, f.h + pad * 2, 14); cx.stroke();
     }
   }
+  cx.restore();
+}
+
+// The bank window Groundwork opened (fetch.json): over the app, which steps back, with a title bar of its own.
+function drawWindow(w) {
+  cx.fillStyle = 'rgba(15,27,45,.38)'; cx.fillRect(0, 0, W, H);
+  const top = w.y - w.titleH;
+  cx.save();
+  cx.shadowColor = 'rgba(0,0,0,.45)'; cx.shadowBlur = 40; cx.shadowOffsetY = 12;
+  rr(w.x, top, w.w, w.h + w.titleH, 12); cx.fillStyle = '#fff'; cx.fill();
+  cx.restore();
+  cx.save();
+  rr(w.x, top, w.w, w.h + w.titleH, 12); cx.clip();
+  cx.fillStyle = '#e9edf3'; cx.fillRect(w.x, top, w.w, w.titleH);
+  cx.fillStyle = '#c3cad6'; cx.fillRect(w.x, w.y - 1, w.w, 1);
+  cx.fillStyle = '#1d2433'; cx.font = font(SANS, 17, 600); cx.textBaseline = 'middle'; cx.textAlign = 'left';
+  cx.fillText(w.title, w.x + 18, top + w.titleH / 2);
+  cx.drawImage(w._img, w.x, w.y, w.w, w.h);
   cx.restore();
 }
 
@@ -155,6 +174,7 @@ async function run() {
   await document.fonts.ready;
   for (const sc of plan.scenes) {
     if (sc.img) { sc._img = new Image(); sc._img.src = sc.img; await sc._img.decode(); }
+    if (sc.win) { sc.win._img = new Image(); sc.win._img.src = sc.win.file; await sc.win._img.decode(); }
   }
   const ac = new AudioContext({ sampleRate: 48000 });
   await ac.resume();

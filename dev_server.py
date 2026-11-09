@@ -16,6 +16,9 @@ _PORT = int(os.environ.get('PORT') or os.environ.get('GW_DEV_PORT') or 8766)    
 _tmp = os.path.join(tempfile.gettempdir(), 'gw_dev_server' + ('' if _PORT == 8766 else f'_{_PORT}'))
 os.makedirs(_tmp, exist_ok=True)
 os.environ['GROUNDWORK_DATA_DIR'] = _tmp
+# Its own entries in the computer's vault (bank logins, the backup key): never the installed Groundwork's, which are
+# named by the same account numbers (core/bank_vault.py).
+os.environ.setdefault('GROUNDWORK_VAULT_SERVICE', 'Groundwork dev')
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 

@@ -24,10 +24,21 @@ def _fn(src, name):
 
 def run(ctx):
     check, c, H, BASE, app, html = ctx.check, ctx.c, ctx.H, ctx.BASE, ctx.app_src, ctx.html_src
-    from core.database import DebtAccount, db_session
+    from core.database import AppSetting, DebtAccount, db_session
     from core.trip_card import payoff_rows
 
     made = []
+    # R2's "current payments" is the saved debt plan. This section relied on the engine's old 1500 default; with no
+    # plan saved the engine now uses the minimums (panel I-01, s294 W1), at which a 22% card with a $40 minimum never
+    # clears a $2,140 trip. So the plan is saved here, as a household that has one has it, and put back after.
+    with db_session() as session:
+        mb = session.query(AppSetting).filter_by(key='monthly_budget').first()
+        mb_before = mb.value if mb else None
+        if mb:
+            mb.value = '1500'
+        else:
+            session.add(AppSetting(key='monthly_budget', value='1500'))
+        session.commit()
     try:
         with db_session() as session:
             rows = [DebtAccount(name='s161 Visa', current_balance=1000.0, interest_rate=22.0, minimum_payment=40.0,
@@ -128,3 +139,11 @@ console.log(JSON.stringify(out));'''
             with db_session() as session:
                 session.query(DebtAccount).filter(DebtAccount.id.in_(made)).delete(synchronize_session=False)
                 session.commit()
+        with db_session() as session:
+            mb = session.query(AppSetting).filter_by(key='monthly_budget').first()
+            if mb_before is None:
+                if mb:
+                    session.delete(mb)
+            elif mb:
+                mb.value = mb_before
+            session.commit()

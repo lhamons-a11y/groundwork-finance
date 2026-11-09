@@ -1654,9 +1654,12 @@ function restoreFromBootstrap(data) {
   // Payoff page itself. Storing it as S.monthlyBudget gives every other
   // function a real value to fall back to regardless of which page is
   // currently mounted.
-  const mb = prefs.monthlyBudget || 1500;
-  S.monthlyBudget = mb;
   S.monthlyBudgetSaved = !!prefs.monthlyBudgetSaved;     // panel I-01: no saved plan means the minimums
+  // A debt budget nobody chose is not put in the fields (found 2026-11-08): the old $1,500 default dated a $3,200 card
+  // "debt-free in 3 months" on the Debt page and the dashboard while Budget counted only its $95 minimum. With no saved
+  // plan the fields stay empty and _getMonthlyBudget answers the minimums, the rule the server and Budget already use.
+  const mb = S.monthlyBudgetSaved ? (parseFloat(prefs.monthlyBudget) || 0) : '';
+  S.monthlyBudget = mb === '' ? 0 : mb;
   if (g('monthlyBudget'))         g('monthlyBudget').value         = mb;
   if (g('settingsMonthlyBudget')) g('settingsMonthlyBudget').value = mb;
   if (prefs.savingsPct && g('settingsSavingsPct')) g('settingsSavingsPct').value = prefs.savingsPct;
@@ -6030,25 +6033,62 @@ function showImportModal() {
   _importIsPdf = false; _importPdfSummary = null; _importPdfSourceHash = ''; _importPdfWarnings = [];
   g('importLinkedNote') && (g('importLinkedNote').style.display = 'none');
 
-  // Populate account selector from existing accounts only.
-  // No "New account…" option — new accounts must be created in Settings
-  // first. This prevents accidental duplicate account creation on import.
+  _fillImportAccounts();
+  toggleImportFileReady();
+}
+
+// Populate account selector from existing accounts only.
+// No "New account…" option — new accounts are created in Settings. This
+// prevents accidental duplicate account creation on import. The one
+// exception is a Groundwork with no accounts at all (first launch's "Bring
+// in my spending history"): there the first account is named right here,
+// because Settings is behind the welcome screen and nothing can duplicate
+// (found 2026-11-08: the welcome's fastest start was a dead end).
+function _fillImportAccounts(choose) {
   const sel = g('importAccount');
   const accounts = _accountNames();
+  const first = g('importFirstAccount'), hint = g('importAccountHint');
   if (sel) {
     if (!accounts.length) {
-      // No accounts yet — guide the user to Settings
-      sel.innerHTML = '<option value="">No accounts yet — add one in Settings first</option>';
+      sel.innerHTML = '<option value="">No accounts yet - name the first one below</option>';
       sel.disabled = true;
     } else {
       sel.disabled = false;
       sel.innerHTML = '<option value="">Select account…</option>' +
         accounts.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('');
-      // Auto-select if only one account exists
-      if (accounts.length === 1) sel.value = accounts[0];
+      // Auto-select the one just made, or the only one there is
+      if (choose && accounts.includes(choose)) sel.value = choose;
+      else if (accounts.length === 1) sel.value = accounts[0];
     }
   }
+  if (hint) hint.style.display = accounts.length ? '' : 'none';
+  if (first) first.innerHTML = accounts.length ? '' : `
+    <div style="margin-top:8px;padding:12px;background:var(--mist);border-radius:var(--r-md)">
+      <div style="font-size:var(--fs-sm);color:var(--ink);margin-bottom:8px">Which account is this file from? Name it as you know it.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input type="text" id="importFirstName" placeholder="e.g. Everyday Checking" aria-label="Account name" style="flex:1;min-width:160px"
+          onkeydown="if (event.key === 'Enter') importCreateFirstAccount()">
+        <select id="importFirstType" aria-label="Account type">
+          ${['checking', 'savings', 'credit_card', 'cash'].map(v => `<option value="${v}">${ACCOUNT_TYPES[v]}</option>`).join('')}
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="importCreateFirstAccount()">Add account</button>
+      </div>
+      <div id="importFirstMsg" style="font-size:var(--fs-xs);color:var(--ember-text);margin-top:6px"></div>
+    </div>`;
+}
+
+async function importCreateFirstAccount() {
+  const name = (g('importFirstName')?.value || '').trim();
+  const type = g('importFirstType')?.value || 'checking';
+  const msg = g('importFirstMsg');
+  if (!name) { if (msg) msg.textContent = 'Give the account a name.'; g('importFirstName')?.focus(); return; }
+  try { await API.post('/api/accounts', { name, type }); }
+  catch (e) { if (msg) msg.textContent = e?.message || 'The account could not be added.'; return; }
+  await loadAccounts();
+  _fillImportAccounts(name);
   toggleImportFileReady();
+  const sel = g('importAccount');
+  if (sel && typeof _importAccountLinkedNote === 'function') _importAccountLinkedNote(sel);
 }
 
 // Try to auto-select the best matching account after a file is parsed.
@@ -6233,8 +6273,14 @@ async function deleteImportRule(idx) {
 
 let _obImportInProgress = false;
 
-function closeImportModal() {
+function closeImportModal(opts) {
   g('importModal')?.classList.add('hidden');
+  // A finished import hands over to the welcome only once its rows are loaded (confirmImport calls _obAfterImport):
+  // deciding here, before the reload, saw no transactions on a first launch and skipped the snapshot (2026-11-08).
+  if (!(opts && opts.deferOnboarding)) _obAfterImport();
+}
+
+function _obAfterImport() {
   if (_obImportInProgress) {
     _obImportInProgress = false;
     _obStartPath = 'import';
@@ -6273,8 +6319,27 @@ function _onboardingAdvance(where) {
   g('obSnapshotHost')?.classList.add('hidden');
   if (where === 'income') {
     _obStartPath = 'import';
-    obAdvanceFromStep0();   // reveals step 1 (income), which is now pre-fillable from detected deposits
+    obAdvanceFromStep0();   // reveals step 1 (income)
+    _obPrefillIncomeFromImport();
   }
+}
+
+// The snapshot has just said "Income detected, averaging $X/month": the income step starts from that figure (and the
+// pay schedule, when one was found) instead of an empty box with Next locked (found 2026-11-08). Shown as where it
+// came from; the person changes it if it is wrong. A figure already typed is never replaced.
+function _obPrefillIncomeFromImport() {
+  const box = g('obIncome');
+  if (!box || box.value) return;
+  let inc;
+  try { inc = _calcIncomeIntelligence(); } catch (e) { return; }
+  const avg = Math.round((inc && (inc.avg6 || inc.effectiveAvg)) || 0);
+  if (!(avg > 0)) return;
+  box.value = avg;
+  const freq = g('obPayFrequency');
+  if (freq && !freq.value && inc.payFrequency && [...freq.options].some(o => o.value === inc.payFrequency)) freq.value = inc.payFrequency;
+  obUpdateStep1();
+  const sub = g('obIncomeSub');
+  if (sub) sub.textContent = `From the deposits you just imported: about ${fmt(avg)} a month. Change it if that isn't your take-home pay.`;
 }
 
 // Snapshot dismiss → close onboarding, drop them into the live app.
@@ -6584,7 +6649,7 @@ function renderImportPreview(data) {
 
       <!-- Sample rows -->
       <div style="font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px">Preview</div>
-      <div style="max-height:200px;overflow-y:auto;border:1px solid var(--steel);border-radius:var(--r-md)">
+      <div style="max-height:200px;overflow:auto;border:1px solid var(--steel);border-radius:var(--r-md)">
         <table style="width:100%;border-collapse:collapse;font-size:var(--fs-sm)">
           <thead><tr style="background:var(--mist)">
             <th style="padding:6px 10px;text-align:left;font-weight:600;color:var(--slate-2);font-size:var(--fs-xs);letter-spacing:.06em">Date</th>
@@ -6595,10 +6660,10 @@ function renderImportPreview(data) {
           <tbody>
             ${sample.map((t, i) => `<tr style="border-top:1px solid var(--steel)">
               <td style="padding:6px 10px;font-family:var(--font-mono);color:var(--slate);white-space:nowrap">${t.date}</td>
-              <td style="padding:6px 10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.description)}</td>
+              <td style="padding:6px 10px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(t.description)}">${esc(t.description)}</td>
               <td style="padding:4px 10px">
-                <select data-idx="${i}" onchange="updateImportCategory(this)"
-                  style="background:var(--mist);border:1px solid var(--steel);border-radius:4px;font-size:var(--fs-xs);padding:2px 6px;color:var(--ink);outline:none">
+                <select data-idx="${i}" onchange="updateImportCategory(this)" aria-label="Category for ${esc(t.description)}"
+                  style="width:150px;max-width:150px;background:var(--mist);border:1px solid var(--steel);border-radius:4px;font-size:var(--fs-xs);padding:2px 6px;color:var(--ink);outline:none">
                   ${(()=>{
   const tree=_catTree('all');
   const opts=['<option value="">Select category…</option>'];
@@ -6612,7 +6677,7 @@ function renderImportPreview(data) {
 })()}
                 </select>
               </td>
-              <td style="padding:6px 10px;text-align:right;font-family:var(--font-mono);font-weight:500;color:${t.type==='debit'?'var(--ember-text)':'var(--pine-text)'}">
+              <td style="padding:6px 10px;text-align:right;white-space:nowrap;font-family:var(--font-mono);font-weight:500;color:${t.type==='debit'?'var(--ember-text)':'var(--pine-text)'}">
                 ${t.type==='debit'?'-':'+'}${fmtD(t.amount)}
               </td>
             </tr>`).join('')}
@@ -6761,7 +6826,7 @@ async function confirmImport() {
     const downloadsFile = (_importOrigin?.path && sourceFile?.sha256)
       ? { name: sourceFile.name, path: _importOrigin.path, sha256: sourceFile.sha256 } : null;
 
-    closeImportModal();
+    closeImportModal({ deferOnboarding: true });
     if (downloadsFile) _afterImportDownloadsChoice(downloadsFile);
     // Re-pull the full transaction list from the server instead of locally
     // synthesizing ids for the imported rows — the commit endpoint only
@@ -6785,6 +6850,7 @@ async function confirmImport() {
       // show correctly on next reload; just can't reflect it instantly here.
       showToast('Imported, but could not refresh the view', 'Reload to see it', 'warning');
     }
+    _obAfterImport();                          // the welcome's next step, now that the rows are here
     // Imported rows can carry category names that don't exist yet (the
     // server auto-creates them) — refresh so they show up in every picker.
     // Same for the account the import targeted, if it was new.
@@ -9236,7 +9302,8 @@ async function _budgetSaveDebtSnapshot(month) {
     const bal  = _cardBal(card);
     const apr  = parseFloat(card.rate) || 0;
     const pmt  = parseFloat(card.minimum) || 0;
-    const min  = _calcMinPayment(bal, apr);
+    // A card's minimum falls with its balance (estimated); a loan's, mortgage's or lease's is its fixed payment.
+    const min  = (card.debtType || 'credit') === 'credit' ? _calcMinPayment(bal, apr) : pmt;
     // V6: history records an APR nobody entered as unknown, not as 0%.
     return { debt_id: card._dbId, balance: bal, payment: pmt, min_payment: min,
              apr: _isBlank(card.rate) ? null : apr };
@@ -9267,6 +9334,10 @@ function _budgetMinDecay(card) {
   const bal  = _cardBal(card);
   const apr  = parseFloat(card.rate) || 0;
   if (!bal || !apr || !card._dbId) return null;
+  // A falling minimum is a credit card's (an issuer's 1% + interest): a loan, mortgage or lease pays a fixed
+  // installment that doesn't fall with the balance. Measured on the car loan, the card formula read "↓ min $171.27"
+  // beside its $389 payment (the 2026-11-08 math audit).
+  if ((card.debtType || 'credit') !== 'credit') return null;
 
   const history = _debtHistoryCache[String(card._dbId)] || [];
   if (!history.length) return null;
@@ -9313,7 +9384,10 @@ function _freedMinimums() {
     const apr = parseFloat(card.rate) || 0;
     const now = (card.paidInFull || bal <= 0.01) ? 0
       : (parseFloat(card.minimum) || (apr > 0 ? _calcMinPayment(bal, apr) : 0));
-    from += parseFloat(earliest.min_payment) || 0;
+    // A loan's minimum is its payment: history before 2026-11-08 stored the card formula as a loan's min_payment
+    // (e.g. $171.27 for a $389 car loan), which read here as its minimum rising.
+    from += (card.debtType || 'credit') === 'credit' ? (parseFloat(earliest.min_payment) || 0)
+                                                     : (parseFloat(earliest.payment) || parseFloat(earliest.min_payment) || 0);
     to += now;
     any = true;
     if (earliest.month === `${yearKey}-01`) fromJanuary = true;
@@ -9956,7 +10030,7 @@ function _budgetBuildDebtBloom(card) {
   const bal     = _cardBal(card);
   const apr     = parseFloat(card.rate) || 0;
   const min     = parseFloat(card.minimum) || 0;
-  const calcMin = bal > 0 && apr > 0 ? _calcMinPayment(bal, apr) : min;
+  const calcMin = (card.debtType || 'credit') === 'credit' && bal > 0 && apr > 0 ? _calcMinPayment(bal, apr) : min;   // a card's estimate only
   const limit   = card.creditLimit ? parseFloat(card.creditLimit) : '';
 
   // B2: Build account link selector from S.accounts
@@ -10016,7 +10090,9 @@ function _budgetBuildDebtBloom(card) {
           oninput="_budgetDebtBloomCalc(this.closest('.budget-bloom'))"
           style="width:100%;font-family:var(--font-mono);font-size:var(--fs-base);border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
         <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:3px">
-          Minimum: <span class="bloom-min-display" style="font-family:var(--font-mono)">${fmt(calcMin)}</span>
+          ${(card.debtType || 'credit') === 'credit'
+            ? `Minimum, estimated: <span class="bloom-min-display" style="font-family:var(--font-mono)">${fmt(calcMin)}</span> (your statement's figure counts)`
+            : 'A fixed payment: it doesn’t fall with the balance'}
         </div>
       </div>
       <div>
@@ -10211,10 +10287,14 @@ function _budgetSaveDebtBloom(btn) {
   const apr   = aprTouched   ? (parseFloat(aprEl.value)   || 0) : 0;
   const limit = limitTouched ? (parseFloat(limitEl.value) || null) : null;
 
-  const calcMin = bal > 0 && apr > 0 ? _calcMinPayment(bal, apr) : parseFloat(card.minimum)||0;
-  if (pmtTouched && pmt > 0 && pmt < calcMin) {
-    showToast(`Minimum is ${fmt(calcMin)}`, 'Payment cannot be below the calculated minimum.', 'warning');
-    return;
+  // The minimum on the statement is the person's figure; Groundwork's is an estimate (an issuer's 1% + interest, at
+  // least $25), and issuers differ. Below the estimate it is said and SAVED - this used to refuse to save, and a loan,
+  // which has no card minimum at all, was held to the card formula too (the 2026-11-08 math audit: the sample's $210
+  // student loan payment was "below the minimum" of $257.81).
+  const isCard  = (card.debtType || 'credit') === 'credit';
+  const calcMin = isCard && bal > 0 && apr > 0 ? _calcMinPayment(bal, apr) : parseFloat(card.minimum)||0;
+  if (isCard && pmtTouched && pmt > 0 && pmt < calcMin) {
+    showToast(`Saved ${fmt(pmt)} as the minimum`, `Groundwork's estimate at this balance is ${fmt(calcMin)}. If your statement says ${fmt(pmt)}, that is the one that counts.`, 'warning');
   }
 
   // Local state: only overwrite a field if it was actually touched —
@@ -14875,9 +14955,17 @@ function _obRenderPlanSummary() {
 
   if (totalDebt < 500) {
     const surplus = Math.max(0, income - S.expenses.reduce((s,e) => s+e.amount, 0));
+    // Only what the record says (found 2026-11-08): a person who skipped the debts step was told "You're starting
+    // debt-free" over an import full of car-loan payments, and anything under $500 owed counted as debt-free too.
+    const entered = (S.debtCards || []).some(c => !c.paidInFull);
+    const head = !entered
+      ? 'No debts entered yet. If you have a card or a loan, add it on Debt Payoff and Groundwork will plan its payoff.'
+      : totalDebt > 0.005
+        ? `You owe ${fmt(totalDebt)} on the debts you entered: close to debt-free.`
+        : 'You’re starting debt-free — a strong position.';
     el.innerHTML = `
       <div style="padding:20px;background:var(--pine-bg);border:1px solid var(--pine-border);border-radius:var(--r-md);line-height:1.7">
-        <div style="font-size:var(--fs-md);color:var(--ink)">You're starting debt-free — a strong position.</div>
+        <div style="font-size:var(--fs-md);color:var(--ink)">${head}</div>
         ${surplus>0 ? `<div style="font-size:var(--fs-base);color:var(--slate);margin-top:6px">With about <strong style="color:var(--pine-text)">${fmt(surplus)}/month</strong> of room, saving consistently builds <strong>${fmt(surplus*12)}</strong> a year.</div>` : ''}
         <div style="font-size:var(--fs-sm);color:var(--slate-2);margin-top:10px">Nothing here is locked in — it can change as your life does.</div>
       </div>${bufferLine}`;
@@ -15482,6 +15570,7 @@ function _getMonthlyBudget() {
     S.monthlyBudget = v;
     return v;
   }
+  if (!S.monthlyBudgetSaved) return _debtMonthPlan().minimums;   // panel I-01: no plan saved yet means the minimums
   return parseFloat(S.monthlyBudget) || 0;
 }
 
@@ -17548,10 +17637,13 @@ function loadDebtAdvisor(baseResult, totalDebt) {
   const debtBal = data.reduce((s,c) => s + c.balance, 0);
   const slider  = g('whatIfSlider');
   const surplusEl = g('whatIfSurplusRef');
+  // The extra the person chose stays chosen: this re-runs whenever the payoff engine answers a new amount, and setting
+  // the slider back to 0 here made it snap to $0 under the person's hand on every new value (found 2026-11-08).
+  const maxExtra = Math.max(500, Math.round(debtBal * 0.1));
+  if (_debtWhatIfExtra > maxExtra) _debtWhatIfExtra = maxExtra;
   if (slider) {
-    slider.value = 0;
-    slider.max   = Math.max(500, Math.round(debtBal * 0.1));
-    setText('whatIfSliderVal', '$0');
+    slider.max   = maxExtra;
+    slider.value = _debtWhatIfExtra;
   }
   if (surplusEl) {
     surplusEl.textContent = surplus > 0
@@ -17559,7 +17651,8 @@ function loadDebtAdvisor(baseResult, totalDebt) {
       : `Current surplus: $0 — even small extra amounts make a difference`;
     surplusEl.style.display = '';
   }
-  runWhatIf(0);
+  runWhatIf(_debtWhatIfExtra);
+  _debtUpdateWhatIfLabel();
 
   // Strategy comparison — render into advisor tab
   _debtRenderStrategyComparison(baseResult, totalDebt);
@@ -18872,6 +18965,48 @@ function _checkWealthAchievements() {
   if (isDebtFree && assets > 0 && _invPositions?.length > 0) awardAchievement('groundwork_laid');
 }
 
+// Records upgraded from 1.x (Rob 2026-11-08): 1.x's Net Worth page added the 401(k) and IRA into Investments
+// (brokerage) again on every visit, and saved it (fixed in renderNetWorth). 2.0 can't know the true brokerage figure,
+// so this asks the person to check it against their statement - only where it could have happened (a 401(k) or IRA
+// entered, and a brokerage figure), and until they say they have. The server sets it on the upgrade from 1.x.
+let _nwCheck = null;
+async function _nwCheckNote() {
+  const box = g('nwCheckNote');
+  if (!box) return;
+  const hide = () => { box.classList.add('hidden'); box.innerHTML = ''; };
+  let s;
+  try { s = await API.get('/api/settings'); } catch (e) { hide(); return; }
+  try { _nwCheck = JSON.parse((s && s.nw_check_note) || 'null'); } catch (e) { _nwCheck = null; }
+  const nw = S.netWorth || {};
+  const retirement = (nw.retirement401k || 0) + (nw.retirementIRA || 0);
+  const brokerage  = Math.max(0, (nw.investments || 0) - retirement);
+  if (!_nwCheck || _nwCheck.checked || !(retirement > 0) || !(brokerage > 0)) { hide(); return; }
+  const portfolio = _nwLastPortfolio && _nwLastPortfolio.position_count ? (_nwLastPortfolio.total_market_value || 0) : null;
+  box.innerHTML = `<div class="card mb-5" role="note" style="border-left:3px solid var(--gold-text)">
+    <div style="font-size:var(--fs-base);font-weight:600;color:var(--ink);margin-bottom:6px">Please check your brokerage figure</div>
+    <div style="font-size:var(--fs-sm);color:var(--slate);line-height:1.7">
+      Earlier versions of Groundwork had a fault on this page: each time it opened, your 401(k) and IRA could be added
+      again into <strong>Investments (brokerage)</strong>, and saved. Groundwork 2.0 fixes it, but it can't tell what
+      your brokerage figure should be. Please compare <strong>Investments (brokerage)</strong>, now
+      <span style="font-family:var(--font-mono)">${fmt(brokerage)}</span>, with your brokerage statement, and change it
+      below if it's too high. Monthly snapshots saved before the update may show the higher figure too.
+      ${portfolio == null ? ''
+        : Math.abs(portfolio - brokerage) < 0.01 ? `It matches what your holdings on the Investments page are worth.`
+        : `Your holdings on the Investments page are worth <span style="font-family:var(--font-mono)">${fmt(portfolio)}</span>; "Use it" below puts that figure in.`}
+    </div>
+    <button class="btn btn-secondary btn-sm" style="margin-top:10px" onclick="_nwCheckNoteDone()">I've checked it</button>
+  </div>`;
+  box.classList.remove('hidden');
+}
+async function _nwCheckNoteDone() {
+  if (!_nwCheck) return;
+  try { await API.patch('/api/settings', { nw_check_note: JSON.stringify({ ..._nwCheck, checked: true, checked_at: _localStamp() }) }); }
+  catch (e) { _gwErr('_nwCheckNoteDone')(e); return; }
+  _nwCheck.checked = true;
+  const box = g('nwCheckNote');
+  if (box) { box.classList.add('hidden'); box.innerHTML = ''; }
+}
+
 let _nwHistory = null;
 let _nwNoFigures = [];   // item 38: months recorded without figures (shown as such, never as $0)
 
@@ -18880,7 +19015,11 @@ let _nwNoFigures = [];   // item 38: months recorded without figures (shown as s
 function renderNetWorth() {
   const nw = S.netWorth;
   if (g('nwSavings'))     g('nwSavings').value      = nw.savings||'';
-  if (g('nwInvestments')) g('nwInvestments').value  = nw.investments||'';
+  // The brokerage field holds brokerage only. S.netWorth.investments is the COMBINED total (brokerage + 401k + IRA,
+  // see updateNetWorth): writing it here made updateNetWorth add the 401(k) and IRA again and save that, so every visit
+  // to this page grew net worth by the retirement balances (found by the 2026-11-08 math audit; present since 1.0).
+  const _brokerageOnly = Math.max(0, (nw.investments||0) - (nw.retirement401k||0) - (nw.retirementIRA||0));
+  if (g('nwInvestments')) g('nwInvestments').value  = _brokerageOnly || '';
   if (g('nw401k'))        g('nw401k').value          = nw.retirement401k||'';
   if (g('nwIRA'))         g('nwIRA').value            = nw.retirementIRA||'';
   if (g('nwCash'))        g('nwCash').value           = nw.cash||'';
@@ -18890,6 +19029,7 @@ function renderNetWorth() {
   loadSnapshotStatus();
   loadNWHistory();
   loadNWGoal();
+  _nwCheckNote().catch(_gwErr('_nwCheckNote'));
 
   // Pull the live portfolio total directly — previously this only happened
   // as a side effect of _loadInvPositions(), so Net Worth only picked up
@@ -22812,8 +22952,36 @@ function _bybSandboxCalc() {
   return { whatsLeft, dti, payoff, income, expenses };
 }
 
+// Where a new monthly cost can be paid from (found 2026-11-08). The payoff engine prices a cost inside the debt plan
+// (the saved Debt Payoff budget, or the minimums with none), so its "no date" means only that THE PLAN can't carry it.
+// It said "unable to cover your current minimum debt payments" beside What's Left of $3,071: the minimums were covered,
+// the plan just couldn't also hold the purchase. Three cases, each said as what it is:
+//   'plan'  - the plan carries it (the engine has a date, or is still being asked)
+//   'left'  - the plan can't, but what's left each month can: paid from there, the plan and its date are untouched
+//   'short' - neither can: what's left goes below zero, and the minimums really are at risk
+function _bybFunding(whatsLeft, payoff) {
+  if (payoff !== null) return 'plan';
+  return whatsLeft >= 0 ? 'left' : 'short';
+}
+
+// The other way to pay, said beside the plan's answer whenever what's left each month covers the cost - for a small
+// cost the plan could carry as much as for one it can't, so a bigger purchase never reads better than a smaller one.
+// The Debt-free tile stays the plan's answer; this line is what paying from what's left would do instead.
+function _bybFromLeftHTML(whatsLeft, origDate) {
+  if (!(whatsLeft >= 0)) return '';
+  return `<div style="color:var(--ink)">Or pay it from what's left each month: <span style="font-family:var(--font-mono)">${fmt(whatsLeft)}</span>
+    is still left after it, and your ${S.monthlyBudgetSaved ? 'debt plan and ' : ''}debt-free date${origDate ? ` (${esc(origDate)})` : ''} ${S.monthlyBudgetSaved ? 'stay' : 'stays'} as ${S.monthlyBudgetSaved ? 'they are' : 'it is'}.</div>`;
+}
+
+// What the plan is, in words: a saved Debt Payoff budget, or - with none saved - only the minimums (panel I-01).
+function _bybPlanWords(planAmt) {
+  return S.monthlyBudgetSaved ? `your debt plan of ${fmt(planAmt)}/mo`
+    : `your minimum payments (${fmt(planAmt)}/mo; no debt plan is saved on Debt Payoff)`;
+}
+
 function _bybUpdateScoreboard() {
   const { whatsLeft, dti, payoff } = _bybSandboxCalc();
+  const funding = _bybFunding(whatsLeft, payoff);
   const wlEl  = g('bybScoreWL');
   const dtiEl = g('bybScoreDTI');
   const poEl  = g('bybScorePayoff');
@@ -22829,10 +22997,13 @@ function _bybUpdateScoreboard() {
   }
   if (poEl) {
     const budgetInsufficient = payoff === null;
-    poEl.textContent = budgetInsufficient ? 'Not affordable' : (payoff?.freeDate || (payoff?.months ? _payoffDateLabel(payoff.months) : '—'));
+    poEl.textContent = funding === 'left' ? 'Not in your debt plan'
+      : budgetInsufficient ? 'Not affordable' : (payoff?.freeDate || (payoff?.months ? _payoffDateLabel(payoff.months) : '—'));
+    poEl.title = funding === 'left' ? "Your debt plan can't carry it; what's left each month can" : '';
     const origMo = _byb.origPayoff?.months || 0;
     const newMo  = budgetInsufficient ? null : (payoff?.months || 0);
-    poEl.style.color = budgetInsufficient ? 'var(--ember-text)'
+    poEl.style.color = funding === 'left' ? 'var(--gold-text)'
+      : budgetInsufficient ? 'var(--ember-text)'
       : _byb.origInsufficient ? 'var(--gold-text)'   // no valid baseline to be sooner/later than
       : (newMo > origMo ? 'var(--ember-text)' : 'var(--pine-text)');
   }
@@ -22940,6 +23111,8 @@ function _bybBuildComparison() {
   // case explicitly instead of letting it silently fall through as zero.
   const pending = (payoff === undefined);       // asked, not yet answered
   const budgetInsufficient = payoff === null;
+  const funding = _bybFunding(whatsLeft, payoff);
+  const planAmt = _getMonthlyBudget();
   const newMo   = (pending || budgetInsufficient) ? null : (payoff?.months || 0);
   const moDiff  = (newMo === null) ? null : (newMo - origMo);
   const replCard = _byb.replaceCardId
@@ -22993,7 +23166,8 @@ function _bybBuildComparison() {
     // The wall, and whether waiting moves it. Saying nothing here would make a
     // dead end of the one case where the honest answer is "not yet".
     const w = engWall.after_waiting;
-    waitSection = waitBox(
+    const inPlan = funding === 'left' ? 'Inside your debt plan: ' : '';    // what's left already covers it
+    waitSection = waitBox(inPlan +
       `<strong style="color:var(--ink)">${esc(w.name)}</strong> clears in ~${w.available_in_months} months
        (${_payoffDateLabel(w.available_in_months)}), freeing <span style="font-family:var(--font-mono);color:var(--pine-text)">${fmt(w.frees_monthly)}/mo</span>.`,
       w.enough
@@ -23014,17 +23188,21 @@ function _bybBuildComparison() {
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--steel);border-radius:var(--r-md);overflow:hidden;margin-bottom:14px">
       ${_bybCompCell("What's Left", gwFig('byb.left_with', (whatsLeft<0?'−':'')+fmt(Math.abs(whatsLeft))), whatsLeft < 0 ? 'var(--ember-text)' : 'var(--pine-text)')}
       ${_bybCompCell("DTI", gwFig('byb.dti_with', dti.toFixed(1) + '%'), dti > 20 ? 'var(--ember-text)' : dti > 15 ? 'var(--gold-text)' : 'var(--pine-text)')}
-      ${_bybCompCell("Debt-free", budgetInsufficient ? 'Not affordable' : (pending ? '—' : (payoff?.freeDate ? gwFig('byb.free_with', payoff.freeDate) : '—')), budgetInsufficient ? 'var(--ember-text)' : (pending || _byb.origInsufficient ? 'var(--slate)' : (moDiff > 0 ? 'var(--ember-text)' : 'var(--pine-text)')))}
+      ${_bybCompCell("Debt-free", funding === 'left' ? 'Not in your debt plan' : budgetInsufficient ? 'Not affordable' : (pending ? '—' : (payoff?.freeDate ? gwFig('byb.free_with', payoff.freeDate) : '—')), funding === 'left' ? 'var(--gold-text)' : budgetInsufficient ? 'var(--ember-text)' : (pending || _byb.origInsufficient ? 'var(--slate)' : (moDiff > 0 ? 'var(--ember-text)' : 'var(--pine-text)')))}
     </div>
 
     <!-- Change from original -->
     <div id="bybChangeFromOriginal" style="font-size:var(--fs-sm);color:var(--slate);margin-bottom:12px;line-height:1.8">
       ${_byb.monthly > 0 ? `<div>Monthly cost: <span style="font-family:var(--font-mono);color:var(--ember-text)">+${fmt(_byb.monthly)}/mo</span>${replCard ? ` (replacing ${fmt(replMin)}/mo → net <span style="font-family:var(--font-mono)">${fmt(_byb.monthly - replMin)}/mo more</span>)` : ''}</div>` : ''}
-      ${budgetInsufficient ? `<div style="color:var(--ember-text);font-weight:500">This payment would leave you unable to cover your current minimum debt payments. The numbers above reflect that — this isn't a "sooner" outcome, it's not affordable at these amounts.</div>` : ''}
+      ${funding === 'left' ? `<div style="color:var(--gold-text)">${S.monthlyBudgetSaved
+        ? `Not from ${_bybPlanWords(planAmt)}: inside that, it would leave your minimum payments uncovered.`
+        : `Not from ${_bybPlanWords(planAmt)}: there's no room in them for it.`}</div>` : ''}
+      ${funding === 'short' ? `<div style="color:var(--ember-text);font-weight:500">This payment would leave you short every month: what's left goes to <span style="font-family:var(--font-mono)">−${fmt(Math.abs(whatsLeft))}</span>, and your debt plan can't carry it either, so your minimum debt payments would not be covered. It's not affordable at these amounts.</div>` : ''}
       ${!budgetInsufficient && _byb.origInsufficient ? `<div style="color:var(--gold-text);font-weight:500">Your current budget doesn't cover your minimum debt payments, so there's no valid before-and-after comparison to show. The date above is what this plan produces on its own.</div>` : ''}
       ${!budgetInsufficient && !_byb.origInsufficient && moDiff > 0  ? `<div>Debt-free date: <span style="color:var(--ember-text)">${gwFig('byb.payoff_change', `${moDiff} month${moDiff!==1?'s':''} later`)}</span></div>` : ''}
       ${!budgetInsufficient && !_byb.origInsufficient && moDiff < 0  ? `<div>Debt-free date: <span style="color:var(--pine-text)">${gwFig('byb.payoff_change', `${Math.abs(moDiff)} months sooner`)}</span></div>` : ''}
       ${!budgetInsufficient && !_byb.origInsufficient && moDiff === 0 && orig ? `<div>Debt-free date: <span style="color:var(--pine-text)">unchanged</span></div>` : ''}
+      ${!pending && (funding === 'left' || (funding === 'plan' && !_byb.origInsufficient && moDiff > 0)) ? _bybFromLeftHTML(whatsLeft, orig?.freeDate) : ''}
       ${loanPayoffNote}
     </div>
 
@@ -23403,7 +23581,7 @@ function _drawAccountManager() {
   if (!cont) return;
   const rows = _accountsCache.map(a => _accountRowHTML(a)).join('');
   const empty = `<div style="font-size:var(--fs-sm);color:var(--slate);padding:8px 0 16px">
-    No accounts yet. Add one below — or accounts are created automatically the first time you import a bank file.
+    No accounts yet. Add one below, or name it when you import your first bank file.
   </div>`;
   cont.innerHTML = `
     ${_accountsCache.length ? rows : empty}
@@ -26616,7 +26794,8 @@ function renderSettings() {
 
 function saveSettings() {
   const pct    = parseFloat(g('settingsSavingsPct')?.value)||10;      // panel I-18: the one default (boot and snapshot: 10)
-  const budget = parseFloat(g('settingsMonthlyBudget')?.value)||0;
+  const budgetRaw = (g('settingsMonthlyBudget')?.value || '').trim();
+  const budget = parseFloat(budgetRaw)||0;
   const method = g('settingsDebtMethod')?.value||'avalanche';
   const homeState = g('settingsHomeState')?.value || '';
   const homeStateChanged = homeState !== (S.homeState || '');
@@ -26624,12 +26803,10 @@ function saveSettings() {
   S.debtMethod    = method;
   S.homeState     = homeState;
   if (budget && g('monthlyBudget')) g('monthlyBudget').value = budget;
-  API.patch('/api/settings', {
-    savings_pct:     String(pct),
-    monthly_budget:  String(budget),
-    debt_method:     method,
-    home_state:      homeState,
-  }).catch(_gwErr('saveSettings'));
+  const patch = { savings_pct: String(pct), debt_method: method, home_state: homeState };
+  // An empty debt budget is "no plan yet" (the minimums), not $0: saving Settings for anything else must not set one.
+  if (budgetRaw !== '') { patch.monthly_budget = String(budget); S.monthlyBudgetSaved = true; }
+  API.patch('/api/settings', patch).catch(_gwErr('saveSettings'));
   showToast('Settings saved', '', 'success');
   // A changed home state invalidates the cached utility-price benchmarks
   // shown on the Budget page — force a re-fetch next time it's viewed
@@ -27112,9 +27289,12 @@ async function handleRestoreUpload(evt) {
           formData.append('file', file);
           if (keys?.password) formData.append('password', keys.password);
           if (keys?.words) formData.append('words', keys.words.join(' '));
-          const r   = await fetch('/api/backup/restore-upload', { method:'POST', body: formData });
+          // The session token, like every other call (API() adds it; this upload is a raw fetch for the file). Without it
+          // every restore from a file was refused as "Unauthorized" and shown as a protected backup (found 2026-11-08).
+          const r   = await fetch('/api/backup/restore-upload', { method:'POST', body: formData, headers: _GW_AUTH_HEADER() });
           const res = await r.json().catch(_gwErrVal('handleRestoreUpload', {}));
-          if (r.status === 403) { _bkUnlock(send); return; }      // item 81: a protected backup from another computer
+          // item 81: a protected backup from another computer - its own 403, never the token's "Unauthorized"
+          if (r.status === 403 && res.error !== 'Unauthorized') { _bkUnlock(send); return; }
           if (!r.ok || res.error) throw new Error(res.error || `Server error ${r.status}`);
           showToast('Backup restored', 'Reloading Groundwork…', 'success');
           setTimeout(() => window.location.reload(), 1500);
@@ -32846,11 +33026,12 @@ function _computeSnapshot() {
   else if (hasIncome)
     canDetermine.push(`Income detected, averaging ${fmt(income.avg6 || income.effectiveAvg)}/month.`);
   if (debits.length)
-    canDetermine.push(`${catRate}% of ${debits.length.toLocaleString()} transactions were categorized automatically.`);
+    canDetermine.push(`${catRate}% of ${debits.length.toLocaleString()} spending transactions were categorized automatically.`);
   if (recurring.length)
     canDetermine.push(`${recurring.length} recurring monthly charge${recurring.length !== 1 ? 's' : ''} identified.`);
-  if (topCats.length)
-    canDetermine.push(`Largest spending: ${topCats.map(c => c.category).slice(0, 3).join(', ')}.`);
+  const namedCats = topCats.map(c => c.category).filter(c => !isUncat(c));     // "Largest spending: Other" says nothing
+  if (namedCats.length)
+    canDetermine.push(`Largest spending: ${namedCats.slice(0, 3).join(', ')}.`);
   if (monthsSpan)
     canDetermine.push(`Spending history covers ${monthsSpan} month${monthsSpan !== 1 ? 's' : ''}.`);
 
@@ -32867,7 +33048,12 @@ function _computeSnapshot() {
 
   // ── Section 3: confidence (tied to how much data backs each read) ──
   const confidence = [];
-  if (monthsSpan >= 3)      confidence.push('High confidence in spending patterns.');
+  // The same gate as the dashboard's "Spending patterns" claim (history AND categorization): a snapshot that said "High
+  // confidence" over 11% categorized spending sat on top of a dashboard saying it couldn't be assessed (2026-11-08).
+  if (debits.length && catRate < 60)
+    confidence.push(`Spending patterns need categories first: ${catRate}% of spending is categorized so far.`);
+  else if (monthsSpan >= 3 && catRate >= 90) confidence.push('High confidence in spending patterns.');
+  else if (monthsSpan >= 3) confidence.push('Moderate confidence in spending patterns: some spending isn’t categorized yet.');
   else if (debits.length)  confidence.push('Early read on spending — sharpens with more history.');
   if (hasIncome)           confidence.push(income.isVariable ? 'Moderate confidence in income (it varies month to month).' : 'High confidence in income cadence.');
   confidence.push('Net worth can\u2019t be estimated until balances are verified.');
@@ -33920,7 +34106,8 @@ async function _rcRenderDebtPayoff() {
     const bal   = _cardBal(card);
     const apr   = parseFloat(card.rate)||0;
     const pmt   = _payoffPayment(card)||0;   // V3
-    const calcMin = bal > 0 && apr > 0 ? _calcMinPayment(bal, apr) : pmt;
+    // a card's estimated minimum only; a loan's payment is its own (no "(min $171.27)" beside a $389 car loan)
+    const calcMin = (card.debtType || 'credit') === 'credit' && bal > 0 && apr > 0 ? _calcMinPayment(bal, apr) : pmt;
     const snaps   = bal > 0 && pmt > 0 ? _projectPayoff(bal, apr, pmt) : [];
     const totalInt    = snaps.reduce((s,r)=>s+r.interest,0);
     // V11: this debt at minimums only, as everywhere else (_minimumsOnly) - not

@@ -1,0 +1,36 @@
+{
+  "poster": 2,
+  "seed": false,
+  "scenes": [
+    {"card": {"kicker": "Groundwork", "head": "Your path to zero.", "sub": "A tour of Debt Payoff, on a made-up sample household."},
+     "say": "Groundwork was built to help people get out of debt. Here's Debt Payoff, on a made-up sample household."},
+
+    {"view": "debt", "focus": "__card('YOUR PATH TO ZERO')", "maxZoom": 1.3,
+     "say": "It starts with one date: the month you'll owe nothing, worked out from your real balances, rates and minimums."},
+
+    {"do": "_debtToggleWhatIf(); const r = document.getElementById('whatIfSlider'); r.value = 200; r.dispatchEvent(new Event('input', {bubbles: true}));",
+     "wait": 2800,
+     "last": "const r = document.getElementById('whatIfSlider'); r.value = 200; r.dispatchEvent(new Event('input', {bubbles: true}));", "focus": "__card('YOUR PATH TO ZERO')", "maxZoom": 1.3,
+     "after": "const r = document.getElementById('whatIfSlider'); r.value = 0; r.dispatchEvent(new Event('input', {bubbles: true})); _debtToggleWhatIf();",
+     "say": "Slide in a little extra each month, and watch the date move, and the interest you'd save add up."},
+
+    {"focus": "__card('PAYOFF STRATEGY')", "maxZoom": 1.4,
+     "say": "Avalanche pays the highest rate first, and saves the most. Snowball clears the smallest balance first, for quicker wins. The choice is yours."},
+
+    {"focus": "__card('YOUR CARDS & LOANS')", "maxZoom": 1.25,
+     "say": "Every card and loan is listed with its balance, rate and minimum, and the month it's paid off on your plan."},
+
+    {"do": "[...document.querySelectorAll('#view-debt button.row-del')].find(b => __vis(b) && b.textContent.includes('Show')).click();",
+     "wait": 2000, "focus": "__find('Balance difference', 0, 'div').closest('[style*=border], .card, div') || __find('Balance difference')", "maxZoom": 1.6,
+     "say": "When your imported transactions don't add up to the balance you typed, Groundwork shows both figures and asks. It never quietly replaces yours."},
+
+    {"do": "__tab('Month Tracker')", "wait": 1800, "focus": "__span('Cashback Visa', 'payments confirmed')", "maxZoom": 1.35,
+     "say": "Each month, the tracker shows what goes to each debt, and marks each payment as it's confirmed."},
+
+    {"do": "__tab('Advisor')", "wait": 2000, "focus": "__card('WHAT MOVES YOUR DATE MOST')", "maxZoom": 1.3,
+     "say": "The Advisor reads your own ledger and shows what would move your date the most, one change at a time, with the months and the interest each would save."},
+
+    {"card": {"kicker": "No loans to sell · No referral fees", "head": "Debt-free, on your own terms.", "sub": "Free for Windows, macOS and Linux · groundworkfinance.app"},
+     "say": "Groundwork never sells you a loan, a card or a consolidation offer. It shows you the math, and the choices stay yours. And it's free."}
+  ]
+}

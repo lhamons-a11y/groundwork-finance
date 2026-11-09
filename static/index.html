@@ -2357,6 +2357,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <!-- §8: what the number now covers -->
         <div id="nwCapacitySlot"></div>
         <div class="section-header"><div class="section-title">Net Worth</div><div class="section-sub">Assets minus liabilities.</div></div>
+        <div id="nwCheckNote" class="hidden"></div>
         <div class="card mb-5">
           <div class="nw-hero">
             <div class="card-label nw-label" style="margin-bottom:8px">Current net worth</div>
@@ -3391,7 +3392,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <label>Account</label>
         <select id="importAccount" onchange="toggleImportFileReady(); _importAccountLinkedNote(this)"><option value="">Select account…</option></select>
         <div id="importLinkedNote" style="display:none;font-size:var(--fs-sm);color:var(--pine-text);margin-top:5px;padding:6px 8px;background:var(--pine-bg);border-radius:var(--r-sm)"></div>
-        <div style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px">To add a new account, go to Settings → Accounts first.</div>
+        <div id="importAccountHint" style="font-size:var(--fs-xs);color:var(--slate-2);margin-top:4px">To add a new account, go to Settings → Accounts first.</div>
+        <div id="importFirstAccount"></div>
       </div>
       <div class="field mb-4">
         <label>File (CSV, TXT, OFX, QFX, QIF, or a credit card statement PDF)</label>

@@ -184,6 +184,19 @@
     if (m.honest_no && m.honest_no.unaffordable) {
       // Not a longer delay — a wall. The number is what makes it payable at all.
       const cap = m.honest_no.max_payable_monthly;
+      // The wall is the DEBT PLAN's (app.js _bybFunding, 2026-11-08): when what's left each month covers the cost,
+      // say it is the plan that can't carry it, not that the minimums go unpaid.
+      let funding = 'short';
+      try { const c = _bybSandboxCalc(); funding = _bybFunding(c.whatsLeft, c.payoff === undefined ? null : c.payoff); } catch (e) { /* as before */ }
+      if (funding === 'left') {
+        return `<div style="font-size:var(--fs-sm);color:var(--gold-text);line-height:1.7;margin-bottom:12px">`
+          + (cap
+              ? `Inside ${S.monthlyBudgetSaved ? 'your debt plan' : 'your minimum payments (no debt plan is saved)'}, `
+                + `<strong>${fmt(cap)}/mo</strong> or less would fit; above that it stops covering your minimums.`
+              : (S.monthlyBudgetSaved ? `Your debt plan can't carry any of this.`
+                  : `No debt plan is saved, so only your minimum payments count, and there's no room in them for this.`))
+          + `</div>`;
+      }
       return `<div style="font-size:var(--fs-sm);color:var(--ember-text);line-height:1.7;margin-bottom:12px">`
         + (cap
             ? `At <strong>${fmt(cap)}/mo</strong> or less this stays payable. Above that your `
