@@ -3,11 +3,13 @@
 A free personal finance app for Windows, macOS, and Linux.
 Built for people who want to get out of debt and start building wealth.
 
-**1.0** adds debt reconciliation (manual charge/payment tracking, recurring
-payment drafts, checking-account linking) and adaptive learning (category
-suggestions, budget variance, trip forecasting, recurring-transaction
-detection, payoff confidence, AI gate health) — see `Website/changelog.json`
-(the single source the site's changelog page publishes from) for the full list.
+**2.0** adds an assistant that answers questions about your money from your own
+records (typed or spoken, run entirely on your computer), a Health page for
+medical bills, insurance and your plan year, reports you can ask for in your own
+words, savings goals inside the accounts you already have, and protected
+backups. It builds on 1.0's debt reconciliation and adaptive learning — see
+`Website/changelog.json` (the single source the site's changelog page publishes
+from) for the full list.
 
 ## Quick Start
 
