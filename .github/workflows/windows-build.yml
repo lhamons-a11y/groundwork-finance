@@ -1,0 +1,152 @@
+name: Windows Build
+
+# Rob 2026-11-09: "build both installers" on GitHub - the Windows laptop that ran build.bat is down. This is build.bat's
+# recipe on a GitHub Windows runner: the item 95 engine wheel (build_engine_wheel.bat - Vulkan, run-time backends, the
+# AVX2 floor), the pinned model and voice files, PyInstaller, Inno Setup. A green run proves the installer BUILDS. It
+# does not prove it installs over 1.1.1 on a clean machine (RELEASE_2_0.md R5) - that still needs a real Windows PC.
+# Only groundwork.iss is built: _Offline has the same contents (copy it on the server) and _Store is not for the site.
+on:
+  workflow_dispatch: {}
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 180
+    permissions:
+      contents: write      # the draft release the installer goes up to (last step)
+    env:
+      GW_PRODUCT: teaching
+      VULKAN_SDK_VERSION: '1.4.363.0'    # what the laptop's engine was built and measured with (GPU_ENGINE.md)
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller scikit-build-core cmake ninja
+
+      # The Vulkan SDK the engine compiles against (build_engine_wheel.bat looks in C:\VulkanSDK). LunarG renamed the
+      # Windows installer in 2025, so both names are tried.
+      - name: Install the Vulkan SDK
+        shell: pwsh
+        run: |
+          $v = $env:VULKAN_SDK_VERSION
+          $names = @("vulkansdk-windows-X64-$v.exe", "VulkanSDK-$v-Installer.exe")
+          $ok = $false
+          foreach ($n in $names) {
+            try {
+              Invoke-WebRequest "https://sdk.lunarg.com/sdk/download/$v/windows/$n" -OutFile vulkan.exe -UseBasicParsing
+              $ok = $true; break
+            } catch { Write-Host "not at $n" }
+          }
+          if (-not $ok) { throw "Vulkan SDK $v not found" }
+          Start-Process vulkan.exe -Wait -ArgumentList "--root C:\VulkanSDK\$v --accept-licenses --default-answer --confirm-command install"
+          if (-not (Test-Path "C:\VulkanSDK\$v\Bin\glslc.exe")) { throw "Vulkan SDK did not install" }
+          "VULKAN_SDK=C:\VulkanSDK\$v" | Out-File -Append $env:GITHUB_ENV
+          Remove-Item vulkan.exe
+
+      # Item 95: llama-cpp-python 0.3.35 from source with Vulkan loaded at run time (GGML_BACKEND_DL), GGML_NATIVE off
+      # with the AVX2 floor - the same CMAKE_ARGS as build_engine_wheel.bat. A short TMP, because the source archive
+      # has paths over Windows' 260-character limit. groundwork.spec refuses an engine without ggml-vulkan.
+      - name: Build the engine wheel (llama-cpp-python 0.3.35, Vulkan)
+        shell: pwsh
+        env:
+          CMAKE_ARGS: -DGGML_VULKAN=ON -DGGML_BACKEND_DL=ON -DGGML_NATIVE=OFF -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON -DGGML_F16C=ON -DGGML_AVX512=OFF
+          FORCE_CMAKE: '1'
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          cmd /c "`"$vs\VC\Auxiliary\Build\vcvars64.bat`" >nul && set" | ForEach-Object {
+            if ($_ -match '^([^=]+)=(.*)$') { [Environment]::SetEnvironmentVariable($matches[1], $matches[2]) }
+          }
+          $env:PATH = "$env:VULKAN_SDK\Bin;$env:PATH"
+          New-Item -ItemType Directory -Force C:\gwb | Out-Null
+          $env:TMP = 'C:\gwb'; $env:TEMP = 'C:\gwb'
+          python -m pip wheel --no-cache-dir --no-binary llama-cpp-python --no-build-isolation --no-deps -w engine_wheel llama-cpp-python==0.3.35
+          if ($LASTEXITCODE) { exit 1 }
+          $whl = Get-ChildItem engine_wheel\llama_cpp_python-0.3.35-*.whl | Select-Object -First 1
+          python -m pip install --no-deps --force-reinstall $whl.FullName
+          if ($LASTEXITCODE) { exit 1 }
+          python -c "import llama_cpp, sys, pathlib; lib = pathlib.Path(llama_cpp.__file__).parent / 'lib'; v = list(lib.glob('ggml-vulkan*.dll')); print('engine', llama_cpp.__version__, [p.name for p in v]); sys.exit(llama_cpp.__version__ != '0.3.35' or not v)"
+          Remove-Item -Recurse -Force C:\gwb
+
+      # Item 33 Q5: the exact tested model, fingerprint-checked; linked where the .iss files take it from.
+      - name: Fetch and verify the pinned model
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python fetch_model.py
+          if ($LASTEXITCODE) { exit 1 }
+          $sha = python -c "import fetch_model as f; print(f.MODEL_SHA256)"
+          $file = Get-ChildItem model_dl -File | Where-Object { $_.Name -notlike '*.part*' } | Select-Object -First 1
+          New-Item -ItemType Directory -Force vendor\phi3.5_model\blobs | Out-Null
+          New-Item -ItemType HardLink -Path "vendor\phi3.5_model\blobs\sha256-$sha" -Target $file.FullName | Out-Null
+          python -c "import sys, fetch_model as f; sys.exit(0 if f.sha256(sys.argv[1]) == f.MODEL_SHA256 else 1)" "vendor\phi3.5_model\blobs\sha256-$sha"
+
+      # The voice files are git-ignored; the .iss files skip them if missing, so the build would ship with no voice.
+      - name: Fetch and verify the voice models (hearing, speaking, whose voice)
+        shell: pwsh
+        run: |
+          python scripts/fetch_whisper_model.py;    if ($LASTEXITCODE) { exit 1 }
+          python scripts/fetch_kokoro_model.py;     if ($LASTEXITCODE) { exit 1 }
+          python scripts/fetch_voiceprint_model.py; if ($LASTEXITCODE) { exit 1 }
+          foreach ($f in 'vendor\whisper\ggml-base.en.bin', 'vendor\kokoro\kokoro-v1.0.int8.onnx',
+                         'vendor\kokoro\voices-v1.0.bin', 'vendor\voiceprint\voxceleb_resnet34_LM.onnx') {
+            if (-not (Test-Path $f)) { throw "missing $f" }
+          }
+
+      - name: Build with PyInstaller
+        shell: pwsh
+        run: |
+          python -m PyInstaller groundwork.spec --clean --noconfirm
+          if ($LASTEXITCODE) { exit 1 }
+          if (-not (Test-Path dist\Groundwork\Groundwork.exe)) { throw "Groundwork.exe not built" }
+
+      - name: The engine and the voice are in the bundle (packaging only - not inference)
+        shell: bash
+        run: |
+          find dist/Groundwork -iname 'llama.dll' -o -iname 'libllama*' | grep -q .
+          find dist/Groundwork -iname 'ggml-vulkan*.dll' | grep -q .
+          find dist/Groundwork -iname '_pywhispercpp*' | grep -q .
+          find dist/Groundwork -type d -name 'onnxruntime' | grep -q .
+          find dist/Groundwork -type d -name 'espeakng_loader' | grep -q .
+
+      - name: Build the installer with Inno Setup
+        shell: pwsh
+        run: |
+          $iscc = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) {
+            choco install innosetup -y --no-progress
+            $iscc = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+          }
+          New-Item -ItemType Directory -Force installer_output | Out-Null
+          & $iscc /Q groundwork.iss
+          if ($LASTEXITCODE) { exit 1 }
+          Get-Item installer_output\Groundwork_Setup.exe | Format-List Name, Length
+
+      # As macos-build.yml: a draft release, not an Actions artifact (the artifact quota), in parts under GitHub's
+      # 2 GiB per-file limit. Join them in order: cat Groundwork_Setup.exe.part* > Groundwork_Setup.exe
+      - name: Upload the installer to a draft release, in parts under 2 GiB
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd installer_output
+          sha256sum Groundwork_Setup.exe | tee Groundwork_Setup.exe.sha256
+          split -b 1900m -a 1 Groundwork_Setup.exe Groundwork_Setup.exe.part
+          rm Groundwork_Setup.exe
+          ls -l Groundwork_Setup.exe.part*
+          TAG="windows-build-${GITHUB_SHA::7}"
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "Windows build ${GITHUB_SHA::7}" \
+            --notes "Groundwork for Windows (Groundwork_Setup.exe), built by run $GITHUB_RUN_ID. Join: cat Groundwork_Setup.exe.part* > Groundwork_Setup.exe, then check it against the .sha256 file. Not yet installed on a clean machine." \
+            Groundwork_Setup.exe.part* Groundwork_Setup.exe.sha256

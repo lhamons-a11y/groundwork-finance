@@ -12,6 +12,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write      # the draft release the package goes up to (last step)
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -55,8 +57,19 @@ jobs:
           test -d dist/Groundwork/_internal/espeakng_loader
       - name: Archive
         run: tar -czf Groundwork-linux-x86_64.tar.gz -C dist Groundwork
-      - uses: actions/upload-artifact@v7
-        with:
-          name: Groundwork-linux
-          path: Groundwork-linux-x86_64.tar.gz
-          retention-days: 30
+      # Rob 2026-11-09: a draft release, not an Actions artifact, as macos-build.yml (the artifact quota stayed "hit"
+      # on 2026-11-08). Over GitHub's 2 GiB per-file limit, so in parts; join them in order with:
+      # cat Groundwork-linux-x86_64.tar.gz.part* > Groundwork-linux-x86_64.tar.gz
+      - name: Upload the package to a draft release, in parts under 2 GiB
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha256sum Groundwork-linux-x86_64.tar.gz | tee Groundwork-linux-x86_64.tar.gz.sha256
+          split -b 1900m -a 1 Groundwork-linux-x86_64.tar.gz Groundwork-linux-x86_64.tar.gz.part
+          rm Groundwork-linux-x86_64.tar.gz
+          ls -l Groundwork-linux-x86_64.tar.gz.part*
+          TAG="linux-build-${GITHUB_SHA::7}"
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "Linux build ${GITHUB_SHA::7}" \
+            --notes "Groundwork for Linux x86_64, built by run $GITHUB_RUN_ID. Join: cat Groundwork-linux-x86_64.tar.gz.part* > Groundwork-linux-x86_64.tar.gz, then check it against the .sha256 file." \
+            Groundwork-linux-x86_64.tar.gz.part* Groundwork-linux-x86_64.tar.gz.sha256
