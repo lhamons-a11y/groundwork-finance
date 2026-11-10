@@ -491,7 +491,10 @@ footer a { color: rgba(255,255,255,.78); }
 .kb-article p, .kb-article li { overflow-wrap: anywhere; }
 footer a { overflow-wrap: anywhere; }
 .kb-nav { position: sticky; top: 92px; align-self: start; background: #fff; border: 1px solid var(--steel);
-          border-radius: 16px; padding: 18px; }
+          border-radius: 16px; padding: 18px;
+          /* Rob 2026-11-09: the Help menu was cut off - stuck to the window and taller than it, its last links
+             were unreachable. It scrolls on its own when the window is shorter than the menu. */
+          max-height: calc(100vh - 108px); overflow-y: auto; overscroll-behavior: contain; }
 .kb-nav h3 { font-family: 'Inter', sans-serif; letter-spacing: .1em; font-size: 12px; font-weight: 700;
              text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
 .kb-nav a { display: block; padding: 7px 10px; border-radius: 8px; font-size: 14px; color: var(--ink); }
@@ -542,7 +545,7 @@ footer a { overflow-wrap: anywhere; }
   .nav-links a:not(.nav-cta) { display: none; }
   .pillars { grid-template-columns: 1fr; }
   .kb-grid { grid-template-columns: 1fr; }
-  .kb-nav { position: static; }
+  .kb-nav { position: static; max-height: none; overflow: visible; }
   .foot-grid { grid-template-columns: 1fr; }
   .band { padding: 72px 20px; }
   .appwin-body { grid-template-columns: 1fr; }
