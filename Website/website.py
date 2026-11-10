@@ -608,7 +608,7 @@ NEW20 = 'New in 2.0' if RELEASED_20 else 'New in 2.0 · coming soon'
 # Item 82 R7: the last 1.1 stays downloadable under its own name, with its SHA-256. Shown only once the real file's
 # hash is filled in here (release day) - a checksum is never invented.
 V11_FILE = 'Groundwork_Setup_1.1.1.exe'
-V11_SHA256 = ''
+V11_SHA256 = '9db3f2ed68655f3b190fac0f969de9053753e77a5c1759b1930d4588917a9277'   # measured on the server's file 2026-11-09
 
 # ── Walkthrough videos (Rob 2026-11-07: "add videos so a user can look at this software and say I need to download
 # this software"). Each is the real app on its made-up sample household, narrated in Groundwork's own voice, with
