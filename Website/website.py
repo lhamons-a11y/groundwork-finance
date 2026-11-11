@@ -606,7 +606,7 @@ SITE_VERSION = '2.0'     # the version offered for download; s206 holds it to th
 # day SITE_VERSION becomes 2.x the same pages describe it as here, with no other edit. A page is never ahead of the
 # download.
 RELEASED_20 = int(SITE_VERSION.split('.')[0]) >= 2
-SITE_UPDATED = '2026-11-08'   # the last time the site's pages changed (each sitemap entry's lastmod, the videos' date)
+SITE_UPDATED = '2026-11-10'   # the last time the site's pages changed (each sitemap entry's lastmod, the videos' date)
 NEW20 = 'New in 2.0' if RELEASED_20 else 'New in 2.0 · coming soon'
 # Item 82 R7: the last 1.1 stays downloadable under its own name, with its SHA-256. Shown only once the real file's
 # hash is filled in here (release day) - a checksum is never invented.
@@ -855,7 +855,7 @@ _HOME_STRUCTURED_DATA = '<script type="application/ld+json">' + json.dumps({
 def home():
     return render_template_string(BASE_TEMPLATE.replace(
         '{% block content %}{% endblock %}', HOME_CONTENT
-    ), title='Your whole financial picture, explained',
+    ), title='Free personal finance app with a private AI assistant',
        description='Groundwork is a free personal finance app that tracks your whole financial picture, explains it, '
                    'and has nothing to sell you. Ask it about your money and it answers from your own records, on your '
                    'own computer. No account, no subscription, no ads.',
@@ -1345,9 +1345,9 @@ def download():
     <div class="requirements">
       <strong>Requirements:</strong><br>
       Ubuntu 22.04+, Debian 12+, Fedora, or similar (x86_64), on a release that still gets security updates<br>
-      ~150MB disk space<br>
-      4GB RAM<br>
-      Local AI: coming to Linux. Groundwork runs fully without it.<br>
+      ~3GB disk space (includes the built-in local AI model)<br>
+      4GB RAM (8GB+ for the optional local AI)<br>
+      Local AI: built in. Groundwork runs fully without it.<br>
       <a href="/knowledge-base#linux">Installing from source →</a>
     </div>
   </div>
@@ -1363,7 +1363,7 @@ def download():
 """
     return render_template_string(
         BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
-        title='Download',
+        title='Download free for Windows, macOS and Linux',
         description='Download Groundwork free for Windows, macOS, or Linux. No account, no subscription — your financial data stays on your computer.',
         canonical=SITE_URL + '/download'
     )
@@ -1794,7 +1794,7 @@ def about():
 """
     return render_template_string(
         BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
-        title='About',
+        title='About Groundwork, a free and private finance app',
         description='Groundwork is a free personal finance app that tracks your whole financial picture, explains it, and has nothing to sell you.',
         canonical=SITE_URL + '/about'
     )
@@ -2105,7 +2105,7 @@ def features():
 """)
     return render_template_string(
         BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
-        title='Features',
+        title='Features: budget, debt payoff, net worth, health and reports',
         description='Budget, ledger, debt payoff, net worth, investments, health care spending, gifts, trips and reports: everything Groundwork does, in one free app.',
         canonical=SITE_URL + '/features'
     )
