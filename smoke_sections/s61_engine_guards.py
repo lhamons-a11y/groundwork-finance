@@ -281,9 +281,11 @@ def run(ctx):
         check(f'33 Q5 {wf} fetches and verifies the pinned model before packaging (any failure fails the build)',
               'fetch_model.py' in text and text.index('fetch_model.py') < text.index('pyinstaller groundwork_'))
     site = ctx.BASE.joinpath('Website', 'website.py').read_text(encoding='utf-8')
-    check('33 Q7 the website says what is true: Mac local AI is built in on Metal from macOS 14; Linux local AI is coming',
+    # 2026-11-11: the Linux tarball ships the engine and the model (linux-build.yml checks both), so the site says built in.
+    check('33 Q7 the website says what is true: Mac local AI is built in on Metal from macOS 14; Linux local AI is built in',
           "Local AI: built in, on Apple's graphics (Metal)." in site and 'macOS 14 Sonoma or later' in site
-          and 'macOS 12' not in site and 'Tahoe' not in site and 'Local AI: coming to Linux.' in site)
+          and 'macOS 12' not in site and 'Tahoe' not in site and 'coming to Linux' not in site
+          and 'Local AI: built in. Groundwork runs fully without it.' in site)
     # Rob 2026-11-06: the floor is 14 (Kokoro's onnxruntime), and the build, the app and the website must all say so.
     mac_wf = ctx.BASE.joinpath('.github', 'workflows', 'macos-build.yml').read_text(encoding='utf-8')
     mac_spec = ctx.BASE.joinpath('groundwork_macos.spec').read_text(encoding='utf-8')
