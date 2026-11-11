@@ -26,10 +26,10 @@ vendor/
 installer_output/
 installer/installer/
 
-# Claude Code local settings — machine-specific, and this one has a live
-# EIA API key baked into its permission strings (curl commands with
-# api_key=... in the URL). Never commit.
-.claude/settings.local.json
+# Claude Code's folder — one machine's setup (settings, dev-server launch paths
+# naming the home folder); settings.local.json has had a live EIA API key in
+# its permission strings. Never commit any of it.
+.claude/
 
 # Real financial data / PII, caught before first commit (2026-07-24):
 # a real statement PDF, a diagnostic dump with real debt balances, and an

@@ -12,7 +12,7 @@ Opened 2026-10-11. Rob, with a screenshot of today's check-in:
 > those savings from the previous weeks have you still have $XXX.xx remaining this month. Also we can give what is
 > know in the week ahead since we have the agent getting bills scheduled. Sunday check-in can become what we hoped a
 > look back at the previous week and what's ahead this week and since we can look at the ledger and see a paycheck
-> will happen this week that can be a notice that this week Groundwork expects 'Both Partner's and Rob's pay period
+> will happen this week that can be a notice that this week Groundwork expects 'Both Rob's and the partner's pay period
 > to be deposited this week' ... if a deposit stops showing up like that Sunday check-in the following week does not
 > mention it. Until Deposits start happening again."*
 
@@ -86,7 +86,7 @@ at $1,329.25. The debt cost $93.69 in interest this week."*
 *Recommended.*
 
 **S7. The week ahead: pay expected, from history.**
-- *"Groundwork expects Rob's and Partner's pay this week."* This comes from each employer's own schedule (item 71
+- *"Groundwork expects Rob's and the partner's pay this week."* This comes from each employer's own schedule (item 71
   D3); it is not a guess.
 - Which person an employer's pay belongs to is **asked once** (*"Whose pay is City of Millbrook?"*, AP4), then used.
 - With no answer yet, the employer's name is used.

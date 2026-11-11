@@ -21,7 +21,7 @@ What stays private, and why:
 The full history stays here; the public copy starts fresh, so nothing ever removed from history can leak.
 
 Before committing, every exported text file is scanned for what must never be public (family names, personal
-addresses, a real bank trace number). One hit and the export stops, leaving nothing committed.
+addresses, a real bank trace number - the list is ~/.config/groundwork/export_never.txt, never committed). One hit and the export stops, leaving nothing committed.
 """
 import re
 import shutil
@@ -32,7 +32,20 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 PRIVATE_DIRS = ('gw 2.0/', '.claude/', 'scripts/mac_kit/results')
 PRIVATE_FILES = re.compile(r'^(GROUNDWORK_[A-Z0-9_]+\.md|deploy\.bat|scripts/export_public\.py)$')
-NEVER = re.compile(r'Partner|Sample|lhamons@|Family|000000000000001|/Users/rob', re.I)
+# The patterns themselves live off GitHub (they name what they look for): one regular expression per line, # for a
+# comment. Without the file the export stops - the check is never skipped.
+NEVER_FILE = Path.home() / '.config' / 'groundwork' / 'export_never.txt'
+
+
+def never():
+    if not NEVER_FILE.exists():
+        sys.exit(f'Stopped: {NEVER_FILE} is missing - the list of what must never be public. Restore it first.')
+    pats = [ln.strip() for ln in NEVER_FILE.read_text(encoding='utf-8').splitlines()
+            if ln.strip() and not ln.lstrip().startswith('#')]
+    if not pats:
+        sys.exit(f'Stopped: {NEVER_FILE} names nothing to look for.')
+    return re.compile('|'.join(f'(?:{p})' for p in pats), re.I)
+
 AUTHOR = 'Groundwork <hello@groundworkfinance.app>'
 
 
@@ -56,6 +69,7 @@ def snapshot():
     files = [f for f in run('git', 'ls-files', '-z', cwd=REPO).split('\0') if f]
     keep = [f for f in files if not private(f)]
 
+    NEVER = never()
     hits = []
     for rel in keep:
         try:

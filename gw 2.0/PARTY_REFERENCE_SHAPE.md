@@ -230,7 +230,7 @@ lineage.party_id` one enforceable target: T-E exactly.
 **Promoted from explanatory prose to an invariant:**
 
 > **Correspondence never crosses foundations.** A `Person` and an institution may
-> participate in a *relation* ("Partner's account is with Lakeview Health" is a relation involving two
+> participate in a *relation* ("a partner's account is with Lakeview Health" is a relation involving two
 > parties); they may never be collapsed by *correspondence*. An institution's external
 > identifier cannot establish correspondence to a `Person` because the same string appears
 > somewhere.
